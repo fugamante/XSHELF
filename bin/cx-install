@@ -28,4 +28,42 @@ else
   echo "Installed cx utilities into $SHELL_RC"
 fi
 
+install_manpage() {
+  local src="${REPO_ROOT}/docs/man/cx.1"
+  [[ -f "$src" ]] || return 0
+
+  local candidates=()
+  if command -v brew >/dev/null 2>&1; then
+    local hb_prefix
+    hb_prefix="$(brew --prefix 2>/dev/null || true)"
+    if [[ -n "$hb_prefix" ]]; then
+      candidates+=("$hb_prefix/share/man/man1")
+    fi
+  fi
+  candidates+=(
+    "/opt/homebrew/share/man/man1"
+    "/usr/local/share/man/man1"
+    "$HOME/.local/share/man/man1"
+    "$HOME/man/man1"
+  )
+
+  local target=""
+  local dir
+  for dir in "${candidates[@]}"; do
+    if mkdir -p "$dir" 2>/dev/null; then
+      target="$dir"
+      break
+    fi
+  done
+  if [[ -z "$target" ]]; then
+    echo "cx-install: warning: could not install cx.1 into a writable manpath target" >&2
+    return 0
+  fi
+
+  cp "$src" "$target/cx.1"
+  echo "Installed man page: $target/cx.1"
+}
+
+install_manpage
+
 echo "Run: source \"$SHELL_RC\""

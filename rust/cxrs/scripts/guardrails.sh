@@ -11,7 +11,10 @@ echo "guardrails: cargo clippy --all-targets -- -D warnings -D clippy::too_many_
 cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
 
 echo "guardrails: function name length (max=52)"
-python3 ./scripts/check_fn_name_length.py --root . --max-len 52
+python3 ./scripts/check_fn_name_length.py --root . --max-len 52 --max-segments 3 --allowlist ./config/fn_segments_allowlist.txt
+
+echo "guardrails: file naming segments (max=3; grandfathered allowlist)"
+python3 ./scripts/check_name_segments.py --root . --max-segments 3 --allowlist ./config/file_segments_allowlist.txt
 
 echo "guardrails: rust symbol naming (fn/struct/enum/trait/type/const)"
 python3 ./scripts/check_rust_naming.py --root . --max-fn-len 52 --max-type-len 48 --max-const-len 48

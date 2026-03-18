@@ -39,6 +39,7 @@ Current scope:
 - quality gate currently clean (`file_violations=0`, `function_violations=0`)
 - naming guardrails enforce concise Rust symbols and test names in CI/local checks
 - test naming guardrail covers both `#[test]` and async forms like `#[tokio::test]`
+- readability discipline enforces max 3 segments (2 underscores) for new file/function names via grandfathered allowlists
 
 This crate is authoritative runtime behavior for `cx`.
 Bash is reduced to a thin bootstrap shim and no longer provides command fallback.
