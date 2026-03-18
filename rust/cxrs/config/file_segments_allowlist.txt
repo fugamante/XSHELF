@@ -1,0 +1,8 @@
+# Grandfathered file stems with >3 segments (max 2 underscores policy).
+# New file names should satisfy <=3 segments.
+backend_benchmark_report_tests
+backend_benchmark_strict_tests
+broker_benchmark_json_contract
+check_fn_name_length
+check_rs_max_lines
+cli_edge_case_tests
