@@ -92,13 +92,10 @@ The runtime pipeline is unified in Rust:
 
 Structured commands are schema-enforced from `.codex/schemas/` and deterministic by default.
 
-## Design Contract
+## Design Discipline
 
-CX design and readability standards are documented in:
-
-- `docs/CX_DESIGN_CONTRACT.md`
-
-This includes the naming readability rule now enforced in guardrails:
+CX design/readability standards are enforced through guardrails and local template policy.
+Current repository-enforced naming readability rule:
 - max `3` segments (`2` underscores) for new file stems/functions/tests
 - grandfathered allowlists for legacy names only
 
