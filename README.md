@@ -92,6 +92,16 @@ The runtime pipeline is unified in Rust:
 
 Structured commands are schema-enforced from `.codex/schemas/` and deterministic by default.
 
+## Design Contract
+
+CX design and readability standards are documented in:
+
+- `docs/CX_DESIGN_CONTRACT.md`
+
+This includes the naming readability rule now enforced in guardrails:
+- max `3` segments (`2` underscores) for new file stems/functions/tests
+- grandfathered allowlists for legacy names only
+
 ## Repository Layout
 
 - `bin/cx` - single entrypoint, Rust-first dispatcher
@@ -165,6 +175,13 @@ cd <repo-root>
 ./bin/cx version
 ./bin/cx core
 ./bin/cx cxo git status
+```
+
+Man page:
+
+```bash
+./bin/cx-install
+man cx
 ```
 
 Quick runtime verification:
