@@ -167,6 +167,13 @@ cd <repo-root>
 ./bin/cx cxo git status
 ```
 
+Man page:
+
+```bash
+./bin/cx-install
+man cx
+```
+
 Quick runtime verification:
 
 ```bash
