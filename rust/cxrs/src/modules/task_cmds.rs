@@ -1129,10 +1129,17 @@ pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
     match sub {
         "add" => (deps.cmd_task_add)(app_name, &args[1..]),
         "list" => handle_list(app_name, args, deps),
-        "show" => match require_id(app_name, args, "show") {
-            Ok(id) => (deps.cmd_task_show)(&id),
-            Err(code) => code,
-        },
+        "show" => {
+            if args.len() == 1 || args.get(1).map(String::as_str) == Some("list") {
+                let mut list_args = vec!["list".to_string()];
+                list_args.extend(args.iter().skip(2).cloned());
+                return handle_list(app_name, &list_args, deps);
+            }
+            match require_id(app_name, args, "show") {
+                Ok(id) => (deps.cmd_task_show)(&id),
+                Err(code) => code,
+            }
+        }
         "claim" => match require_id(app_name, args, "claim") {
             Ok(id) => cmd_task_set_status(&id, "in_progress"),
             Err(code) => code,

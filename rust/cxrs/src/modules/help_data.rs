@@ -331,8 +331,8 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task show",
-        usage: "cx task show <id>",
-        description: "Show one task record",
+        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed]",
+        description: "Show one task record or route to list view",
     },
     CommandHelp {
         name: "task fanout",
