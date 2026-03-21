@@ -74,6 +74,22 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     for row in task_rows {
         assert!(row.get("worker_id").is_some(), "missing worker_id: {row}");
         assert!(row.get("queue_ms").is_some(), "missing queue_ms: {row}");
+        assert!(
+            row.get("queue_started_at")
+                .and_then(Value::as_str)
+                .is_some(),
+            "missing queue_started_at: {row}"
+        );
+        assert!(
+            row.get("task_started_at").and_then(Value::as_str).is_some(),
+            "missing task_started_at: {row}"
+        );
+        assert!(
+            row.get("task_finished_at")
+                .and_then(Value::as_str)
+                .is_some(),
+            "missing task_finished_at: {row}"
+        );
     }
 }
 

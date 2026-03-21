@@ -131,6 +131,18 @@ fn base_execution_log(
     let queue_ms = env::var("CX_TASK_QUEUE_MS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok());
+    let queue_started_at = env::var("CX_TASK_QUEUE_STARTED_AT")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let task_started_at = env::var("CX_TASK_STARTED_AT")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let task_finished_at = env::var("CX_TASK_FINISHED_AT")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
     let retry_attempt = env::var("CX_TASK_RETRY_ATTEMPT")
         .ok()
         .and_then(|v| v.parse::<u32>().ok());
@@ -173,6 +185,9 @@ fn base_execution_log(
         converge_winner,
         converge_votes,
         queue_ms,
+        queue_started_at,
+        task_started_at,
+        task_finished_at,
         retry_attempt,
         retry_max,
         retry_reason,
@@ -254,6 +269,9 @@ pub fn log_codex_run(input: RunLogInput<'_>) -> Result<(), String> {
     row.prompt_preview = Some(prompt_preview(filtered_prompt, 180));
     row.policy_blocked = input.policy_blocked;
     row.policy_reason = input.policy_reason.map(|s| s.to_string());
+    if row.task_id.is_some() && row.task_finished_at.is_none() {
+        row.task_finished_at = Some(utc_now_iso());
+    }
 
     finalize_and_append_run(&run_log, row)
 }

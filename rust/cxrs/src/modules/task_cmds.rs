@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use crate::cmdctx::CmdCtx;
 use crate::config::app_config;
+use crate::execmeta::utc_now_iso;
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, set_state_path};
@@ -192,6 +193,7 @@ struct PendingLaunch {
     id: String,
     backend: String,
     queue_since: Instant,
+    queue_started_at: String,
 }
 
 struct ActiveLaunch {
@@ -328,9 +330,15 @@ where
     let prev_max = env::var("CX_TASK_RETRY_MAX").ok();
     let prev_reason = env::var("CX_TASK_RETRY_REASON").ok();
     let prev_backoff = env::var("CX_TASK_RETRY_BACKOFF_MS").ok();
+    let prev_queue_started_at = env::var("CX_TASK_QUEUE_STARTED_AT").ok();
+    let prev_task_started_at = env::var("CX_TASK_STARTED_AT").ok();
+    let prev_task_finished_at = env::var("CX_TASK_FINISHED_AT").ok();
     unsafe {
         env::set_var("CX_TASK_RETRY_ATTEMPT", attempt.to_string());
         env::set_var("CX_TASK_RETRY_MAX", retry_max.to_string());
+        env::set_var("CX_TASK_QUEUE_STARTED_AT", utc_now_iso());
+        env::set_var("CX_TASK_STARTED_AT", utc_now_iso());
+        env::remove_var("CX_TASK_FINISHED_AT");
     }
     match retry_reason {
         Some(v) if !v.trim().is_empty() => unsafe { env::set_var("CX_TASK_RETRY_REASON", v) },
@@ -357,6 +365,18 @@ where
         Some(v) => unsafe { env::set_var("CX_TASK_RETRY_BACKOFF_MS", v) },
         None => unsafe { env::remove_var("CX_TASK_RETRY_BACKOFF_MS") },
     }
+    match prev_queue_started_at {
+        Some(v) => unsafe { env::set_var("CX_TASK_QUEUE_STARTED_AT", v) },
+        None => unsafe { env::remove_var("CX_TASK_QUEUE_STARTED_AT") },
+    }
+    match prev_task_started_at {
+        Some(v) => unsafe { env::set_var("CX_TASK_STARTED_AT", v) },
+        None => unsafe { env::remove_var("CX_TASK_STARTED_AT") },
+    }
+    match prev_task_finished_at {
+        Some(v) => unsafe { env::set_var("CX_TASK_FINISHED_AT", v) },
+        None => unsafe { env::remove_var("CX_TASK_FINISHED_AT") },
+    }
     out
 }
 
@@ -368,6 +388,7 @@ fn run_task_managed_subprocess(
     id: String,
     backend: String,
     queue_ms: u64,
+    queue_started_at: String,
     worker_id: String,
     task_parent_id: Option<String>,
     max_retries: u32,
@@ -381,6 +402,9 @@ fn run_task_managed_subprocess(
         cmd.args(["--backend", &backend]);
         cmd.env("CX_TASK_ID", &id);
         cmd.env("CX_TASK_QUEUE_MS", queue_ms.to_string());
+        cmd.env("CX_TASK_QUEUE_STARTED_AT", &queue_started_at);
+        cmd.env("CX_TASK_STARTED_AT", utc_now_iso());
+        cmd.env_remove("CX_TASK_FINISHED_AT");
         cmd.env("CX_TASK_WORKER_ID", &worker_id);
         cmd.env("CX_TASK_RETRY_ATTEMPT", attempt.to_string());
         cmd.env("CX_TASK_RETRY_MAX", max_retries.to_string());
@@ -911,6 +935,7 @@ fn run_schedule_parallel(
             )
             .unwrap_or_else(|| available[0].clone()),
             queue_since: Instant::now(),
+            queue_started_at: utc_now_iso(),
         })
         .collect();
     let mut active: Vec<ActiveLaunch> = Vec::new();
@@ -958,6 +983,7 @@ fn run_schedule_parallel(
                     id,
                     backend,
                     queue_ms,
+                    launch.queue_started_at,
                     worker_id,
                     task_parent_id,
                     max_retries,
