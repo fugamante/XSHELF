@@ -772,7 +772,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
-fn run_all_dry_strict() {
+fn run_strict_dry() {
     let repo = TempRepo::new("cxrs-it");
     let root = repo.run(&[
         "task",
