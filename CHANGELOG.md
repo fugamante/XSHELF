@@ -42,6 +42,12 @@ Notes:
   - `task run-all` now accepts `--mode parallel` (default remains `sequential`).
   - added `--strict-plan` for `--mode parallel` to fail fast when plan waves indicate serialization constraints (dependencies/resource locks).
   - added `--plan-json` dry-run payload for CI/operator gating (`task-run-plan.v1`) with `strict_plan_ok` and `can_execute`.
+  - enriched `--plan-json` payload with deterministic planning diagnostics:
+    - `strict_plan_reason`
+    - `wave_count`
+    - `parallel_task_count`
+    - `sequential_task_count`
+    - `blocked_count`
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`

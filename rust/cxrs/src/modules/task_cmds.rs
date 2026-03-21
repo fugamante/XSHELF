@@ -862,6 +862,25 @@ fn plan_json_out(
     plan: &crate::tasks_plan::TaskRunPlan,
     strict_ok: bool,
 ) -> i32 {
+    let wave_count = plan.waves.len() as u64;
+    let parallel_task_count = plan
+        .waves
+        .iter()
+        .filter(|w| w.mode == "parallel")
+        .map(|w| w.task_ids.len() as u64)
+        .sum::<u64>();
+    let sequential_task_count = plan
+        .waves
+        .iter()
+        .filter(|w| w.mode != "parallel")
+        .map(|w| w.task_ids.len() as u64)
+        .sum::<u64>();
+    let blocked_count = plan.blocked.len() as u64;
+    let strict_reason = if options.strict_plan && !strict_ok && options.run_mode == "parallel" {
+        strict_issue_parallel(plan)
+    } else {
+        None
+    };
     let can_execute = plan.blocked.is_empty() && (!options.strict_plan || strict_ok);
     let payload = serde_json::json!({
         "contract_version": "task-run-plan.v1",
@@ -869,7 +888,12 @@ fn plan_json_out(
         "requested_mode": options.run_mode,
         "strict_plan": options.strict_plan,
         "strict_plan_ok": strict_ok,
+        "strict_plan_reason": strict_reason,
         "can_execute": can_execute,
+        "wave_count": wave_count,
+        "parallel_task_count": parallel_task_count,
+        "sequential_task_count": sequential_task_count,
+        "blocked_count": blocked_count,
         "selected": plan.selected,
         "waves": plan.waves,
         "blocked": plan.blocked
