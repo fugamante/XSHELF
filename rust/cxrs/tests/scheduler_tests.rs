@@ -878,7 +878,7 @@ fn plan_json_contract() {
         stderr_str(&out)
     );
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("plan json");
-    let fixture = load_fixture_json("task_run_plan_json_contract.json");
+    let fixture = load_fixture_json("plan_json_contract.json");
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "task_run_plan.top");
 
