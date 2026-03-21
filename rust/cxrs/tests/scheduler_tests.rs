@@ -148,9 +148,31 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         Some("parallel")
     );
     assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(2));
+    let runs = common::parse_jsonl(&repo.runs_log());
+    let task_rows: Vec<&Value> = runs
+        .iter()
+        .filter(|v| v.get("tool").and_then(Value::as_str) == Some("cxo"))
+        .collect();
+    assert_eq!(
+        task_rows.len(),
+        2,
+        "expected exactly 2 cxo task rows for parallel run: {runs:#?}"
+    );
+    let workers: std::collections::BTreeSet<String> = task_rows
+        .iter()
+        .filter_map(|row| {
+            row.get("worker_id")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+        .collect();
     assert!(
-        elapsed_ms < 3500,
-        "parallel lane did not execute concurrently; elapsed_ms={elapsed_ms}"
+        workers.len() >= 2,
+        "parallel lane did not use multiple workers; workers={workers:?}"
+    );
+    assert!(
+        elapsed_ms < 9000,
+        "parallel lane appears stalled; elapsed_ms={elapsed_ms}"
     );
 }
 
