@@ -843,3 +843,60 @@ fn plan_json_strict() {
         Some(0)
     );
 }
+
+#[test]
+fn plan_json_matches_contract_fixture() {
+    let repo = TempRepo::new("cxrs-it");
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo plan-contract-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--plan-json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("plan json");
+    let fixture = load_fixture_json("task_run_plan_json_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&payload, &top_keys, "task_run_plan.top");
+
+    let wave_keys = fixture_keys(&fixture, "wave_keys");
+    for wave in payload
+        .get("waves")
+        .and_then(Value::as_array)
+        .expect("waves array")
+    {
+        assert_has_keys(wave, &wave_keys, "task_run_plan.waves.item");
+    }
+
+    let blocked_keys = fixture_keys(&fixture, "blocked_keys");
+    for blocked in payload
+        .get("blocked")
+        .and_then(Value::as_array)
+        .expect("blocked array")
+    {
+        assert_has_keys(blocked, &blocked_keys, "task_run_plan.blocked.item");
+    }
+}
