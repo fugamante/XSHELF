@@ -79,7 +79,7 @@ pub fn runtime_json_signals() -> JsonSignals {
     }
 }
 
-fn auto_json_from_signals(sig: &JsonSignals) -> Option<(bool, String, u8)> {
+fn auto_mode(sig: &JsonSignals) -> Option<(bool, String, u8)> {
     if !sig.auto_enabled {
         return None;
     }
@@ -142,7 +142,7 @@ pub fn decide_json_mode(cli: Option<bool>, command_default: bool) -> JsonDecisio
             signals,
         };
     }
-    if let Some((json_out, reason, confidence_pct)) = auto_json_from_signals(&signals) {
+    if let Some((json_out, reason, confidence_pct)) = auto_mode(&signals) {
         return JsonDecision {
             json_out,
             source: "auto",
@@ -176,51 +176,51 @@ pub fn resolve_json_mode(cli: Option<bool>, command_default: bool) -> bool {
 mod tests {
     use super::*;
 
-    fn auto_json(sig: JsonSignals) -> Option<(bool, String, u8)> {
-        auto_json_from_signals(&sig)
+    fn auto(sig: JsonSignals) -> Option<(bool, String, u8)> {
+        auto_mode(&sig)
     }
 
     #[test]
-    fn auto_ci_prefers_json() {
+    fn ci_json() {
         let sig = JsonSignals {
             stdout_tty: true,
             stdin_tty: true,
             ci: true,
             auto_enabled: true,
         };
-        assert_eq!(auto_json(sig).map(|v| v.0), Some(true));
+        assert_eq!(auto(sig).map(|v| v.0), Some(true));
     }
 
     #[test]
-    fn auto_tty_prefers_text() {
+    fn tty_text() {
         let sig = JsonSignals {
             stdout_tty: true,
             stdin_tty: true,
             ci: false,
             auto_enabled: true,
         };
-        assert_eq!(auto_json(sig).map(|v| v.0), Some(false));
+        assert_eq!(auto(sig).map(|v| v.0), Some(false));
     }
 
     #[test]
-    fn auto_piped_stdout_prefers_json() {
+    fn pipe_json() {
         let sig = JsonSignals {
             stdout_tty: false,
             stdin_tty: true,
             ci: false,
             auto_enabled: true,
         };
-        assert_eq!(auto_json(sig).map(|v| v.0), Some(true));
+        assert_eq!(auto(sig).map(|v| v.0), Some(true));
     }
 
     #[test]
-    fn auto_can_be_disabled() {
+    fn auto_off() {
         let sig = JsonSignals {
             stdout_tty: false,
             stdin_tty: false,
             ci: true,
             auto_enabled: false,
         };
-        assert!(auto_json(sig).is_none());
+        assert!(auto(sig).is_none());
     }
 }
