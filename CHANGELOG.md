@@ -26,6 +26,10 @@ Notes:
 - Task orchestration UX refinement:
   - `cx task show <id>` now includes `latest_run` summary when run logs contain task-linked executions.
   - summary includes execution id/time/tool/backend/mode/duration plus safety outcome flags.
+  - added integrated alias routing:
+    - `cx task show list`
+    - `cx task show list --status <...>`
+    - bare `cx task show` now routes to list view.
 - Provider quota catalog commands:
   - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.

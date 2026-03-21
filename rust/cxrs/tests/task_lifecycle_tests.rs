@@ -93,3 +93,22 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "missing duration_ms: {latest}"
     );
 }
+
+#[test]
+fn task_show_list_alias() {
+    let repo = TempRepo::new("cxrs-it");
+    let add = repo.run(&["task", "add", "Alias list", "--role", "implementer"]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+
+    let show_list = repo.run(&["task", "show", "list"]);
+    assert!(
+        show_list.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show_list),
+        stderr_str(&show_list)
+    );
+    let text = stdout_str(&show_list);
+    assert!(text.contains("id | role | status | parent_id | objective"));
+    assert!(text.contains(&id), "{text}");
+}
