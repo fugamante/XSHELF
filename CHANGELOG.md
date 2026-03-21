@@ -49,6 +49,7 @@ Notes:
     - `sequential_task_count`
     - `blocked_count`
   - added fixture-backed contract coverage for `task-run-plan.v1` to lock top-level/wave/blocked key stability.
+  - added fixture-backed contract coverage for `task-run-all.v1` top-level/task item keys.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`
