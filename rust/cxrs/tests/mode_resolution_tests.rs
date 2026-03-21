@@ -41,7 +41,7 @@ fn mode_auto_tty() {
 }
 
 #[test]
-fn mode_env_over_auto() {
+fn env_over_auto() {
     let repo = TempRepo::new("cxrs-it");
     let payload = mode_json(&repo, &[("CX_JSON_AUTO", "1"), ("CX_JSON_DEFAULT", "0")]);
     assert_eq!(payload.get("source").and_then(Value::as_str), Some("env"));
@@ -52,7 +52,7 @@ fn mode_env_over_auto() {
 }
 
 #[test]
-fn mode_state_when_env_nil() {
+fn state_env_nil() {
     let repo = TempRepo::new("cxrs-it");
     let state = repo.state_file();
     fs::create_dir_all(state.parent().expect("state parent")).expect("mkdir state parent");
@@ -67,7 +67,7 @@ fn mode_state_when_env_nil() {
 }
 
 #[test]
-fn mode_cli_over_env() {
+fn cli_over_env() {
     let repo = TempRepo::new("cxrs-it");
     let out = repo.run_with_env(
         &["mode", "--json", "--cli", "text"],
