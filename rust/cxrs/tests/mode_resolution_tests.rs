@@ -86,3 +86,21 @@ fn cli_over_env() {
         Some("text")
     );
 }
+
+#[test]
+fn auto_diag_json() {
+    let repo = TempRepo::new("cxrs-it");
+    let out = repo.run_with_env(&["diag", "--window", "5"], &[("CX_JSON_AUTO", "1")]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("diag.v1")
+    );
+    assert!(payload.get("routing_trace").is_some(), "payload={payload}");
+}

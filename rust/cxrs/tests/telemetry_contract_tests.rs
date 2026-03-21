@@ -82,6 +82,10 @@ fn logs_stats_alias_reports_population_drift() {
     assert!(critical.get("summary_rows").is_some());
     assert!(critical.get("halted_rows").is_some());
     assert!(critical.get("critical_errors_total").is_some());
+    let timing = v.get("timing_telemetry").expect("timing_telemetry");
+    assert!(timing.get("task_rows").is_some());
+    assert!(timing.get("rows_with_worker_id").is_some());
+    assert!(timing.get("rows_with_queue_ms").is_some());
     let http_modes = v
         .get("http_mode_stats")
         .and_then(Value::as_array)
@@ -149,6 +153,12 @@ fn telemetry_json_matches_contract_fixture() {
             .expect("critical_telemetry"),
         &critical_keys,
         "telemetry.critical_telemetry",
+    );
+    let timing_keys = fixture_keys(&fixture, "timing_keys");
+    assert_has_keys(
+        payload.get("timing_telemetry").expect("timing_telemetry"),
+        &timing_keys,
+        "telemetry.timing_telemetry",
     );
     let item_keys = fixture_keys(&fixture, "http_mode_item_keys");
     let modes = payload

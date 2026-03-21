@@ -1,7 +1,7 @@
 # Provider Adapter Plan (Experimental)
 
 Branch: `codex/provider-adapter-phase1`
-Status: active (Phase 1-5 complete, Phase 6 rollout criteria in progress)
+Status: active (Phase 1-5 complete, Phase 6 rollout criteria defined)
 Owner: CX runtime
 
 ## Objective
@@ -118,13 +118,31 @@ Error classification:
 ### Phase 6: Rollout Criteria
 
 Tasks:
-- update docs and operational guidance
-- define merge conditions to main
+- freeze adapter rollout gates and operational playbook
+- define explicit go/no-go criteria for default-path discussions
+- keep HTTP adapter opt-in while gathering stability telemetry
 
 Acceptance:
 - all gates green
 - no increase in schema failure rates in test corpus
 - telemetry contract remains append-safe
+
+Rollout policy (finalized):
+1. Default transport remains `process` unless an explicit adapter override is set.
+2. HTTP adapter remains opt-in (`CX_PROVIDER_ADAPTER=http-curl|http-stub`) for all environments.
+3. Any default-path proposal must show two consecutive green CI windows with:
+   - `cargo test --tests -- --test-threads=1` passing
+   - no schema contract regressions
+   - stable `http_mode_stats` health ratio in telemetry output
+4. Rollback rule: if schema failures or transport errors increase after adapter changes, revert to process adapter default in the same release window.
+
+Merge checklist for main:
+- [x] Phase 1-5 code paths merged and validated
+- [x] adapter telemetry fields present in logs (`adapter_type`, `provider_transport`, `provider_status`)
+- [x] deterministic failure classification for HTTP adapter
+- [x] mock adapter deterministic test coverage
+- [x] strict CI contract gates enforced (fmt/clippy/tests/log contracts)
+- [x] operator docs updated with opt-in behavior and diagnostics commands
 
 ## Technical Contract (Proposed)
 
