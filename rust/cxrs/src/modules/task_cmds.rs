@@ -488,6 +488,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "contract_version": "task-run-all.v1",
                     "status_filter": options.status_filter,
                     "mode": options.run_mode,
+                    "strict_plan": options.strict_plan,
                     "scheduled": 0,
                     "complete": 0,
                     "failed": 0,
@@ -510,6 +511,29 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
         let plan = build_task_run_plan(&tasks, &options.status_filter);
+        if options.strict_plan && options.run_mode == "parallel" {
+            if !plan.blocked.is_empty() {
+                crate::cx_eprintln!(
+                    "cxrs task run-all: strict-plan failed (blocked dependencies present)"
+                );
+                for b in &plan.blocked {
+                    crate::cx_eprintln!(" - {}: {}", b.id, b.reason);
+                }
+                return 1;
+            }
+            let single_wave = plan.waves.len() == 1;
+            let all_parallel = plan.waves.iter().all(|w| w.mode == "parallel");
+            if !(single_wave && all_parallel) {
+                crate::cx_eprintln!(
+                    "cxrs task run-all: strict-plan failed (parallel mode would serialize across waves)"
+                );
+                crate::cx_eprintln!(
+                    "hint: run 'cx task run-plan --status {}' and use --mode mixed or resolve dependencies/resource locks",
+                    options.status_filter
+                );
+                return 1;
+            }
+        }
         if !plan.blocked.is_empty() {
             crate::cx_eprintln!("cxrs task run-all: blocked tasks prevent full schedule:");
             for b in &plan.blocked {
@@ -736,6 +760,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "contract_version": "task-run-all.v1",
             "status_filter": options.status_filter,
             "mode": options.run_mode,
+            "strict_plan": options.strict_plan,
             "scheduled": scheduled_count,
             "complete": summary.ok,
             "failed": summary.failed,
@@ -756,8 +781,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
     } else {
         println!(
-            "run-all summary: mode={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
+            "run-all summary: mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
             options.run_mode,
+            options.strict_plan,
             summary.ok,
             summary.failed,
             summary.blocked,
@@ -788,6 +814,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 struct RunAllOptions {
     status_filter: String,
     run_mode: String,
+    strict_plan: bool,
     backend_pool: Vec<String>,
     backend_caps: HashMap<String, usize>,
     max_workers: usize,
@@ -889,10 +916,11 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
+    let mut strict_plan = false;
     let mut backend_pool = default_backend_pool();
     let mut backend_caps: HashMap<String, usize> = HashMap::new();
     let mut max_workers = 1usize;
@@ -1001,6 +1029,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 as_json = Some(false);
                 i += 1;
             }
+            "--strict-plan" => {
+                strict_plan = true;
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run-all: unknown flag '{other}'");
                 return Err(2);
@@ -1010,6 +1042,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
     Ok(RunAllOptions {
         status_filter,
         run_mode,
+        strict_plan,
         backend_pool,
         backend_caps,
         max_workers,
@@ -1439,6 +1472,13 @@ mod tests {
         ];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert_eq!(opts.run_mode, "parallel");
+    }
+
+    #[test]
+    fn parse_strict_plan() {
+        let args = vec!["run-all".to_string(), "--strict-plan".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(opts.strict_plan);
     }
 
     #[test]
