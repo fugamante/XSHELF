@@ -722,6 +722,19 @@ fn plan_json_dry() {
         payload.get("can_execute").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(payload.get("wave_count").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        payload.get("parallel_task_count").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        payload.get("sequential_task_count").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        payload.get("blocked_count").and_then(Value::as_u64),
+        Some(0)
+    );
 
     let tasks = read_json(&repo.tasks_file());
     let arr = tasks.as_array().expect("tasks array");
@@ -797,5 +810,14 @@ fn plan_json_strict() {
     assert_eq!(
         payload.get("can_execute").and_then(Value::as_bool),
         Some(false)
+    );
+    assert_eq!(
+        payload.get("strict_plan_reason").and_then(Value::as_str),
+        Some("parallel mode would serialize across waves")
+    );
+    assert_eq!(payload.get("wave_count").and_then(Value::as_u64), Some(2));
+    assert_eq!(
+        payload.get("blocked_count").and_then(Value::as_u64),
+        Some(0)
     );
 }
