@@ -43,6 +43,8 @@ mod execution_logging;
 mod help;
 #[path = "modules/introspect.rs"]
 mod introspect;
+#[path = "modules/json_mode.rs"]
+mod json_mode;
 #[path = "modules/llm.rs"]
 mod llm;
 #[path = "modules/log_contract.rs"]

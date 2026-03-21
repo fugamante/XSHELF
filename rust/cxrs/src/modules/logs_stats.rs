@@ -1,4 +1,5 @@
 use crate::contract_versions::TELEMETRY_JSON_CONTRACT_VERSION;
+use crate::json_mode::resolve_json_mode;
 use crate::log_contract::REQUIRED_STRICT_FIELDS;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
@@ -16,12 +17,16 @@ struct StatsArgs {
 
 fn parse_stats_args(app_name: &str, args: &[String]) -> Result<StatsArgs, i32> {
     let mut n = 200usize;
-    let mut json_out = false;
+    let mut json_out: Option<bool> = None;
     let mut strict = false;
     let mut severity = false;
     for a in args.iter().skip(1) {
         if a == "--json" {
-            json_out = true;
+            json_out = Some(true);
+            continue;
+        }
+        if a == "--text" {
+            json_out = Some(false);
             continue;
         }
         if a == "--strict" {
@@ -36,7 +41,7 @@ fn parse_stats_args(app_name: &str, args: &[String]) -> Result<StatsArgs, i32> {
             Ok(v) if v > 0 => n = v,
             _ => {
                 crate::cx_eprintln!(
-                    "Usage: {app_name} logs stats [N] [--json] [--strict] [--severity]"
+                    "Usage: {app_name} logs stats [N] [--json|--text] [--strict] [--severity]"
                 );
                 return Err(2);
             }
@@ -44,7 +49,7 @@ fn parse_stats_args(app_name: &str, args: &[String]) -> Result<StatsArgs, i32> {
     }
     Ok(StatsArgs {
         n,
-        json_out,
+        json_out: resolve_json_mode(json_out, false),
         strict,
         severity,
     })

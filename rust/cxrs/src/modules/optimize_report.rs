@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 
 use crate::contract_versions::OPTIMIZE_JSON_CONTRACT_VERSION;
+use crate::json_mode::resolve_json_mode;
 use crate::logs::load_runs;
 use crate::optimize_rules::{
     RecommendationInput, build_recommendations, push_cache_anomaly, push_clip_anomaly,
@@ -38,7 +39,7 @@ fn severity_rank(level: &str) -> i32 {
 
 pub fn parse_optimize_args(args: &[String], default_n: usize) -> Result<OptimizeArgs, String> {
     let mut n = default_n;
-    let mut json_out = false;
+    let mut json_out: Option<bool> = None;
     let mut actions = false;
     let mut strict = false;
     let mut severity_floor: Option<String> = None;
@@ -46,7 +47,11 @@ pub fn parse_optimize_args(args: &[String], default_n: usize) -> Result<Optimize
     while i < args.len() {
         match args[i].as_str() {
             "--json" => {
-                json_out = true;
+                json_out = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                json_out = Some(false);
                 i += 1;
             }
             "--actions" => {
@@ -79,7 +84,13 @@ pub fn parse_optimize_args(args: &[String], default_n: usize) -> Result<Optimize
             }
         }
     }
-    Ok((n, json_out, actions, strict, severity_floor))
+    Ok((
+        n,
+        resolve_json_mode(json_out, false),
+        actions,
+        strict,
+        severity_floor,
+    ))
 }
 
 fn empty_report(n: usize, log_file: &std::path::Path) -> Value {

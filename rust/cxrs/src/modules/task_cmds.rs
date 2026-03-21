@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 use crate::cmdctx::CmdCtx;
 use crate::config::app_config;
 use crate::execmeta::utc_now_iso;
+use crate::json_mode::resolve_json_mode;
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, set_state_path};
@@ -885,7 +886,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
@@ -894,7 +895,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
     let mut max_workers = 1usize;
     let mut fairness = "round_robin".to_string();
     let mut halt_on_critical = app_config().task_halt_on_critical;
-    let mut as_json = false;
+    let mut as_json: Option<bool> = None;
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -990,7 +991,11 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 i += 1;
             }
             "--json" => {
-                as_json = true;
+                as_json = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                as_json = Some(false);
                 i += 1;
             }
             other => {
@@ -1007,7 +1012,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         max_workers,
         fairness,
         halt_on_critical,
-        as_json,
+        as_json: resolve_json_mode(as_json, false),
     })
 }
 
@@ -1420,6 +1425,23 @@ mod tests {
         let args = vec!["run-all".to_string(), "--halt-on-critical".to_string()];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert!(opts.halt_on_critical);
+    }
+
+    #[test]
+    fn parse_run_all_options_json_default_and_text() {
+        let prev = std::env::var("CX_JSON_DEFAULT").ok();
+        unsafe { std::env::set_var("CX_JSON_DEFAULT", "1") };
+        let args = vec!["run-all".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(opts.as_json);
+
+        let args = vec!["run-all".to_string(), "--text".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(!opts.as_json);
+        match prev {
+            Some(v) => unsafe { std::env::set_var("CX_JSON_DEFAULT", v) },
+            None => unsafe { std::env::remove_var("CX_JSON_DEFAULT") },
+        }
     }
 
     #[test]
