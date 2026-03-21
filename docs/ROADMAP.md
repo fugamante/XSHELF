@@ -16,6 +16,7 @@
 - Broaden OS validation matrix (Linux-focused CI pass).
 - Add run-level concurrency telemetry refinement (`worker_id`, queue/start/finish timestamps, attempt) for SLO reporting.
 - Begin Phase VI (parallel execution substrate) on top of mixed-mode scheduler.
+- Lock adapter rollout policy and keep HTTP transport opt-in through Phase VI early cycles.
 - Expand provider adapter coverage beyond current HTTP/process parity.
 
 ## Later (2+ months)
@@ -23,6 +24,14 @@
 - Pluggable backend adapters beyond Codex/Ollama.
 - Incremental CLI packaging/distribution improvements (Homebrew-ready metadata).
 - Optional distributed execution backends (multi-process/remote workers) while preserving current log/schema contracts.
+
+## Phase VI Kickoff (current)
+
+- Detailed kickoff spec: `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- Keep single-worker execution as default; introduce explicit parallel plans only via task orchestration controls.
+- Preserve deterministic schema behavior under mixed/parallel scheduling paths.
+- Expand run-level telemetry quality checks for queue/start/finish attribution and worker-level observability.
+- Require parity + reliability suites green before each Phase VI increment merges.
 
 ## Guardrails
 

@@ -24,6 +24,20 @@ Notes:
     - prints resolved output mode, source, reason, confidence, and runtime signals.
     - supports JSON output via `--json` for machine introspection.
   - added integration coverage in `mode_resolution_tests` for precedence order and signal-driven auto mode.
+  - added end-to-end guard test: `diag` emits JSON contract output when `CX_JSON_AUTO=1`.
+- Telemetry quality refinement:
+  - `logs stats` / `telemetry` now include `timing_telemetry` with:
+    - `task_rows`
+    - `rows_with_worker_id`
+    - `rows_with_queue_ms`
+    - `rows_with_queue_started_at`
+    - `rows_with_task_started_at`
+    - `rows_with_task_finished_at`
+  - telemetry fixture contract updated to include timing coverage keys.
+- Planning/docs updates:
+  - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
+  - added Phase VI kickoff guidance in roadmap.
+  - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
 - Run-level scheduler timing telemetry refinement:
   - run logs now include optional task timing timestamps:
     - `queue_started_at`

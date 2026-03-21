@@ -255,6 +255,31 @@ Examples:
 `llm use`/`llm set-*` now triggers an automatic quota probe notice to stderr.
 For local providers (`ollama`), CX reports a local-unmetered fallback notice when provider quota cannot be resolved.
 
+## Output Mode Resolution
+
+CX supports deterministic output-mode resolution for human and automation paths.
+
+Precedence:
+1. CLI override (`--json` / `--text`)
+2. `CX_JSON_DEFAULT`
+3. `.codex/state.json` at `preferences.default_json_output`
+4. Optional auto signals (`CX_JSON_AUTO=1`)
+5. Command default
+
+Inspect current decision:
+
+```bash
+./bin/cx mode
+./bin/cx mode --json | jq .
+```
+
+Auto-mode examples:
+
+```bash
+CX_JSON_AUTO=1 ./bin/cx diag --window 50
+CX_JSON_AUTO=1 ./bin/cx task run-all --status pending
+```
+
 ## Structured Commands
 
 Schema-enforced commands:

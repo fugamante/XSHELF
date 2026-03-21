@@ -113,6 +113,7 @@ struct StatsComputed {
     severity: &'static str,
     retry: RetryStats,
     critical: CriticalStats,
+    timing: TimingStats,
     http_mode_stats: Vec<HttpModeStat>,
 }
 
@@ -135,6 +136,16 @@ struct CriticalStats {
     halted_rows: usize,
     critical_errors_total: u64,
     runs_with_critical_errors: usize,
+}
+
+#[derive(Debug, Default, Clone)]
+struct TimingStats {
+    rows_with_worker_id: usize,
+    rows_with_queue_ms: usize,
+    rows_with_queue_started_at: usize,
+    rows_with_task_started_at: usize,
+    rows_with_task_finished_at: usize,
+    task_rows: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -187,6 +198,7 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
     );
     let retry = compute_retry_stats(rows);
     let critical = compute_critical_stats(rows);
+    let timing = compute_timing_stats(rows);
     let http_mode_stats = compute_http_mode_stats(rows);
     StatsComputed {
         lines,
@@ -196,8 +208,62 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
         severity,
         retry,
         critical,
+        timing,
         http_mode_stats,
     }
+}
+
+fn compute_timing_stats(rows: &[Value]) -> TimingStats {
+    let mut out = TimingStats::default();
+    for r in rows {
+        let Some(obj) = r.as_object() else {
+            continue;
+        };
+        let has_task = obj
+            .get("task_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty());
+        if has_task {
+            out.task_rows += 1;
+        }
+        if obj
+            .get("worker_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty())
+        {
+            out.rows_with_worker_id += 1;
+        }
+        if obj.get("queue_ms").and_then(Value::as_u64).is_some() {
+            out.rows_with_queue_ms += 1;
+        }
+        if obj
+            .get("queue_started_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty())
+        {
+            out.rows_with_queue_started_at += 1;
+        }
+        if obj
+            .get("task_started_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty())
+        {
+            out.rows_with_task_started_at += 1;
+        }
+        if obj
+            .get("task_finished_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty())
+        {
+            out.rows_with_task_finished_at += 1;
+        }
+    }
+    out
 }
 
 fn compute_http_mode_stats(rows: &[Value]) -> Vec<HttpModeStat> {
@@ -433,6 +499,25 @@ fn print_stats_human(
         "- runs_with_critical_errors: {}",
         stats.critical.runs_with_critical_errors
     );
+    println!("timing_telemetry:");
+    println!("- task_rows: {}", stats.timing.task_rows);
+    println!(
+        "- rows_with_worker_id: {}",
+        stats.timing.rows_with_worker_id
+    );
+    println!("- rows_with_queue_ms: {}", stats.timing.rows_with_queue_ms);
+    println!(
+        "- rows_with_queue_started_at: {}",
+        stats.timing.rows_with_queue_started_at
+    );
+    println!(
+        "- rows_with_task_started_at: {}",
+        stats.timing.rows_with_task_started_at
+    );
+    println!(
+        "- rows_with_task_finished_at: {}",
+        stats.timing.rows_with_task_finished_at
+    );
     println!("http_mode_stats:");
     if stats.http_mode_stats.is_empty() {
         println!("- <none>");
@@ -520,6 +605,14 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
             "halted_rows": stats.critical.halted_rows,
             "critical_errors_total": stats.critical.critical_errors_total,
             "runs_with_critical_errors": stats.critical.runs_with_critical_errors
+        },
+        "timing_telemetry": {
+            "task_rows": stats.timing.task_rows,
+            "rows_with_worker_id": stats.timing.rows_with_worker_id,
+            "rows_with_queue_ms": stats.timing.rows_with_queue_ms,
+            "rows_with_queue_started_at": stats.timing.rows_with_queue_started_at,
+            "rows_with_task_started_at": stats.timing.rows_with_task_started_at,
+            "rows_with_task_finished_at": stats.timing.rows_with_task_finished_at
         },
         "http_mode_stats": stats.http_mode_stats.iter().map(|m| {
             let success_rate = if m.runs == 0 {
