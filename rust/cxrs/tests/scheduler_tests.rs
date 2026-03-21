@@ -155,6 +155,131 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn strict_plan_blocks() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    let root = repo.run(&[
+        "task",
+        "add",
+        "cxo echo strict-root",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+    ]);
+    assert!(root.status.success(), "stderr={}", stderr_str(&root));
+    let root_id = stdout_str(&root).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "cxo echo strict-child",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+        "--depends-on",
+        &root_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--strict-plan",
+        "--backend-pool",
+        "codex",
+        "--max-workers",
+        "2",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("strict-plan failed"),
+        "stderr={}",
+        stderr_str(&out)
+    );
+}
+
+#[test]
+fn strict_plan_allows() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo strict-ok-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+            "--resource-keys",
+            "repo:read",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--strict-plan",
+        "--backend-pool",
+        "codex",
+        "--max-workers",
+        "2",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(
+        payload.get("strict_plan").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(2));
+}
+
+#[test]
 fn run_all_summary_includes_failure_taxonomy_fields() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(

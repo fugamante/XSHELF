@@ -21,9 +21,10 @@ Evolve task orchestration from strictly sequential execution to parallel-ready s
 ## Initial Workstream
 
 1. Keep `task run-all` sequential default and mixed-mode controls stable.
-2. Expand telemetry quality checks for queue/start/finish timing fields.
-3. Validate fairness and retry behavior under backend pool + caps.
-4. Keep adapter HTTP path opt-in only during early Phase VI.
+2. Add explicit parallel lane (`--mode parallel`) with optional strict planning gate (`--strict-plan`).
+3. Expand telemetry quality checks for queue/start/finish timing fields.
+4. Validate fairness and retry behavior under backend pool + caps.
+5. Keep adapter HTTP path opt-in only during early Phase VI.
 
 ## Merge Gate (Phase VI increments)
 
@@ -40,4 +41,5 @@ Evolve task orchestration from strictly sequential execution to parallel-ready s
 ./bin/cx scheduler --json --window 50 | jq .
 ./bin/cx telemetry 200 --json | jq .
 ./bin/cx task run-all --status pending --mode parallel --max-workers 2 --json | jq .
+./bin/cx task run-all --status pending --mode parallel --strict-plan --max-workers 2
 ```

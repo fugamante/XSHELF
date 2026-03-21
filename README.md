@@ -399,6 +399,7 @@ Stage II runtime commands:
 ./bin/cx task run-all --status pending
 ./bin/cx task run-all --status pending --mode mixed
 ./bin/cx task run-all --status pending --mode parallel --max-workers 2
+./bin/cx task run-all --status pending --mode parallel --strict-plan --max-workers 2
 ./bin/cx task run-all --status pending --mode mixed --halt-on-critical
 CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 
@@ -446,6 +447,8 @@ Initial Phase VI scope is active with explicit controls only (no default behavio
 
 Spec:
 - `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- `--strict-plan` can be used with `--mode parallel` to fail fast when dependencies/resource locks would force serialized execution.
+  - note: parallel tasks default to a conservative `repo:write` lock unless you set explicit resource keys.
 
 ## Validation
 
