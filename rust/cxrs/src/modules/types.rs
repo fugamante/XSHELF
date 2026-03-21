@@ -108,6 +108,12 @@ pub struct RunEntry {
     #[serde(default)]
     pub queue_ms: Option<u64>,
     #[serde(default)]
+    pub wave_index: Option<u64>,
+    #[serde(default)]
+    pub wave_mode: Option<String>,
+    #[serde(default)]
+    pub wave_size: Option<u64>,
+    #[serde(default)]
     pub task_id: Option<String>,
     #[serde(default)]
     pub task_parent_id: Option<String>,
@@ -267,6 +273,9 @@ pub struct ExecutionLog {
     pub converge_winner: Option<String>,
     pub converge_votes: Option<Value>,
     pub queue_ms: Option<u64>,
+    pub wave_index: Option<u64>,
+    pub wave_mode: Option<String>,
+    pub wave_size: Option<u64>,
     pub queue_started_at: Option<String>,
     pub task_started_at: Option<String>,
     pub task_finished_at: Option<String>,

@@ -565,6 +565,38 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         .iter()
         .filter(|v| v.get("tool").and_then(Value::as_str) == Some("cxo"))
         .collect();
+    let wave_modes: std::collections::BTreeSet<String> = cxo_rows
+        .iter()
+        .filter_map(|v| {
+            v.get("wave_mode")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+        .collect();
+    let wave_indexes: Vec<u64> = cxo_rows
+        .iter()
+        .filter_map(|v| v.get("wave_index").and_then(Value::as_u64))
+        .collect();
+    let wave_sizes: Vec<u64> = cxo_rows
+        .iter()
+        .filter_map(|v| v.get("wave_size").and_then(Value::as_u64))
+        .collect();
+    assert!(
+        wave_indexes.len() >= 3,
+        "expected wave_index on all task rows; got {cxo_rows:?}"
+    );
+    assert!(
+        wave_sizes.len() >= 3,
+        "expected wave_size on all task rows; got {cxo_rows:?}"
+    );
+    assert!(
+        wave_modes.contains("parallel"),
+        "expected parallel wave mode in mixed run; got {wave_modes:?}"
+    );
+    assert!(
+        wave_modes.contains("sequential"),
+        "expected sequential wave mode in mixed run; got {wave_modes:?}"
+    );
     let mut queue_ms_values: Vec<u64> = cxo_rows
         .iter()
         .filter_map(|v| v.get("queue_ms").and_then(Value::as_u64))

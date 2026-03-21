@@ -195,12 +195,31 @@ struct PendingLaunch {
     backend: String,
     queue_since: Instant,
     queue_started_at: String,
+    wave_index: u64,
+    wave_mode: String,
+    wave_size: u64,
 }
 
 struct ActiveLaunch {
     id: String,
     backend: String,
     join: thread::JoinHandle<Result<(i32, Option<String>), String>>,
+}
+
+#[derive(Debug, Clone)]
+struct TaskWaveMeta {
+    index: u64,
+    mode: String,
+    size: u64,
+}
+
+struct LaunchEnvMeta {
+    queue_ms: u64,
+    queue_started_at: String,
+    worker_id: String,
+    task_parent_id: Option<String>,
+    max_retries: u32,
+    wave: Option<TaskWaveMeta>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -342,6 +361,7 @@ fn with_retry_env<F, T>(
     retry_max: u32,
     retry_reason: Option<&str>,
     retry_backoff_ms: Option<u64>,
+    wave: Option<&TaskWaveMeta>,
     f: F,
 ) -> T
 where
@@ -354,12 +374,27 @@ where
     let prev_queue_started_at = env::var("CX_TASK_QUEUE_STARTED_AT").ok();
     let prev_task_started_at = env::var("CX_TASK_STARTED_AT").ok();
     let prev_task_finished_at = env::var("CX_TASK_FINISHED_AT").ok();
+    let prev_wave_index = env::var("CX_TASK_WAVE_INDEX").ok();
+    let prev_wave_mode = env::var("CX_TASK_WAVE_MODE").ok();
+    let prev_wave_size = env::var("CX_TASK_WAVE_SIZE").ok();
     unsafe {
         env::set_var("CX_TASK_RETRY_ATTEMPT", attempt.to_string());
         env::set_var("CX_TASK_RETRY_MAX", retry_max.to_string());
         env::set_var("CX_TASK_QUEUE_STARTED_AT", utc_now_iso());
         env::set_var("CX_TASK_STARTED_AT", utc_now_iso());
         env::remove_var("CX_TASK_FINISHED_AT");
+    }
+    match wave {
+        Some(meta) => unsafe {
+            env::set_var("CX_TASK_WAVE_INDEX", meta.index.to_string());
+            env::set_var("CX_TASK_WAVE_MODE", &meta.mode);
+            env::set_var("CX_TASK_WAVE_SIZE", meta.size.to_string());
+        },
+        None => unsafe {
+            env::remove_var("CX_TASK_WAVE_INDEX");
+            env::remove_var("CX_TASK_WAVE_MODE");
+            env::remove_var("CX_TASK_WAVE_SIZE");
+        },
     }
     match retry_reason {
         Some(v) if !v.trim().is_empty() => unsafe { env::set_var("CX_TASK_RETRY_REASON", v) },
@@ -398,6 +433,18 @@ where
         Some(v) => unsafe { env::set_var("CX_TASK_FINISHED_AT", v) },
         None => unsafe { env::remove_var("CX_TASK_FINISHED_AT") },
     }
+    match prev_wave_index {
+        Some(v) => unsafe { env::set_var("CX_TASK_WAVE_INDEX", v) },
+        None => unsafe { env::remove_var("CX_TASK_WAVE_INDEX") },
+    }
+    match prev_wave_mode {
+        Some(v) => unsafe { env::set_var("CX_TASK_WAVE_MODE", v) },
+        None => unsafe { env::remove_var("CX_TASK_WAVE_MODE") },
+    }
+    match prev_wave_size {
+        Some(v) => unsafe { env::set_var("CX_TASK_WAVE_SIZE", v) },
+        None => unsafe { env::remove_var("CX_TASK_WAVE_SIZE") },
+    }
     out
 }
 
@@ -408,27 +455,32 @@ fn should_retry(failure: FailureClass, attempt: u32, retry_max: u32) -> bool {
 fn run_task_managed_subprocess(
     id: String,
     backend: String,
-    queue_ms: u64,
-    queue_started_at: String,
-    worker_id: String,
-    task_parent_id: Option<String>,
-    max_retries: u32,
+    meta: LaunchEnvMeta,
 ) -> Result<(i32, Option<String>), String> {
     let mut retry_reason: Option<String> = None;
     let mut retry_backoff: Option<u64> = None;
-    for attempt in 1..=(max_retries + 1) {
+    for attempt in 1..=(meta.max_retries + 1) {
         let exe = std::env::current_exe().map_err(|e| format!("task run-all: current_exe: {e}"))?;
         let mut cmd = Command::new(exe);
         cmd.args(["task", "run", &id, "--managed-by-parent"]);
         cmd.args(["--backend", &backend]);
         cmd.env("CX_TASK_ID", &id);
-        cmd.env("CX_TASK_QUEUE_MS", queue_ms.to_string());
-        cmd.env("CX_TASK_QUEUE_STARTED_AT", &queue_started_at);
+        cmd.env("CX_TASK_QUEUE_MS", meta.queue_ms.to_string());
+        cmd.env("CX_TASK_QUEUE_STARTED_AT", &meta.queue_started_at);
         cmd.env("CX_TASK_STARTED_AT", utc_now_iso());
         cmd.env_remove("CX_TASK_FINISHED_AT");
-        cmd.env("CX_TASK_WORKER_ID", &worker_id);
+        cmd.env("CX_TASK_WORKER_ID", &meta.worker_id);
+        if let Some(wave) = meta.wave.as_ref() {
+            cmd.env("CX_TASK_WAVE_INDEX", wave.index.to_string());
+            cmd.env("CX_TASK_WAVE_MODE", &wave.mode);
+            cmd.env("CX_TASK_WAVE_SIZE", wave.size.to_string());
+        } else {
+            cmd.env_remove("CX_TASK_WAVE_INDEX");
+            cmd.env_remove("CX_TASK_WAVE_MODE");
+            cmd.env_remove("CX_TASK_WAVE_SIZE");
+        }
         cmd.env("CX_TASK_RETRY_ATTEMPT", attempt.to_string());
-        cmd.env("CX_TASK_RETRY_MAX", max_retries.to_string());
+        cmd.env("CX_TASK_RETRY_MAX", meta.max_retries.to_string());
         if let Some(reason) = retry_reason.as_deref() {
             cmd.env("CX_TASK_RETRY_REASON", reason);
         } else {
@@ -439,7 +491,7 @@ fn run_task_managed_subprocess(
         } else {
             cmd.env_remove("CX_TASK_RETRY_BACKOFF_MS");
         }
-        if let Some(parent_id) = task_parent_id.as_deref() {
+        if let Some(parent_id) = meta.task_parent_id.as_deref() {
             cmd.env("CX_TASK_PARENT_ID", parent_id);
         }
         let output = run_command_output_with_timeout(cmd, "task run-all worker")?;
@@ -450,7 +502,7 @@ fn run_task_managed_subprocess(
             return Ok((status, execution_id));
         }
         let failure = classify_failure_for_execution(execution_id.as_deref());
-        if should_retry(failure.class, attempt, max_retries) {
+        if should_retry(failure.class, attempt, meta.max_retries) {
             let next_backoff = retry_backoff_ms(attempt - 1);
             retry_reason = Some(failure.reason);
             retry_backoff = Some(next_backoff);
@@ -542,6 +594,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     }
 
     let blocked_count = maybe_plan.as_ref().map(|p| p.blocked.len()).unwrap_or(0);
+    let mut wave_meta_map: HashMap<String, TaskWaveMeta> = HashMap::new();
+    if let Some(plan) = maybe_plan.as_ref() {
+        wave_meta_map = build_wave_meta_map(plan);
+    }
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
         let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
         if options.strict_plan
@@ -628,7 +684,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let summary = if options.run_mode == "parallel"
         || (options.run_mode == "mixed" && options.max_workers > 1)
     {
-        match run_schedule_parallel(&schedule, &task_index, &options) {
+        match run_schedule_parallel(&schedule, &task_index, &options, &wave_meta_map) {
             Ok(v) => v,
             Err(e) => {
                 crate::cx_eprintln!("cxrs task run-all: {e}");
@@ -649,6 +705,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 choose_backend_for_task(task, &options.backend_pool, idx),
                 &available_pool(&options.backend_pool),
             );
+            let wave_meta = wave_meta_map
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| fallback_wave_meta(idx));
             if options.as_json {
                 let backend = backend_selected
                     .clone()
@@ -656,11 +716,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 let run_result = run_task_managed_subprocess(
                     id.clone(),
                     backend.clone(),
-                    0,
-                    utc_now_iso(),
-                    "w1".to_string(),
-                    task_parent_id,
-                    max_retries,
+                    LaunchEnvMeta {
+                        queue_ms: 0,
+                        queue_started_at: utc_now_iso(),
+                        worker_id: "w1".to_string(),
+                        task_parent_id,
+                        max_retries,
+                        wave: Some(wave_meta.clone()),
+                    },
                 );
                 match run_result {
                     Ok((code, execution_id)) => {
@@ -713,6 +776,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     max_retries,
                     retry_reason.as_deref(),
                     retry_backoff,
+                    Some(&wave_meta),
                     || {
                         (deps.run_task_by_id)(
                             &(deps.make_task_runner)(),
@@ -1300,6 +1364,32 @@ fn render_backend_caps(caps: &HashMap<String, usize>) -> String {
         .join(",")
 }
 
+fn build_wave_meta_map(plan: &crate::tasks_plan::TaskRunPlan) -> HashMap<String, TaskWaveMeta> {
+    let mut map: HashMap<String, TaskWaveMeta> = HashMap::new();
+    for wave in &plan.waves {
+        let size = wave.task_ids.len() as u64;
+        for id in &wave.task_ids {
+            map.insert(
+                id.clone(),
+                TaskWaveMeta {
+                    index: wave.index as u64,
+                    mode: wave.mode.clone(),
+                    size,
+                },
+            );
+        }
+    }
+    map
+}
+
+fn fallback_wave_meta(index: usize) -> TaskWaveMeta {
+    TaskWaveMeta {
+        index: (index + 1) as u64,
+        mode: "sequential".to_string(),
+        size: 1,
+    }
+}
+
 fn backend_cap_for(options: &RunAllOptions, backend: &str) -> usize {
     options
         .backend_caps
@@ -1317,6 +1407,7 @@ fn run_schedule_parallel(
     schedule: &[String],
     task_index: &HashMap<String, TaskRecord>,
     options: &RunAllOptions,
+    wave_meta_map: &HashMap<String, TaskWaveMeta>,
 ) -> Result<RunAllSummary, String> {
     let available = available_pool(&options.backend_pool);
     if available.is_empty() {
@@ -1325,15 +1416,24 @@ fn run_schedule_parallel(
     let mut pending: Vec<PendingLaunch> = schedule
         .iter()
         .enumerate()
-        .map(|(idx, id)| PendingLaunch {
-            id: id.clone(),
-            backend: fallback_backend(
-                choose_backend_for_task(task_index.get(id), &options.backend_pool, idx),
-                &available,
-            )
-            .unwrap_or_else(|| available[0].clone()),
-            queue_since: Instant::now(),
-            queue_started_at: utc_now_iso(),
+        .map(|(idx, id)| {
+            let wave = wave_meta_map
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| fallback_wave_meta(idx));
+            PendingLaunch {
+                id: id.clone(),
+                backend: fallback_backend(
+                    choose_backend_for_task(task_index.get(id), &options.backend_pool, idx),
+                    &available,
+                )
+                .unwrap_or_else(|| available[0].clone()),
+                queue_since: Instant::now(),
+                queue_started_at: utc_now_iso(),
+                wave_index: wave.index,
+                wave_mode: wave.mode,
+                wave_size: wave.size,
+            }
         })
         .collect();
     let mut active: Vec<ActiveLaunch> = Vec::new();
@@ -1380,11 +1480,18 @@ fn run_schedule_parallel(
                 run_task_managed_subprocess(
                     id,
                     backend,
-                    queue_ms,
-                    launch.queue_started_at,
-                    worker_id,
-                    task_parent_id,
-                    max_retries,
+                    LaunchEnvMeta {
+                        queue_ms,
+                        queue_started_at: launch.queue_started_at,
+                        worker_id,
+                        task_parent_id,
+                        max_retries,
+                        wave: Some(TaskWaveMeta {
+                            index: launch.wave_index,
+                            mode: launch.wave_mode,
+                            size: launch.wave_size,
+                        }),
+                    },
                 )
             });
             active.push(ActiveLaunch {

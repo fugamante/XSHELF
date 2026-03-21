@@ -131,6 +131,16 @@ fn base_execution_log(
     let queue_ms = env::var("CX_TASK_QUEUE_MS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok());
+    let wave_index = env::var("CX_TASK_WAVE_INDEX")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok());
+    let wave_mode = env::var("CX_TASK_WAVE_MODE")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
+    let wave_size = env::var("CX_TASK_WAVE_SIZE")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok());
     let queue_started_at = env::var("CX_TASK_QUEUE_STARTED_AT")
         .ok()
         .map(|v| v.trim().to_string())
@@ -185,6 +195,9 @@ fn base_execution_log(
         converge_winner,
         converge_votes,
         queue_ms,
+        wave_index,
+        wave_mode,
+        wave_size,
         queue_started_at,
         task_started_at,
         task_finished_at,

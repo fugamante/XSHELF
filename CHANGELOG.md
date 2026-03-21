@@ -53,6 +53,11 @@ Notes:
   - added `task run-all --dry-run`:
     - emits `task-run-all.v1` execution envelope without executing/mutating tasks.
     - supports deterministic `--json` preflight for CI/operator gating.
+  - task-linked run rows now include wave telemetry fields:
+    - `wave_index`
+    - `wave_mode`
+    - `wave_size`
+    for mixed/parallel scheduler observability.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`
