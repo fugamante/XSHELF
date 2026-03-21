@@ -697,6 +697,53 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_all_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo run-all-contract-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&["task", "run-all", "--status", "pending", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    let fixture = load_fixture_json("run_all_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&payload, &top_keys, "task_run_all.top");
+
+    let task_keys = fixture_keys(&fixture, "task_keys");
+    for task in payload
+        .get("tasks")
+        .and_then(Value::as_array)
+        .expect("tasks array")
+    {
+        assert_has_keys(task, &task_keys, "task_run_all.tasks.item");
+    }
+}
+
+#[test]
 fn plan_json_dry() {
     let repo = TempRepo::new("cxrs-it");
     for i in 1..=2 {

@@ -1,0 +1,26 @@
+{
+  "top_level_keys": [
+    "contract_version",
+    "status_filter",
+    "mode",
+    "strict_plan",
+    "plan_json",
+    "scheduled",
+    "complete",
+    "failed",
+    "blocked",
+    "retryable_failures",
+    "non_retryable_failures",
+    "critical_errors",
+    "halted_on_critical",
+    "duration_ms",
+    "tasks"
+  ],
+  "task_keys": [
+    "task_id",
+    "backend",
+    "status",
+    "execution_id",
+    "failure_class"
+  ]
+}
