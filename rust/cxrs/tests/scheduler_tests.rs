@@ -444,7 +444,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
-fn run_all_json_output() {
+fn run_all_json() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
