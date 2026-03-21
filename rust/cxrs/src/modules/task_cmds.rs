@@ -596,7 +596,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let blocked_count = maybe_plan.as_ref().map(|p| p.blocked.len()).unwrap_or(0);
     let mut wave_meta_map: HashMap<String, TaskWaveMeta> = HashMap::new();
     if let Some(plan) = maybe_plan.as_ref() {
-        wave_meta_map = build_wave_meta_map(plan);
+        wave_meta_map = task_wave_map(plan);
     }
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
         let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
@@ -1364,7 +1364,7 @@ fn render_backend_caps(caps: &HashMap<String, usize>) -> String {
         .join(",")
 }
 
-fn build_wave_meta_map(plan: &crate::tasks_plan::TaskRunPlan) -> HashMap<String, TaskWaveMeta> {
+fn task_wave_map(plan: &crate::tasks_plan::TaskRunPlan) -> HashMap<String, TaskWaveMeta> {
     let mut map: HashMap<String, TaskWaveMeta> = HashMap::new();
     for wave in &plan.waves {
         let size = wave.task_ids.len() as u64;
