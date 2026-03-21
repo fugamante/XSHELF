@@ -697,6 +697,150 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_all_dry() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo dry-run-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--dry-run",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("task-run-all.v1")
+    );
+    assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(0));
+    assert_eq!(payload.get("failed").and_then(Value::as_u64), Some(0));
+    let tasks = payload
+        .get("tasks")
+        .and_then(Value::as_array)
+        .expect("tasks array");
+    assert_eq!(tasks.len(), 2, "{payload}");
+    assert!(
+        tasks
+            .iter()
+            .all(|t| t.get("status").and_then(Value::as_str) == Some("dry_run")),
+        "{payload}"
+    );
+
+    let task_rows = read_json(&repo.tasks_file())
+        .as_array()
+        .expect("tasks array")
+        .to_vec();
+    assert!(
+        task_rows
+            .iter()
+            .all(|t| t.get("status").and_then(Value::as_str) == Some("pending")),
+        "dry run should not mutate task status"
+    );
+    assert!(
+        !repo.runs_log().exists(),
+        "dry run should not execute tasks"
+    );
+}
+
+#[test]
+fn run_all_dry_strict() {
+    let repo = TempRepo::new("cxrs-it");
+    let root = repo.run(&[
+        "task",
+        "add",
+        "cxo echo dry-strict-root",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+    ]);
+    assert!(root.status.success(), "stderr={}", stderr_str(&root));
+    let root_id = stdout_str(&root).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "cxo echo dry-strict-child",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+        "--depends-on",
+        &root_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--strict-plan",
+        "--dry-run",
+        "--json",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(payload.get("blocked").and_then(Value::as_u64), Some(0));
+    let tasks = payload
+        .get("tasks")
+        .and_then(Value::as_array)
+        .expect("tasks array");
+    assert!(
+        tasks
+            .iter()
+            .all(|t| t.get("status").and_then(Value::as_str) == Some("dry_run")),
+        "{payload}"
+    );
+    assert!(
+        !repo.runs_log().exists(),
+        "dry run should not execute tasks"
+    );
+}
+
+#[test]
 fn run_all_contract() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
