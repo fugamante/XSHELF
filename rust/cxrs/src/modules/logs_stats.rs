@@ -142,6 +142,9 @@ struct CriticalStats {
 struct TimingStats {
     rows_with_worker_id: usize,
     rows_with_queue_ms: usize,
+    rows_with_wave_index: usize,
+    rows_with_wave_mode: usize,
+    rows_with_wave_size: usize,
     rows_with_queue_started_at: usize,
     rows_with_task_started_at: usize,
     rows_with_task_finished_at: usize,
@@ -237,6 +240,20 @@ fn compute_timing_stats(rows: &[Value]) -> TimingStats {
         }
         if obj.get("queue_ms").and_then(Value::as_u64).is_some() {
             out.rows_with_queue_ms += 1;
+        }
+        if obj.get("wave_index").and_then(Value::as_u64).is_some() {
+            out.rows_with_wave_index += 1;
+        }
+        if obj
+            .get("wave_mode")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|v| !v.is_empty())
+        {
+            out.rows_with_wave_mode += 1;
+        }
+        if obj.get("wave_size").and_then(Value::as_u64).is_some() {
+            out.rows_with_wave_size += 1;
         }
         if obj
             .get("queue_started_at")
@@ -507,6 +524,18 @@ fn print_stats_human(
     );
     println!("- rows_with_queue_ms: {}", stats.timing.rows_with_queue_ms);
     println!(
+        "- rows_with_wave_index: {}",
+        stats.timing.rows_with_wave_index
+    );
+    println!(
+        "- rows_with_wave_mode: {}",
+        stats.timing.rows_with_wave_mode
+    );
+    println!(
+        "- rows_with_wave_size: {}",
+        stats.timing.rows_with_wave_size
+    );
+    println!(
         "- rows_with_queue_started_at: {}",
         stats.timing.rows_with_queue_started_at
     );
@@ -610,6 +639,9 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
             "task_rows": stats.timing.task_rows,
             "rows_with_worker_id": stats.timing.rows_with_worker_id,
             "rows_with_queue_ms": stats.timing.rows_with_queue_ms,
+            "rows_with_wave_index": stats.timing.rows_with_wave_index,
+            "rows_with_wave_mode": stats.timing.rows_with_wave_mode,
+            "rows_with_wave_size": stats.timing.rows_with_wave_size,
             "rows_with_queue_started_at": stats.timing.rows_with_queue_started_at,
             "rows_with_task_started_at": stats.timing.rows_with_task_started_at,
             "rows_with_task_finished_at": stats.timing.rows_with_task_finished_at

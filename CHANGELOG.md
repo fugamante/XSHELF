@@ -58,6 +58,10 @@ Notes:
     - `wave_mode`
     - `wave_size`
     for mixed/parallel scheduler observability.
+  - telemetry contract fixture now locks timing coverage for wave fields:
+    - `rows_with_wave_index`
+    - `rows_with_wave_mode`
+    - `rows_with_wave_size`
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`
