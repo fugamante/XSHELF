@@ -67,7 +67,7 @@ pub fn state_default_json() -> Option<bool> {
 }
 
 pub fn json_auto_enabled() -> bool {
-    env_bool("CX_JSON_AUTO").unwrap_or(true)
+    env_bool("CX_JSON_AUTO").unwrap_or(false)
 }
 
 pub fn runtime_json_signals() -> JsonSignals {

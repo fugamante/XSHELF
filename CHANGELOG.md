@@ -19,7 +19,7 @@ Notes:
   - added auto selection layer for human vs agent contexts:
     - CLI override remains highest precedence.
     - then env (`CX_JSON_DEFAULT`), then state (`preferences.default_json_output`).
-    - if unset, auto mode applies runtime signals (TTY + CI) before command defaults.
+    - if unset, optional auto mode (`CX_JSON_AUTO=1`) applies runtime signals (TTY + CI) before command defaults.
   - added `cx mode` / `cx cxmode`:
     - prints resolved output mode, source, reason, confidence, and runtime signals.
     - supports JSON output via `--json` for machine introspection.
