@@ -46,7 +46,7 @@ fn task_lifecycle_add_claim_complete() {
 }
 
 #[test]
-fn task_show_includes_latest_run_summary() {
+fn show_latest_run() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
