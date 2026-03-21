@@ -485,6 +485,11 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             let empty_plan = build_task_run_plan(&tasks, &options.status_filter);
             return plan_json_out(&options, &empty_plan, true);
         }
+        if options.dry_run {
+            let empty_index: HashMap<String, TaskRecord> = HashMap::new();
+            let empty_schedule: Vec<String> = Vec::new();
+            return dry_run_out(&options, &empty_schedule, &empty_index, 0, true);
+        }
         if options.as_json {
             println!(
                 "{}",
@@ -516,6 +521,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 
     let maybe_plan = if matches!(options.run_mode.as_str(), "mixed" | "parallel")
         || options.plan_json
+        || options.dry_run
         || options.strict_plan
     {
         Some(build_task_run_plan(&tasks, &options.status_filter))
@@ -535,12 +541,21 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         return plan_json_out(&options, plan, strict_issue.is_none());
     }
 
+    let blocked_count = maybe_plan.as_ref().map(|p| p.blocked.len()).unwrap_or(0);
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
         let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
         if options.strict_plan
             && options.run_mode == "parallel"
             && let Some(reason) = strict_issue.as_deref()
         {
+            if options.dry_run {
+                let ids: Vec<String> = plan
+                    .waves
+                    .iter()
+                    .flat_map(|wave| wave.task_ids.iter().cloned())
+                    .collect();
+                return dry_run_out(&options, &ids, &task_index, plan.blocked.len(), false);
+            }
             crate::cx_eprintln!("cxrs task run-all: strict-plan failed ({reason})");
             if !plan.blocked.is_empty() {
                 for b in &plan.blocked {
@@ -599,6 +614,15 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             .map(|t| t.id.clone())
             .collect()
     };
+    if options.dry_run {
+        return dry_run_out(
+            &options,
+            &schedule,
+            &task_index,
+            blocked_count,
+            strict_issue.is_none(),
+        );
+    }
 
     let scheduled_count = schedule.len();
     let summary = if options.run_mode == "parallel"
@@ -836,6 +860,7 @@ struct RunAllOptions {
     run_mode: String,
     strict_plan: bool,
     plan_json: bool,
+    dry_run: bool,
     backend_pool: Vec<String>,
     backend_caps: HashMap<String, usize>,
     max_workers: usize,
@@ -907,6 +932,72 @@ fn plan_json_out(
             crate::cx_eprintln!("cxrs task run-all: failed to render plan json: {e}");
             1
         }
+    }
+}
+
+fn dry_run_out(
+    options: &RunAllOptions,
+    schedule: &[String],
+    task_index: &HashMap<String, TaskRecord>,
+    blocked: usize,
+    strict_ok: bool,
+) -> i32 {
+    let available = available_pool(&options.backend_pool);
+    let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
+    for (idx, id) in schedule.iter().enumerate() {
+        let task = task_index.get(id);
+        let backend_selected = fallback_backend(
+            choose_backend_for_task(task, &options.backend_pool, idx),
+            &available,
+        )
+        .unwrap_or_else(|| "unknown".to_string());
+        task_runs.push(serde_json::json!({
+            "task_id": id,
+            "backend": backend_selected,
+            "status": "dry_run",
+            "execution_id": Value::Null,
+            "failure_class": Value::Null
+        }));
+    }
+    let payload = serde_json::json!({
+        "contract_version": "task-run-all.v1",
+        "status_filter": options.status_filter,
+        "mode": options.run_mode,
+        "strict_plan": options.strict_plan,
+        "plan_json": options.plan_json,
+        "scheduled": schedule.len(),
+        "complete": 0,
+        "failed": 0,
+        "blocked": blocked,
+        "retryable_failures": 0,
+        "non_retryable_failures": 0,
+        "critical_errors": 0,
+        "halted_on_critical": false,
+        "duration_ms": 0,
+        "tasks": task_runs
+    });
+    if options.as_json {
+        match serde_json::to_string_pretty(&payload) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                crate::cx_eprintln!("cxrs task run-all: failed to render json: {e}");
+                return 1;
+            }
+        }
+    } else {
+        println!(
+            "run-all dry-run: mode={}, strict_plan={}, strict_ok={}, scheduled={}, blocked={}",
+            options.run_mode,
+            options.strict_plan,
+            strict_ok,
+            schedule.len(),
+            blocked
+        );
+    }
+    if blocked > 0 || (options.strict_plan && !strict_ok) {
+        1
+    } else {
+        0
     }
 }
 
@@ -1003,12 +1094,13 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
     let mut strict_plan = false;
     let mut plan_json = false;
+    let mut dry_run = false;
     let mut backend_pool = default_backend_pool();
     let mut backend_caps: HashMap<String, usize> = HashMap::new();
     let mut max_workers = 1usize;
@@ -1125,6 +1217,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 plan_json = true;
                 i += 1;
             }
+            "--dry-run" => {
+                dry_run = true;
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run-all: unknown flag '{other}'");
                 return Err(2);
@@ -1136,6 +1232,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         run_mode,
         strict_plan,
         plan_json,
+        dry_run,
         backend_pool,
         backend_caps,
         max_workers,
@@ -1579,6 +1676,13 @@ mod tests {
         let args = vec!["run-all".to_string(), "--plan-json".to_string()];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert!(opts.plan_json);
+    }
+
+    #[test]
+    fn parse_dry_run() {
+        let args = vec!["run-all".to_string(), "--dry-run".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(opts.dry_run);
     }
 
     #[test]
