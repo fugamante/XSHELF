@@ -1123,3 +1123,92 @@ fn plan_json_contract() {
         assert_has_keys(blocked, &blocked_keys, "task_run_plan.blocked.item");
     }
 }
+
+#[test]
+fn task_check_json() {
+    let repo = TempRepo::new("cxrs-it");
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo check-json-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+            "--resource-keys",
+            "repo:read",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+    let out = repo.run(&["task", "check", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("check json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("task-check.v1")
+    );
+    assert_eq!(payload.get("selected").and_then(Value::as_u64), Some(2));
+    assert_eq!(
+        payload.get("recommended_mode").and_then(Value::as_str),
+        Some("parallel")
+    );
+}
+
+#[test]
+fn task_check_strict() {
+    let repo = TempRepo::new("cxrs-it");
+    let root = repo.run(&[
+        "task",
+        "add",
+        "cxo echo check-root",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+    ]);
+    assert!(root.status.success(), "stderr={}", stderr_str(&root));
+    let root_id = stdout_str(&root).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "cxo echo check-child",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+        "--depends-on",
+        &root_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+
+    let out = repo.run(&["task", "check", "--strict-plan", "--json"]);
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("check json");
+    assert_eq!(
+        payload.get("strict_plan_ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload.get("recommended_mode").and_then(Value::as_str),
+        Some("mixed")
+    );
+}

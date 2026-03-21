@@ -1648,6 +1648,140 @@ fn handle_run_plan(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     0
 }
 
+fn rec_mode(
+    plan: &crate::tasks_plan::TaskRunPlan,
+    strict_ok: bool,
+) -> (&'static str, &'static str) {
+    if !plan.blocked.is_empty() {
+        return ("sequential", "blocked_tasks_present");
+    }
+    if strict_ok {
+        return ("parallel", "single_parallel_wave_ready");
+    }
+    let has_parallel = plan.waves.iter().any(|w| w.mode == "parallel");
+    if has_parallel && plan.waves.len() > 1 {
+        return ("mixed", "multi_wave_or_lock_limited");
+    }
+    ("sequential", "sequential_or_small_scope")
+}
+
+fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
+    let usage = format!(
+        "Usage: {app_name} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]"
+    );
+    let mut status_filter = "pending".to_string();
+    let mut strict_plan = false;
+    let mut as_json: Option<bool> = None;
+    let mut i = 1usize;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--status" => {
+                let Some(v) = args.get(i + 1).map(String::as_str) else {
+                    crate::cx_eprintln!("{usage}");
+                    return 2;
+                };
+                if !matches!(v, "pending" | "in_progress" | "complete" | "failed") {
+                    crate::cx_eprintln!("cxrs task check: invalid status '{v}'");
+                    return 2;
+                }
+                status_filter = v.to_string();
+                i += 2;
+            }
+            "--strict-plan" => {
+                strict_plan = true;
+                i += 1;
+            }
+            "--json" => {
+                as_json = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                as_json = Some(false);
+                i += 1;
+            }
+            other => {
+                crate::cx_eprintln!("cxrs task check: unknown flag '{other}'");
+                return 2;
+            }
+        }
+    }
+
+    let tasks = match (deps.read_tasks)() {
+        Ok(v) => v,
+        Err(e) => {
+            crate::cx_eprintln!("{e}");
+            return 1;
+        }
+    };
+    let plan = build_task_run_plan(&tasks, &status_filter);
+    let strict_reason = strict_issue_parallel(&plan);
+    let strict_ok = strict_reason.is_none();
+    let (recommended_mode, recommended_reason) = rec_mode(&plan, strict_ok);
+    let blocked_total = plan.blocked.len();
+    let blocked_deps = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.starts_with("unresolved dependencies"))
+        .count();
+    let blocked_resources = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.to_lowercase().contains("resource"))
+        .count();
+    let can_run = blocked_total == 0;
+
+    let out_json = resolve_json_mode(as_json, false);
+    if out_json {
+        let payload = serde_json::json!({
+            "contract_version": "task-check.v1",
+            "status_filter": plan.status_filter,
+            "selected": plan.selected,
+            "waves": plan.waves.len(),
+            "blocked_total": blocked_total,
+            "blocked_dependencies": blocked_deps,
+            "blocked_resources": blocked_resources,
+            "can_run": can_run,
+            "strict_plan": strict_plan,
+            "strict_plan_ok": strict_ok,
+            "strict_plan_reason": strict_reason,
+            "recommended_mode": recommended_mode,
+            "recommended_reason": recommended_reason,
+            "blocked": plan.blocked
+        });
+        match serde_json::to_string_pretty(&payload) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                crate::cx_eprintln!("cxrs task check: failed to render json: {e}");
+                return 1;
+            }
+        }
+    } else {
+        println!("== cx task check ==");
+        println!("status_filter: {}", plan.status_filter);
+        println!("selected: {}", plan.selected);
+        println!("waves: {}", plan.waves.len());
+        println!("blocked_total: {}", blocked_total);
+        println!("blocked_dependencies: {}", blocked_deps);
+        println!("blocked_resources: {}", blocked_resources);
+        println!("can_run: {can_run}");
+        println!("strict_plan: {strict_plan}");
+        println!("strict_plan_ok: {strict_ok}");
+        if let Some(reason) = strict_reason.as_deref() {
+            println!("strict_plan_reason: {reason}");
+        }
+        println!("recommended_mode: {recommended_mode}");
+        println!("recommended_reason: {recommended_reason}");
+    }
+
+    if strict_plan {
+        if strict_ok && can_run { 0 } else { 1 }
+    } else if can_run {
+        0
+    } else {
+        1
+    }
+}
+
 pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let app_name = ctx.app_name;
     let sub = args.first().map(String::as_str).unwrap_or("list");
@@ -1678,12 +1812,13 @@ pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
             Err(code) => code,
         },
         "fanout" => handle_fanout(app_name, args, deps),
+        "check" => handle_task_check(app_name, args, deps),
         "run-plan" => handle_run_plan(app_name, args, deps),
         "run" => handle_run(app_name, args, deps),
         "run-all" => handle_run_all(app_name, args, deps),
         _ => {
             crate::cx_eprintln!(
-                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|run-plan|run|run-all> ..."
+                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|check|run-plan|run|run-all> ..."
             );
             2
         }
