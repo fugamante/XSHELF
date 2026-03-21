@@ -845,7 +845,7 @@ fn plan_json_strict() {
 }
 
 #[test]
-fn plan_json_matches_contract_fixture() {
+fn plan_json_contract() {
     let repo = TempRepo::new("cxrs-it");
     for i in 1..=2 {
         let add = repo.run(&[
