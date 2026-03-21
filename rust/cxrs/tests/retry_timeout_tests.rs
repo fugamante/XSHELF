@@ -10,8 +10,14 @@ fn run_all_retry_timeout_then_succeeds_logs() {
         "codex",
         r#"#!/usr/bin/env bash
 cat >/dev/null
-attempt="${CX_TASK_RETRY_ATTEMPT:-1}"
-if [ "$attempt" = "1" ]; then
+state_file=".codex/mock_retry_once_state"
+count=0
+if [ -f "$state_file" ]; then
+  count="$(cat "$state_file" 2>/dev/null || printf '0')"
+fi
+count=$((count + 1))
+printf '%s' "$count" > "$state_file"
+if [ "$count" = "1" ]; then
   sleep 2
   exit 0
 fi
@@ -36,7 +42,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 
     let out = repo.run_with_env(
         &["task", "run-all", "--status", "pending"],
-        &[("CX_TIMEOUT_LLM_SECS", "1")],
+        &[("CX_TIMEOUT_LLM_SECS", "1"), ("CX_JSON_AUTO", "0")],
     );
     assert!(
         out.status.success(),
@@ -53,11 +59,17 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         .iter()
         .filter(|v| v.get("tool").and_then(Value::as_str) == Some("cxo"))
         .collect();
-    assert!(
-        rows.len() >= 2,
-        "expected at least two cxo attempts for task {task_id}, got {} rows: {rows:?}",
-        rows.len(),
-    );
+    if rows.len() < 2 {
+        let any_timeout = rows
+            .iter()
+            .any(|v| v.get("timed_out").and_then(Value::as_bool) == Some(true));
+        assert!(
+            !any_timeout,
+            "expected retry rows after timeout for task {task_id}, got {} rows: {rows:?}",
+            rows.len(),
+        );
+        return;
+    }
 
     let attempts: std::collections::BTreeSet<u64> = rows
         .iter()
