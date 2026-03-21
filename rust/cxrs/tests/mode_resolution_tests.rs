@@ -19,8 +19,14 @@ fn mode_json(repo: &TempRepo, envs: &[(&str, &str)]) -> Value {
 fn mode_default_is_text() {
     let repo = TempRepo::new("cxrs-it");
     let payload = mode_json(&repo, &[]);
-    assert_eq!(payload.get("source").and_then(Value::as_str), Some("default"));
-    assert_eq!(payload.get("selected").and_then(Value::as_str), Some("text"));
+    assert_eq!(
+        payload.get("source").and_then(Value::as_str),
+        Some("default")
+    );
+    assert_eq!(
+        payload.get("selected").and_then(Value::as_str),
+        Some("text")
+    );
 }
 
 #[test]
@@ -28,7 +34,10 @@ fn mode_auto_uses_tty_signals() {
     let repo = TempRepo::new("cxrs-it");
     let payload = mode_json(&repo, &[("CX_JSON_AUTO", "1")]);
     assert_eq!(payload.get("source").and_then(Value::as_str), Some("auto"));
-    assert_eq!(payload.get("selected").and_then(Value::as_str), Some("json"));
+    assert_eq!(
+        payload.get("selected").and_then(Value::as_str),
+        Some("json")
+    );
 }
 
 #[test]
@@ -36,7 +45,10 @@ fn mode_env_overrides_auto() {
     let repo = TempRepo::new("cxrs-it");
     let payload = mode_json(&repo, &[("CX_JSON_AUTO", "1"), ("CX_JSON_DEFAULT", "0")]);
     assert_eq!(payload.get("source").and_then(Value::as_str), Some("env"));
-    assert_eq!(payload.get("selected").and_then(Value::as_str), Some("text"));
+    assert_eq!(
+        payload.get("selected").and_then(Value::as_str),
+        Some("text")
+    );
 }
 
 #[test]
@@ -44,15 +56,14 @@ fn mode_state_is_used_when_env_missing() {
     let repo = TempRepo::new("cxrs-it");
     let state = repo.state_file();
     fs::create_dir_all(state.parent().expect("state parent")).expect("mkdir state parent");
-    fs::write(
-        &state,
-        r#"{"preferences":{"default_json_output":true}}"#,
-    )
-    .expect("write state");
+    fs::write(&state, r#"{"preferences":{"default_json_output":true}}"#).expect("write state");
 
     let payload = mode_json(&repo, &[]);
     assert_eq!(payload.get("source").and_then(Value::as_str), Some("state"));
-    assert_eq!(payload.get("selected").and_then(Value::as_str), Some("json"));
+    assert_eq!(
+        payload.get("selected").and_then(Value::as_str),
+        Some("json")
+    );
 }
 
 #[test]
@@ -70,6 +81,8 @@ fn mode_cli_override_beats_env() {
     );
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("mode json");
     assert_eq!(payload.get("source").and_then(Value::as_str), Some("cli"));
-    assert_eq!(payload.get("selected").and_then(Value::as_str), Some("text"));
+    assert_eq!(
+        payload.get("selected").and_then(Value::as_str),
+        Some("text")
+    );
 }
-
