@@ -44,3 +44,52 @@ fn task_lifecycle_add_claim_complete() {
         .expect("task exists");
     assert_eq!(task.get("status").and_then(Value::as_str), Some("complete"));
 }
+
+#[test]
+fn task_show_includes_latest_run_summary() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    let add = repo.run(&[
+        "task",
+        "add",
+        "cxo echo show-summary",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+
+    let run = repo.run(&["task", "run", &id]);
+    assert!(
+        run.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&run),
+        stderr_str(&run)
+    );
+
+    let show = repo.run(&["task", "show", &id]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let latest = out.get("latest_run").expect("latest_run field");
+    assert!(latest.is_object(), "latest_run should be object: {latest}");
+    assert!(latest.get("execution_id").is_some(), "missing execution_id");
+    assert!(
+        latest.get("duration_ms").is_some(),
+        "missing duration_ms: {latest}"
+    );
+}

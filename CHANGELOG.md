@@ -23,6 +23,9 @@ Notes:
   - mixed-mode worker subprocess path now emits queue/start timestamps via task env propagation.
   - sequential retry path now emits start/queue timestamps through retry-env instrumentation.
   - `scheduler_tests` now asserts these fields on task rows.
+- Task orchestration UX refinement:
+  - `cx task show <id>` now includes `latest_run` summary when run logs contain task-linked executions.
+  - summary includes execution id/time/tool/backend/mode/duration plus safety outcome flags.
 - Provider quota catalog commands:
   - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.

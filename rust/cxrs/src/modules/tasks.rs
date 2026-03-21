@@ -2,9 +2,10 @@ use std::fs::File;
 use std::io::Read;
 
 use crate::execmeta::utc_now_iso;
-use crate::paths::resolve_tasks_file;
+use crate::paths::{resolve_log_file, resolve_tasks_file};
 use crate::state::write_json_atomic;
 use crate::types::TaskRecord;
+use serde_json::Value;
 
 #[path = "tasks_fanout.rs"]
 mod tasks_fanout;
@@ -467,7 +468,17 @@ pub fn cmd_task_show(id: &str) -> i32 {
         crate::cx_eprintln!("cxrs task show: task not found: {id}");
         return 1;
     };
-    match serde_json::to_string_pretty(&task) {
+    let mut out = match serde_json::to_value(&task) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::cx_eprintln!("cxrs task show: render failed: {e}");
+            return 1;
+        }
+    };
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert("latest_run".to_string(), latest_task_run_summary(id));
+    }
+    match serde_json::to_string_pretty(&out) {
         Ok(s) => {
             println!("{s}");
             0
@@ -477,6 +488,35 @@ pub fn cmd_task_show(id: &str) -> i32 {
             1
         }
     }
+}
+
+fn latest_task_run_summary(id: &str) -> Value {
+    let Some(path) = resolve_log_file() else {
+        return Value::Null;
+    };
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return Value::Null;
+    };
+    for line in content.lines().rev() {
+        let Ok(v) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        if v.get("task_id").and_then(Value::as_str) != Some(id) {
+            continue;
+        }
+        return serde_json::json!({
+            "execution_id": v.get("execution_id").and_then(Value::as_str),
+            "timestamp": v.get("timestamp").and_then(Value::as_str),
+            "tool": v.get("tool").and_then(Value::as_str),
+            "backend_used": v.get("backend_used").and_then(Value::as_str),
+            "execution_mode": v.get("execution_mode").and_then(Value::as_str),
+            "duration_ms": v.get("duration_ms").and_then(Value::as_u64),
+            "schema_valid": v.get("schema_valid").and_then(Value::as_bool),
+            "timed_out": v.get("timed_out").and_then(Value::as_bool),
+            "policy_blocked": v.get("policy_blocked").and_then(Value::as_bool)
+        });
+    }
+    Value::Null
 }
 
 pub fn set_task_status(id: &str, new_status: &str) -> Result<(), String> {
