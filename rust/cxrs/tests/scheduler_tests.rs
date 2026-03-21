@@ -442,3 +442,48 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "last task should have significant queue delay, got {queue_values:?}"
     );
 }
+
+#[test]
+fn run_all_json_output() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo json-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&["task", "run-all", "--status", "pending", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let v: Value = serde_json::from_str(&stdout_str(&out)).expect("valid json");
+    assert_eq!(
+        v.get("contract_version").and_then(Value::as_str),
+        Some("task-run-all.v1")
+    );
+    assert_eq!(v.get("scheduled").and_then(Value::as_u64), Some(2));
+    let tasks = v
+        .get("tasks")
+        .and_then(Value::as_array)
+        .expect("tasks array");
+    assert_eq!(tasks.len(), 2, "{v}");
+}
