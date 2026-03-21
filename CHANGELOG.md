@@ -23,6 +23,7 @@ Notes:
   - added `cx mode` / `cx cxmode`:
     - prints resolved output mode, source, reason, confidence, and runtime signals.
     - supports JSON output via `--json` for machine introspection.
+  - added integration coverage in `mode_resolution_tests` for precedence order and signal-driven auto mode.
 - Run-level scheduler timing telemetry refinement:
   - run logs now include optional task timing timestamps:
     - `queue_started_at`
