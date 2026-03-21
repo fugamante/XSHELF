@@ -95,7 +95,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
-fn task_show_list_alias() {
+fn show_list_alias() {
     let repo = TempRepo::new("cxrs-it");
     let add = repo.run(&["task", "add", "Alias list", "--role", "implementer"]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
