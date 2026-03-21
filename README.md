@@ -398,6 +398,7 @@ Stage II runtime commands:
 ./bin/cx task run <task_id> --mode deterministic --backend codex
 ./bin/cx task run-all --status pending
 ./bin/cx task run-all --status pending --mode mixed
+./bin/cx task run-all --status pending --mode parallel --max-workers 2
 ./bin/cx task run-all --status pending --mode mixed --halt-on-critical
 CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 
@@ -417,16 +418,17 @@ CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 ## Migration Phase III (Orchestration Modes)
 
 Current status:
-- task graph and runner exist (`task add/list/fanout/run/run-all`), with sequential execution as the default.
+- task graph and runner are live (`task add/list/fanout/run/run-all`), with sequential default.
+- orchestration modes are explicit:
+  - `sequential` (default)
+  - `mixed` (wave-aware scheduling with backend/fairness controls)
+  - `parallel` (explicit Phase VI lane behind `--mode parallel`)
+- deterministic planning is available via `task run-plan`.
 
-Next migration phase (active on feature branch, not yet merged to main behavior):
-- add switchable orchestration modes so tasks can be explicitly sequential or parallelizable.
-- introduce execution-policy metadata on tasks (`run_mode`, `depends_on`, `resource_keys`, optional retries/timeouts).
-- introduce `task run-plan` for deterministic schedule preview before execution.
-- keep safety/determinism contracts unchanged:
-  - policy gates still enforced for execution paths,
-  - schema commands remain deterministic by default,
-  - telemetry/log contracts remain append-only and validated.
+Safety/determinism contracts remain unchanged:
+- policy gates are still enforced for execution paths
+- schema commands remain deterministic by default
+- telemetry/log contracts remain append-only and validated
 
 ## Phase IV Preview (Multi-Model Tandem)
 
@@ -437,6 +439,13 @@ Planned next migration focus:
 
 Design and schedule:
 - `docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md`
+
+## Phase VI Kickoff
+
+Initial Phase VI scope is active with explicit controls only (no default behavior switch).
+
+Spec:
+- `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
 
 ## Validation
 
