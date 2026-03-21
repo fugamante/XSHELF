@@ -345,6 +345,11 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
         description: "Generate role-tagged subtasks",
     },
     CommandHelp {
+        name: "task check",
+        usage: "cx task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]",
+        description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
+    },
+    CommandHelp {
         name: "task run-plan",
         usage: "cx task run-plan [--status pending|in_progress|complete|failed] [--json]",
         description: "Preview deterministic execution waves before run-all",
