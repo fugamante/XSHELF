@@ -1428,7 +1428,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_run_all_options_json_default_and_text() {
+    fn parse_json_default_text() {
         let prev = std::env::var("CX_JSON_DEFAULT").ok();
         unsafe { std::env::set_var("CX_JSON_DEFAULT", "1") };
         let args = vec!["run-all".to_string()];
