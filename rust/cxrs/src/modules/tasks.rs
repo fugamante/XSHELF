@@ -476,7 +476,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
         }
     };
     if let Some(obj) = out.as_object_mut() {
-        obj.insert("latest_run".to_string(), latest_task_run_summary(id));
+        obj.insert("latest_run".to_string(), task_run_latest(id));
     }
     match serde_json::to_string_pretty(&out) {
         Ok(s) => {
@@ -490,7 +490,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
     }
 }
 
-fn latest_task_run_summary(id: &str) -> Value {
+fn task_run_latest(id: &str) -> Value {
     let Some(path) = resolve_log_file() else {
         return Value::Null;
     };
