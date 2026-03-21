@@ -12,6 +12,7 @@ pub struct CompatDeps {
     pub cmd_scheduler: fn(&[String]) -> i32,
     pub cmd_parity: fn() -> i32,
     pub cmd_core: fn() -> i32,
+    pub cmd_mode: fn(&[String]) -> i32,
     pub cmd_logs: fn(&[String]) -> i32,
     pub cmd_task: fn(&[String]) -> i32,
     pub print_metrics: fn(usize) -> i32,

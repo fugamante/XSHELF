@@ -162,6 +162,7 @@ fn dispatch_meta_commands(
         "telemetry" => handle_telemetry(args, deps),
         "ci" => (deps.cmd_ci)(&args[2..]),
         "core" => (deps.cmd_core)(),
+        "mode" => (deps.cmd_mode)(&args[2..]),
         "task" => (deps.cmd_task)(&args[2..]),
         "where" => (deps.cmd_where)(&args[2..]),
         "routes" => (deps.cmd_routes)(&args[2..]),

@@ -27,6 +27,7 @@ use crate::introspect::{
 };
 use crate::logs::cmd_logs;
 use crate::logview::{cmd_budget, cmd_log_tail};
+use crate::mode_cmd::cmd_mode;
 use crate::native_cmd;
 use crate::optimize::{parse_optimize_args, print_optimize};
 use crate::policy::cmd_policy;
@@ -216,6 +217,10 @@ fn compat_cmd_core() -> i32 {
     introspect_cmd_core(APP_VERSION)
 }
 
+fn compat_cmd_mode(args: &[String]) -> i32 {
+    cmd_mode(APP_NAME, args)
+}
+
 fn compat_cmd_logs(args: &[String]) -> i32 {
     cmd_logs(APP_NAME, args)
 }
@@ -274,6 +279,10 @@ fn native_cmd_scheduler(args: &[String]) -> i32 {
 
 fn native_cmd_core() -> i32 {
     introspect_cmd_core(APP_VERSION)
+}
+
+fn native_cmd_mode(args: &[String]) -> i32 {
+    cmd_mode(APP_NAME, args)
 }
 
 fn native_cmd_llm(args: &[String]) -> i32 {

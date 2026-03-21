@@ -67,6 +67,11 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
         description: "Show execution-core pipeline config",
     },
     CommandHelp {
+        name: "mode",
+        usage: "mode [show|explain] [--json] [--cli json|text] [--command-default json|text]",
+        description: "Explain output-mode resolution (cli/env/state/auto/default)",
+    },
+    CommandHelp {
         name: "broker",
         usage: "broker <show [--json] | set --policy latency|quality|cost|balanced|quota_saver | benchmark [--backend codex|ollama]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]>",
         description: "Show/set broker policy and benchmark backend performance from local run logs",
