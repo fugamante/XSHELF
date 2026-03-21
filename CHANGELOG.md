@@ -41,10 +41,11 @@ Notes:
 - Phase VI execution lane (explicit, non-default):
   - `task run-all` now accepts `--mode parallel` (default remains `sequential`).
   - added `--strict-plan` for `--mode parallel` to fail fast when plan waves indicate serialization constraints (dependencies/resource locks).
+  - added `--plan-json` dry-run payload for CI/operator gating (`task-run-plan.v1`) with `strict_plan_ok` and `can_execute`.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`
-    - integration tests validating `parallel` lane execution behavior and strict-plan accept/reject paths.
+    - integration tests validating `parallel` lane execution behavior, strict-plan accept/reject paths, and plan-json dry runs.
 - Run-level scheduler timing telemetry refinement:
   - run logs now include optional task timing timestamps:
     - `queue_started_at`

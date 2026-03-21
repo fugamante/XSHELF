@@ -481,6 +481,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         .filter(|t| t.status == options.status_filter)
         .count();
     if selected_count == 0 {
+        if options.plan_json {
+            let empty_plan = build_task_run_plan(&tasks, &options.status_filter);
+            return print_run_plan_json(&options, &empty_plan, true);
+        }
         if options.as_json {
             println!(
                 "{}",
@@ -489,6 +493,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "status_filter": options.status_filter,
                     "mode": options.run_mode,
                     "strict_plan": options.strict_plan,
+                    "plan_json": options.plan_json,
                     "scheduled": 0,
                     "complete": 0,
                     "failed": 0,
@@ -509,30 +514,44 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let task_index: HashMap<String, TaskRecord> =
         tasks.iter().map(|t| (t.id.clone(), t.clone())).collect();
 
+    let maybe_plan = if matches!(options.run_mode.as_str(), "mixed" | "parallel")
+        || options.plan_json
+        || options.strict_plan
+    {
+        Some(build_task_run_plan(&tasks, &options.status_filter))
+    } else {
+        None
+    };
+    let strict_issue = if options.run_mode == "parallel" {
+        maybe_plan
+            .as_ref()
+            .and_then(strict_plan_issue_for_parallel)
+            .filter(|_| options.strict_plan || options.plan_json)
+    } else {
+        None
+    };
+    if options.plan_json {
+        let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
+        return print_run_plan_json(&options, plan, strict_issue.is_none());
+    }
+
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
-        let plan = build_task_run_plan(&tasks, &options.status_filter);
-        if options.strict_plan && options.run_mode == "parallel" {
+        let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
+        if options.strict_plan
+            && options.run_mode == "parallel"
+            && let Some(reason) = strict_issue.as_deref()
+        {
+            crate::cx_eprintln!("cxrs task run-all: strict-plan failed ({reason})");
             if !plan.blocked.is_empty() {
-                crate::cx_eprintln!(
-                    "cxrs task run-all: strict-plan failed (blocked dependencies present)"
-                );
                 for b in &plan.blocked {
                     crate::cx_eprintln!(" - {}: {}", b.id, b.reason);
                 }
-                return 1;
             }
-            let single_wave = plan.waves.len() == 1;
-            let all_parallel = plan.waves.iter().all(|w| w.mode == "parallel");
-            if !(single_wave && all_parallel) {
-                crate::cx_eprintln!(
-                    "cxrs task run-all: strict-plan failed (parallel mode would serialize across waves)"
-                );
-                crate::cx_eprintln!(
-                    "hint: run 'cx task run-plan --status {}' and use --mode mixed or resolve dependencies/resource locks",
-                    options.status_filter
-                );
-                return 1;
-            }
+            crate::cx_eprintln!(
+                "hint: run 'cx task run-all --status {} --mode parallel --strict-plan --plan-json' for machine-readable diagnostics",
+                options.status_filter
+            );
+            return 1;
         }
         if !plan.blocked.is_empty() {
             crate::cx_eprintln!("cxrs task run-all: blocked tasks prevent full schedule:");
@@ -761,6 +780,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "status_filter": options.status_filter,
             "mode": options.run_mode,
             "strict_plan": options.strict_plan,
+            "plan_json": options.plan_json,
             "scheduled": scheduled_count,
             "complete": summary.ok,
             "failed": summary.failed,
@@ -815,12 +835,55 @@ struct RunAllOptions {
     status_filter: String,
     run_mode: String,
     strict_plan: bool,
+    plan_json: bool,
     backend_pool: Vec<String>,
     backend_caps: HashMap<String, usize>,
     max_workers: usize,
     fairness: String,
     halt_on_critical: bool,
     as_json: bool,
+}
+
+fn strict_plan_issue_for_parallel(plan: &crate::tasks_plan::TaskRunPlan) -> Option<String> {
+    if !plan.blocked.is_empty() {
+        return Some("blocked dependencies present".to_string());
+    }
+    let single_wave = plan.waves.len() == 1;
+    let all_parallel = plan.waves.iter().all(|w| w.mode == "parallel");
+    if single_wave && all_parallel {
+        None
+    } else {
+        Some("parallel mode would serialize across waves".to_string())
+    }
+}
+
+fn print_run_plan_json(
+    options: &RunAllOptions,
+    plan: &crate::tasks_plan::TaskRunPlan,
+    strict_ok: bool,
+) -> i32 {
+    let can_execute = plan.blocked.is_empty() && (!options.strict_plan || strict_ok);
+    let payload = serde_json::json!({
+        "contract_version": "task-run-plan.v1",
+        "status_filter": options.status_filter,
+        "requested_mode": options.run_mode,
+        "strict_plan": options.strict_plan,
+        "strict_plan_ok": strict_ok,
+        "can_execute": can_execute,
+        "selected": plan.selected,
+        "waves": plan.waves,
+        "blocked": plan.blocked
+    });
+    match serde_json::to_string_pretty(&payload) {
+        Ok(s) => {
+            println!("{s}");
+            if can_execute { 0 } else { 1 }
+        }
+        Err(e) => {
+            crate::cx_eprintln!("cxrs task run-all: failed to render plan json: {e}");
+            1
+        }
+    }
 }
 
 fn normalize_backend(v: &str) -> Option<String> {
@@ -916,11 +979,12 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
     let mut strict_plan = false;
+    let mut plan_json = false;
     let mut backend_pool = default_backend_pool();
     let mut backend_caps: HashMap<String, usize> = HashMap::new();
     let mut max_workers = 1usize;
@@ -1033,6 +1097,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 strict_plan = true;
                 i += 1;
             }
+            "--plan-json" => {
+                plan_json = true;
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run-all: unknown flag '{other}'");
                 return Err(2);
@@ -1043,6 +1111,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         status_filter,
         run_mode,
         strict_plan,
+        plan_json,
         backend_pool,
         backend_caps,
         max_workers,
@@ -1479,6 +1548,13 @@ mod tests {
         let args = vec!["run-all".to_string(), "--strict-plan".to_string()];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert!(opts.strict_plan);
+    }
+
+    #[test]
+    fn parse_plan_json() {
+        let args = vec!["run-all".to_string(), "--plan-json".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(opts.plan_json);
     }
 
     #[test]
