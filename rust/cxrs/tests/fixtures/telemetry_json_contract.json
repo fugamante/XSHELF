@@ -38,6 +38,9 @@
     "task_rows",
     "rows_with_worker_id",
     "rows_with_queue_ms",
+    "rows_with_wave_index",
+    "rows_with_wave_mode",
+    "rows_with_wave_size",
     "rows_with_queue_started_at",
     "rows_with_task_started_at",
     "rows_with_task_finished_at"

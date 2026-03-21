@@ -86,6 +86,9 @@ fn logs_stats_alias_reports_population_drift() {
     assert!(timing.get("task_rows").is_some());
     assert!(timing.get("rows_with_worker_id").is_some());
     assert!(timing.get("rows_with_queue_ms").is_some());
+    assert!(timing.get("rows_with_wave_index").is_some());
+    assert!(timing.get("rows_with_wave_mode").is_some());
+    assert!(timing.get("rows_with_wave_size").is_some());
     let http_modes = v
         .get("http_mode_stats")
         .and_then(Value::as_array)
