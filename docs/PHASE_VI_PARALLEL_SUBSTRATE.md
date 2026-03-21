@@ -39,5 +39,5 @@ Evolve task orchestration from strictly sequential execution to parallel-ready s
 ./bin/cx diag --json --window 50 | jq .
 ./bin/cx scheduler --json --window 50 | jq .
 ./bin/cx telemetry 200 --json | jq .
+./bin/cx task run-all --status pending --mode parallel --max-workers 2 --json | jq .
 ```
-

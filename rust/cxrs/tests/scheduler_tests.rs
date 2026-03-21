@@ -94,6 +94,67 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn parallel_lane_runs() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+sleep 2
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo parallel-lane-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let started = Instant::now();
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--backend-pool",
+        "codex",
+        "--max-workers",
+        "2",
+        "--json",
+    ]);
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(
+        payload.get("mode").and_then(Value::as_str),
+        Some("parallel")
+    );
+    assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(2));
+    assert!(
+        elapsed_ms < 3500,
+        "parallel lane did not execute concurrently; elapsed_ms={elapsed_ms}"
+    );
+}
+
+#[test]
 fn run_all_summary_includes_failure_taxonomy_fields() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(

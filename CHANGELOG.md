@@ -38,6 +38,12 @@ Notes:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
   - added Phase VI kickoff guidance in roadmap.
   - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
+- Phase VI execution lane (explicit, non-default):
+  - `task run-all` now accepts `--mode parallel` (default remains `sequential`).
+  - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
+  - added coverage:
+    - parser unit test for `--mode parallel`
+    - integration test validating `parallel` lane execution behavior.
 - Run-level scheduler timing telemetry refinement:
   - run logs now include optional task timing timestamps:
     - `queue_started_at`
