@@ -224,6 +224,16 @@ struct RunAllSummary {
     blocked: usize,
     critical_errors: usize,
     halted_on_critical: bool,
+    task_runs: Vec<Value>,
+}
+
+#[derive(Debug, Clone)]
+struct TaskRunEvent {
+    id: String,
+    backend: String,
+    status: String,
+    execution_id: Option<String>,
+    failure_class: Option<String>,
 }
 
 impl RunAllSummary {
@@ -244,6 +254,16 @@ impl RunAllSummary {
         self.failed += 1;
         self.non_retryable_failed += 1;
         self.critical_errors += 1;
+    }
+
+    fn add_task_run(&mut self, ev: TaskRunEvent) {
+        self.task_runs.push(serde_json::json!({
+            "task_id": ev.id,
+            "backend": ev.backend,
+            "status": ev.status,
+            "execution_id": ev.execution_id,
+            "failure_class": ev.failure_class
+        }));
     }
 }
 
@@ -460,7 +480,28 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         .filter(|t| t.status == options.status_filter)
         .count();
     if selected_count == 0 {
-        println!("No tasks matched status '{}'.", options.status_filter);
+        if options.as_json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "contract_version": "task-run-all.v1",
+                    "status_filter": options.status_filter,
+                    "mode": options.run_mode,
+                    "scheduled": 0,
+                    "complete": 0,
+                    "failed": 0,
+                    "blocked": 0,
+                    "retryable_failures": 0,
+                    "non_retryable_failures": 0,
+                    "critical_errors": 0,
+                    "halted_on_critical": false,
+                    "duration_ms": 0,
+                    "tasks": []
+                })
+            );
+        } else {
+            println!("No tasks matched status '{}'.", options.status_filter);
+        }
         return 0;
     }
     let task_index: HashMap<String, TaskRecord> =
@@ -485,23 +526,25 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
         let pool = options.backend_pool.join(",");
         let cap_notes = render_backend_caps(&options.backend_caps);
-        println!(
-            "run-all mode=mixed waves={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
-            plan.waves.len(),
-            ids.len(),
-            pool,
-            options.max_workers,
-            cap_notes,
-            options.fairness,
-            options.halt_on_critical
-        );
-        for wave in &plan.waves {
+        if !options.as_json {
             println!(
-                "wave {} [{}] -> {}",
-                wave.index,
-                wave.mode,
-                wave.task_ids.join(",")
+                "run-all mode=mixed waves={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
+                plan.waves.len(),
+                ids.len(),
+                pool,
+                options.max_workers,
+                cap_notes,
+                options.fairness,
+                options.halt_on_critical
             );
+            for wave in &plan.waves {
+                println!(
+                    "wave {} [{}] -> {}",
+                    wave.index,
+                    wave.mode,
+                    wave.task_ids.join(",")
+                );
+            }
         }
         ids
     } else {
@@ -530,10 +573,66 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
             let task = task_index.get(id);
             let max_retries = task.and_then(|t| t.max_retries).unwrap_or(0);
+            let task_parent_id = task.and_then(|t| t.parent_id.clone());
             let backend_selected = fallback_backend(
                 choose_backend_for_task(task, &options.backend_pool, idx),
                 &available_pool(&options.backend_pool),
             );
+            if options.as_json {
+                let backend = backend_selected
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string());
+                let run_result = run_task_managed_subprocess(
+                    id.clone(),
+                    backend.clone(),
+                    0,
+                    utc_now_iso(),
+                    "w1".to_string(),
+                    task_parent_id,
+                    max_retries,
+                );
+                match run_result {
+                    Ok((code, execution_id)) => {
+                        if code == 0 {
+                            summary.record_success();
+                            summary.add_task_run(TaskRunEvent {
+                                id: id.clone(),
+                                backend,
+                                status: "complete".to_string(),
+                                execution_id,
+                                failure_class: None,
+                            });
+                            continue;
+                        }
+                        let failure = classify_failure_for_execution(execution_id.as_deref());
+                        summary.record_failure(failure.class);
+                        summary.add_task_run(TaskRunEvent {
+                            id: id.clone(),
+                            backend,
+                            status: "failed".to_string(),
+                            execution_id,
+                            failure_class: Some(failure.reason),
+                        });
+                        continue;
+                    }
+                    Err(e) => {
+                        crate::cx_eprintln!("cxrs task run-all: critical error for {id}: {e}");
+                        summary.record_critical_error();
+                        summary.add_task_run(TaskRunEvent {
+                            id: id.clone(),
+                            backend,
+                            status: "critical_error".to_string(),
+                            execution_id: None,
+                            failure_class: Some("critical_error".to_string()),
+                        });
+                        if options.halt_on_critical {
+                            summary.halted_on_critical = true;
+                            halt_all = true;
+                        }
+                        continue;
+                    }
+                }
+            }
             let mut retry_reason: Option<String> = None;
             let mut retry_backoff: Option<u64> = None;
             let mut finished = false;
@@ -557,6 +656,15 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
+                            summary.add_task_run(TaskRunEvent {
+                                id: id.clone(),
+                                backend: backend_selected
+                                    .clone()
+                                    .unwrap_or_else(|| "unknown".to_string()),
+                                status: "complete".to_string(),
+                                execution_id,
+                                failure_class: None,
+                            });
                             finished = true;
                             break;
                         }
@@ -570,12 +678,30 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         }
                         summary.record_failure(failure.class);
                         crate::cx_eprintln!("cxrs task run-all: task failed: {id}");
+                        summary.add_task_run(TaskRunEvent {
+                            id: id.clone(),
+                            backend: backend_selected
+                                .clone()
+                                .unwrap_or_else(|| "unknown".to_string()),
+                            status: "failed".to_string(),
+                            execution_id,
+                            failure_class: Some(failure.reason),
+                        });
                         finished = true;
                         break;
                     }
                     Err(e) => {
                         crate::cx_eprintln!("cxrs task run-all: critical error for {id}: {e}");
                         summary.record_critical_error();
+                        summary.add_task_run(TaskRunEvent {
+                            id: id.clone(),
+                            backend: backend_selected
+                                .clone()
+                                .unwrap_or_else(|| "unknown".to_string()),
+                            status: "critical_error".to_string(),
+                            execution_id: None,
+                            failure_class: Some("critical_error".to_string()),
+                        });
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
                             halt_all = true;
@@ -588,22 +714,56 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             if !finished {
                 summary.record_failure(FailureClass::NonRetryable);
                 crate::cx_eprintln!("cxrs task run-all: task failed: {id}");
+                summary.add_task_run(TaskRunEvent {
+                    id: id.clone(),
+                    backend: backend_selected
+                        .clone()
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    status: "failed".to_string(),
+                    execution_id: None,
+                    failure_class: Some("non_retryable_failure".to_string()),
+                });
             }
         }
         summary
     };
-    println!(
-        "run-all summary: mode={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
-        options.run_mode,
-        summary.ok,
-        summary.failed,
-        summary.blocked,
-        summary.retryable_failed,
-        summary.non_retryable_failed,
-        summary.critical_errors
-    );
-    if summary.halted_on_critical {
-        println!("run-all halted_on_critical: true");
+    if options.as_json {
+        let payload = serde_json::json!({
+            "contract_version": "task-run-all.v1",
+            "status_filter": options.status_filter,
+            "mode": options.run_mode,
+            "scheduled": scheduled_count,
+            "complete": summary.ok,
+            "failed": summary.failed,
+            "blocked": summary.blocked,
+            "retryable_failures": summary.retryable_failed,
+            "non_retryable_failures": summary.non_retryable_failed,
+            "critical_errors": summary.critical_errors,
+            "halted_on_critical": summary.halted_on_critical,
+            "duration_ms": started.elapsed().as_millis() as u64,
+            "tasks": summary.task_runs
+        });
+        match serde_json::to_string_pretty(&payload) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                crate::cx_eprintln!("cxrs task run-all: failed to render json: {e}");
+                return 1;
+            }
+        }
+    } else {
+        println!(
+            "run-all summary: mode={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
+            options.run_mode,
+            summary.ok,
+            summary.failed,
+            summary.blocked,
+            summary.retryable_failed,
+            summary.non_retryable_failed,
+            summary.critical_errors
+        );
+        if summary.halted_on_critical {
+            println!("run-all halted_on_critical: true");
+        }
     }
     let _ = crate::runlog::log_task_run_all_summary(crate::runlog::TaskRunAllSummaryLogInput {
         mode: &options.run_mode,
@@ -629,6 +789,7 @@ struct RunAllOptions {
     max_workers: usize,
     fairness: String,
     halt_on_critical: bool,
+    as_json: bool,
 }
 
 fn normalize_backend(v: &str) -> Option<String> {
@@ -724,7 +885,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
@@ -733,6 +894,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
     let mut max_workers = 1usize;
     let mut fairness = "round_robin".to_string();
     let mut halt_on_critical = app_config().task_halt_on_critical;
+    let mut as_json = false;
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -827,6 +989,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 halt_on_critical = false;
                 i += 1;
             }
+            "--json" => {
+                as_json = true;
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run-all: unknown flag '{other}'");
                 return Err(2);
@@ -841,6 +1007,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         max_workers,
         fairness,
         halt_on_critical,
+        as_json,
     })
 }
 
@@ -1016,18 +1183,38 @@ fn run_schedule_parallel(
                     if code == 0 {
                         summary.record_success();
                         let _ = set_task_status_quiet(&done.id, "complete");
+                        summary.add_task_run(TaskRunEvent {
+                            id: done.id,
+                            backend: done.backend,
+                            status: "complete".to_string(),
+                            execution_id,
+                            failure_class: None,
+                        });
                     } else {
-                        summary.record_failure(
-                            classify_failure_for_execution(execution_id.as_deref()).class,
-                        );
+                        let failure = classify_failure_for_execution(execution_id.as_deref());
+                        summary.record_failure(failure.class);
                         let _ = set_task_status_quiet(&done.id, "failed");
                         crate::cx_eprintln!("cxrs task run-all: task failed: {}", done.id);
+                        summary.add_task_run(TaskRunEvent {
+                            id: done.id,
+                            backend: done.backend,
+                            status: "failed".to_string(),
+                            execution_id,
+                            failure_class: Some(failure.reason),
+                        });
                     }
                 }
                 Err(e) => {
                     summary.record_critical_error();
                     let _ = set_task_status_quiet(&done.id, "failed");
                     crate::cx_eprintln!("cxrs task run-all: critical error for {}: {e}", done.id);
+                    summary.add_task_run(TaskRunEvent {
+                        id: done.id,
+                        backend: done.backend,
+                        status: "critical_error".to_string(),
+                        execution_id: None,
+                        failure_class: Some("critical_error".to_string()),
+                    });
                     if options.halt_on_critical {
                         summary.halted_on_critical = true;
                         return Ok(summary);
@@ -1207,6 +1394,7 @@ mod tests {
             "3".to_string(),
             "--fairness".to_string(),
             "least_loaded".to_string(),
+            "--json".to_string(),
         ];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert_eq!(opts.run_mode, "mixed");
@@ -1215,6 +1403,7 @@ mod tests {
         assert_eq!(opts.backend_caps.get("codex"), Some(&2usize));
         assert_eq!(opts.max_workers, 3);
         assert_eq!(opts.fairness, "least_loaded");
+        assert!(opts.as_json);
         assert!(!opts.halt_on_critical);
     }
 

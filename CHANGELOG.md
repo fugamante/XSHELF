@@ -30,6 +30,9 @@ Notes:
     - `cx task show list`
     - `cx task show list --status <...>`
     - bare `cx task show` now routes to list view.
+- Task run-all machine output:
+  - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
+  - payload includes aggregate counters plus per-task execution outcomes.
 - Provider quota catalog commands:
   - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.
