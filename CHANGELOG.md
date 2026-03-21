@@ -15,6 +15,14 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Run-level scheduler timing telemetry refinement:
+  - run logs now include optional task timing timestamps:
+    - `queue_started_at`
+    - `task_started_at`
+    - `task_finished_at`
+  - mixed-mode worker subprocess path now emits queue/start timestamps via task env propagation.
+  - sequential retry path now emits start/queue timestamps through retry-env instrumentation.
+  - `scheduler_tests` now asserts these fields on task rows.
 - Provider quota catalog commands:
   - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.
