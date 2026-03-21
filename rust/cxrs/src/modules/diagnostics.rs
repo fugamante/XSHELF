@@ -10,6 +10,7 @@ use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
+use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
@@ -475,7 +476,7 @@ fn severity_rank(level: &str) -> i32 {
 }
 
 fn parse_diag_args(args: &[String]) -> Result<(bool, usize, bool, bool, Option<String>), String> {
-    let mut as_json = false;
+    let mut as_json: Option<bool> = None;
     let mut window = 200usize;
     let mut strict = false;
     let mut actions = false;
@@ -484,7 +485,11 @@ fn parse_diag_args(args: &[String]) -> Result<(bool, usize, bool, bool, Option<S
     while i < args.len() {
         match args[i].as_str() {
             "--json" => {
-                as_json = true;
+                as_json = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                as_json = Some(false);
                 i += 1;
             }
             "--strict" => {
@@ -523,7 +528,13 @@ fn parse_diag_args(args: &[String]) -> Result<(bool, usize, bool, bool, Option<S
             }
         }
     }
-    Ok((as_json, window, strict, actions, severity_floor))
+    Ok((
+        resolve_json_mode(as_json, false),
+        window,
+        strict,
+        actions,
+        severity_floor,
+    ))
 }
 
 fn build_actions_from_reasons(
@@ -718,7 +729,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
         Err(e) => {
             crate::cx_eprintln!("{e}");
             crate::cx_eprintln!(
-                "Usage: diag [--json] [--window N] [--strict] [--actions] [--severity warning|critical]"
+                "Usage: diag [--json|--text] [--window N] [--strict] [--actions] [--severity warning|critical]"
             );
             return 2;
         }
@@ -881,7 +892,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
         Err(e) => {
             crate::cx_eprintln!("{e}");
             crate::cx_eprintln!(
-                "Usage: scheduler [--json] [--window N] [--strict] [--actions] [--severity warning|critical]"
+                "Usage: scheduler [--json|--text] [--window N] [--strict] [--actions] [--severity warning|critical]"
             );
             return 2;
         }

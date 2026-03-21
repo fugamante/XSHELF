@@ -44,7 +44,8 @@ fn default_state_value() -> Value {
             "llm_backend": Value::Null,
             "ollama_model": Value::Null,
             "conventional_commits": Value::Null,
-            "pr_summary_format": Value::Null
+            "pr_summary_format": Value::Null,
+            "default_json_output": Value::Null
         },
         "runtime": {
             "current_task_id": Value::Null,

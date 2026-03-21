@@ -33,6 +33,13 @@ Notes:
 - Task run-all machine output:
   - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
   - payload includes aggregate counters plus per-task execution outcomes.
+- JSON output mode defaults:
+  - added shared JSON mode resolver precedence:
+    - `--json` / `--text` CLI override
+    - `CX_JSON_DEFAULT` env
+    - `.codex/state.json` at `preferences.default_json_output`
+    - command default fallback
+  - wired into `task run-all`, `diag`, `scheduler`, `optimize`, and `logs stats`/`telemetry`.
 - Provider quota catalog commands:
   - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.

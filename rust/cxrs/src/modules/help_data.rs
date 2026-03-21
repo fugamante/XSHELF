@@ -18,12 +18,12 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "diag",
-        usage: "diag [--json] [--window N] [--strict] [--actions] [--severity warning|critical]",
+        usage: "diag [--json|--text] [--window N] [--strict] [--actions] [--severity warning|critical]",
         description: "Non-interactive diagnostic report",
     },
     CommandHelp {
         name: "scheduler",
-        usage: "scheduler [--json] [--window N] [--strict] [--actions] [--severity warning|critical]",
+        usage: "scheduler [--json|--text] [--window N] [--strict] [--actions] [--severity warning|critical]",
         description: "Scheduler-focused diagnostics summary",
     },
     CommandHelp {
@@ -48,12 +48,12 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "logs",
-        usage: "logs stats [N] [--json] [--strict] [--severity]",
+        usage: "logs stats [N] [--json|--text] [--strict] [--severity]",
         description: "Telemetry health and contract-drift summary",
     },
     CommandHelp {
         name: "telemetry",
-        usage: "telemetry [N] [--json] [--strict] [--severity]",
+        usage: "telemetry [N] [--json|--text] [--strict] [--severity]",
         description: "Alias for 'logs stats'",
     },
     CommandHelp {
@@ -238,7 +238,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "optimize",
-        usage: "optimize [N] [--json] [--actions] [--strict] [--severity warning|critical]",
+        usage: "optimize [N] [--json|--text] [--actions] [--strict] [--severity warning|critical]",
         description: "Recommend cost/latency improvements from last N runs",
     },
     CommandHelp {
@@ -351,7 +351,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task run-all",
-        usage: "cx task run-all [--status pending] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json]",
+        usage: "cx task run-all [--status pending] [--mode sequential|mixed] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]",
         description: "Run tasks by status (sequential default; mixed uses run-plan waves and broker-aware backend routing)",
     },
 ];
