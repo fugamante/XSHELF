@@ -55,6 +55,8 @@ mod logs;
 mod logs_stats;
 #[path = "modules/logview.rs"]
 mod logview;
+#[path = "modules/mode_cmd.rs"]
+mod mode_cmd;
 #[path = "modules/native_cmd.rs"]
 mod native_cmd;
 #[path = "modules/optimize.rs"]
