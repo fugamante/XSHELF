@@ -483,7 +483,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     if selected_count == 0 {
         if options.plan_json {
             let empty_plan = build_task_run_plan(&tasks, &options.status_filter);
-            return print_run_plan_json(&options, &empty_plan, true);
+            return plan_json_out(&options, &empty_plan, true);
         }
         if options.as_json {
             println!(
@@ -525,14 +525,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let strict_issue = if options.run_mode == "parallel" {
         maybe_plan
             .as_ref()
-            .and_then(strict_plan_issue_for_parallel)
+            .and_then(strict_issue_parallel)
             .filter(|_| options.strict_plan || options.plan_json)
     } else {
         None
     };
     if options.plan_json {
         let plan = maybe_plan.as_ref().unwrap_or_else(|| unreachable!());
-        return print_run_plan_json(&options, plan, strict_issue.is_none());
+        return plan_json_out(&options, plan, strict_issue.is_none());
     }
 
     let schedule: Vec<String> = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
@@ -844,7 +844,7 @@ struct RunAllOptions {
     as_json: bool,
 }
 
-fn strict_plan_issue_for_parallel(plan: &crate::tasks_plan::TaskRunPlan) -> Option<String> {
+fn strict_issue_parallel(plan: &crate::tasks_plan::TaskRunPlan) -> Option<String> {
     if !plan.blocked.is_empty() {
         return Some("blocked dependencies present".to_string());
     }
@@ -857,7 +857,7 @@ fn strict_plan_issue_for_parallel(plan: &crate::tasks_plan::TaskRunPlan) -> Opti
     }
 }
 
-fn print_run_plan_json(
+fn plan_json_out(
     options: &RunAllOptions,
     plan: &crate::tasks_plan::TaskRunPlan,
     strict_ok: bool,
