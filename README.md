@@ -400,6 +400,7 @@ Stage II runtime commands:
 ./bin/cx task run-all --status pending --mode mixed
 ./bin/cx task run-all --status pending --mode parallel --max-workers 2
 ./bin/cx task run-all --status pending --mode parallel --strict-plan --max-workers 2
+./bin/cx task run-all --status pending --mode parallel --strict-plan --plan-json | jq .
 ./bin/cx task run-all --status pending --mode mixed --halt-on-critical
 CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 
