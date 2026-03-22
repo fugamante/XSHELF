@@ -377,8 +377,42 @@ fn diag_json_matches_contract_fixture() {
             ("scheduler", "scheduler_keys", "diag.scheduler"),
             ("retry", "retry_keys", "diag.retry"),
             ("critical", "critical_keys", "diag.critical"),
+            ("concurrency", "concurrency_keys", "diag.concurrency"),
         ],
     );
+
+    let concurrency = payload.get("concurrency").expect("diag.concurrency");
+    let defaults = concurrency
+        .get("defaults")
+        .expect("diag.concurrency.defaults");
+    let observed = concurrency
+        .get("observed")
+        .expect("diag.concurrency.observed");
+    for key in [
+        "run_all_mode",
+        "backend_pool",
+        "backend_caps",
+        "max_workers",
+        "fairness",
+        "halt_on_critical",
+    ] {
+        assert!(
+            defaults.get(key).is_some(),
+            "diag.concurrency.defaults missing key '{key}' in {defaults}"
+        );
+    }
+    for key in [
+        "window_runs",
+        "run_all_rows",
+        "latest_run_all_mode",
+        "run_all_mode_counts",
+        "halt_on_critical_rows",
+    ] {
+        assert!(
+            observed.get(key).is_some(),
+            "diag.concurrency.observed missing key '{key}' in {observed}"
+        );
+    }
 }
 
 #[test]

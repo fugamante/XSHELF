@@ -459,6 +459,71 @@ fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
     })
 }
 
+fn concurrency_diag_value(
+    log_file_path: &str,
+    window: usize,
+    cfg: &crate::config::AppConfig,
+) -> Value {
+    let default_backend = cfg.llm_backend.to_lowercase();
+    let default_backend_pool = if matches!(default_backend.as_str(), "codex" | "ollama") {
+        vec![default_backend]
+    } else {
+        vec!["codex".to_string()]
+    };
+    let defaults = serde_json::json!({
+        "run_all_mode": "sequential",
+        "backend_pool": default_backend_pool,
+        "backend_caps": {},
+        "max_workers": 1,
+        "fairness": "round_robin",
+        "halt_on_critical": cfg.task_halt_on_critical
+    });
+
+    let path = Path::new(log_file_path);
+    if !path.exists() {
+        return serde_json::json!({
+            "defaults": defaults,
+            "observed": {
+                "window_runs": 0,
+                "run_all_rows": 0,
+                "latest_run_all_mode": Value::Null,
+                "run_all_mode_counts": {},
+                "halt_on_critical_rows": 0
+            }
+        });
+    }
+
+    let rows = load_values(path, window).unwrap_or_default();
+    let mut run_all_rows = 0u64;
+    let mut mode_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut halt_rows = 0u64;
+    let mut latest_run_all_mode: Option<String> = None;
+    for v in &rows {
+        if v.get("tool").and_then(Value::as_str) != Some("cxtask_runall") {
+            continue;
+        }
+        run_all_rows += 1;
+        if let Some(mode) = v.get("run_all_mode").and_then(Value::as_str) {
+            *mode_counts.entry(mode.to_string()).or_insert(0) += 1;
+            latest_run_all_mode = Some(mode.to_string());
+        }
+        if v.get("halt_on_critical").and_then(Value::as_bool) == Some(true) {
+            halt_rows += 1;
+        }
+    }
+
+    serde_json::json!({
+        "defaults": defaults,
+        "observed": {
+            "window_runs": rows.len(),
+            "run_all_rows": run_all_rows,
+            "latest_run_all_mode": latest_run_all_mode,
+            "run_all_mode_counts": mode_counts,
+            "halt_on_critical_rows": halt_rows
+        }
+    })
+}
+
 fn parse_severity_floor(raw: &str) -> Option<&'static str> {
     match raw {
         "warn" | "warning" => Some("warning"),
@@ -751,6 +816,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let scheduler = scheduler_diag_value(&log_file, window);
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
+    let concurrency = concurrency_diag_value(&log_file, window, cfg);
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -801,6 +867,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "scheduler": scheduler,
             "retry": retry,
             "critical": critical,
+            "concurrency": concurrency,
             "scheduler_window_requested": window,
             "severity": severity,
             "severity_reasons": severity_reasons,
@@ -847,6 +914,42 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     print_scheduler_diag(&log_file, window);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
+    let observed = concurrency
+        .get("observed")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let defaults = concurrency
+        .get("defaults")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    println!(
+        "concurrency_default_mode: {}",
+        defaults
+            .get("run_all_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("sequential")
+    );
+    println!(
+        "concurrency_default_workers: {}",
+        defaults
+            .get("max_workers")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+    );
+    println!(
+        "concurrency_observed_run_all_rows: {}",
+        observed
+            .get("run_all_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_mode: {}",
+        observed
+            .get("latest_run_all_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
