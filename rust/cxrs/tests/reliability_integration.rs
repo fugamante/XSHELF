@@ -582,6 +582,48 @@ fn capture_pipeline_native_logs_provider_fields() {
 }
 
 #[test]
+fn native_capture_ok() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        "git",
+        r#"#!/usr/bin/env bash
+if [[ "${1:-}" == "status" ]]; then
+  printf '{\"oops\":\n'
+  printf '\033[31mERR\033[0m\t\tunexpected\n'
+  exit 0
+fi
+if [[ -x /usr/bin/git ]]; then
+  exec /usr/bin/git "$@"
+fi
+exec git "$@"
+exit 0
+"#,
+    );
+    repo.write_mock("codex", &mock_codex_jsonl_agent_text("ok"));
+
+    let out = repo.run_with_env(&["cxo", "git", "status"], &[("CX_NATIVE_REDUCE", "0")]);
+    assert!(
+        out.status.success(),
+        "native capture should tolerate malformed bytes; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let runs = parse_jsonl(&repo.runs_log());
+    let last = runs.last().expect("last run");
+    assert_required_run_fields(last);
+    assert_eq!(
+        last.get("capture_provider").and_then(Value::as_str),
+        Some("native")
+    );
+    assert_eq!(
+        last.get("schema_valid").and_then(Value::as_bool),
+        Some(true),
+        "non-schema cxo run should remain valid: {last}"
+    );
+}
+
+#[test]
 fn fix_run_policy_block_logged_with_reason() {
     let repo = TempRepo::new("cxrs-rel");
     let fix_json = r#"{"analysis":"dangerous path","commands":["rm -rf /tmp/cxrs-danger-test"]}"#;
