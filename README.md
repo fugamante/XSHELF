@@ -336,8 +336,10 @@ Telemetry health:
 ./bin/cx telemetry 50 --json | jq '.critical_telemetry'
 ./bin/cx diag --json --window 50 | jq .
 ./bin/cx diag --json --strict --window 50 | jq '.severity,.severity_reasons,.critical'
+./bin/cx diag --json --window 50 | jq '.concurrency.defaults,.concurrency.observed'
 ./bin/cx scheduler --json --window 50 | jq .
 ./bin/cx scheduler --json --strict --window 50 | jq '.severity,.severity_reasons,.critical'
+./bin/cx scheduler --json --window 50 | jq '.concurrency.defaults,.concurrency.observed'
 ./bin/cx optimize 200 --json | jq .
 ./bin/cx quota probe 30 --json | jq .
 ./bin/cx quota guard show
