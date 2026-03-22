@@ -39,6 +39,7 @@ Notes:
   - added Phase VI kickoff guidance in roadmap.
   - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
   - `cxrs-compat` CI now includes a command-surface gate that fails when command entrypoints are changed without corresponding docs/changelog updates.
+  - refined command-surface CI gate to require `CHANGELOG.md` whenever command entrypoint files change (README/docs updates remain optional but recommended).
 - Phase VI execution lane (explicit, non-default):
   - `task run-all` now accepts `--mode parallel` (default remains `sequential`).
   - added `--strict-plan` for `--mode parallel` to fail fast when plan waves indicate serialization constraints (dependencies/resource locks).
