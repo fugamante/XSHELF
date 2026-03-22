@@ -98,6 +98,7 @@ Notes:
   - reliability integration now explicitly validates `CX_TIMEOUT_GIT_SECS` precedence with git-labeled timeout diagnostics (`system command 'git' ... timed out after 1s`).
   - test-suite fixture utilities now include a shared quarantine fixture writer (`write_quarantine_fixture`) to reduce replay/quarantine setup duplication.
   - added native capture malformed-output reliability coverage (`native_capture_ok`) to ensure non-JSON/garbled command output does not break capture/logging execution flow.
+  - added replay contract coverage under `CX_SCHEMA_RELAXED=1` (`replay_relaxed_validates`) to lock behavior that replay remains schema-validated and quarantines/logs invalid JSON responses.
 - Task run-all machine output:
   - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
   - payload includes aggregate counters plus per-task execution outcomes.

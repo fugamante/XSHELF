@@ -365,6 +365,68 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":80,"cached_input
 }
 
 #[test]
+fn replay_relaxed_validates() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"not-json"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":4}}'
+"#,
+    );
+
+    let next_schema = fs::read_to_string(
+        repo.root
+            .join(".codex")
+            .join("schemas")
+            .join("next.schema.json"),
+    )
+    .expect("read next schema");
+    let qid = "fixture_replay_relaxed";
+    write_quarantine_fixture(
+        &repo,
+        qid,
+        "next",
+        &next_schema,
+        "Command: git status --short\nOutput: M src/main.rs",
+        "bad-json",
+    );
+
+    let out = repo.run_with_env(&["replay", qid], &[("CX_SCHEMA_RELAXED", "1")]);
+    assert!(
+        !out.status.success(),
+        "replay should still fail validation in relaxed mode; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("invalid_json"),
+        "expected invalid_json in stderr: {}",
+        stderr_str(&out)
+    );
+
+    let sf_rows = parse_jsonl(&repo.schema_fail_log());
+    let last = sf_rows.last().expect("schema failure row");
+    assert_eq!(
+        last.get("tool").and_then(Value::as_str),
+        Some("next_replay")
+    );
+    let replay_qid = last
+        .get("quarantine_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    assert!(
+        !replay_qid.is_empty(),
+        "schema failure row missing quarantine_id"
+    );
+    assert!(
+        repo.quarantine_file(replay_qid).exists(),
+        "missing quarantine file for replay schema failure"
+    );
+}
+
+#[test]
 fn ollama_timeout_failure_logs_backend_fields() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(
