@@ -163,6 +163,37 @@ fn broker_benchmark_accepts_warning_severity_alias() {
 }
 
 #[test]
+fn policy_json_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    let out = repo.run(&["policy", "show", "--json"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("policy show json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("policy-show.v1")
+    );
+    let rules = payload
+        .get("rules")
+        .and_then(Value::as_array)
+        .expect("rules array");
+    assert!(!rules.is_empty(), "rules array should not be empty");
+    assert!(
+        payload
+            .get("overrides")
+            .and_then(|v| v.get("unsafe_enabled"))
+            .and_then(Value::as_bool)
+            .is_some()
+    );
+    assert!(
+        payload
+            .get("overrides")
+            .and_then(|v| v.get("cxfix_force_enabled"))
+            .and_then(Value::as_bool)
+            .is_some()
+    );
+}
+
+#[test]
 fn quota_json_reports_projection_and_top_commands() {
     let repo = TempRepo::new("cxrs-it");
     let log = repo.runs_log();

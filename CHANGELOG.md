@@ -91,6 +91,7 @@ Notes:
     - `cx task show list`
     - `cx task show list --status <...>`
     - bare `cx task show` now routes to list view.
+  - `cx policy show --json` now emits machine-readable contract output (`policy-show.v1`) with rule list and override state for CI/operator checks.
 - Task run-all machine output:
   - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
   - payload includes aggregate counters plus per-task execution outcomes.

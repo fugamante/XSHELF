@@ -417,6 +417,7 @@ CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 ./bin/cx broker benchmark --backend codex --backend ollama --window 200 --strict --min-runs 5 --severity warn --json | jq .
 
 ./bin/cx policy show
+./bin/cx policy show --json | jq .
 ./bin/cx logs validate --fix=false
 ```
 

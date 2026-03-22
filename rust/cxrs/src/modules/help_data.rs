@@ -103,7 +103,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "policy",
-        usage: "policy [show|check ...]",
+        usage: "policy [show [--json]|check ...]",
         description: "Show safety rules or classify a command",
     },
     CommandHelp {
