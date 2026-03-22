@@ -36,6 +36,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      CXRS_ARTIFACT_DIR: .github/ci-artifacts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,11 +85,24 @@ jobs:
 
       - name: Rust check
         run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
+          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/rust_check_${{ matrix.os }}.log"
           cd rust/cxrs
-          cargo fmt --check
-          cargo check
-          cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
-          cargo test --tests -- --test-threads=1
+          {
+            echo "== cargo fmt --check =="
+            cargo fmt --check
+            echo
+            echo "== cargo check =="
+            cargo check
+            echo
+            echo "== cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments =="
+            cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
+            echo
+            echo "== cargo test --tests -- --test-threads=1 =="
+            cargo test --tests -- --test-threads=1
+          } 2>&1 | tee "$log"
+          exit "${PIPESTATUS[0]}"
 
       - name: Rust File Line Guardrail
         run: |
@@ -224,13 +239,30 @@ jobs:
 
       - name: Compat check
         run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
+          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/compat_check_${{ matrix.os }}.log"
           cd rust/cxrs
-          ./scripts/compat_check.sh 50
+          ./scripts/compat_check.sh 50 2>&1 | tee "$log"
+          exit "${PIPESTATUS[0]}"
 
       - name: Shell Regression Suite
         run: |
           set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
+          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/shell_regression_${{ matrix.os }}.log"
           cd "$GITHUB_WORKSPACE"
-          for t in test/*.sh; do
-            bash "$t"
-          done
+          {
+            for t in test/*.sh; do
+              bash "$t"
+            done
+          } 2>&1 | tee "$log"
+          exit "${PIPESTATUS[0]}"
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cxrs-compat-artifacts-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ env.CXRS_ARTIFACT_DIR }}
+          if-no-files-found: ignore
