@@ -71,6 +71,7 @@ Notes:
   - tightened `task-check` semantic assertions:
     - `recommended_mode` constrained to `sequential|mixed|parallel`.
     - `strict_plan_reason` must be null when `strict_plan_ok=true`, and non-empty when false.
+  - moved `task-check` semantic constraints into fixture data (`allowed_modes`, `strict_reason_rules`) for data-driven CI contract enforcement.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`

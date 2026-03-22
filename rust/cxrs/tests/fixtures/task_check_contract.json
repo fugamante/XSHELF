@@ -18,5 +18,14 @@
   "blocked_keys": [
     "id",
     "reason"
-  ]
+  ],
+  "allowed_modes": [
+    "sequential",
+    "mixed",
+    "parallel"
+  ],
+  "strict_reason_rules": {
+    "null_when_ok": true,
+    "non_empty_when_not_ok": true
+  }
 }
