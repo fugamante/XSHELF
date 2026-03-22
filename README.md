@@ -94,6 +94,8 @@ Structured commands are schema-enforced from `.codex/schemas/` and deterministic
 
 Repo role boundary:
 - `docs/REPO_ROLE_CONTRACT.md`
+- Cross-repo sync plan:
+- `docs/REPO_SYNC_PLAN.md`
 
 ## Design Discipline
 
