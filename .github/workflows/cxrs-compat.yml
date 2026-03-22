@@ -259,6 +259,36 @@ jobs:
           } 2>&1 | tee "$log"
           exit "${PIPESTATUS[0]}"
 
+      - name: Build failure summary
+        if: failure()
+        run: |
+          set -euo pipefail
+          dir="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
+          mkdir -p "$dir"
+          summary="$dir/summary_${{ matrix.os }}.txt"
+          {
+            echo "cxrs-compat failure summary"
+            echo "os: ${{ matrix.os }}"
+            echo "repo: $GITHUB_REPOSITORY"
+            echo "run_id: $GITHUB_RUN_ID"
+            echo "run_attempt: $GITHUB_RUN_ATTEMPT"
+            echo "sha: $GITHUB_SHA"
+            echo
+            echo "captured logs:"
+            ls -1 "$dir"/*.log 2>/dev/null || echo "(none)"
+            echo
+            for f in "$dir"/*.log; do
+              [[ -f "$f" ]] || continue
+              echo "---- $(basename "$f") ----"
+              # Include error-like lines first for quick triage.
+              grep -Ei '(^error:|^thread .* panicked|panic|failed|FAIL|timed out|mismatch|assertion)' "$f" | tail -n 80 || true
+              echo
+              echo "last 120 lines:"
+              tail -n 120 "$f" || true
+              echo
+            done
+          } > "$summary"
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
