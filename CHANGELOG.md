@@ -66,6 +66,7 @@ Notes:
     - non-mutating readiness report for blocked tasks/dependencies.
     - strict-plan readiness signal with `--strict-plan` gate semantics.
     - recommended run mode output for operator/CI routing decisions.
+  - added fixture-backed contract coverage for `task-check.v1`.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`
