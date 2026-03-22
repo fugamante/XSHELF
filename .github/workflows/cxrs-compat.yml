@@ -39,6 +39,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Command Surface Changelog Gate
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+            if [[ -z "$base" || "$base" == "0000000000000000000000000000000000000000" ]]; then
+              base="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+            fi
+          fi
+          head="${{ github.sha }}"
+          changed="$(git diff --name-only "$base" "$head")"
+          cmd_changed="$(echo "$changed" | grep -E '^(bin/cx|lib/cx.sh|cx.sh|rust/cxrs/src/app/mod.rs|rust/cxrs/src/modules/(.*cmd.*\.rs|help_data\.rs|native_dispatch\.rs|compat_dispatch\.rs|command_names\.rs|routing\.rs))$' || true)"
+          if [[ -z "$cmd_changed" ]]; then
+            echo "command surface: unchanged"
+            exit 0
+          fi
+          docs_changed="$(echo "$changed" | grep -E '^(CHANGELOG\.md|README\.md|docs/)' || true)"
+          if [[ -z "$docs_changed" ]]; then
+            echo "Command surface changed without docs/changelog updates."
+            echo "Changed command files:"
+            echo "$cmd_changed"
+            exit 1
+          fi
+          echo "command surface gate: PASS"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
