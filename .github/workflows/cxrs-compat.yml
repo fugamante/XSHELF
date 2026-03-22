@@ -60,12 +60,16 @@ jobs:
             echo "command surface: unchanged"
             exit 0
           fi
-          docs_changed="$(echo "$changed" | grep -E '^(CHANGELOG\.md|README\.md|docs/)' || true)"
-          if [[ -z "$docs_changed" ]]; then
-            echo "Command surface changed without docs/changelog updates."
+          changelog_changed="$(echo "$changed" | grep -E '^CHANGELOG\.md$' || true)"
+          if [[ -z "$changelog_changed" ]]; then
+            echo "Command surface changed without CHANGELOG.md update."
             echo "Changed command files:"
             echo "$cmd_changed"
             exit 1
+          fi
+          docs_changed="$(echo "$changed" | grep -E '^(README\.md|docs/)' || true)"
+          if [[ -z "$docs_changed" ]]; then
+            echo "warning: command surface changed with changelog only (README/docs unchanged)"
           fi
           echo "command surface gate: PASS"
 
