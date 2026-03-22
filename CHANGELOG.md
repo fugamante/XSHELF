@@ -68,6 +68,9 @@ Notes:
     - recommended run mode output for operator/CI routing decisions.
   - added fixture-backed contract coverage for `task-check.v1`.
   - added non-mutation test coverage for `task check` (no task status or run-log side effects).
+  - tightened `task-check` semantic assertions:
+    - `recommended_mode` constrained to `sequential|mixed|parallel`.
+    - `strict_plan_reason` must be null when `strict_plan_ok=true`, and non-empty when false.
   - parallel lane uses existing deterministic scheduler path behind explicit mode selection.
   - added coverage:
     - parser unit test for `--mode parallel`

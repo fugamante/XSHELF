@@ -1160,6 +1160,16 @@ fn task_check_json() {
         payload.get("recommended_mode").and_then(Value::as_str),
         Some("parallel")
     );
+    assert_eq!(
+        payload.get("strict_plan_ok").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        payload
+            .get("strict_plan_reason")
+            .is_some_and(Value::is_null),
+        "{payload}"
+    );
 }
 
 #[test]
@@ -1208,6 +1218,10 @@ fn task_check_strict() {
         Some(false)
     );
     assert_eq!(
+        payload.get("strict_plan_reason").and_then(Value::as_str),
+        Some("parallel mode would serialize across waves")
+    );
+    assert_eq!(
         payload.get("recommended_mode").and_then(Value::as_str),
         Some("mixed")
     );
@@ -1242,6 +1256,34 @@ fn task_check_contract() {
     let fixture = load_fixture_json("task_check_contract.json");
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "task_check.top");
+    let mode = payload
+        .get("recommended_mode")
+        .and_then(Value::as_str)
+        .expect("recommended_mode");
+    assert!(
+        matches!(mode, "sequential" | "mixed" | "parallel"),
+        "unexpected recommended_mode: {mode}"
+    );
+    let strict_ok = payload
+        .get("strict_plan_ok")
+        .and_then(Value::as_bool)
+        .expect("strict_plan_ok");
+    if strict_ok {
+        assert!(
+            payload
+                .get("strict_plan_reason")
+                .is_some_and(Value::is_null),
+            "{payload}"
+        );
+    } else {
+        assert!(
+            payload
+                .get("strict_plan_reason")
+                .and_then(Value::as_str)
+                .is_some_and(|v| !v.trim().is_empty()),
+            "{payload}"
+        );
+    }
 
     let blocked_keys = fixture_keys(&fixture, "blocked_keys");
     for blocked in payload
