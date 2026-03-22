@@ -1212,3 +1212,43 @@ fn task_check_strict() {
         Some("mixed")
     );
 }
+
+#[test]
+fn task_check_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    let add = repo.run(&[
+        "task",
+        "add",
+        "cxo echo check-contract",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+        "--mode",
+        "parallel",
+        "--resource-keys",
+        "repo:read",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    let out = repo.run(&["task", "check", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("check json");
+    let fixture = load_fixture_json("task_check_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&payload, &top_keys, "task_check.top");
+
+    let blocked_keys = fixture_keys(&fixture, "blocked_keys");
+    for blocked in payload
+        .get("blocked")
+        .and_then(Value::as_array)
+        .expect("blocked array")
+    {
+        assert_has_keys(blocked, &blocked_keys, "task_check.blocked.item");
+    }
+}
