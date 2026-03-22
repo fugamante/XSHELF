@@ -44,5 +44,29 @@ pub fn render_task_help() -> String {
     for c in TASK_COMMANDS {
         out.push_str(&format!("  {:<width$}{}\n", c.usage, c.description));
     }
+    out.push_str("\nExamples:\n");
+    out.push_str("  cx task run task_001 --mode deterministic --backend codex\n");
+    out.push_str("  cx task run-all --status pending --mode mixed\n");
+    out.push_str(
+        "  cx task run-all --status pending --mode parallel --strict-plan --max-workers 2\n",
+    );
+    out.push_str("  cx task run-all --status pending --mode parallel --plan-json --json | jq .\n");
+    out.push_str("  cx task run-all --status pending --dry-run --json | jq .\n");
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render_task_help;
+
+    #[test]
+    fn task_help_examples() {
+        let text = render_task_help();
+        assert!(text.contains("Examples:"));
+        assert!(text.contains("cx task run task_001 --mode deterministic --backend codex"));
+        assert!(text.contains("cx task run-all --status pending --mode mixed"));
+        assert!(text.contains(
+            "cx task run-all --status pending --mode parallel --strict-plan --max-workers 2"
+        ));
+    }
 }

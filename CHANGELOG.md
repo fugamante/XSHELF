@@ -93,6 +93,7 @@ Notes:
     - bare `cx task show` now routes to list view.
   - `cx policy show --json` now emits machine-readable contract output (`policy-show.v1`) with rule list and override state for CI/operator checks.
   - parity log invariant checks now require `policy_blocked` presence via shared `has_required_log_fields` contract helper.
+  - `cx help task` now includes practical `task run` and `task run-all` examples for mixed/parallel planning and dry-run preflight flows.
 - Task run-all machine output:
   - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
   - payload includes aggregate counters plus per-task execution outcomes.
