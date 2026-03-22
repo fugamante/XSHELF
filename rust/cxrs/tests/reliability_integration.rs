@@ -2,8 +2,9 @@ mod common;
 
 use common::{
     TempRepo, parse_jsonl, read_json, set_readonly, set_writable, stderr_str, stdout_str,
+    write_quarantine_fixture,
 };
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::fs;
 
 fn assert_required_run_fields(v: &Value) {
@@ -126,6 +127,11 @@ exit 0
     assert!(
         stderr_str(&out).contains("timed out after 1s"),
         "expected git timeout override in stderr: {}",
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("system command 'git'"),
+        "expected git command label in timeout stderr: {}",
         stderr_str(&out)
     );
 }
@@ -325,24 +331,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":80,"cached_input
     )
     .expect("read next schema");
     let qid = "fixture_replay_next";
-    let q = json!({
-        "id": qid,
-        "ts": "2026-01-01T00:00:00Z",
-        "tool": "next",
-        "reason": "invalid_json",
-        "schema": next_schema,
-        "prompt": "Command: git status --short\nOutput: M src/main.rs",
-        "prompt_sha256": "fixture",
-        "raw_response": "not-json",
-        "raw_sha256": "fixture",
-        "attempts": []
-    });
-    fs::create_dir_all(repo.root.join(".codex").join("quarantine")).expect("create quarantine dir");
-    fs::write(
-        repo.quarantine_file(qid),
-        serde_json::to_string_pretty(&q).expect("serialize fixture"),
-    )
-    .expect("write quarantine fixture");
+    write_quarantine_fixture(
+        &repo,
+        qid,
+        "next",
+        &next_schema,
+        "Command: git status --short\nOutput: M src/main.rs",
+        "not-json",
+    );
 
     let mut baseline: Option<Value> = None;
     for _ in 0..5 {

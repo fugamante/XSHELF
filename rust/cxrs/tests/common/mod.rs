@@ -241,6 +241,34 @@ pub fn parse_jsonl(path: &Path) -> Vec<Value> {
         .collect()
 }
 
+pub fn write_quarantine_fixture(
+    repo: &TempRepo,
+    id: &str,
+    tool: &str,
+    schema: &str,
+    prompt: &str,
+    raw_response: &str,
+) {
+    let payload = serde_json::json!({
+        "id": id,
+        "ts": "2026-01-01T00:00:00Z",
+        "tool": tool,
+        "reason": "invalid_json",
+        "schema": schema,
+        "prompt": prompt,
+        "prompt_sha256": "fixture",
+        "raw_response": raw_response,
+        "raw_sha256": "fixture",
+        "attempts": []
+    });
+    fs::create_dir_all(repo.quarantine_dir()).expect("create quarantine dir");
+    fs::write(
+        repo.quarantine_file(id),
+        serde_json::to_string_pretty(&payload).expect("serialize quarantine fixture"),
+    )
+    .expect("write quarantine fixture");
+}
+
 #[cfg(unix)]
 pub fn set_readonly(path: &Path) {
     use std::os::unix::fs::PermissionsExt;
