@@ -1254,7 +1254,7 @@ fn task_check_contract() {
 }
 
 #[test]
-fn task_check_no_mutation() {
+fn check_no_mutation() {
     let repo = TempRepo::new("cxrs-it");
     for i in 1..=2 {
         let add = repo.run(&[
