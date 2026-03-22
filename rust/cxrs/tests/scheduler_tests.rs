@@ -1260,22 +1260,34 @@ fn task_check_contract() {
         .get("recommended_mode")
         .and_then(Value::as_str)
         .expect("recommended_mode");
+    let allowed_modes: Vec<String> = fixture_keys(&fixture, "allowed_modes");
     assert!(
-        matches!(mode, "sequential" | "mixed" | "parallel"),
+        allowed_modes.iter().any(|m| m == mode),
         "unexpected recommended_mode: {mode}"
     );
     let strict_ok = payload
         .get("strict_plan_ok")
         .and_then(Value::as_bool)
         .expect("strict_plan_ok");
-    if strict_ok {
+    let rules = fixture
+        .get("strict_reason_rules")
+        .expect("strict_reason_rules");
+    let null_when_ok = rules
+        .get("null_when_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    let non_empty_when_not_ok = rules
+        .get("non_empty_when_not_ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    if strict_ok && null_when_ok {
         assert!(
             payload
                 .get("strict_plan_reason")
                 .is_some_and(Value::is_null),
             "{payload}"
         );
-    } else {
+    } else if !strict_ok && non_empty_when_not_ok {
         assert!(
             payload
                 .get("strict_plan_reason")
