@@ -219,15 +219,23 @@ fn handle_policy_check(args: &[String], app_name: &str) -> i32 {
     0
 }
 
-fn print_policy_show() {
+fn policy_rules() -> Vec<&'static str> {
+    vec![
+        "Block: sudo",
+        "Block: rm -rf family",
+        "Block: curl | bash/sh/zsh",
+        "Block: chmod/chown on /System,/Library,/usr (except /usr/local)",
+        "Block: write operations outside repo root",
+    ]
+}
+
+fn show_policy_text() {
     let cfg = app_config();
     println!("== cxrs policy show ==");
     println!("Active safety rules:");
-    println!("- Block: sudo");
-    println!("- Block: rm -rf family");
-    println!("- Block: curl | bash/sh/zsh");
-    println!("- Block: chmod/chown on /System,/Library,/usr (except /usr/local)");
-    println!("- Block: write operations outside repo root");
+    for rule in policy_rules() {
+        println!("- {rule}");
+    }
     println!();
     println!("Unsafe override state:");
     println!(
@@ -238,6 +246,28 @@ fn print_policy_show() {
         "CXFIX_FORCE=1: {}",
         if cfg.cxfix_force { "on" } else { "off" }
     );
+}
+
+fn show_policy_json() -> i32 {
+    let cfg = app_config();
+    let value = serde_json::json!({
+        "contract_version": "policy-show.v1",
+        "rules": policy_rules(),
+        "overrides": {
+            "unsafe_enabled": cfg.cx_unsafe,
+            "cxfix_force_enabled": cfg.cxfix_force
+        }
+    });
+    match serde_json::to_string_pretty(&value) {
+        Ok(text) => {
+            println!("{text}");
+            0
+        }
+        Err(e) => {
+            crate::cx_eprintln!("cxrs policy show: failed to render json: {e}");
+            1
+        }
+    }
 }
 
 fn print_policy_help(app_name: &str) {
@@ -260,11 +290,16 @@ fn print_policy_help(app_name: &str) {
 }
 
 pub fn cmd_policy(args: &[String], app_name: &str) -> i32 {
+    let show_json = args.iter().any(|v| v == "--json");
     match args.first().map(String::as_str) {
         Some("check") => handle_policy_check(args, app_name),
-        Some("show") | None => {
-            print_policy_show();
-            0
+        Some("show") | Some("--json") | None => {
+            if show_json {
+                show_policy_json()
+            } else {
+                show_policy_text();
+                0
+            }
         }
         _ => {
             print_policy_help(app_name);
