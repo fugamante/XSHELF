@@ -38,6 +38,7 @@ Notes:
     - `defaults` (run-all mode/backend pool/caps/workers/fairness/halt-on-critical baseline)
     - `observed` (run-all row counts, mode distribution, latest mode, halt-on-critical rows)
     to keep Phase VI scheduler controls visible in one diagnostics payload.
+  - `scheduler --json` now includes matching `concurrency` shape (`defaults` + `observed`) so operator/CI consumers can use a shared schema across diag/scheduler surfaces.
 - Planning/docs updates:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
   - added Phase VI kickoff guidance in roadmap.

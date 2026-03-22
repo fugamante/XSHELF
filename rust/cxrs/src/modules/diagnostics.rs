@@ -1003,9 +1003,11 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let log_file = resolve_log_file()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "<unresolved>".to_string());
+    let cfg = app_config();
     let scheduler = scheduler_diag_value(&log_file, window);
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
+    let concurrency = concurrency_diag_value(&log_file, window, cfg);
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
         build_actions_from_reasons(
@@ -1025,6 +1027,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             "scheduler": scheduler,
             "retry": retry,
             "critical": critical,
+            "concurrency": concurrency,
             "severity": severity,
             "severity_reasons": severity_reasons
         });
@@ -1052,6 +1055,42 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     print_scheduler_diag(&log_file, window);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
+    let observed = concurrency
+        .get("observed")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let defaults = concurrency
+        .get("defaults")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    println!(
+        "concurrency_default_mode: {}",
+        defaults
+            .get("run_all_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("sequential")
+    );
+    println!(
+        "concurrency_default_workers: {}",
+        defaults
+            .get("max_workers")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+    );
+    println!(
+        "concurrency_observed_run_all_rows: {}",
+        observed
+            .get("run_all_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_mode: {}",
+        observed
+            .get("latest_run_all_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
