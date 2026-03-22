@@ -348,6 +348,8 @@ Retry-health JSON surfaces:
 - `diag --json`: top-level `retry`
 - `scheduler --json`: top-level `retry`
 - `optimize --json`: `scoreboard.retry_health`
+- `diag --json`: top-level `concurrency`
+- `scheduler --json`: top-level `concurrency`
 - contract markers: top-level `contract_version` on JSON diagnostics surfaces
 - actions markers: top-level `actions_contract_version` when `--actions` is used
 
@@ -360,6 +362,10 @@ Expected JSON shape (key excerpts):
 {
   "diag": {
     "scheduler": { "window_runs": 50, "queue_ms_p95": 1200 },
+    "concurrency": {
+      "defaults": { "run_all_mode": "sequential", "max_workers": 1, "fairness": "round_robin" },
+      "observed": { "run_all_rows": 3, "latest_run_all_mode": "mixed", "run_all_mode_counts": { "mixed": 3 } }
+    },
     "retry": {
       "rows_with_retry_metadata": 8,
       "rows_after_retry_success_rate": 0.75,
@@ -368,6 +374,10 @@ Expected JSON shape (key excerpts):
   },
   "scheduler": {
     "scheduler": { "queue_rows": 20, "worker_distribution": { "w1": 10 } },
+    "concurrency": {
+      "defaults": { "run_all_mode": "sequential", "backend_pool": ["codex"], "halt_on_critical": false },
+      "observed": { "run_all_rows": 2, "latest_run_all_mode": "parallel", "halt_on_critical_rows": 1 }
+    },
     "retry": {
       "tasks_with_retry": 3,
       "tasks_retry_recovery_rate": 0.67
