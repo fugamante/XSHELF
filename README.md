@@ -92,6 +92,9 @@ The runtime pipeline is unified in Rust:
 
 Structured commands are schema-enforced from `.codex/schemas/` and deterministic by default.
 
+Repo role boundary:
+- `docs/REPO_ROLE_CONTRACT.md`
+
 ## Design Discipline
 
 CX design/readability standards are enforced through guardrails and local template policy.
