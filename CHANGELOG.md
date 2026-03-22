@@ -100,6 +100,7 @@ Notes:
   - test-suite fixture utilities now include a shared quarantine fixture writer (`write_quarantine_fixture`) to reduce replay/quarantine setup duplication.
   - added native capture malformed-output reliability coverage (`native_capture_ok`) to ensure non-JSON/garbled command output does not break capture/logging execution flow.
   - added replay contract coverage under `CX_SCHEMA_RELAXED=1` (`replay_relaxed_validates`) to lock behavior that replay remains schema-validated and quarantines/logs invalid JSON responses.
+  - added shared schema-failure assertion helper (`expect_schema_fail`) and refactored schema failure tests to remove duplicate quarantine/log verification blocks.
 - Task run-all machine output:
   - added `cx task run-all ... --json` with `contract_version=task-run-all.v1`.
   - payload includes aggregate counters plus per-task execution outcomes.

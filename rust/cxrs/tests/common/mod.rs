@@ -241,6 +241,52 @@ pub fn parse_jsonl(path: &Path) -> Vec<Value> {
         .collect()
 }
 
+pub fn expect_schema_fail(repo: &TempRepo) -> String {
+    let qdir = repo.quarantine_dir();
+    let mut has_entries = false;
+    for _ in 0..20 {
+        if let Ok(rd) = fs::read_dir(&qdir)
+            && rd.filter_map(Result::ok).next().is_some()
+        {
+            has_entries = true;
+            break;
+        }
+        sleep(Duration::from_millis(50));
+    }
+    assert!(
+        has_entries,
+        "expected quarantine entries in {}",
+        qdir.display()
+    );
+
+    let sf_last = parse_jsonl(&repo.schema_fail_log())
+        .into_iter()
+        .last()
+        .expect("schema failure log row");
+    let qid = sf_last
+        .get("quarantine_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    assert!(!qid.is_empty(), "schema failure log missing quarantine_id");
+
+    let run_last = parse_jsonl(&repo.runs_log())
+        .into_iter()
+        .last()
+        .expect("last run row");
+    assert_eq!(
+        run_last.get("schema_valid").and_then(Value::as_bool),
+        Some(false),
+        "expected schema_valid=false in run log row: {run_last}"
+    );
+    assert_eq!(
+        run_last.get("quarantine_id").and_then(Value::as_str),
+        Some(qid.as_str()),
+        "run log quarantine_id should match schema failure row: {run_last}"
+    );
+    qid
+}
+
 pub fn write_quarantine_fixture(
     repo: &TempRepo,
     id: &str,
