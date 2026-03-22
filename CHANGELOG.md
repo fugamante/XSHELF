@@ -43,6 +43,7 @@ Notes:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
   - added Phase VI kickoff guidance in roadmap.
   - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
+  - documented `diag/scheduler` top-level `concurrency` JSON fields (defaults + observed) and added examples in README telemetry section.
   - `cxrs-compat` CI now includes a command-surface gate that fails when command entrypoints are changed without corresponding docs/changelog updates.
   - refined command-surface CI gate to require `CHANGELOG.md` whenever command entrypoint files change (README/docs updates remain optional but recommended).
   - `cxrs-compat` now captures and uploads failure artifacts (`rust_check`, `compat_check`, `shell_regression` logs) per OS job to speed up CI triage.
