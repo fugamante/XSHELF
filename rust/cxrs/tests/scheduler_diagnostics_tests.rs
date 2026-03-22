@@ -283,6 +283,40 @@ fn scheduler_json_matches_contract_fixture() {
             ("scheduler", "scheduler_keys", "scheduler.scheduler"),
             ("retry", "retry_keys", "scheduler.retry"),
             ("critical", "critical_keys", "scheduler.critical"),
+            ("concurrency", "concurrency_keys", "scheduler.concurrency"),
         ],
     );
+
+    let concurrency = payload.get("concurrency").expect("scheduler.concurrency");
+    let defaults = concurrency
+        .get("defaults")
+        .expect("scheduler.concurrency.defaults");
+    let observed = concurrency
+        .get("observed")
+        .expect("scheduler.concurrency.observed");
+    for key in [
+        "run_all_mode",
+        "backend_pool",
+        "backend_caps",
+        "max_workers",
+        "fairness",
+        "halt_on_critical",
+    ] {
+        assert!(
+            defaults.get(key).is_some(),
+            "scheduler.concurrency.defaults missing key '{key}' in {defaults}"
+        );
+    }
+    for key in [
+        "window_runs",
+        "run_all_rows",
+        "latest_run_all_mode",
+        "run_all_mode_counts",
+        "halt_on_critical_rows",
+    ] {
+        assert!(
+            observed.get(key).is_some(),
+            "scheduler.concurrency.observed missing key '{key}' in {observed}"
+        );
+    }
 }

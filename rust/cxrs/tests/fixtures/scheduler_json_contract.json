@@ -6,6 +6,7 @@
     "scheduler",
     "retry",
     "critical",
+    "concurrency",
     "severity",
     "severity_reasons"
   ],
@@ -36,5 +37,9 @@
     "halted_rows",
     "critical_errors_total",
     "runs_with_critical_errors"
+  ],
+  "concurrency_keys": [
+    "defaults",
+    "observed"
   ]
 }
