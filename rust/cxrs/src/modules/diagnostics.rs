@@ -1005,7 +1005,43 @@ pub fn has_required_log_fields(v: &Value) -> bool {
         "execution_mode",
         "schema_enforced",
         "schema_valid",
+        "policy_blocked",
         "duration_ms",
     ];
     required.iter().all(|k| v.get(k).is_some())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::has_required_log_fields;
+    use serde_json::json;
+
+    #[test]
+    fn require_policy_field() {
+        let row_missing = json!({
+            "execution_id":"e1",
+            "backend_used":"codex",
+            "capture_provider":"native",
+            "execution_mode":"lean",
+            "schema_enforced":false,
+            "schema_valid":true,
+            "duration_ms":10
+        });
+        assert!(
+            !has_required_log_fields(&row_missing),
+            "policy_blocked must be present"
+        );
+
+        let row_with = json!({
+            "execution_id":"e2",
+            "backend_used":"codex",
+            "capture_provider":"native",
+            "execution_mode":"lean",
+            "schema_enforced":false,
+            "schema_valid":true,
+            "policy_blocked":false,
+            "duration_ms":11
+        });
+        assert!(has_required_log_fields(&row_with));
+    }
 }
