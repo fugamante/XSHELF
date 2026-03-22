@@ -1252,3 +1252,35 @@ fn task_check_contract() {
         assert_has_keys(blocked, &blocked_keys, "task_check.blocked.item");
     }
 }
+
+#[test]
+fn task_check_no_mutation() {
+    let repo = TempRepo::new("cxrs-it");
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo check-nomut-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let before = read_json(&repo.tasks_file());
+    let out = repo.run(&["task", "check", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let after = read_json(&repo.tasks_file());
+    assert_eq!(before, after, "task check must not mutate tasks");
+    assert!(
+        !repo.runs_log().exists(),
+        "task check must not execute tasks"
+    );
+}
