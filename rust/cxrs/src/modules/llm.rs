@@ -174,7 +174,7 @@ fn run_http_request(
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-pub fn run_http_raw_with_options(
+pub fn run_http_raw_opts(
     prompt: &str,
     url: &str,
     token: Option<&str>,
@@ -183,7 +183,7 @@ pub fn run_http_raw_with_options(
     run_http_request(prompt, url, token, options)
 }
 
-pub fn run_http_plain_with_options(
+pub fn run_http_plain_opts(
     prompt: &str,
     url: &str,
     token: Option<&str>,
