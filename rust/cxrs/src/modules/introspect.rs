@@ -58,6 +58,16 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
     println!("provider_status: {provider_status}");
     if caps.transport == "http" {
         println!("http_provider_format: {}", selected_http_provider_format());
+        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
+            .ok()
+            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
+            .unwrap_or(true);
+        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
+            .ok()
+            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
+            .unwrap_or(true);
+        println!("http_require_https: {require_https}");
+        println!("http_allow_local_http: {allow_local_http}");
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);
@@ -157,6 +167,16 @@ pub fn cmd_core(app_version: &str) -> i32 {
     println!("provider_status: {provider_status}");
     if caps.transport == "http" {
         println!("http_provider_format: {}", selected_http_provider_format());
+        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
+            .ok()
+            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
+            .unwrap_or(true);
+        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
+            .ok()
+            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
+            .unwrap_or(true);
+        println!("http_require_https: {require_https}");
+        println!("http_allow_local_http: {allow_local_http}");
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);

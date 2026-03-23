@@ -15,6 +15,13 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- HTTP adapter TLS enforcement:
+  - `http-curl` now validates `CX_HTTP_PROVIDER_URL` with HTTPS-by-default policy.
+  - new toggles:
+    - `CX_HTTP_REQUIRE_HTTPS` (default `1`)
+    - `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`, loopback-only HTTP exception)
+  - `cx version` / `cx core` now print HTTP TLS policy toggles when `provider_transport=http`.
+  - added operator runbook: `docs/HTTP_PROVIDER_TLS.md`.
 - Phase VI telemetry refinement:
   - `diag --json` / `scheduler --json` now expose scheduler timing-attribution coverage keys:
     - `rows_with_retry_attempt`

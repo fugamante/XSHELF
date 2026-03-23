@@ -51,6 +51,55 @@ fn adapter_override() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+fn env_bool(name: &str, default: bool) -> bool {
+    env::var(name)
+        .ok()
+        .map(|v| v.trim().to_lowercase())
+        .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(default)
+}
+
+fn is_local_http_url(url: &str) -> bool {
+    let u = url.trim().to_ascii_lowercase();
+    u.starts_with("http://localhost:")
+        || u == "http://localhost"
+        || u.starts_with("http://localhost/")
+        || u.starts_with("http://127.0.0.1:")
+        || u == "http://127.0.0.1"
+        || u.starts_with("http://127.0.0.1/")
+        || u.starts_with("http://[::1]:")
+        || u == "http://[::1]"
+        || u.starts_with("http://[::1]/")
+}
+
+fn validate_http_provider_url(url: &str) -> Result<(), LlmRunError> {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err(LlmRunError::message(
+            "http-curl adapter [http_url_missing] provider URL is empty".to_string(),
+        ));
+    }
+    if trimmed.starts_with("https://") {
+        return Ok(());
+    }
+    if !trimmed.starts_with("http://") {
+        return Err(LlmRunError::message(
+            "http-curl adapter [http_url_scheme_invalid] CX_HTTP_PROVIDER_URL must use http:// or https://".to_string(),
+        ));
+    }
+    let require_https = env_bool("CX_HTTP_REQUIRE_HTTPS", true);
+    if !require_https {
+        return Ok(());
+    }
+    let allow_local_http = env_bool("CX_HTTP_ALLOW_LOCAL_HTTP", true);
+    if allow_local_http && is_local_http_url(trimmed) {
+        return Ok(());
+    }
+    Err(LlmRunError::message(
+        "http-curl adapter [http_url_insecure] HTTPS is required for non-local endpoints; set CX_HTTP_PROVIDER_URL to https://..., or explicitly set CX_HTTP_REQUIRE_HTTPS=0 for local testing".to_string(),
+    ))
+}
+
 pub fn selected_adapter_name() -> &'static str {
     if let Some(v) = adapter_override() {
         if v == "mock" {
@@ -414,6 +463,7 @@ impl HttpCurlAdapter {
                     "http-curl adapter requires CX_HTTP_PROVIDER_URL to be set".to_string(),
                 )
             })?;
+        validate_http_provider_url(&url)?;
         let token = env::var("CX_HTTP_PROVIDER_TOKEN")
             .ok()
             .map(|v| v.trim().to_string())
@@ -477,10 +527,11 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, normalize_provider_status, normalized_backend_name,
-        ollama_plain_to_jsonl,
+        ProviderAdapter, ProviderStatus, is_local_http_url, normalize_provider_status,
+        normalized_backend_name, ollama_plain_to_jsonl, validate_http_provider_url,
     };
     use serde_json::Value;
+    use std::env;
 
     #[test]
     fn backend_normalization_defaults_to_codex() {
@@ -600,5 +651,44 @@ mod tests {
             ProviderStatus::Stable
         );
         assert_eq!(normalize_provider_status(None), ProviderStatus::Stable);
+    }
+
+    #[test]
+    fn local_http_url_detection_is_strict() {
+        assert!(is_local_http_url("http://localhost:8080/v1"));
+        assert!(is_local_http_url("http://127.0.0.1"));
+        assert!(is_local_http_url("http://[::1]/health"));
+        assert!(!is_local_http_url("http://example.com"));
+        assert!(!is_local_http_url("https://localhost:8080"));
+    }
+
+    #[test]
+    fn https_validation_blocks_insecure_non_local_by_default() {
+        unsafe {
+            env::remove_var("CX_HTTP_REQUIRE_HTTPS");
+            env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
+        }
+        let err =
+            validate_http_provider_url("http://example.com/v1").expect_err("expected block");
+        assert!(err.message.contains("http_url_insecure"), "{}", err.message);
+    }
+
+    #[test]
+    fn https_validation_allows_local_http_by_default() {
+        unsafe {
+            env::remove_var("CX_HTTP_REQUIRE_HTTPS");
+            env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
+        }
+        validate_http_provider_url("http://127.0.0.1:8080/v1").expect("local http should pass");
+    }
+
+    #[test]
+    fn https_validation_respects_disable_override() {
+        unsafe {
+            env::set_var("CX_HTTP_REQUIRE_HTTPS", "0");
+            env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
+        }
+        validate_http_provider_url("http://example.com/v1").expect("https override should allow");
+        unsafe { env::remove_var("CX_HTTP_REQUIRE_HTTPS") };
     }
 }
