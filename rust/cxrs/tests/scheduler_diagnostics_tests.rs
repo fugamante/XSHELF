@@ -44,7 +44,10 @@ fn diag_reports_scheduler_distribution_fields() {
         stdout.contains("scheduler_backend_distribution: codex=2,ollama=1"),
         "{stdout}"
     );
-    assert!(stdout.contains("scheduler_rows_with_retry_attempt: 0"), "{stdout}");
+    assert!(
+        stdout.contains("scheduler_rows_with_retry_attempt: 0"),
+        "{stdout}"
+    );
     assert!(
         stdout.contains("scheduler_rows_with_queue_started_at: 0"),
         "{stdout}"
