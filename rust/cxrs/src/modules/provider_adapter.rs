@@ -668,8 +668,7 @@ mod tests {
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
-        let err =
-            validate_http_provider_url("http://example.com/v1").expect_err("expected block");
+        let err = validate_http_provider_url("http://example.com/v1").expect_err("expected block");
         assert!(err.message.contains("http_url_insecure"), "{}", err.message);
     }
 
