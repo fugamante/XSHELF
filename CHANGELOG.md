@@ -15,6 +15,15 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- HTTP adapter hardening:
+  - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
+  - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).
+  - `cx version` / `cx core` now expose `http_allowed_hosts` and `http_tls_pinning`.
+- Task runner UX:
+  - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
+  - text summaries now include compact failure reason counts and failed task IDs.
+- Diagnostics severity/actions:
+  - `diag` / `scheduler` now classify low timing-attribution coverage (`timing_coverage_low`) and emit an explicit corrective action in `--actions` mode.
 - HTTP adapter TLS enforcement:
   - `http-curl` now validates `CX_HTTP_PROVIDER_URL` with HTTPS-by-default policy.
   - new toggles:

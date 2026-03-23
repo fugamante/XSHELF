@@ -287,6 +287,41 @@ impl RunAllSummary {
     }
 }
 
+fn run_all_failure_reason_counts(summary: &RunAllSummary) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for task in &summary.task_runs {
+        let status = task.get("status").and_then(Value::as_str).unwrap_or("");
+        if status != "failed" && status != "critical_error" {
+            continue;
+        }
+        let reason = task
+            .get("failure_class")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        *counts.entry(reason.to_string()).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn run_all_failure_task_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
+    summary
+        .task_runs
+        .iter()
+        .filter(|t| {
+            matches!(
+                t.get("status").and_then(Value::as_str),
+                Some("failed" | "critical_error")
+            )
+        })
+        .filter_map(|t| {
+            t.get("task_id")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
+        .take(limit)
+        .collect()
+}
+
 fn classify_failure_for_execution(execution_id: Option<&str>) -> FailureInfo {
     let Some(exec_id) = execution_id else {
         return FailureInfo {
@@ -549,6 +584,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "contract_version": "task-run-all.v1",
                     "status_filter": options.status_filter,
                     "mode": options.run_mode,
+                    "summary_format": options.summary_format,
                     "strict_plan": options.strict_plan,
                     "plan_json": options.plan_json,
                     "scheduled": 0,
@@ -867,6 +903,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "contract_version": "task-run-all.v1",
             "status_filter": options.status_filter,
             "mode": options.run_mode,
+            "summary_format": options.summary_format,
             "strict_plan": options.strict_plan,
             "plan_json": options.plan_json,
             "scheduled": scheduled_count,
@@ -888,19 +925,60 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         }
     } else {
-        println!(
-            "run-all summary: mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
-            options.run_mode,
-            options.strict_plan,
-            summary.ok,
-            summary.failed,
-            summary.blocked,
-            summary.retryable_failed,
-            summary.non_retryable_failed,
-            summary.critical_errors
-        );
-        if summary.halted_on_critical {
-            println!("run-all halted_on_critical: true");
+        let reason_counts = run_all_failure_reason_counts(&summary);
+        if options.summary_format == "json" {
+            let payload = serde_json::json!({
+                "contract_version": "task-run-all-summary.v1",
+                "status_filter": options.status_filter,
+                "mode": options.run_mode,
+                "scheduled": scheduled_count,
+                "complete": summary.ok,
+                "failed": summary.failed,
+                "blocked": summary.blocked,
+                "retryable_failures": summary.retryable_failed,
+                "non_retryable_failures": summary.non_retryable_failed,
+                "critical_errors": summary.critical_errors,
+                "halted_on_critical": summary.halted_on_critical,
+                "duration_ms": started.elapsed().as_millis() as u64,
+                "failure_reasons": reason_counts,
+                "failed_task_ids": run_all_failure_task_ids(&summary, 25)
+            });
+            match serde_json::to_string_pretty(&payload) {
+                Ok(s) => println!("{s}"),
+                Err(e) => {
+                    crate::cx_eprintln!("cxrs task run-all: failed to render summary json: {e}");
+                    return 1;
+                }
+            }
+        } else {
+            println!(
+                "run-all summary: mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
+                options.run_mode,
+                options.strict_plan,
+                summary.ok,
+                summary.failed,
+                summary.blocked,
+                summary.retryable_failed,
+                summary.non_retryable_failed,
+                summary.critical_errors
+            );
+            if summary.halted_on_critical {
+                println!("run-all halted_on_critical: true");
+            }
+            if summary.failed > 0 {
+                let mut reasons: Vec<(String, usize)> = reason_counts.into_iter().collect();
+                reasons.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                let compact = reasons
+                    .iter()
+                    .map(|(k, v)| format!("{k}={v}"))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                println!("run-all failure_reasons: {compact}");
+                let failed_ids = run_all_failure_task_ids(&summary, 10);
+                if !failed_ids.is_empty() {
+                    println!("run-all failed_task_ids: {}", failed_ids.join(","));
+                }
+            }
         }
     }
     let _ = crate::runlog::log_task_run_all_summary(crate::runlog::TaskRunAllSummaryLogInput {
@@ -931,6 +1009,7 @@ struct RunAllOptions {
     fairness: String,
     halt_on_critical: bool,
     as_json: bool,
+    summary_format: String,
 }
 
 fn strict_issue_parallel(plan: &crate::tasks_plan::TaskRunPlan) -> Option<String> {
@@ -1158,7 +1237,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
@@ -1171,6 +1250,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
     let mut fairness = "round_robin".to_string();
     let mut halt_on_critical = app_config().task_halt_on_critical;
     let mut as_json: Option<bool> = None;
+    let mut summary_format = "text".to_string();
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -1265,6 +1345,19 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 halt_on_critical = false;
                 i += 1;
             }
+            "--summary" => {
+                let Some(v) = args.get(i + 1).map(String::as_str) else {
+                    crate::cx_eprintln!("{usage}");
+                    return Err(2);
+                };
+                let sv = v.trim().to_lowercase();
+                if !matches!(sv.as_str(), "text" | "json") {
+                    crate::cx_eprintln!("cxrs task run-all: --summary must be text|json");
+                    return Err(2);
+                }
+                summary_format = sv;
+                i += 2;
+            }
             "--json" => {
                 as_json = Some(true);
                 i += 1;
@@ -1303,6 +1396,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         fairness,
         halt_on_critical,
         as_json: resolve_json_mode(as_json, false),
+        summary_format,
     })
 }
 
@@ -1878,6 +1972,7 @@ mod tests {
         assert_eq!(opts.fairness, "least_loaded");
         assert!(opts.as_json);
         assert!(!opts.halt_on_critical);
+        assert_eq!(opts.summary_format, "text");
     }
 
     #[test]
@@ -1942,6 +2037,17 @@ mod tests {
             Some(v) => unsafe { std::env::set_var("CX_JSON_DEFAULT", v) },
             None => unsafe { std::env::remove_var("CX_JSON_DEFAULT") },
         }
+    }
+
+    #[test]
+    fn parse_summary_json() {
+        let args = vec![
+            "run-all".to_string(),
+            "--summary".to_string(),
+            "json".to_string(),
+        ];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert_eq!(opts.summary_format, "json");
     }
 
     #[test]

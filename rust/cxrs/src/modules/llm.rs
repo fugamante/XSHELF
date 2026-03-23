@@ -4,6 +4,11 @@ use std::process::Command;
 use crate::process::{TimeoutInfo, run_command_with_stdin_output_with_timeout_meta};
 use crate::types::UsageStats;
 
+#[derive(Clone, Debug, Default)]
+pub struct HttpRequestOptions {
+    pub tls_pinned_pubkey: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct LlmRunError {
     pub message: String,
@@ -123,7 +128,12 @@ pub fn run_ollama_plain(prompt: &str, model: &str) -> Result<String, LlmRunError
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-fn run_http_request(prompt: &str, url: &str, token: Option<&str>) -> Result<String, LlmRunError> {
+fn run_http_request(
+    prompt: &str,
+    url: &str,
+    token: Option<&str>,
+    options: &HttpRequestOptions,
+) -> Result<String, LlmRunError> {
     let mut cmd = Command::new("curl");
     cmd.args([
         "-sS",
@@ -138,6 +148,14 @@ fn run_http_request(prompt: &str, url: &str, token: Option<&str>) -> Result<Stri
     ]);
     if let Some(t) = token.filter(|v| !v.trim().is_empty()) {
         cmd.args(["-H", &format!("Authorization: Bearer {t}")]);
+    }
+    if let Some(pinned) = options
+        .tls_pinned_pubkey
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        cmd.args(["--pinnedpubkey", pinned]);
     }
     let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "http provider curl")
         .map_err(LlmRunError::from_process)?;
@@ -156,12 +174,22 @@ fn run_http_request(prompt: &str, url: &str, token: Option<&str>) -> Result<Stri
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-pub fn run_http_raw(prompt: &str, url: &str, token: Option<&str>) -> Result<String, LlmRunError> {
-    run_http_request(prompt, url, token)
+pub fn run_http_raw_with_options(
+    prompt: &str,
+    url: &str,
+    token: Option<&str>,
+    options: &HttpRequestOptions,
+) -> Result<String, LlmRunError> {
+    run_http_request(prompt, url, token, options)
 }
 
-pub fn run_http_plain(prompt: &str, url: &str, token: Option<&str>) -> Result<String, LlmRunError> {
-    let body = run_http_request(prompt, url, token)?;
+pub fn run_http_plain_with_options(
+    prompt: &str,
+    url: &str,
+    token: Option<&str>,
+    options: &HttpRequestOptions,
+) -> Result<String, LlmRunError> {
+    let body = run_http_request(prompt, url, token, options)?;
     Ok(parse_http_provider_body(&body))
 }
 
