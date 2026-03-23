@@ -114,6 +114,12 @@ pub struct RunEntry {
     #[serde(default)]
     pub wave_size: Option<u64>,
     #[serde(default)]
+    pub queue_started_at: Option<String>,
+    #[serde(default)]
+    pub task_started_at: Option<String>,
+    #[serde(default)]
+    pub task_finished_at: Option<String>,
+    #[serde(default)]
     pub task_id: Option<String>,
     #[serde(default)]
     pub task_parent_id: Option<String>,

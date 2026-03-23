@@ -22,6 +22,7 @@ Notes:
     - `rows_with_task_started_at`
     - `rows_with_task_finished_at`
   - text diagnostics now print matching `scheduler_*` counters for quick operator checks.
+  - `optimize --json` now includes `scoreboard.timing_attribution_coverage` and emits low-coverage anomalies/recommendations/actions.
 - Local compatibility suite (hosted-CI independent):
   - added `scripts/compat_local.sh` at repo root with unified runner contract:
     - `--quick|--full`
