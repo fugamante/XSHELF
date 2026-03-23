@@ -20,6 +20,10 @@ Notes:
     - `--quick|--full`
     - `--json`
     - `--out <path>` (default `.codex/compat/latest.json`)
+  - added `scripts/compat_all.sh` aggregate runner for multi-repo local checks:
+    - auto-discovers sibling `cx` and `cx-eval-lab` repos when present
+    - supports `--repo <path>` repeatable override
+    - emits aggregate JSON report (`.codex/compat/all_latest.json` by default)
   - added wrapper `bin/cx-compat-local`.
   - standardized report schema to align with `cx-eval-lab` local compat artifacts (`status`, `mode`, `summary`, `steps`, host/toolchain/git metadata).
 - Adaptive output-mode resolution and introspection:
