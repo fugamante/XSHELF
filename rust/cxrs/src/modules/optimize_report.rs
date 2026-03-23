@@ -124,6 +124,11 @@ struct Agg {
     retry_task_timeout_seen: HashMap<String, bool>,
     retry_task_recovered: HashMap<String, bool>,
     retry_attempt_histogram: HashMap<u64, u64>,
+    timing_task_rows: u64,
+    timing_with_retry_attempt: u64,
+    timing_with_queue_started_at: u64,
+    timing_with_task_started_at: u64,
+    timing_with_task_finished_at: u64,
 }
 
 impl Agg {
@@ -153,6 +158,38 @@ impl Agg {
                 .clone()
                 .unwrap_or_else(|| "unknown".to_string());
             *self.timeout_labels.entry(label).or_insert(0) += 1;
+        }
+        let is_task_row = r
+            .task_id
+            .as_ref()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        if is_task_row {
+            self.timing_task_rows += 1;
+            if r.retry_attempt.is_some() {
+                self.timing_with_retry_attempt += 1;
+            }
+            if r.queue_started_at
+                .as_ref()
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false)
+            {
+                self.timing_with_queue_started_at += 1;
+            }
+            if r.task_started_at
+                .as_ref()
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false)
+            {
+                self.timing_with_task_started_at += 1;
+            }
+            if r.task_finished_at
+                .as_ref()
+                .map(|v| !v.trim().is_empty())
+                .unwrap_or(false)
+            {
+                self.timing_with_task_finished_at += 1;
+            }
         }
         if let Some(attempt) = r.retry_attempt.map(u64::from) {
             *self.retry_attempt_histogram.entry(attempt).or_insert(0) += 1;
@@ -272,6 +309,7 @@ struct AnomalyInput<'a> {
     timeout_freq: Option<f64>,
     retry_rows_rate: Option<f64>,
     retry_recovery_rate: Option<f64>,
+    timing_coverage_min: Option<f64>,
 }
 
 fn build_anomalies(input: AnomalyInput<'_>) -> Vec<String> {
@@ -287,6 +325,7 @@ fn build_anomalies(input: AnomalyInput<'_>) -> Vec<String> {
         timeout_freq,
         retry_rows_rate,
         retry_recovery_rate,
+        timing_coverage_min,
     } = input;
     let mut anomalies: Vec<String> = Vec::new();
     push_latency_anomaly(&mut anomalies, top_dur, max_ms);
@@ -296,6 +335,14 @@ fn build_anomalies(input: AnomalyInput<'_>) -> Vec<String> {
     push_clip_anomaly(&mut anomalies, clip_freq);
     push_timeout_anomaly(&mut anomalies, timeout_freq);
     push_retry_anomaly(&mut anomalies, retry_rows_rate, retry_recovery_rate);
+    if let Some(min_cov) = timing_coverage_min
+        && min_cov < 0.80
+    {
+        anomalies.push(format!(
+            "Timing attribution coverage is low: min_field_coverage={}%",
+            (min_cov * 100.0).round() as i64
+        ));
+    }
     anomalies
 }
 
@@ -316,6 +363,11 @@ struct Derived {
     retry_tasks_with_timeout: u64,
     retry_tasks_recovered: u64,
     retry_attempt_histogram: Vec<(u64, u64)>,
+    timing_retry_attempt_rate: Option<f64>,
+    timing_queue_started_at_rate: Option<f64>,
+    timing_task_started_at_rate: Option<f64>,
+    timing_task_finished_at_rate: Option<f64>,
+    timing_min_coverage_rate: Option<f64>,
 }
 
 fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
@@ -351,6 +403,23 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
     let mut retry_attempt_histogram: Vec<(u64, u64)> =
         agg.retry_attempt_histogram.clone().into_iter().collect();
     retry_attempt_histogram.sort_by(|a, b| a.0.cmp(&b.0));
+    let timing_retry_attempt_rate = (agg.timing_task_rows > 0)
+        .then_some(agg.timing_with_retry_attempt as f64 / agg.timing_task_rows as f64);
+    let timing_queue_started_at_rate = (agg.timing_task_rows > 0)
+        .then_some(agg.timing_with_queue_started_at as f64 / agg.timing_task_rows as f64);
+    let timing_task_started_at_rate = (agg.timing_task_rows > 0)
+        .then_some(agg.timing_with_task_started_at as f64 / agg.timing_task_rows as f64);
+    let timing_task_finished_at_rate = (agg.timing_task_rows > 0)
+        .then_some(agg.timing_with_task_finished_at as f64 / agg.timing_task_rows as f64);
+    let timing_min_coverage_rate = [
+        timing_retry_attempt_rate,
+        timing_queue_started_at_rate,
+        timing_task_started_at_rate,
+        timing_task_finished_at_rate,
+    ]
+    .into_iter()
+    .flatten()
+    .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let compression = compression_rows(agg.provider_stats.clone());
     (
         agg,
@@ -371,6 +440,11 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
             retry_tasks_with_timeout,
             retry_tasks_recovered,
             retry_attempt_histogram,
+            timing_retry_attempt_rate,
+            timing_queue_started_at_rate,
+            timing_task_started_at_rate,
+            timing_task_finished_at_rate,
+            timing_min_coverage_rate,
         },
     )
 }
@@ -418,6 +492,18 @@ fn build_scoreboard(total: u64, agg: &Agg, d: &Derived) -> Value {
             "tasks_recovered": d.retry_tasks_recovered,
             "tasks_recovery_rate": d.retry_tasks_recovery_rate,
             "attempt_histogram": d.retry_attempt_histogram
+        },
+        "timing_attribution_coverage": {
+            "task_rows": agg.timing_task_rows,
+            "rows_with_retry_attempt": agg.timing_with_retry_attempt,
+            "rows_with_queue_started_at": agg.timing_with_queue_started_at,
+            "rows_with_task_started_at": agg.timing_with_task_started_at,
+            "rows_with_task_finished_at": agg.timing_with_task_finished_at,
+            "retry_attempt_rate": d.timing_retry_attempt_rate,
+            "queue_started_at_rate": d.timing_queue_started_at_rate,
+            "task_started_at_rate": d.timing_task_started_at_rate,
+            "task_finished_at_rate": d.timing_task_finished_at_rate,
+            "min_coverage_rate": d.timing_min_coverage_rate
         },
         "capture_provider_compression": d.compression,
         "budget_clipping_frequency": {
@@ -509,6 +595,19 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "command": "cx budget"
         }));
     }
+    let timing_cov = scoreboard
+        .get("timing_attribution_coverage")
+        .and_then(|v| v.get("min_coverage_rate"))
+        .and_then(Value::as_f64)
+        .unwrap_or(1.0);
+    if timing_cov < 0.80 {
+        actions.push(json!({
+            "id": "timing_attribution_coverage_low",
+            "severity": "warning",
+            "rationale": format!("Task timing attribution coverage is low at {}% minimum field population.", (timing_cov * 100.0).round() as i64),
+            "command": "cx scheduler --json --window 200"
+        }));
+    }
     let cache_delta = scoreboard
         .get("cache_hit_trend")
         .and_then(|v| v.get("delta"))
@@ -579,6 +678,7 @@ pub fn optimize_report(n: usize) -> Result<Value, String> {
         timeout_freq: d.timeout_freq,
         retry_rows_rate: d.retry_rows_rate,
         retry_recovery_rate: d.retry_tasks_recovery_rate,
+        timing_coverage_min: d.timing_min_coverage_rate,
     });
     let recommendations = build_recommendations(RecommendationInput {
         top_eff: &d.top_eff,
@@ -589,6 +689,7 @@ pub fn optimize_report(n: usize) -> Result<Value, String> {
         top_timeout_labels: &d.top_timeout_labels,
         retry_rows_rate: d.retry_rows_rate,
         retry_recovery_rate: d.retry_tasks_recovery_rate,
+        timing_coverage_min: d.timing_min_coverage_rate,
     });
 
     let total = runs.len() as u64;

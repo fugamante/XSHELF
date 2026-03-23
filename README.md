@@ -355,6 +355,7 @@ Retry-health JSON surfaces:
 - `diag --json`: top-level `retry`
 - `scheduler --json`: top-level `retry`
 - `optimize --json`: `scoreboard.retry_health`
+- `optimize --json`: `scoreboard.timing_attribution_coverage`
 - `diag --json`: top-level `concurrency`
 - `scheduler --json`: top-level `concurrency`
 - `diag --json`: `scheduler.rows_with_retry_attempt`, `scheduler.rows_with_queue_started_at`, `scheduler.rows_with_task_started_at`, `scheduler.rows_with_task_finished_at`

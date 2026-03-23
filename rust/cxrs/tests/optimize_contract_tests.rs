@@ -36,6 +36,15 @@ fn optimize_json_matches_contract_fixture() {
         &retry_keys,
         "optimize.scoreboard.retry_health",
     );
+    let timing_keys = fixture_keys(&fixture, "timing_coverage_keys");
+    assert_has_keys(
+        payload
+            .get("scoreboard")
+            .and_then(|v| v.get("timing_attribution_coverage"))
+            .expect("timing_attribution_coverage"),
+        &timing_keys,
+        "optimize.scoreboard.timing_attribution_coverage",
+    );
 }
 
 #[test]
