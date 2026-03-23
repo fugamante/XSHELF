@@ -59,7 +59,7 @@ fn env_bool(name: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
-fn is_local_http_url(url: &str) -> bool {
+fn is_local_url(url: &str) -> bool {
     let u = url.trim().to_ascii_lowercase();
     u.starts_with("http://localhost:")
         || u == "http://localhost"
@@ -72,7 +72,7 @@ fn is_local_http_url(url: &str) -> bool {
         || u.starts_with("http://[::1]/")
 }
 
-fn validate_http_provider_url(url: &str) -> Result<(), LlmRunError> {
+fn validate_http_url(url: &str) -> Result<(), LlmRunError> {
     let trimmed = url.trim();
     if trimmed.is_empty() {
         return Err(LlmRunError::message(
@@ -92,7 +92,7 @@ fn validate_http_provider_url(url: &str) -> Result<(), LlmRunError> {
         return Ok(());
     }
     let allow_local_http = env_bool("CX_HTTP_ALLOW_LOCAL_HTTP", true);
-    if allow_local_http && is_local_http_url(trimmed) {
+    if allow_local_http && is_local_url(trimmed) {
         return Ok(());
     }
     Err(LlmRunError::message(
@@ -463,7 +463,7 @@ impl HttpCurlAdapter {
                     "http-curl adapter requires CX_HTTP_PROVIDER_URL to be set".to_string(),
                 )
             })?;
-        validate_http_provider_url(&url)?;
+        validate_http_url(&url)?;
         let token = env::var("CX_HTTP_PROVIDER_TOKEN")
             .ok()
             .map(|v| v.trim().to_string())
@@ -527,8 +527,8 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, is_local_http_url, normalize_provider_status,
-        normalized_backend_name, ollama_plain_to_jsonl, validate_http_provider_url,
+        ProviderAdapter, ProviderStatus, is_local_url, normalize_provider_status,
+        normalized_backend_name, ollama_plain_to_jsonl, validate_http_url,
     };
     use serde_json::Value;
     use std::env;
@@ -654,40 +654,40 @@ mod tests {
     }
 
     #[test]
-    fn local_http_url_detection_is_strict() {
-        assert!(is_local_http_url("http://localhost:8080/v1"));
-        assert!(is_local_http_url("http://127.0.0.1"));
-        assert!(is_local_http_url("http://[::1]/health"));
-        assert!(!is_local_http_url("http://example.com"));
-        assert!(!is_local_http_url("https://localhost:8080"));
+    fn local_url_strict() {
+        assert!(is_local_url("http://localhost:8080/v1"));
+        assert!(is_local_url("http://127.0.0.1"));
+        assert!(is_local_url("http://[::1]/health"));
+        assert!(!is_local_url("http://example.com"));
+        assert!(!is_local_url("https://localhost:8080"));
     }
 
     #[test]
-    fn https_validation_blocks_insecure_non_local_by_default() {
+    fn https_block_default() {
         unsafe {
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
-        let err = validate_http_provider_url("http://example.com/v1").expect_err("expected block");
+        let err = validate_http_url("http://example.com/v1").expect_err("expected block");
         assert!(err.message.contains("http_url_insecure"), "{}", err.message);
     }
 
     #[test]
-    fn https_validation_allows_local_http_by_default() {
+    fn https_allow_local() {
         unsafe {
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
-        validate_http_provider_url("http://127.0.0.1:8080/v1").expect("local http should pass");
+        validate_http_url("http://127.0.0.1:8080/v1").expect("local http should pass");
     }
 
     #[test]
-    fn https_validation_respects_disable_override() {
+    fn https_allow_override() {
         unsafe {
             env::set_var("CX_HTTP_REQUIRE_HTTPS", "0");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
-        validate_http_provider_url("http://example.com/v1").expect("https override should allow");
+        validate_http_url("http://example.com/v1").expect("https override should allow");
         unsafe { env::remove_var("CX_HTTP_REQUIRE_HTTPS") };
     }
 }
