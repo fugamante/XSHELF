@@ -44,6 +44,19 @@ fn diag_reports_scheduler_distribution_fields() {
         stdout.contains("scheduler_backend_distribution: codex=2,ollama=1"),
         "{stdout}"
     );
+    assert!(stdout.contains("scheduler_rows_with_retry_attempt: 0"), "{stdout}");
+    assert!(
+        stdout.contains("scheduler_rows_with_queue_started_at: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("scheduler_rows_with_task_started_at: 0"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("scheduler_rows_with_task_finished_at: 0"),
+        "{stdout}"
+    );
     assert!(stdout.contains("retry_rows_with_metadata:"), "{stdout}");
     assert!(stdout.contains("retry_attempt_histogram:"), "{stdout}");
     assert!(stdout.contains("critical_summary_rows:"), "{stdout}");
@@ -56,7 +69,9 @@ fn diag_json_reports_scheduler_object() {
     let row = serde_json::json!({
         "execution_id":"dj1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
         "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
-        "duration_ms":10,"schema_enforced":false,"schema_valid":true,"queue_ms":500,"worker_id":"w1"
+        "duration_ms":10,"schema_enforced":false,"schema_valid":true,
+        "queue_ms":500,"worker_id":"w1","retry_attempt":2,
+        "queue_started_at":"2026-01-01T00:00:00Z","task_started_at":"2026-01-01T00:00:01Z","task_finished_at":"2026-01-01T00:00:02Z"
     });
     write_runs_log_row(&repo, &row);
 
@@ -75,6 +90,30 @@ fn diag_json_reports_scheduler_object() {
     );
     let scheduler = v.get("scheduler").expect("scheduler");
     assert_eq!(scheduler.get("queue_rows").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        scheduler
+            .get("rows_with_retry_attempt")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        scheduler
+            .get("rows_with_queue_started_at")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        scheduler
+            .get("rows_with_task_started_at")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        scheduler
+            .get("rows_with_task_finished_at")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
     let worker_dist = scheduler
         .get("worker_distribution")
         .and_then(Value::as_object)
