@@ -493,6 +493,8 @@ Schema failures are quarantined under `.codex/quarantine/`, and invalid structur
 
 ## Maintainer Validation
 
+`cxrs-compat` workflow is manual-only (`workflow_dispatch`) while CI billing is constrained. Use this local gate before push:
+
 ```bash
 cd rust/cxrs
 cargo fmt
