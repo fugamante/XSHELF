@@ -1,6 +1,6 @@
 use crate::llm::{
-    HttpRequestOptions, LlmRunError, run_codex_jsonl, run_codex_plain, run_http_plain_opts,
-    run_http_raw_opts, run_ollama_plain, wrap_agent_text_as_jsonl,
+    HttpRequestOptions, LlmRunError, http_plain_opts, http_raw_opts, run_codex_jsonl,
+    run_codex_plain, run_ollama_plain, wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
 use std::env;
@@ -530,7 +530,7 @@ impl HttpCurlAdapter {
 
 impl ProviderAdapter for HttpCurlAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
+        http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
@@ -540,22 +540,14 @@ impl ProviderAdapter for HttpCurlAdapter {
                 ollama_plain_to_jsonl(&text)
             }
             HttpProviderFormat::Json => {
-                let raw = run_http_raw_opts(
-                    prompt,
-                    &self.url,
-                    self.token.as_deref(),
-                    &self.http_options,
-                )?;
+                let raw =
+                    http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)?;
                 let payload = Self::extract_json_payload(&raw)?;
                 ollama_plain_to_jsonl(&payload)
             }
             HttpProviderFormat::Jsonl => {
-                let jsonl = run_http_raw_opts(
-                    prompt,
-                    &self.url,
-                    self.token.as_deref(),
-                    &self.http_options,
-                )?;
+                let jsonl =
+                    http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)?;
                 Self::validate_jsonl_payload(&jsonl)
             }
         }
@@ -779,7 +771,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_http_hosts_normalizes() {
+    fn parse_hosts_norm() {
         unsafe {
             env::set_var(
                 "CX_HTTP_ALLOWED_HOSTS",

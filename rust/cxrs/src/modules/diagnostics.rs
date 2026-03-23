@@ -1286,7 +1286,7 @@ mod tests {
     }
 
     #[test]
-    fn actions_include_timing_coverage() {
+    fn action_timing_cov() {
         let actions = build_actions_from_reasons(
             &["timing_coverage_low:55".to_string()],
             200,
@@ -1300,7 +1300,7 @@ mod tests {
     }
 
     #[test]
-    fn scheduler_flags_timing_coverage() {
+    fn scheduler_timing_cov() {
         let scheduler = json!({
             "queue_ms_p95": 0,
             "queue_rows": 12,
