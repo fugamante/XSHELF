@@ -287,7 +287,7 @@ impl RunAllSummary {
     }
 }
 
-fn run_all_failure_reason_counts(summary: &RunAllSummary) -> HashMap<String, usize> {
+fn runall_reason_counts(summary: &RunAllSummary) -> HashMap<String, usize> {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for task in &summary.task_runs {
         let status = task.get("status").and_then(Value::as_str).unwrap_or("");
@@ -303,7 +303,7 @@ fn run_all_failure_reason_counts(summary: &RunAllSummary) -> HashMap<String, usi
     counts
 }
 
-fn run_all_failure_task_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
+fn runall_failed_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
     summary
         .task_runs
         .iter()
@@ -925,7 +925,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         }
     } else {
-        let reason_counts = run_all_failure_reason_counts(&summary);
+        let reason_counts = runall_reason_counts(&summary);
         if options.summary_format == "json" {
             let payload = serde_json::json!({
                 "contract_version": "task-run-all-summary.v1",
@@ -941,7 +941,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "halted_on_critical": summary.halted_on_critical,
                 "duration_ms": started.elapsed().as_millis() as u64,
                 "failure_reasons": reason_counts,
-                "failed_task_ids": run_all_failure_task_ids(&summary, 25)
+                "failed_task_ids": runall_failed_ids(&summary, 25)
             });
             match serde_json::to_string_pretty(&payload) {
                 Ok(s) => println!("{s}"),
@@ -974,7 +974,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     .collect::<Vec<String>>()
                     .join(", ");
                 println!("run-all failure_reasons: {compact}");
-                let failed_ids = run_all_failure_task_ids(&summary, 10);
+                let failed_ids = runall_failed_ids(&summary, 10);
                 if !failed_ids.is_empty() {
                     println!("run-all failed_task_ids: {}", failed_ids.join(","));
                 }

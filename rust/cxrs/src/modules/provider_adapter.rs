@@ -1,6 +1,6 @@
 use crate::llm::{
-    HttpRequestOptions, LlmRunError, run_codex_jsonl, run_codex_plain, run_http_plain_with_options,
-    run_http_raw_with_options, run_ollama_plain, wrap_agent_text_as_jsonl,
+    HttpRequestOptions, LlmRunError, run_codex_jsonl, run_codex_plain, run_http_plain_opts,
+    run_http_raw_opts, run_ollama_plain, wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
 use std::env;
@@ -87,7 +87,7 @@ fn url_host(url: &str) -> Option<String> {
     (!host.is_empty()).then(|| host.to_string())
 }
 
-fn parse_allowed_http_hosts() -> Option<Vec<String>> {
+fn parse_http_hosts() -> Option<Vec<String>> {
     let raw = env::var("CX_HTTP_ALLOWED_HOSTS").ok()?;
     let mut hosts: Vec<String> = raw
         .split(',')
@@ -99,8 +99,8 @@ fn parse_allowed_http_hosts() -> Option<Vec<String>> {
     (!hosts.is_empty()).then_some(hosts)
 }
 
-fn validate_http_host_allowlist(url: &str) -> Result<(), LlmRunError> {
-    let Some(allowed) = parse_allowed_http_hosts() else {
+fn validate_host_allowlist(url: &str) -> Result<(), LlmRunError> {
+    let Some(allowed) = parse_http_hosts() else {
         return Ok(());
     };
     let Some(host) = url_host(url) else {
@@ -124,7 +124,7 @@ fn validate_http_url(url: &str) -> Result<(), LlmRunError> {
         ));
     }
     if trimmed.starts_with("https://") {
-        return validate_http_host_allowlist(trimmed);
+        return validate_host_allowlist(trimmed);
     }
     if !trimmed.starts_with("http://") {
         return Err(LlmRunError::message(
@@ -133,13 +133,13 @@ fn validate_http_url(url: &str) -> Result<(), LlmRunError> {
     }
     let require_https = env_bool("CX_HTTP_REQUIRE_HTTPS", true);
     if !require_https {
-        return validate_http_host_allowlist(trimmed);
+        return validate_host_allowlist(trimmed);
     }
     let allow_local_http = env_bool("CX_HTTP_ALLOW_LOCAL_HTTP", true);
     if allow_local_http && is_local_url(trimmed) {
-        return validate_http_host_allowlist(trimmed);
+        return validate_host_allowlist(trimmed);
     }
-    validate_http_host_allowlist(trimmed)?;
+    validate_host_allowlist(trimmed)?;
     Err(LlmRunError::message(
         "http-curl adapter [http_url_insecure] HTTPS is required for non-local endpoints; set CX_HTTP_PROVIDER_URL to https://..., or explicitly set CX_HTTP_REQUIRE_HTTPS=0 for local testing".to_string(),
     ))
@@ -530,7 +530,7 @@ impl HttpCurlAdapter {
 
 impl ProviderAdapter for HttpCurlAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_http_plain_with_options(prompt, &self.url, self.token.as_deref(), &self.http_options)
+        run_http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
@@ -540,7 +540,7 @@ impl ProviderAdapter for HttpCurlAdapter {
                 ollama_plain_to_jsonl(&text)
             }
             HttpProviderFormat::Json => {
-                let raw = run_http_raw_with_options(
+                let raw = run_http_raw_opts(
                     prompt,
                     &self.url,
                     self.token.as_deref(),
@@ -550,7 +550,7 @@ impl ProviderAdapter for HttpCurlAdapter {
                 ollama_plain_to_jsonl(&payload)
             }
             HttpProviderFormat::Jsonl => {
-                let jsonl = run_http_raw_with_options(
+                let jsonl = run_http_raw_opts(
                     prompt,
                     &self.url,
                     self.token.as_deref(),
@@ -593,7 +593,7 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 mod tests {
     use super::{
         ProviderAdapter, ProviderStatus, is_local_url, normalize_provider_status,
-        normalized_backend_name, ollama_plain_to_jsonl, parse_allowed_http_hosts, url_host,
+        normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, url_host,
         validate_http_url,
     };
     use serde_json::Value;
@@ -762,7 +762,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_url_host_handles_standard_shapes() {
+    fn url_host_shapes() {
         assert_eq!(
             url_host("https://example.com/v1").as_deref(),
             Some("example.com")
@@ -779,14 +779,14 @@ mod tests {
     }
 
     #[test]
-    fn allowed_hosts_parser_normalizes_and_deduplicates() {
+    fn parse_http_hosts_normalizes() {
         unsafe {
             env::set_var(
                 "CX_HTTP_ALLOWED_HOSTS",
                 "example.com, EXAMPLE.com,api.local",
             )
         };
-        let parsed = parse_allowed_http_hosts().expect("hosts");
+        let parsed = parse_http_hosts().expect("hosts");
         assert_eq!(
             parsed,
             vec!["api.local".to_string(), "example.com".to_string()]
@@ -795,7 +795,7 @@ mod tests {
     }
 
     #[test]
-    fn allowlist_blocks_unknown_hosts() {
+    fn allowlist_blocks_unknown() {
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
@@ -811,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    fn allowlist_allows_configured_hosts() {
+    fn allowlist_allows_configured() {
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
