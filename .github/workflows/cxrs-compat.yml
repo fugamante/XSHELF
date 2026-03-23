@@ -1,26 +1,6 @@
 name: cxrs-compat
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - rust/cxrs/**
-      - bin/**
-      - lib/**
-      - test/**
-      - cx.sh
-      - .github/workflows/cxrs-compat.yml
-  pull_request:
-    branches:
-      - main
-    paths:
-      - rust/cxrs/**
-      - bin/**
-      - lib/**
-      - test/**
-      - cx.sh
-      - .github/workflows/cxrs-compat.yml
   workflow_dispatch:
 
 permissions:
