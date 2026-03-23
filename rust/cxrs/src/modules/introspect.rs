@@ -68,6 +68,17 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
             .unwrap_or(true);
         println!("http_require_https: {require_https}");
         println!("http_allow_local_http: {allow_local_http}");
+        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "<any>".to_string());
+        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        println!("http_allowed_hosts: {allowed_hosts}");
+        println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);
@@ -177,6 +188,17 @@ pub fn cmd_core(app_version: &str) -> i32 {
             .unwrap_or(true);
         println!("http_require_https: {require_https}");
         println!("http_allow_local_http: {allow_local_http}");
+        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "<any>".to_string());
+        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        println!("http_allowed_hosts: {allowed_hosts}");
+        println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);

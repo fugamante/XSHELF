@@ -68,7 +68,7 @@ Primary fields:
 - budgets: `CX_CONTEXT_BUDGET_CHARS`, `CX_CONTEXT_BUDGET_LINES`, `CX_CONTEXT_CLIP_MODE`, `CX_CONTEXT_CLIP_FOOTER`
 - process timeout: `CX_CMD_TIMEOUT_SECS` (default `120`)
 - backend/model: `CX_LLM_BACKEND`, `CX_OLLAMA_MODEL`, `CX_MODEL`
-- HTTP adapter transport policy: `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`, `CX_HTTP_PROVIDER_FORMAT`, `CX_HTTP_REQUIRE_HTTPS` (default `1`), `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`)
+- HTTP adapter transport policy: `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`, `CX_HTTP_PROVIDER_FORMAT`, `CX_HTTP_REQUIRE_HTTPS` (default `1`), `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`), `CX_HTTP_ALLOWED_HOSTS` (optional allowlist), `CX_HTTP_TLS_PINNEDPUBKEY` (optional TLS pinning for curl transport)
 - execution mode: `CX_MODE`, `CX_SCHEMA_RELAXED`
 - operational toggles: `CXLOG_ENABLED`, `CXBENCH_LOG`, `CXBENCH_PASSTHRU`, `CXFIX_RUN`, `CXFIX_FORCE`, `CX_UNSAFE`
 
@@ -433,6 +433,7 @@ Stage II runtime commands:
 ./bin/cx task run-all --status pending --mode parallel --strict-plan --plan-json | jq .
 ./bin/cx task run-all --status pending --mode parallel --dry-run --json | jq .
 ./bin/cx task run-all --status pending --mode mixed --halt-on-critical
+./bin/cx task run-all --status pending --summary json | jq .
 CX_TASK_HALT_ON_CRITICAL=1 ./bin/cx task run-all --status pending
 
 ./bin/cx optimize 200

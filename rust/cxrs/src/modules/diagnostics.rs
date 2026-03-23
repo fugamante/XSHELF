@@ -705,6 +705,12 @@ fn build_actions_from_reasons(
                 "Retry attempt volume is elevated.",
                 "cx optimize 200 --json --actions".to_string(),
             ),
+            "timing_coverage_low" => (
+                "timing_coverage_low",
+                "warning",
+                "Task timing attribution coverage is degraded; queue/start/finish metadata is incomplete.",
+                "cx logs stats 200 --json --strict --severity warning".to_string(),
+            ),
             "critical_halts_detected" => (
                 "critical_halts_detected",
                 "critical",
@@ -814,6 +820,34 @@ fn scheduler_severity(
         .unwrap_or(0);
     if window_runs >= 6 && workers_seen <= 1 {
         reasons.push("worker_spread_low".to_string());
+    }
+
+    if window_runs >= 10 {
+        let timing_counts = [
+            scheduler
+                .get("rows_with_retry_attempt")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            scheduler
+                .get("rows_with_queue_started_at")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            scheduler
+                .get("rows_with_task_started_at")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+            scheduler
+                .get("rows_with_task_finished_at")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
+        ];
+        let min_ratio = timing_counts
+            .iter()
+            .map(|v| *v as f64 / window_runs as f64)
+            .fold(1.0_f64, f64::min);
+        if min_ratio < 0.80 {
+            reasons.push(format!("timing_coverage_low:{:.0}", min_ratio * 100.0));
+        }
     }
 
     let retry_rows = retry
@@ -1219,7 +1253,7 @@ pub fn has_required_log_fields(v: &Value) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::has_required_log_fields;
+    use super::{build_actions_from_reasons, has_required_log_fields, scheduler_severity};
     use serde_json::json;
 
     #[test]
@@ -1249,5 +1283,47 @@ mod tests {
             "duration_ms":11
         });
         assert!(has_required_log_fields(&row_with));
+    }
+
+    #[test]
+    fn actions_include_timing_coverage_reason() {
+        let actions = build_actions_from_reasons(
+            &["timing_coverage_low:55".to_string()],
+            200,
+            "cx task run-all --status pending",
+        );
+        assert_eq!(actions.len(), 1);
+        assert_eq!(
+            actions[0].get("id").and_then(serde_json::Value::as_str),
+            Some("timing_coverage_low")
+        );
+    }
+
+    #[test]
+    fn scheduler_severity_flags_timing_coverage_low() {
+        let scheduler = json!({
+            "queue_ms_p95": 0,
+            "queue_rows": 12,
+            "backend_distribution": {"codex": 6, "ollama": 6},
+            "workers_seen": ["w1", "w2"],
+            "window_runs": 12,
+            "rows_with_retry_attempt": 12,
+            "rows_with_queue_started_at": 12,
+            "rows_with_task_started_at": 3,
+            "rows_with_task_finished_at": 12
+        });
+        let retry = json!({
+            "rows_after_retry": 0,
+            "rows_after_retry_success_rate": 1.0,
+            "rows_with_retry_metadata": 0
+        });
+        let critical = json!({"halted_rows": 0});
+        let (sev, reasons) = scheduler_severity(&scheduler, &retry, &critical);
+        assert_eq!(sev, "warning");
+        assert!(
+            reasons
+                .iter()
+                .any(|r| r.starts_with("timing_coverage_low:"))
+        );
     }
 }

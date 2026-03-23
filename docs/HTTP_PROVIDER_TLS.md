@@ -9,6 +9,8 @@
   - `http://localhost`
   - `http://127.0.0.1`
   - `http://[::1]`
+- `CX_HTTP_ALLOWED_HOSTS` (optional CSV): host allowlist gate for `CX_HTTP_PROVIDER_URL`.
+- `CX_HTTP_TLS_PINNEDPUBKEY` (optional): passed to curl `--pinnedpubkey` for TLS pinning.
 
 Behavior:
 - `https://...` always allowed.
@@ -58,4 +60,6 @@ server {
 ```bash
 ./bin/cx version | rg 'provider_transport|http_require_https|http_allow_local_http'
 ./bin/cx core | rg 'provider_transport|http_require_https|http_allow_local_http'
+./bin/cx version | rg 'http_allowed_hosts|http_tls_pinning'
+./bin/cx core | rg 'http_allowed_hosts|http_tls_pinning'
 ```

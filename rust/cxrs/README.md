@@ -56,6 +56,7 @@ Primary toggles:
 - `CX_LLM_BACKEND`, `CX_OLLAMA_MODEL`, `CX_MODEL`
 - `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`, `CX_HTTP_PROVIDER_FORMAT`
 - `CX_HTTP_REQUIRE_HTTPS` (default `1`), `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`)
+- `CX_HTTP_ALLOWED_HOSTS` (optional CSV allowlist), `CX_HTTP_TLS_PINNEDPUBKEY` (optional curl pinning hook)
 - `CX_CONTEXT_BUDGET_CHARS`, `CX_CONTEXT_BUDGET_LINES`, `CX_CONTEXT_CLIP_MODE`, `CX_CONTEXT_CLIP_FOOTER`
 - `CX_CMD_TIMEOUT_SECS` (external command timeout, default `120`)
 - `CX_TIMEOUT_LLM_SECS`, `CX_TIMEOUT_GIT_SECS`, `CX_TIMEOUT_SHELL_SECS` (optional per-command-class timeout overrides)
