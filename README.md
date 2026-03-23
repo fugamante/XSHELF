@@ -499,6 +499,9 @@ Schema failures are quarantined under `.codex/quarantine/`, and invalid structur
 ./scripts/compat_local.sh --quick
 # full local compat + JSON artifact
 ./scripts/compat_local.sh --full --out .codex/compat/latest.json
+# aggregate compat across sibling repos (if present)
+./scripts/compat_all.sh --quick
+./scripts/compat_all.sh --full --out .codex/compat/all_latest.json
 # wrapper:
 ./bin/cx-compat-local --quick
 
