@@ -357,6 +357,8 @@ Retry-health JSON surfaces:
 - `optimize --json`: `scoreboard.retry_health`
 - `diag --json`: top-level `concurrency`
 - `scheduler --json`: top-level `concurrency`
+- `diag --json`: `scheduler.rows_with_retry_attempt`, `scheduler.rows_with_queue_started_at`, `scheduler.rows_with_task_started_at`, `scheduler.rows_with_task_finished_at`
+- `scheduler --json`: same scheduler timing/attempt coverage keys as `diag --json`
 - contract markers: top-level `contract_version` on JSON diagnostics surfaces
 - actions markers: top-level `actions_contract_version` when `--actions` is used
 
@@ -368,7 +370,14 @@ Expected JSON shape (key excerpts):
 ```json
 {
   "diag": {
-    "scheduler": { "window_runs": 50, "queue_ms_p95": 1200 },
+    "scheduler": {
+      "window_runs": 50,
+      "queue_ms_p95": 1200,
+      "rows_with_retry_attempt": 6,
+      "rows_with_queue_started_at": 6,
+      "rows_with_task_started_at": 6,
+      "rows_with_task_finished_at": 6
+    },
     "concurrency": {
       "defaults": { "run_all_mode": "sequential", "max_workers": 1, "fairness": "round_robin" },
       "observed": { "run_all_rows": 3, "latest_run_all_mode": "mixed", "run_all_mode_counts": { "mixed": 3 } }

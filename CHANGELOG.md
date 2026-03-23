@@ -15,6 +15,13 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Phase VI telemetry refinement:
+  - `diag --json` / `scheduler --json` now expose scheduler timing-attribution coverage keys:
+    - `rows_with_retry_attempt`
+    - `rows_with_queue_started_at`
+    - `rows_with_task_started_at`
+    - `rows_with_task_finished_at`
+  - text diagnostics now print matching `scheduler_*` counters for quick operator checks.
 - Local compatibility suite (hosted-CI independent):
   - added `scripts/compat_local.sh` at repo root with unified runner contract:
     - `--quick|--full`

@@ -144,6 +144,34 @@ fn print_scheduler_diag(log_file_path: &str, window: usize) {
             .map(|v| v.to_string())
             .unwrap_or_else(|| "n/a".to_string())
     );
+    println!(
+        "scheduler_rows_with_retry_attempt: {}",
+        scheduler
+            .get("rows_with_retry_attempt")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "scheduler_rows_with_queue_started_at: {}",
+        scheduler
+            .get("rows_with_queue_started_at")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "scheduler_rows_with_task_started_at: {}",
+        scheduler
+            .get("rows_with_task_started_at")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "scheduler_rows_with_task_finished_at: {}",
+        scheduler
+            .get("rows_with_task_finished_at")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
     println!("scheduler_workers_seen: {workers_seen}");
     println!("scheduler_worker_distribution: {worker_distribution}");
     println!("scheduler_backend_distribution: {backend_distribution}");
@@ -417,6 +445,10 @@ fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
             "queue_rows": 0,
             "queue_ms_avg": Value::Null,
             "queue_ms_p95": Value::Null,
+            "rows_with_retry_attempt": 0,
+            "rows_with_queue_started_at": 0,
+            "rows_with_task_started_at": 0,
+            "rows_with_task_finished_at": 0,
             "workers_seen": [],
             "worker_distribution": {},
             "backend_distribution": {}
@@ -426,10 +458,38 @@ fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
     let mut queue_vals: Vec<u64> = Vec::new();
     let mut worker_counts: BTreeMap<String, usize> = BTreeMap::new();
     let mut backend_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut rows_with_retry_attempt = 0u64;
+    let mut rows_with_queue_started_at = 0u64;
+    let mut rows_with_task_started_at = 0u64;
+    let mut rows_with_task_finished_at = 0u64;
 
     for v in &rows {
         if let Some(q) = v.get("queue_ms").and_then(Value::as_u64) {
             queue_vals.push(q);
+        }
+        if v.get("retry_attempt").and_then(Value::as_u64).is_some() {
+            rows_with_retry_attempt += 1;
+        }
+        if v.get("queue_started_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+        {
+            rows_with_queue_started_at += 1;
+        }
+        if v.get("task_started_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+        {
+            rows_with_task_started_at += 1;
+        }
+        if v.get("task_finished_at")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .is_some_and(|s| !s.is_empty())
+        {
+            rows_with_task_finished_at += 1;
         }
         if let Some(w) = v.get("worker_id").and_then(Value::as_str) {
             *worker_counts.entry(w.to_string()).or_insert(0) += 1;
@@ -453,6 +513,10 @@ fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
         "queue_rows": queue_vals.len(),
         "queue_ms_avg": queue_avg,
         "queue_ms_p95": queue_p95,
+        "rows_with_retry_attempt": rows_with_retry_attempt,
+        "rows_with_queue_started_at": rows_with_queue_started_at,
+        "rows_with_task_started_at": rows_with_task_started_at,
+        "rows_with_task_finished_at": rows_with_task_finished_at,
         "workers_seen": worker_counts.keys().cloned().collect::<Vec<String>>(),
         "worker_distribution": worker_counts,
         "backend_distribution": backend_counts
