@@ -15,6 +15,13 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Local compatibility suite (hosted-CI independent):
+  - added `scripts/compat_local.sh` at repo root with unified runner contract:
+    - `--quick|--full`
+    - `--json`
+    - `--out <path>` (default `.codex/compat/latest.json`)
+  - added wrapper `bin/cx-compat-local`.
+  - standardized report schema to align with `cx-eval-lab` local compat artifacts (`status`, `mode`, `summary`, `steps`, host/toolchain/git metadata).
 - Adaptive output-mode resolution and introspection:
   - added auto selection layer for human vs agent contexts:
     - CLI override remains highest precedence.

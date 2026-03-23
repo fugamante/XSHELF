@@ -496,6 +496,12 @@ Schema failures are quarantined under `.codex/quarantine/`, and invalid structur
 `cxrs-compat` workflow is manual-only (`workflow_dispatch`) while CI billing is constrained. Use this local gate before push:
 
 ```bash
+./scripts/compat_local.sh --quick
+# full local compat + JSON artifact
+./scripts/compat_local.sh --full --out .codex/compat/latest.json
+# wrapper:
+./bin/cx-compat-local --quick
+
 cd rust/cxrs
 cargo fmt
 cargo check

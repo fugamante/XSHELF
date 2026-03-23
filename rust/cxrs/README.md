@@ -147,6 +147,10 @@ Compatibility check against Bash baseline:
 cd rust/cxrs
 make compat-check N=50
 make parity-check
+
+# unified local compat runner (repo root)
+cd ../..
+./scripts/compat_local.sh --quick
 ```
 
 Reliability/failure-injection suite:
@@ -165,8 +169,7 @@ Current compat coverage:
 
 GitHub Actions:
 - Workflow: `cxrs-compat` (`.github/workflows/cxrs-compat.yml`)
-- Triggered on pushes/PRs that touch Rust/Bash-compat paths.
-- Toggle via repo variable: set `CXRS_COMPAT_CHECK=0` to skip the job.
+- Manual-only (`workflow_dispatch`) while billing is constrained.
 
 Capture provider:
 - Native internal capture/reduction path only.
