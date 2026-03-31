@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active (`Phase 0` complete)
+Status: active (`Phase 0` complete, `Phase 1` specified)
 Owner: CX runtime
 
 ## Objective
@@ -108,15 +108,19 @@ Completion notes:
 ### Phase 1: Baseline Measurement
 
 Tasks:
-- choose a single local model/backend
-- measure:
-  - memory at 8k / 16k / 32k context
-  - token throughput
-  - latency
-  - quality proxy (perplexity / task fidelity)
+- lock first backend/model matrix
+- lock reproducible baseline procedure
+- lock Markdown + JSON artifact contracts
+- collect first dry-run baseline
 
 Acceptance:
-- reproducible baseline table checked into branch docs
+- reproducible harness contract checked into docs
+- baseline report path and artifact contract fixed before prototype work
+
+Completion notes:
+- Phase 1 contract locked in `docs/TURBOQUANT_PHASE1.md`
+- baseline artifact version reserved as `turboquant-baseline.v1`
+- first backend matrix remains deliberately narrow to avoid false precision
 
 ### Phase 2: Minimal Prototype
 
