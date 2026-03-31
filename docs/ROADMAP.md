@@ -24,6 +24,8 @@
 - Pluggable backend adapters beyond Codex/Ollama.
 - Incremental CLI packaging/distribution improvements (Homebrew-ready metadata).
 - Optional distributed execution backends (multi-process/remote workers) while preserving current log/schema contracts.
+- Backend capability experiments for local inference optimization must stay isolated from core CX until they prove value and preserve adapter boundaries.
+- Current backend experiment note: `docs/TURBOQUANT_SPIKE.md`
 
 ## Phase VI Kickoff (current)
 
