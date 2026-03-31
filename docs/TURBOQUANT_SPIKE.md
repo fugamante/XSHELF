@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active
+Status: active (`Phase 0` complete)
 Owner: CX runtime
 
 ## Objective
@@ -100,6 +100,11 @@ Tasks:
 Acceptance:
 - no ambiguity that this is a backend experiment, not a prompt-layer change
 
+Completion notes:
+- backend target selected: `llama.cpp`
+- success metrics and provisional go/no-go thresholds locked in `docs/TURBOQUANT_PHASE0.md`
+- CX integration explicitly constrained to capability/config + telemetry, not kernel logic
+
 ### Phase 1: Baseline Measurement
 
 Tasks:
@@ -182,6 +187,6 @@ Acceptance:
 
 ## Immediate Next Actions
 
-1. Pick backend spike target (`llama.cpp` preferred first).
-2. Define benchmark harness and success metrics.
-3. Add a small CX doc describing how backend capability experiments plug into provider adapters without widening core command behavior.
+1. Define Phase 1 baseline benchmark harness.
+2. Select first local model/config for long-context measurement.
+3. Add baseline artifact templates for Markdown + JSON outputs.
