@@ -223,6 +223,12 @@ Phase 1 is complete only when:
 - the JSON artifact contract is locked
 - at least one full local dry-run proves the harness is practical on the current machine
 
+Operational note:
+
+- if public Hugging Face fetches are not available on the current machine, Phase 1 execution requires either:
+  - `HF_TOKEN`, or
+  - a local GGUF path
+
 ## Out of Scope
 
 - no TurboQuant kernel code
