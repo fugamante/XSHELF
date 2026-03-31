@@ -1,0 +1,14 @@
+{
+  "contract_version": "turboquant-baseline.v1",
+  "phase": "phase1",
+  "backend": {
+    "name": "llama.cpp",
+    "ref": "version: 8590 (5ce013cd7) built with AppleClang 17.0.0.17000604 for Darwin arm64"
+  },
+  "hardware": {
+    "label": "arm64-darwin",
+    "memory_gb": 32,
+    "accel": "metal"
+  },
+  "profiles": []
+}
