@@ -1,7 +1,7 @@
 # TurboQuant Phase 2 Minimal Prototype
 
 Branch: `cx/turboquant-spike`
-Status: ready
+Status: active
 Scope: `llama.cpp` V-cache-first feasibility slice
 
 ## Objective
@@ -98,14 +98,39 @@ Phase 2 should create:
 - `docs/TURBOQUANT_PHASE2.md` updates with measured results
 - a Phase 2 comparison artifact adjacent to the Phase 1 artifact
 - concise notes on fallback behavior and unsupported paths
+- a checked-in backend patch artifact for the first compile-clean slice
+
+## Current Implementation Checkpoint
+
+The first backend slice now exists as a compile-clean patch artifact against `llama.cpp` `a1cfb64`:
+
+- patch artifact: `patches/tq_p2_slice1.patch`
+- upstream analysis checkout: `/tmp/cx_llama_cpp`
+- compile check:
+  - `scripts/turboquant_phase2.sh build-check /tmp/cx_llama_cpp /tmp/cx_llama_cpp/build-cx-tq`
+
+What the first slice covers:
+
+- runtime arg plumbing for TurboQuant prototype controls
+- context-to-memory parameter propagation
+- KV-cache sidecar state for `V`-only experiments
+- explicit write/read fallback gates
+- zero codec math so baseline behavior remains the only active path
+
+What the first slice does not cover:
+
+- `tq_v0` write transform
+- `tq_v0` dequant-on-read
+- compressed memory accounting
+- any graph-boundary rewrite
 
 ## Immediate Next Step
 
-Before code changes:
+Begin the first codec-bearing patch:
 
-1. identify the exact `llama.cpp` cache write/read touchpoints for `V`
-2. define the minimal compressed representation to test first
-3. lock the fallback conditions before any prototype branch diverges further
+1. implement `tq_v0` payload/scales sidecar write in `cpy_v()`
+2. keep the baseline `ggml_set_rows()` path intact behind fallback
+3. only after write-side storage exists, add dequant-on-read in `get_v()`
 
 Current branch artifacts:
 
@@ -115,3 +140,4 @@ Current branch artifacts:
 - function-level patch plan: `docs/TURBOQUANT_PATCH.md`
 - machine-readable worklist: `docs/TURBOQUANT_WORK.json`
 - helper script: `scripts/turboquant_phase2.sh`
+- patch artifact: `patches/tq_p2_slice1.patch`
