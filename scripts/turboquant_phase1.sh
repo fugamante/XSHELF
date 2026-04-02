@@ -83,7 +83,17 @@ cx_tq_probe() {
     cx_tq_die "probe requires --model or --hf-repo"
   fi
 
-  local -a cmd=(llama-cli -c 512 -n 8 --temp 0 --perf -p "Reply with exactly: OK")
+  local -a cmd=(
+    llama-cli
+    -c 512
+    -n 8
+    --temp 0
+    --perf
+    --single-turn
+    --simple-io
+    --no-display-prompt
+    -p "Reply with exactly: OK"
+  )
   if [[ -n "$model_path" ]]; then
     cmd+=(--model "$model_path")
   else

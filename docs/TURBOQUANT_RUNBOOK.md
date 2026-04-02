@@ -88,6 +88,9 @@ Local GGUF example:
   -n 64 \
   --temp 0 \
   --perf \
+  --single-turn \
+  --simple-io \
+  --no-display-prompt \
   -p "Reply with exactly: OK"
 ```
 
@@ -100,6 +103,9 @@ Recommended first pass sequence:
   -n 64 \
   --temp 0 \
   --perf \
+  --single-turn \
+  --simple-io \
+  --no-display-prompt \
   -p "Reply with exactly: OK"
 
 /usr/bin/time -p llama-cli \
@@ -108,6 +114,9 @@ Recommended first pass sequence:
   -n 64 \
   --temp 0 \
   --perf \
+  --single-turn \
+  --simple-io \
+  --no-display-prompt \
   -p "Reply with exactly: OK"
 
 /usr/bin/time -p llama-cli \
@@ -116,6 +125,9 @@ Recommended first pass sequence:
   -n 64 \
   --temp 0 \
   --perf \
+  --single-turn \
+  --simple-io \
+  --no-display-prompt \
   -p "Reply with exactly: OK"
 ```
 
