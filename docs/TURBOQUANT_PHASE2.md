@@ -105,6 +105,7 @@ Phase 2 should create:
 The first backend slice now exists as a compile-clean patch artifact against `llama.cpp` `a1cfb64`:
 
 - patch artifact: `patches/tq_p2_slice1.patch`
+- current cumulative sidecar artifact: `patches/tq_p2_slice4.patch`
 - upstream analysis checkout: pinned local analysis checkout
 - compile check:
   - `scripts/turboquant_phase2.sh build-check <llama.cpp checkout> <build dir>`
@@ -173,6 +174,31 @@ What it does not yet prove:
 - read-side dequant from stored compressed payload
 - end-to-end memory reduction in the actual KV store
 
+## Current Sidecar Slice
+
+The current cumulative backend checkpoint is:
+
+- `patches/tq_p2_slice4.patch`
+
+What it adds:
+
+- host-side persistent sidecar buffers for `V`
+  - packed payload bytes
+  - per-group scales
+  - per-row offsets and counts
+- explicit row accounting:
+  - `rows_written`
+  - `rows_bypassed`
+  - `payload_bytes`
+  - `scale_bytes`
+- lazy sidecar sync from the host-backed `V` cache on the validated CPU path
+
+What it still does not add:
+
+- read-side reconstruction from the sidecar
+- raw `V` eviction after successful encode
+- measured KV memory reduction in the backing cache itself
+
 ## Validation Checkpoint
 
 The first fixed-prompt validation artifact now exists:
@@ -226,17 +252,19 @@ Interpretation:
 - this is enough evidence to continue Phase 2
 - it is not yet evidence of memory benefit, because storage has not changed
 
+The first sidecar-residency slice was then validated against the same prompt set and also passed all checks at `8k`.
+
 ## Immediate Next Step
 
-The custom-op boundary exists and the codec simulation is validated on the fixed prompt set. The next practical step is:
+The custom-op boundary exists, the codec simulation is validated, and host-side sidecar residency now exists. The next practical step is:
 
-1. add persistent compressed sidecar storage for `V`
+1. add read-side recovery from stored compressed payloads
 2. keep raw `V` fallback intact for unsupported paths
-3. add read-side recovery from stored compressed payloads
+3. compare sidecar bytes with the previous simulated estimates
 4. re-run the fixed prompt set and compare:
    - parity
    - runtime delta
-   - simulated vs real byte reduction
+   - sidecar vs simulated byte reduction
 
 Current branch artifacts:
 
@@ -252,4 +280,5 @@ Current branch artifacts:
 - patch artifact: `patches/tq_p2_slice1.patch`
 - execution scaffold artifact: `patches/tq_p2_slice2.patch`
 - codec simulation artifact: `patches/tq_p2_slice3.patch`
+- sidecar residency artifact: `patches/tq_p2_slice4.patch`
 - validation artifact: `docs/TURBOQUANT_PHASE2_CHECK.json`
