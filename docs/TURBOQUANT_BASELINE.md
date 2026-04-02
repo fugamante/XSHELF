@@ -9,8 +9,8 @@ Status: blocked pending model access
 - collection date: 2026-03-31
 - backend: `llama.cpp`
 - backend ref: `8590 (5ce013cd7)`
-- model: pending concrete baseline selection
-- quantization: pending
+- model: `llama3.1:latest` local Ollama asset
+- quantization: `Q4_K_M`
 - hardware: current local Apple Silicon machine
 - acceleration mode: `metal`
 
@@ -20,7 +20,14 @@ Reason for choosing this backend/model pair:
 
 - backend fixed by Phase 0: `llama.cpp`
 - first dry-run candidate: `ggml-org/SmolLM2-360M-Instruct-GGUF:Q4_K_M`
-- primary 7B-14B baseline candidate still pending concrete local GGUF or authenticated fetch
+- primary baseline candidate selected: local `llama3.1:latest` Ollama asset
+- selected model blob:
+  - `~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29`
+- selection basis:
+  - local and immediately available
+  - confirmed `GGUF` v3
+  - confirmed `Q4_K_M`
+  - practical size for first long-context baseline pass on this machine
 
 ## Prompt Set
 
@@ -50,12 +57,16 @@ Notes:
 ## Observations
 
 - local backend binary is available and versioned
+- local baseline model candidate is available and format-validated:
+  - `llama3.1:latest`
+  - `GGUF` v3
+  - `Q4_K_M`
 - first unauthenticated `--hf-repo` smoke fetch failed with:
   - `GET failed (401): Invalid username or password.`
-- no local GGUF path has been locked into this branch yet
+- first local GGUF path is now locked for the baseline candidate
 - Phase 1 can proceed immediately after either:
-  - supplying a local GGUF path, or
-  - exporting a valid `HF_TOKEN`
+  - running against the selected local GGUF path, or
+  - exporting a valid `HF_TOKEN` for alternate fetch-based probes
 
 ## Go / No-Go For Phase 2
 
@@ -66,5 +77,5 @@ Decision:
 Reason:
 
 - backend harness is operational
-- concrete model access is still blocked
+- concrete model candidate is now selected
 - real measurements have not been collected yet
