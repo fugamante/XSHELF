@@ -2,7 +2,7 @@
 
 Branch: `cx/turboquant-spike`
 Artifact contract: `turboquant-baseline.v1`
-Status: blocked pending model access
+Status: in progress
 
 ## Environment
 
@@ -49,7 +49,7 @@ Notes:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline_local_small | 8k | | | | | | |
 | baseline_local_small | 16k | | | | | | |
-| baseline_local_primary | 8k | | | | | | |
+| baseline_local_primary | 8k | 1024 | pending richer perf parse | 118.0 | 1590 | exact `OK` response | pass |
 | baseline_local_primary | 16k | | | | | | |
 | baseline_local_primary | 32k | | | | | | |
 | baseline_local_stress | max practical | | | | | | |
@@ -61,12 +61,21 @@ Notes:
   - `llama3.1:latest`
   - `GGUF` v3
   - `Q4_K_M`
+- first real baseline pass completed at `8k` context
+  - KV-cache context allocation reported: `1024 MiB`
+  - generation throughput: `118.0 tok/s`
+  - prompt throughput: `334.1 tok/s`
+  - wall time: `1.59 s`
+  - response correctness for smoke prompt: pass
 - first unauthenticated `--hf-repo` smoke fetch failed with:
   - `GET failed (401): Invalid username or password.`
 - first local GGUF path is now locked for the baseline candidate
 - Phase 1 can proceed immediately after either:
   - running against the selected local GGUF path, or
   - exporting a valid `HF_TOKEN` for alternate fetch-based probes
+- current measurement gap:
+  - `llama-cli --perf` output is sufficient for throughput and memory
+  - but prefill latency needs either richer parsing or an alternate machine-readable output mode
 
 ## Go / No-Go For Phase 2
 
@@ -78,4 +87,8 @@ Reason:
 
 - backend harness is operational
 - concrete model candidate is now selected
-- real measurements have not been collected yet
+- first real measurement exists
+- baseline still needs:
+  - repeated `8k` runs
+  - `16k` and `32k` passes
+  - prompt-set expansion beyond the smoke prompt
