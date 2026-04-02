@@ -106,3 +106,10 @@ Before code changes:
 1. identify the exact `llama.cpp` cache write/read touchpoints for `V`
 2. define the minimal compressed representation to test first
 3. lock the fallback conditions before any prototype branch diverges further
+
+Current branch artifacts:
+
+- touchpoint map: `docs/TURBOQUANT_TOUCH.md`
+- codec contract: `docs/TURBOQUANT_CODEC.md`
+- machine-readable prototype contract: `docs/TURBOQUANT_PROTO.json`
+- helper script: `scripts/turboquant_phase2.sh`
