@@ -112,4 +112,6 @@ Current branch artifacts:
 - touchpoint map: `docs/TURBOQUANT_TOUCH.md`
 - codec contract: `docs/TURBOQUANT_CODEC.md`
 - machine-readable prototype contract: `docs/TURBOQUANT_PROTO.json`
+- function-level patch plan: `docs/TURBOQUANT_PATCH.md`
+- machine-readable worklist: `docs/TURBOQUANT_WORK.json`
 - helper script: `scripts/turboquant_phase2.sh`
