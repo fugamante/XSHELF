@@ -36,6 +36,10 @@ Current Phase 2 decision:
   - smaller group sizes did not recover exact retrieval/JSON behavior
   - wider codebooks did not recover exact retrieval/JSON behavior
   - an affine min/max variant also did not recover exact retrieval/JSON behavior
+- a stronger two-stage residual scalar variant is also now a recorded no-go:
+  - retrieval still failed
+  - strict JSON still failed
+  - decode error generally worsened
 
 ## Objective
 
