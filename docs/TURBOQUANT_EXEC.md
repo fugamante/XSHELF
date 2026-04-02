@@ -100,6 +100,28 @@ Its purpose is narrower:
 
 - prove the `V` path can carry an execution-time custom op without breaking the pinned backend build
 
+## Codec Simulation Checkpoint
+
+The next cumulative artifact now exists as:
+
+- `patches/tq_p2_slice3.patch`
+
+What it adds:
+
+- CPU-only group-wise quantize/dequantize simulation inside the custom op
+- real use of:
+  - `group_size`
+  - `codebook_bits`
+- simulated byte accounting per layer for the write-side path
+
+What it still does not add:
+
+- persistent compressed `V` storage
+- true cache memory reduction
+- dequant-on-read from compressed sidecar payloads
+
+This is a runtime math proof, not yet a storage proof.
+
 ## Immediate Next Patch Goal
 
 The next backend slice should add:

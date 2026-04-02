@@ -153,6 +153,26 @@ What it still does not add:
 - any memory win
 - any quality change
 
+## Current Codec Simulation
+
+The next cumulative checkpoint is:
+
+- `patches/tq_p2_slice3.patch`
+
+What it adds:
+
+- CPU-only group-wise quantize/dequantize simulation on the `V` write path
+- use of configured:
+  - `group_size`
+  - `codebook_bits`
+- simulated per-layer byte estimates
+
+What it does not yet prove:
+
+- compressed cache residency
+- read-side dequant from stored compressed payload
+- end-to-end memory reduction in the actual KV store
+
 ## Immediate Next Step
 
 Begin the first codec-bearing patch:
@@ -165,9 +185,11 @@ Begin the first codec-bearing patch:
 
 That custom-op boundary now exists, so the next practical step is:
 
-1. add codec-bearing CPU logic behind the scaffold
-2. keep it semantically lossless first if needed
-3. only then move to actual compressed payload storage/reporting
+1. validate the codec simulation against the Phase 1 prompt set
+2. decide whether the next slice should:
+   - introduce persistent compressed sidecar storage, or
+   - add read-side codec handling first
+3. only after that pursue actual KV memory reduction
 
 Current branch artifacts:
 
@@ -180,3 +202,4 @@ Current branch artifacts:
 - helper script: `scripts/turboquant_phase2.sh`
 - patch artifact: `patches/tq_p2_slice1.patch`
 - execution scaffold artifact: `patches/tq_p2_slice2.patch`
+- codec simulation artifact: `patches/tq_p2_slice3.patch`

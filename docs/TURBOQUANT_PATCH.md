@@ -335,6 +335,32 @@ What remains after the scaffold:
 - decide whether the first codec-bearing step is:
   - lossless transform scaffolding, or
   - immediately quantized payload experimentation
+
+## Third Patch Result
+
+The first codec-bearing simulation slice is now compile-clean:
+
+- cumulative artifact: `patches/tq_p2_slice3.patch`
+- compile check: passed against upstream `a1cfb64`
+
+What the third slice adds:
+
+- CPU-only group-wise quantize/dequantize simulation inside the custom op
+- explicit use of:
+  - `group_size`
+  - `codebook_bits`
+- simulated byte estimates attached to per-layer prototype state
+
+What the third slice still does not do:
+
+- retain compressed payloads in KV cache memory
+- read compressed sidecar payloads back out
+- reduce true KV storage footprint
+
+Why it matters:
+
+- this is the first patch where the TurboQuant-like math actually runs on execution data
+- it separates runtime codec behavior from later storage-layout work
 3. it can enable `tq_v0`
 4. it falls back cleanly on unsupported conditions
 5. it emits measurable `V` memory accounting
