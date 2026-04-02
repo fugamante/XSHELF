@@ -30,7 +30,12 @@ Recommended for the first dry run:
 - dry-run model:
   - `ggml-org/SmolLM2-360M-Instruct-GGUF:Q4_K_M`
 - main baseline candidate:
-  - one stable 7B-14B instruct long-context GGUF already proven on this machine
+  - local `llama3.1:latest`
+  - blob path:
+    - `~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29`
+  - validated as:
+    - `GGUF` v3
+    - `Q4_K_M`
 
 ## Candidate Selection Order
 
@@ -60,7 +65,7 @@ Use this order:
 
 ```bash
 ./scripts/turboquant_phase1.sh probe \
-  --model /absolute/path/to/model.gguf
+  --model ~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29
 ```
 
 ### Smoke probe using Hugging Face repo
@@ -78,8 +83,36 @@ Local GGUF example:
 
 ```bash
 /usr/bin/time -p llama-cli \
-  --model /absolute/path/to/model.gguf \
+  --model ~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29 \
   -c 8192 \
+  -n 64 \
+  --temp 0 \
+  --perf \
+  -p "Reply with exactly: OK"
+```
+
+Recommended first pass sequence:
+
+```bash
+/usr/bin/time -p llama-cli \
+  --model ~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29 \
+  -c 8192 \
+  -n 64 \
+  --temp 0 \
+  --perf \
+  -p "Reply with exactly: OK"
+
+/usr/bin/time -p llama-cli \
+  --model ~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29 \
+  -c 16384 \
+  -n 64 \
+  --temp 0 \
+  --perf \
+  -p "Reply with exactly: OK"
+
+/usr/bin/time -p llama-cli \
+  --model ~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29 \
+  -c 32768 \
   -n 64 \
   --temp 0 \
   --perf \
@@ -116,6 +149,10 @@ From each run:
 Phase 1 execution is prepared but not complete.
 
 Current blocker is model availability/auth for `llama.cpp` baseline runs on this machine.
+
+Model availability is no longer the blocker for the primary path because a local GGUF candidate has been selected.
+
+Current execution blocker is only completion of the first real measurement pass.
 
 ## Backend Order
 
