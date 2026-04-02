@@ -49,9 +49,9 @@ Notes:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline_local_small | 8k | | | | | | |
 | baseline_local_small | 16k | | | | | | |
-| baseline_local_primary | 8k | 1024 | pending richer perf parse | 118.0 | 1590 | exact `OK` response | pass |
-| baseline_local_primary | 16k | 2048 | pending richer perf parse | 103.3 | 2110 | exact `OK` response | pass |
-| baseline_local_primary | 32k | 4096 | pending richer perf parse | 108.5 | 3100 | exact `OK` response | pass |
+| baseline_local_primary | 8k | 1024 | pending richer perf parse | 117.2 | 1590 | exact `OK` response | pass |
+| baseline_local_primary | 16k | 2048 | pending richer perf parse | 111.7 | 1610 | exact `OK` response | pass |
+| baseline_local_primary | 32k | 4096 | pending richer perf parse | 115.1 | 1620 | exact `OK` response | pass |
 | baseline_local_stress | max practical | | | | | | |
 
 ## Observations
@@ -79,6 +79,19 @@ Notes:
   - prompt throughput: `252.6 tok/s`
   - wall time: `3.10 s`
   - response correctness for smoke prompt: pass
+- repeat set completed for `8k`, `16k`, and `32k`
+  - three samples per context now exist
+  - median decode throughput:
+    - `8k`: `117.2 tok/s`
+    - `16k`: `111.7 tok/s`
+    - `32k`: `115.1 tok/s`
+  - median wall time:
+    - `8k`: `1.59 s`
+    - `16k`: `1.61 s`
+    - `32k`: `1.62 s`
+- warm-cache effect observed
+  - first-run prompt throughput and wall time are colder than subsequent runs
+  - decode throughput is comparatively stable across repeats
 - first unauthenticated `--hf-repo` smoke fetch failed with:
   - `GET failed (401): Invalid username or password.`
 - first local GGUF path is now locked for the baseline candidate
@@ -101,7 +114,8 @@ Reason:
 - concrete model candidate is now selected
 - first real measurement exists
 - first 8k/16k/32k ladder exists
+- median context ladder exists
 - baseline still needs:
-  - repeated `8k` runs
-  - repeated `16k` and `32k` runs
   - prompt-set expansion beyond the smoke prompt
+  - cleaner prefill-ms extraction
+  - explicit median fields in the report body
