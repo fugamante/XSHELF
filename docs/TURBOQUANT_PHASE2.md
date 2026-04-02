@@ -199,6 +199,24 @@ What it still does not add:
 - raw `V` eviction after successful encode
 - measured KV memory reduction in the backing cache itself
 
+## Current Sidecar Decode Slice
+
+The current cumulative backend checkpoint is:
+
+- `patches/tq_p2_slice5.patch`
+
+What it adds:
+
+- read-side reconstruction from the sidecar on the validated `!v_trans` host path
+- explicit fallback when the expected sidecar rows are missing
+- end-to-end parity checks against the fixed prompt suite using sidecar decode
+
+What it still does not add:
+
+- raw `V` eviction after successful encode
+- real backing-cache shrinkage
+- GPU/device execution
+
 ## Validation Checkpoint
 
 The first fixed-prompt validation artifact now exists:
@@ -229,20 +247,20 @@ Observed result:
 Observed runtime deltas at `8k`:
 
 - `smoke`
-  - prompt throughput delta: `-2.66%`
-  - decode throughput delta: `-4.97%`
-  - wall delta: `0 ms`
+  - prompt throughput delta: `+3.90%`
+  - decode throughput delta: `+7.25%`
+  - wall delta: `-1330 ms`
 - `context_fill`
-  - prompt throughput delta: `+0.20%`
-  - decode throughput delta: `-1.58%`
-  - wall delta: `0 ms`
+  - prompt throughput delta: `+0.23%`
+  - decode throughput delta: `-2.61%`
+  - wall delta: `-10 ms`
 - `retrieval`
-  - prompt throughput delta: `-0.39%`
-  - decode throughput delta: `-0.61%`
-  - wall delta: `+10 ms`
+  - prompt throughput delta: `+0.64%`
+  - decode throughput delta: `+2.17%`
+  - wall delta: `0 ms`
 - `instruct`
-  - prompt throughput delta: `-0.23%`
-  - decode throughput delta: `+0.49%`
+  - prompt throughput delta: `-0.31%`
+  - decode throughput delta: `-0.81%`
   - wall delta: `0 ms`
 
 Interpretation:
@@ -254,13 +272,19 @@ Interpretation:
 
 The first sidecar-residency slice was then validated against the same prompt set and also passed all checks at `8k`.
 
+The first sidecar-decode slice was then validated against the same prompt set and also passed all checks at `8k`, including exact output parity on:
+
+- `smoke`
+- `retrieval`
+- `instruct`
+
 ## Immediate Next Step
 
-The custom-op boundary exists, the codec simulation is validated, and host-side sidecar residency now exists. The next practical step is:
+The custom-op boundary exists, the codec simulation is validated, and the branch now has host-side sidecar residency plus read-side decode on the validated path. The next practical step is:
 
-1. add read-side recovery from stored compressed payloads
-2. keep raw `V` fallback intact for unsupported paths
-3. compare sidecar bytes with the previous simulated estimates
+1. compare sidecar bytes with the previous simulated estimates
+2. add instrumentation to report sidecar-vs-raw byte ratios at runtime
+3. decide whether raw `V` eviction should be prototyped behind a stricter fallback gate
 4. re-run the fixed prompt set and compare:
    - parity
    - runtime delta
@@ -281,4 +305,5 @@ Current branch artifacts:
 - execution scaffold artifact: `patches/tq_p2_slice2.patch`
 - codec simulation artifact: `patches/tq_p2_slice3.patch`
 - sidecar residency artifact: `patches/tq_p2_slice4.patch`
+- sidecar decode artifact: `patches/tq_p2_slice5.patch`
 - validation artifact: `docs/TURBOQUANT_PHASE2_CHECK.json`
