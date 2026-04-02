@@ -50,8 +50,8 @@ Notes:
 | baseline_local_small | 8k | | | | | | |
 | baseline_local_small | 16k | | | | | | |
 | baseline_local_primary | 8k | 1024 | pending richer perf parse | 118.0 | 1590 | exact `OK` response | pass |
-| baseline_local_primary | 16k | | | | | | |
-| baseline_local_primary | 32k | | | | | | |
+| baseline_local_primary | 16k | 2048 | pending richer perf parse | 103.3 | 2110 | exact `OK` response | pass |
+| baseline_local_primary | 32k | 4096 | pending richer perf parse | 108.5 | 3100 | exact `OK` response | pass |
 | baseline_local_stress | max practical | | | | | | |
 
 ## Observations
@@ -66,6 +66,18 @@ Notes:
   - generation throughput: `118.0 tok/s`
   - prompt throughput: `334.1 tok/s`
   - wall time: `1.59 s`
+  - response correctness for smoke prompt: pass
+- second real baseline pass completed at `16k` context
+  - KV-cache context allocation reported: `2048 MiB`
+  - generation throughput: `103.3 tok/s`
+  - prompt throughput: `303.0 tok/s`
+  - wall time: `2.11 s`
+  - response correctness for smoke prompt: pass
+- third real baseline pass completed at `32k` context
+  - KV-cache context allocation reported: `4096 MiB`
+  - generation throughput: `108.5 tok/s`
+  - prompt throughput: `252.6 tok/s`
+  - wall time: `3.10 s`
   - response correctness for smoke prompt: pass
 - first unauthenticated `--hf-repo` smoke fetch failed with:
   - `GET failed (401): Invalid username or password.`
@@ -88,7 +100,8 @@ Reason:
 - backend harness is operational
 - concrete model candidate is now selected
 - first real measurement exists
+- first 8k/16k/32k ladder exists
 - baseline still needs:
   - repeated `8k` runs
-  - `16k` and `32k` passes
+  - repeated `16k` and `32k` runs
   - prompt-set expansion beyond the smoke prompt

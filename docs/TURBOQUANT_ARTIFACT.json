@@ -10,5 +10,56 @@
     "memory_gb": 32,
     "accel": "metal"
   },
-  "profiles": []
+  "profiles": [
+    {
+      "profile_name": "baseline_local_primary",
+      "model_id": "llama3.1:latest",
+      "model_quant": "Q4_K_M",
+      "runs": [
+        {
+          "context_target": 8192,
+          "prompt_tokens": null,
+          "generated_tokens": 64,
+          "kv_cache_mem_bytes": 1073741824,
+          "prefill_ms": null,
+          "decode_tokens_per_sec": 118.0,
+          "wall_ms": 1590,
+          "quality_probe_name": "structured_smoke",
+          "quality_score": 1.0,
+          "notes": "exact OK response; prompt throughput 334.1 tok/s"
+        },
+        {
+          "context_target": 16384,
+          "prompt_tokens": null,
+          "generated_tokens": 64,
+          "kv_cache_mem_bytes": 2147483648,
+          "prefill_ms": null,
+          "decode_tokens_per_sec": 103.3,
+          "wall_ms": 2110,
+          "quality_probe_name": "structured_smoke",
+          "quality_score": 1.0,
+          "notes": "exact OK response; prompt throughput 303.0 tok/s"
+        },
+        {
+          "context_target": 32768,
+          "prompt_tokens": null,
+          "generated_tokens": 64,
+          "kv_cache_mem_bytes": 4294967296,
+          "prefill_ms": null,
+          "decode_tokens_per_sec": 108.5,
+          "wall_ms": 3100,
+          "quality_probe_name": "structured_smoke",
+          "quality_score": 1.0,
+          "notes": "exact OK response; prompt throughput 252.6 tok/s"
+        }
+      ],
+      "medians": {
+        "kv_cache_mem_bytes": null,
+        "prefill_ms": null,
+        "decode_tokens_per_sec": null,
+        "wall_ms": null,
+        "quality_score": 1.0
+      }
+    }
+  ]
 }
