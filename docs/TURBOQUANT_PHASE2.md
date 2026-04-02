@@ -221,7 +221,7 @@ What it still does not add:
 
 The current cumulative backend checkpoint is:
 
-- `patches/tq_p2_slice7.patch`
+- `patches/tq_p2_slice8.patch`
 
 What it adds:
 
@@ -238,6 +238,47 @@ What it proves:
 - the host-backed activation path is stable under:
   - `--flash-attn on`
   - `--no-kv-offload`
+
+## Current Raw-V Eviction Slice
+
+The newest cumulative backend checkpoint is:
+
+- `patches/tq_p2_slice8.patch`
+
+What it adds:
+
+- a prototype-only logical raw-`V` eviction gate:
+  - `LLAMA_TQ_EVICT_RAW_V=1`
+- raw-row zeroing after sidecar encode on the validated host path
+- sidecar decode remains the read path for active TurboQuant validation
+
+What it tested:
+
+- whether the host-backed sidecar path can preserve exact output parity once the raw `V` rows are no longer relied upon
+
+Measured result:
+
+- artifact: `docs/TURBOQUANT_EVICT.json`
+- context: `8k`
+- host path:
+  - `--flash-attn on`
+  - `--no-kv-offload`
+- exact parity failed under eviction:
+  - `smoke` returned prose instead of exact `OK`
+  - `retrieval` returned a sentence instead of the exact token-only answer
+- `context_fill` and `instruct` still passed
+
+Interpretation:
+
+- the current validated host path still depends on raw `V` behavior somewhere outside the sidecar-only reconstruction assumptions
+- logical raw-`V` eviction is therefore a Phase 2 `no-go` in the current prototype
+- true backing-cache shrinkage should not be attempted until that hidden dependency is isolated
+
+Decision:
+
+- keep `tq_p2_slice8.patch` as a recorded negative result
+- do not advance to physical raw-`V` shrinkage from this branch state
+- next work should isolate where raw `V` is still influencing exact outputs on the host-backed path
 - the fixed prompt suite passes on that host-backed path
 - direct sidecar reporting shows:
   - `raw_ratio=25.78%`
