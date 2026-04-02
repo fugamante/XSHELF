@@ -8,41 +8,38 @@ Scope: `llama.cpp` V-cache-first feasibility slice
 
 The newest cumulative backend checkpoint is:
 
-- `patches/tq_p2_slice12.patch`
+- `patches/tq_p2_slice16.patch`
 - `docs/TURBOQUANT_FIDELITY.md`
+- `docs/TURBOQUANT_CEILING.json`
 
 What it changes:
 
-- sidecar row identities now come from `v_idxs`, not local row ordinals
-- read-side decode can now be measured numerically against raw `V`
+- exports the high-fidelity ceiling path
+- stores exact `f32` sidecar payload values on the host-backed path
+- flushes row tails before row metadata is finalized
 
 What it proves:
 
-- the earlier row-mapping bug was real
-- exact smoke parity is restored on the validated host-backed path
-- retrieval and strict JSON output still fail under the current codec math
+- the previous “ceiling” path was not actually lossless
+- the corrected ceiling path reaches:
+  - `raw_ratio=100%`
+  - `sim_ratio=100%`
+- smoke still passes exactly
+- retrieval still fails
+- strict JSON still fails
 
 Current interpretation:
 
 - read-path attachment is no longer the blocker
 - row identity is no longer the blocker
-- the current `tq_v0` quantize/dequantize path is still too lossy for exact-output tasks
+- simple scalar codecs are no-go
+- even the current high-fidelity sidecar execution path is not exact-task neutral on the fixed Phase 2 suite
 
 Current Phase 2 decision:
 
 - do not retry raw-`V` shrinkage from this state
-- proceed with codec-fidelity work next
-- the first tuning pass on this codec family is now a recorded no-go:
-  - smaller group sizes did not recover exact retrieval/JSON behavior
-  - wider codebooks did not recover exact retrieval/JSON behavior
-  - an affine min/max variant also did not recover exact retrieval/JSON behavior
-- a stronger two-stage residual scalar variant is also now a recorded no-go:
-  - retrieval still failed
-  - strict JSON still failed
-  - decode error generally worsened
-- a simple projection-assisted variant is now also a recorded no-go:
-  - Hadamard transform before quantization did not recover retrieval
-  - Hadamard transform before quantization did not recover strict JSON
+- do not continue scalar codec-family tuning from this state
+- do not move to deeper TurboQuant-style vector/codebook work until the residual exact-task sensitivity of the host-backed sidecar path is explained or removed
 
 ## Objective
 
@@ -130,6 +127,28 @@ Phase 2 is a `no-go` if any of the following occur:
 - memory savings are negligible relative to added complexity
 - decode or wall-time degradation makes the approach net-worse
 - backend integration surface is materially larger than the feasibility value justifies
+
+## Current No-Go Boundary
+
+Phase 2 has now accumulated enough evidence to define the current no-go line precisely.
+
+Recorded no-go results:
+
+- grouped scalar quantization:
+  - `patches/tq_p2_slice13.patch`
+- residual scalar quantization:
+  - `patches/tq_p2_slice14.patch`
+- simple projection-assisted scalar quantization:
+  - `patches/tq_p2_slice15.patch`
+- high-fidelity sidecar ceiling:
+  - `patches/tq_p2_slice16.patch`
+
+Meaning:
+
+- the branch is no longer blocked on “can we attach the path?”
+- it is now blocked on “can the path preserve exact-task behavior at all on this host-backed implementation?”
+
+Until that is answered positively, Phase 2 should be treated as a feasibility warning rather than a compression-ready path.
 
 ## Output Artifacts
 

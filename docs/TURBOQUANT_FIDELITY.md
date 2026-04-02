@@ -197,3 +197,61 @@ Updated boundary:
 - the next real experiment must be closer to the paper’s structure:
   - online vector quantization with a stronger learned/structured codebook path
   - or a deliberate high-fidelity ceiling experiment to determine whether exact-task parity is reachable at all before deeper backend work
+
+## High-Fidelity Ceiling Outcome
+
+The ceiling experiment has now been run and recorded.
+
+Artifacts:
+
+- `patches/tq_p2_slice16.patch`
+- `docs/TURBOQUANT_CEILING.json`
+
+What changed:
+
+- the sidecar ceiling path stores exact `f32` payload values rather than compressed codes
+- the write path flushes partial groups before finalizing row metadata
+- the read path reconstructs from those exact `f32` sidecar payloads
+
+What it proved:
+
+- the earlier “ceiling” implementation was not a true ceiling:
+  - it still stored `fp16`
+  - it still allowed row-tail accounting drift
+- after fixing both issues, the sidecar path now reports:
+  - `raw_ratio=100%`
+  - `sim_ratio=100%`
+- smoke still passes exactly
+- read-side numeric error collapses from layer-scale corruption to tiny residual noise
+
+Observed result on the fixed Phase 2 suite:
+
+- `smoke`: pass
+- `context_fill`: pass on non-empty output only
+- `retrieval`: fail
+- `instruct`: fail
+
+Observed degraded outputs:
+
+- retrieval:
+  - expected: `TURBO-314159`
+  - observed: `TUR://://://://://://://://://://://://://://`
+- instruct:
+  - expected: exact JSON object
+  - observed: malformed JSON fragment
+
+Interpretation:
+
+- the remaining Phase 2 blocker is not just “compression is too lossy”
+- even the high-fidelity sidecar path still perturbs exact-task behavior on retrieval and strict JSON probes
+- that means the branch has now crossed a stronger boundary:
+  - attachment is real
+  - row identity is real
+  - naive scalar codecs are no-go
+  - the current host-backed sidecar execution path is still not exact-task neutral even at the high-fidelity ceiling
+
+Current conclusion:
+
+- do not attempt raw-`V` shrinkage from this state
+- do not spend more time on scalar codec tuning from this state
+- the next meaningful work must explain or eliminate the residual path sensitivity before deeper TurboQuant-style vector/codebook work is justified
