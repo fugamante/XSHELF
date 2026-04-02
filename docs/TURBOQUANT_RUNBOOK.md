@@ -158,13 +158,25 @@ From each run:
 
 ## Current Status
 
-Phase 1 execution is prepared but not complete.
+Phase 1 execution is complete for the local `llama.cpp` path.
 
-Current blocker is model availability/auth for `llama.cpp` baseline runs on this machine.
+Primary local path:
 
-Model availability is no longer the blocker for the primary path because a local GGUF candidate has been selected.
+- selected model: local `llama3.1:latest` Ollama asset
+- selected blob:
+  - `~/.ollama/models/blobs/sha256-667b0c1932bc6ffc593ed1d03f895bf2dc8dc6df21db3042284a6f4416b06a29`
 
-Current execution blocker is only completion of the first real measurement pass.
+Checked-in prompt fixtures:
+
+- `docs/tq_prompts/smoke.txt`
+- `docs/tq_prompts/context_fill.txt`
+- `docs/tq_prompts/retrieval.txt`
+- `docs/tq_prompts/instruct.txt`
+
+Measurement path now includes:
+
+- reproducible token counts via `scripts/turboquant_phase1.sh token-count`
+- reproducible per-run summaries via `scripts/turboquant_phase1.sh measure`
 
 ## Backend Order
 
