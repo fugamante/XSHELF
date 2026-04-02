@@ -105,9 +105,9 @@ Phase 2 should create:
 The first backend slice now exists as a compile-clean patch artifact against `llama.cpp` `a1cfb64`:
 
 - patch artifact: `patches/tq_p2_slice1.patch`
-- upstream analysis checkout: `/tmp/cx_llama_cpp`
+- upstream analysis checkout: pinned local analysis checkout
 - compile check:
-  - `scripts/turboquant_phase2.sh build-check /tmp/cx_llama_cpp /tmp/cx_llama_cpp/build-cx-tq`
+  - `scripts/turboquant_phase2.sh build-check <llama.cpp checkout> <build dir>`
 
 What the first slice covers:
 
@@ -173,33 +173,83 @@ What it does not yet prove:
 - read-side dequant from stored compressed payload
 - end-to-end memory reduction in the actual KV store
 
+## Validation Checkpoint
+
+The first fixed-prompt validation artifact now exists:
+
+- `docs/TURBOQUANT_PHASE2_CHECK.json`
+
+Validation setup:
+
+- backend binary: patched `llama-cli` from the Phase 2 analysis checkout
+- model: local `llama3.1:latest` GGUF asset
+- context: `8k`
+- compared modes:
+  - baseline
+  - `--turboquant-enable --turboquant-group-size 64 --turboquant-codebook-bits 8`
+
+Observed result:
+
+- all checked prompts passed in both modes:
+  - `smoke`
+  - `context_fill`
+  - `retrieval`
+  - `instruct`
+- output parity held on the exact-value checks:
+  - `OK`
+  - `TURBO-314159`
+  - required JSON object
+
+Observed runtime deltas at `8k`:
+
+- `smoke`
+  - prompt throughput delta: `-2.66%`
+  - decode throughput delta: `-4.97%`
+  - wall delta: `0 ms`
+- `context_fill`
+  - prompt throughput delta: `+0.20%`
+  - decode throughput delta: `-1.58%`
+  - wall delta: `0 ms`
+- `retrieval`
+  - prompt throughput delta: `-0.39%`
+  - decode throughput delta: `-0.61%`
+  - wall delta: `+10 ms`
+- `instruct`
+  - prompt throughput delta: `-0.23%`
+  - decode throughput delta: `+0.49%`
+  - wall delta: `0 ms`
+
+Interpretation:
+
+- the CPU-only codec simulation appears quality-neutral on the fixed prompt set at `8k`
+- runtime overhead is present but small
+- this is enough evidence to continue Phase 2
+- it is not yet evidence of memory benefit, because storage has not changed
+
 ## Immediate Next Step
 
-Begin the first codec-bearing patch:
+The custom-op boundary exists and the codec simulation is validated on the fixed prompt set. The next practical step is:
 
-1. add a `tq_v0` custom-op scaffold on the `V` path
-2. restrict the first codec-bearing slice to CPU-supported execution
-3. keep the baseline `ggml_set_rows()` path intact behind fallback
-4. only after the custom-op boundary exists, add write-side payload/scales handling
-5. then add dequant-on-read
-
-That custom-op boundary now exists, so the next practical step is:
-
-1. validate the codec simulation against the Phase 1 prompt set
-2. decide whether the next slice should:
-   - introduce persistent compressed sidecar storage, or
-   - add read-side codec handling first
-3. only after that pursue actual KV memory reduction
+1. add persistent compressed sidecar storage for `V`
+2. keep raw `V` fallback intact for unsupported paths
+3. add read-side recovery from stored compressed payloads
+4. re-run the fixed prompt set and compare:
+   - parity
+   - runtime delta
+   - simulated vs real byte reduction
 
 Current branch artifacts:
 
 - touchpoint map: `docs/TURBOQUANT_TOUCH.md`
 - codec contract: `docs/TURBOQUANT_CODEC.md`
 - execution-boundary note: `docs/TURBOQUANT_EXEC.md`
+- sidecar storage contract: `docs/TURBOQUANT_SIDECAR.md`
 - machine-readable prototype contract: `docs/TURBOQUANT_PROTO.json`
 - function-level patch plan: `docs/TURBOQUANT_PATCH.md`
 - machine-readable worklist: `docs/TURBOQUANT_WORK.json`
 - helper script: `scripts/turboquant_phase2.sh`
+- validation script: `scripts/turboquant_phase2_validate.sh`
 - patch artifact: `patches/tq_p2_slice1.patch`
 - execution scaffold artifact: `patches/tq_p2_slice2.patch`
 - codec simulation artifact: `patches/tq_p2_slice3.patch`
+- validation artifact: `docs/TURBOQUANT_PHASE2_CHECK.json`
