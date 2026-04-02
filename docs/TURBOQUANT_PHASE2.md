@@ -279,6 +279,38 @@ Decision:
 - keep `tq_p2_slice8.patch` as a recorded negative result
 - do not advance to physical raw-`V` shrinkage from this branch state
 - next work should isolate where raw `V` is still influencing exact outputs on the host-backed path
+
+## Current Read-Trace Checkpoint
+
+The newest diagnostic artifact is:
+
+- `patches/tq_p2_slice9.patch`
+- `docs/TURBOQUANT_READ.md`
+
+What it adds:
+
+- `LLAMA_TQ_TRACE_READ=1`
+- trace lines from `tq_v0_sidecar_map`
+
+What it proved:
+
+- write-side sidecar encode is active
+- read-side trace lines do not appear on the validated host-backed runs
+- this remains true both:
+  - with raw `V` retained
+  - with logical raw-`V` eviction enabled
+
+Interpretation:
+
+- the current `get_v()` custom-op wrapping is not surfacing as an executed read-side path on these runs
+- non-eviction parity is therefore not evidence of verified sidecar decode correctness
+- eviction failure is consistent with continued dependence on raw `V` residency
+
+Updated Phase 2 boundary:
+
+- sidecar encode is proven
+- sidecar decode is not yet proven on the active host-backed execution path
+- the next correct step is to trace where `V` actually enters the attention/read path under this backend configuration
 - the fixed prompt suite passes on that host-backed path
 - direct sidecar reporting shows:
   - `raw_ratio=25.78%`
