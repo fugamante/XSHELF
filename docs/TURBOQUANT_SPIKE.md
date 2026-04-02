@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active (`Phase 0` complete, `Phase 1` specified)
+Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` ready)
 Owner: CX runtime
 
 ## Objective
@@ -134,6 +134,9 @@ Completion notes:
 - Phase 1 contract locked in `docs/TURBOQUANT_PHASE1.md`
 - baseline artifact version reserved as `turboquant-baseline.v1`
 - first backend matrix remains deliberately narrow to avoid false precision
+- prompt fixtures are checked in under `docs/tq_prompts/`
+- quality probes now cover retrieval and instruction-follow behavior at `8k`, `16k`, and `32k`
+- Phase 2 entry criteria are satisfied on the local `llama.cpp` path
 
 ### Phase 2: Minimal Prototype
 
@@ -145,6 +148,10 @@ Tasks:
 Acceptance:
 - measurable memory reduction
 - no unacceptable generation degradation on small eval set
+
+Execution contract:
+
+- Phase 2 prototype boundaries and entry criteria are locked in `docs/TURBOQUANT_PHASE2.md`
 
 ### Phase 3: Full KV Prototype
 

@@ -232,6 +232,16 @@ Phase 1 is complete only when:
 - the JSON artifact contract is locked
 - at least one full local dry-run proves the harness is practical on the current machine
 
+Current status on this branch:
+
+- backend reference: recorded
+- local model: recorded
+- prompt set: fixed in `docs/tq_prompts/`
+- Markdown report: present and populated
+- JSON artifact: present and populated
+- dry-run ladder: completed at `8k`, `16k`, and `32k`
+- non-trivial quality probes: completed for `retrieval_check` and `instruction_follow`
+
 Operational note:
 
 - if public Hugging Face fetches are not available on the current machine, Phase 1 execution requires either:
@@ -252,5 +262,18 @@ Phase 2 may begin only after:
 - the first baseline artifact exists
 - the first baseline report exists
 - Phase 1 acceptance criteria are all satisfied
+
+Phase 2 readiness decision:
+
+- `go`
+
+Reason:
+
+- prompt fixtures are checked in under `docs/tq_prompts/`
+- token counts are reproducible via `scripts/turboquant_phase1.sh token-count`
+- measurement runs are reproducible via `scripts/turboquant_phase1.sh measure`
+- retrieval quality is exact across `8k`, `16k`, and `32k`
+- instruction-follow quality is exact JSON across `8k`, `16k`, and `32k`
+- derived `prefill_ms` is now captured from prompt token count and prompt throughput
 
 After Phase 2/3 feasibility on `llama.cpp`, reuse this exact Phase 1 contract for an `MLX` comparison pass before considering `vLLM`.
