@@ -166,3 +166,34 @@ Updated Phase 2 conclusion:
   - rotation/projection
   - structured residual scheme closer to the paper’s intent
   - or a deliberately higher-fidelity ceiling path to measure whether exact-task parity is still reachable at all
+
+## Projection-Assisted Outcome
+
+The first projection-assisted prototype has now also been tested and recorded.
+
+Prototype:
+
+- per-group normalized Walsh-Hadamard transform before scalar quantization
+- inverse Walsh-Hadamard after decode
+- checkpoint: `patches/tq_p2_slice15.patch`
+
+Result:
+
+- retrieval still failed with the same corrupted secret-code shape
+- strict JSON still failed with the same malformed-object shape
+- per-layer decode error remained in roughly the same range as the earlier affine scalar codec
+
+Meaning:
+
+- simple decorrelation alone is not enough on this path
+- the remaining quality gap is not solved by:
+  - scalar tuning
+  - scalar residual stacking
+  - scalar quantization in a Hadamard-rotated basis
+
+Updated boundary:
+
+- Phase 2 should stop trying “simple codec swaps” within the same complexity band
+- the next real experiment must be closer to the paper’s structure:
+  - online vector quantization with a stronger learned/structured codebook path
+  - or a deliberate high-fidelity ceiling experiment to determine whether exact-task parity is reachable at all before deeper backend work
