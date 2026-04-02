@@ -88,3 +88,46 @@ Priority order:
 3. keep the fixed prompt suite as the hard gate for:
    - `retrieval`
    - exact JSON output
+
+## Tuning Outcome
+
+The first tuning pass has now been exhausted and recorded as a negative result.
+
+Observed sweeps:
+
+- group size:
+  - `64`
+  - `32`
+  - `16`
+  - `8`
+- codebook bits:
+  - `8`
+  - `10`
+- affine min/max group quantizer prototype:
+  - checkpoint: `patches/tq_p2_slice13.patch`
+
+Result:
+
+- all tested group sizes kept the same outcome:
+  - `smoke`: pass
+  - `context_fill`: pass by non-empty rule only
+  - `retrieval`: fail
+  - `instruct`: fail
+- increasing codebook width from `8` to `10` did not change the failure shape
+- the affine min/max prototype also failed:
+  - retrieval remained corrupted
+  - strict JSON output remained corrupted
+
+Meaning:
+
+- this is not primarily a zero-point issue
+- this is not primarily a group-size issue
+- the current grouped scalar quantizer family is not strong enough for exact-task Phase 2 goals
+
+Updated next step:
+
+1. stop tuning the current scalar codec family
+2. move to a stronger prototype shape:
+   - residual quantization
+   - rotation/projection before quantization
+   - or a higher-fidelity fallback mode that proves a true quality ceiling

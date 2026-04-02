@@ -32,6 +32,10 @@ Current Phase 2 decision:
 
 - do not retry raw-`V` shrinkage from this state
 - proceed with codec-fidelity work next
+- the first tuning pass on this codec family is now a recorded no-go:
+  - smaller group sizes did not recover exact retrieval/JSON behavior
+  - wider codebooks did not recover exact retrieval/JSON behavior
+  - an affine min/max variant also did not recover exact retrieval/JSON behavior
 
 ## Objective
 
