@@ -154,6 +154,7 @@ Execution contract:
 - Phase 2 prototype boundaries and entry criteria are locked in `docs/TURBOQUANT_PHASE2.md`
 - upstream touchpoints are pinned in `docs/TURBOQUANT_TOUCH.md`
 - the first codec contract is pinned in `docs/TURBOQUANT_CODEC.md`
+- the first function-level work sequence is pinned in `docs/TURBOQUANT_PATCH.md`
 
 ### Phase 3: Full KV Prototype
 

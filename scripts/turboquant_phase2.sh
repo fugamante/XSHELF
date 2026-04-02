@@ -74,6 +74,20 @@ usage:
   turboquant_phase2.sh fetch [out_dir] [repo_url]
   turboquant_phase2.sh touch [backend_root]
   turboquant_phase2.sh init-proto <path>
+  turboquant_phase2.sh work
+EOF
+}
+
+cx_tq2_work() {
+  cat <<'EOF'
+p2_state src/llama-kv-cache.h add turboquant config and sidecar V state
+p2_args common/arg.cpp add explicit turboquant runtime args
+p2_model src/llama-model.cpp plumb turboquant config into kv cache construction
+p2_write_gate src/llama-kv-cache.cpp:1219 add enable/disable and fallback gate
+p2_write_codec src/llama-kv-cache.cpp:1219 store tq_v0 compressed V payload
+p2_read_gate src/llama-kv-cache.cpp:1152 add read fallback gate
+p2_read_codec src/llama-kv-cache.cpp:1152 dequantize tq_v0 payload on read
+p2_mem src/llama-kv-cache.cpp report compressed V memory footprint
 EOF
 }
 
@@ -91,6 +105,10 @@ main() {
     init-proto)
       shift
       cx_tq2_init_proto "$@"
+      ;;
+    work)
+      shift
+      cx_tq2_work "$@"
       ;;
     ""|-h|--help|help)
       cx_tq2_help
