@@ -418,6 +418,49 @@ The first sidecar-decode slice was then validated against the same prompt set an
 The current instrumentation slice now confirms:
 
 - the default local run path still passes the fixed suite at `8k`
+
+## Current Read-Attach Checkpoint
+
+The newest cumulative backend checkpoint is:
+
+- `patches/tq_p2_slice11.patch`
+- `docs/TURBOQUANT_ATTACH.md`
+
+What it adds:
+
+- raw graph dump before scheduler allocation
+  - `LLAMA_TQ_DUMP_DOT_RAW=/path/to/raw.dot`
+- explicit names for TurboQuant custom ops
+  - `tq_v_write_l*`
+  - `tq_v_read_l*`
+- `get_v()` branch tracing
+  - `LLAMA_TQ_TRACE_GETV=1`
+- provisional raw-path bypass for the empty-sidecar case
+  - no sticky global fallback on first build
+
+What it proved:
+
+- the missing read-op problem was not scheduler loss
+- the real blocker was graph-build ordering
+- `get_v()` sees empty sidecar state on early decoder builds because write-side custom ops have not executed yet
+- once the sticky empty-sidecar fallback was removed, later graphs attached:
+  - `tq_v_read_l*`
+
+What it also proved:
+
+- active read-side attachment currently breaks exact output quality on the smoke prompt
+- observed output regressed from exact `OK` to prose-tainted output
+
+Interpretation:
+
+- Phase 2 has now proven read-side graph attachment
+- Phase 2 has **not** proven read-side decode correctness
+- shrinkage/eviction remains premature until read-path fidelity is fixed
+
+Updated next step:
+
+- validate decoded `V` numerics directly against raw `V`
+- isolate corruption source before any further memory-reduction attempt
 - the host-backed active path also passes the fixed suite at `8k`
 - the sidecar byte ratio on the active host path is approximately `25.78%` of raw `V`
 - the packed sidecar bytes currently match the simulated estimate exactly
