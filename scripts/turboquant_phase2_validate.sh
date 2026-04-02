@@ -104,6 +104,7 @@ cx_tqv_run_one() {
   local predict_n="$6"
   local mode="$7"
   local prompt_name="$8"
+  local extra_args="${9:-}"
   local out_file
   out_file="$(mktemp)"
 
@@ -125,6 +126,12 @@ cx_tqv_run_one() {
     cmd+=(--turboquant-enable --turboquant-group-size 64 --turboquant-codebook-bits 8)
   fi
 
+  if [[ -n "$extra_args" ]]; then
+    # shellcheck disable=SC2206
+    local extra_array=( $extra_args )
+    cmd+=("${extra_array[@]}")
+  fi
+
   "${cmd[@]}" >"$out_file" 2>&1
   cx_tqv_parse "$out_file" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name"
   rm -f "$out_file"
@@ -136,6 +143,7 @@ cx_tqv_run() {
   local out=""
   local context_size="8192"
   local predict_n="64"
+  local extra_args="${CX_TURBOQUANT_VALIDATE_EXTRA_ARGS:-}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -158,6 +166,10 @@ cx_tqv_run() {
       --predict)
         shift
         predict_n="${1:-}"
+        ;;
+      --extra-args)
+        shift
+        extra_args="${1:-}"
         ;;
       *)
         cx_tqv_die "unknown arg: $1"
@@ -199,8 +211,8 @@ PY
   for entry in "${prompts[@]}"; do
     IFS=: read -r prompt_name prompt_label prompt_file prompt_predict <<<"$entry"
     local base_json tq_json
-    base_json="$(cx_tqv_run_one "$binary" "$model" "$prompt_file" "$prompt_label" "$context_size" "$prompt_predict" baseline "$prompt_name")"
-    tq_json="$(cx_tqv_run_one "$binary" "$model" "$prompt_file" "$prompt_label" "$context_size" "$prompt_predict" turboquant "$prompt_name")"
+    base_json="$(cx_tqv_run_one "$binary" "$model" "$prompt_file" "$prompt_label" "$context_size" "$prompt_predict" baseline "$prompt_name" "$extra_args")"
+    tq_json="$(cx_tqv_run_one "$binary" "$model" "$prompt_file" "$prompt_label" "$context_size" "$prompt_predict" turboquant "$prompt_name" "$extra_args")"
     python3 - "$out" "$base_json" "$tq_json" <<'PY'
 import json, pathlib, sys
 path = pathlib.Path(sys.argv[1])
@@ -217,10 +229,11 @@ PY
 cx_tqv_help() {
   cat <<'EOF'
 usage:
-  turboquant_phase2_validate.sh run --binary <llama-cli> --model <path.gguf> --out <path.json> [--ctx <n>]
+  turboquant_phase2_validate.sh run --binary <llama-cli> --model <path.gguf> --out <path.json> [--ctx <n>] [--extra-args "..."]
 
 env:
   CX_TURBOQUANT_LLAMA_CLI   optional default for --binary
+  CX_TURBOQUANT_VALIDATE_EXTRA_ARGS   optional extra backend args
 EOF
 }
 
