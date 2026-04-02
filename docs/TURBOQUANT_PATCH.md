@@ -310,6 +310,31 @@ What remains for the next patch slice:
 - actual `tq_v0` write transform
 - actual dequant-on-read path
 - compressed `V` memory accounting
+
+## Second Patch Result
+
+The custom-op scaffold boundary is now also satisfied:
+
+- cumulative artifact: `patches/tq_p2_slice2.patch`
+- compile check: passed against upstream `a1cfb64`
+
+What the second slice adds:
+
+- identity `ggml_map_custom1` scaffold on the `V` write/read path
+- host/CPU-only activation gate
+- explicit fallback for unsupported backend buffers
+
+Why this matters:
+
+- it proves the execution-bearing integration point is viable
+- it keeps semantics unchanged while establishing the correct place for codec math
+
+What remains after the scaffold:
+
+- replace identity behavior with codec-bearing logic
+- decide whether the first codec-bearing step is:
+  - lossless transform scaffolding, or
+  - immediately quantized payload experimentation
 3. it can enable `tq_v0`
 4. it falls back cleanly on unsupported conditions
 5. it emits measurable `V` memory accounting
