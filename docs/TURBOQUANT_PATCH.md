@@ -1,14 +1,18 @@
 # TurboQuant Patch Plan
 
 Branch: `cx/turboquant-spike`
-Status: Phase 2 function-level patch plan
+Status: Phase 2 function-level patch plan plus first compile-clean slice
 Upstream target: `llama.cpp` `a1cfb64`
 
 ## Objective
 
 Translate the Phase 2 touchpoint map into the smallest credible patch sequence for a `V`-only backend fork.
 
-This is the first patch plan, not the patch itself.
+This document started as the patch plan. The first compile-clean patch artifact now exists at:
+
+- `patches/tq_p2_slice1.patch`
+
+That artifact is intentionally narrow: config plumbing, sidecar state, and read/write fallback gates only.
 
 ## Patch Order
 
@@ -238,6 +242,34 @@ The first backend patch should be considered complete when:
 
 1. it compiles
 2. it runs with TurboQuant disabled without behavior change
+
+## First Patch Result
+
+The first patch boundary is now satisfied for the pinned upstream target:
+
+- upstream ref: `a1cfb64`
+- artifact: `patches/tq_p2_slice1.patch`
+- compile check: passed via `scripts/turboquant_phase2.sh build-check`
+
+What the artifact includes:
+
+- `include/llama.h`
+- `common/common.h`
+- `common/common.cpp`
+- `common/arg.cpp`
+- `src/llama-memory.h`
+- `src/llama-context.cpp`
+- `src/llama-kv-cache.h`
+- `src/llama-kv-cache.cpp`
+- `src/llama-model.cpp`
+- `src/llama-memory-hybrid.cpp`
+- `src/llama-kv-cache-iswa.cpp`
+
+What remains for the next patch slice:
+
+- actual `tq_v0` write transform
+- actual dequant-on-read path
+- compressed `V` memory accounting
 3. it can enable `tq_v0`
 4. it falls back cleanly on unsupported conditions
 5. it emits measurable `V` memory accounting

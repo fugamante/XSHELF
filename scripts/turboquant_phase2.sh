@@ -65,6 +65,23 @@ cx_tq2_init_proto() {
     }
   }
 }
+
+cx_tq2_build_check() {
+  local root="${1:-/tmp/cx_llama_cpp}"
+  local build_dir="${2:-$root/build-cx-tq}"
+  [[ -d "$root" ]] || cx_tq2_die "backend path not found: $root"
+  cmake -S "$root" -B "$build_dir" -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TESTS=OFF
+  cmake --build "$build_dir" -j2
+}
+
+cx_tq2_export_patch() {
+  local root="${1:-/tmp/cx_llama_cpp}"
+  local out="${2:-}"
+  [[ -d "$root/.git" ]] || cx_tq2_die "backend git checkout not found: $root"
+  [[ -n "$out" ]] || cx_tq2_die "export-patch requires an output path"
+  mkdir -p "$(dirname "$out")"
+  git -C "$root" diff >"$out"
+}
 EOF
 }
 
@@ -74,6 +91,8 @@ usage:
   turboquant_phase2.sh fetch [out_dir] [repo_url]
   turboquant_phase2.sh touch [backend_root]
   turboquant_phase2.sh init-proto <path>
+  turboquant_phase2.sh build-check [backend_root] [build_dir]
+  turboquant_phase2.sh export-patch [backend_root] <out_path>
   turboquant_phase2.sh work
 EOF
 }
@@ -105,6 +124,14 @@ main() {
     init-proto)
       shift
       cx_tq2_init_proto "$@"
+      ;;
+    build-check)
+      shift
+      cx_tq2_build_check "$@"
+      ;;
+    export-patch)
+      shift
+      cx_tq2_export_patch "$@"
       ;;
     work)
       shift
