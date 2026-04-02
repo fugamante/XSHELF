@@ -40,6 +40,9 @@ Current Phase 2 decision:
   - retrieval still failed
   - strict JSON still failed
   - decode error generally worsened
+- a simple projection-assisted variant is now also a recorded no-go:
+  - Hadamard transform before quantization did not recover retrieval
+  - Hadamard transform before quantization did not recover strict JSON
 
 ## Objective
 
