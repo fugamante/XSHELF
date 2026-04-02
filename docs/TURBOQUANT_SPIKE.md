@@ -53,7 +53,19 @@ Pros:
 Cons:
 - less representative of production serving/batching
 
-### Option B: `vLLM` first
+### Option B: `MLX` second
+
+Pros:
+- native Apple Silicon relevance
+- better fit for the actual local hardware used in this spike
+- strong path for measuring real Metal-side memory and latency tradeoffs
+
+Cons:
+- different runtime internals than `llama.cpp`
+- likely different cache hook points and attention-path assumptions
+- higher complexity than the first `llama.cpp` feasibility slice
+
+### Option C: `vLLM` later
 
 Pros:
 - stronger production relevance
@@ -61,11 +73,12 @@ Pros:
 
 Cons:
 - higher complexity
-- harder first implementation
+- not the right first target for a feasibility spike
 
 Recommendation:
 - start with `llama.cpp` for feasibility
-- move to `vLLM` only if quality/memory wins justify deeper investment
+- move to `MLX` next if the method survives baseline/prototype work
+- move to `vLLM` only if quality/memory wins justify deeper investment beyond local Apple Silicon work
 
 ## CX Integration Model
 
@@ -163,6 +176,18 @@ Tasks:
 Acceptance:
 - CX remains backend-agnostic while able to manage/measure TurboQuant-enabled runs
 
+### Phase 3A: `MLX` Comparative Backend Track
+
+Tasks:
+- port the benchmark harness contract to `MLX`
+- compare `MLX` vs `llama.cpp` on the same prompt set and artifact shape
+- determine whether TurboQuant-style cache compression maps cleanly to `MLX` internals or needs a backend-specific approximation
+
+Acceptance:
+- identical benchmark/report contract across both backends
+- explicit implementation-complexity assessment for `MLX`
+- clear go/no-go decision before any `vLLM` work
+
 ## Risks
 
 1. Wrong layer
@@ -180,6 +205,10 @@ Acceptance:
 4. Backend lock-in
 - Risk: design becomes too specific to one backend
 - Control: keep CX integration capability-based and adapter-scoped
+
+5. False portability
+- Risk: assuming `llama.cpp` cache-layout conclusions transfer directly to `MLX`
+- Control: treat `MLX` as a comparative backend track with the same measurement contract but independent runtime assumptions
 
 ## Merge Gate For Any Future Mainline Proposal
 

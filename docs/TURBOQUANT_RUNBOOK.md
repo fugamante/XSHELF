@@ -116,3 +116,13 @@ From each run:
 Phase 1 execution is prepared but not complete.
 
 Current blocker is model availability/auth for `llama.cpp` baseline runs on this machine.
+
+## Backend Order
+
+Use this sequence:
+
+1. `llama.cpp`
+2. `MLX`
+3. `vLLM` only if the local-backend results justify a production-serving track
+
+Do not skip from planning straight to `MLX` or `vLLM` before the `llama.cpp` feasibility slice is measured.

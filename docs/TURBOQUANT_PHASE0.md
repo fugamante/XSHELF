@@ -22,7 +22,9 @@ Selected over `vLLM` for the first spike because:
 - easier debugging of cache layout and attention read path
 - lower branch risk while method feasibility is still unknown
 
-`vLLM` remains the Phase 1+ production-serving target only if the spike shows credible wins.
+`MLX` is the second backend target for Apple Silicon comparison work once `llama.cpp` feasibility is proven.
+
+`vLLM` remains the later production-serving target only if the spike shows credible wins beyond local-backend experimentation.
 
 ## Phase 0 Boundary Contract
 
@@ -46,6 +48,9 @@ Not allowed in this branch yet:
 
 Primary backend:
 - `llama.cpp`
+
+Second backend candidate after feasibility:
+- `MLX`
 
 Primary deployment mode:
 - single-machine local inference
@@ -159,7 +164,7 @@ No user-facing CX flag should become stable before:
 - Mitigation: baseline format must be fixed before optimization claims
 
 3. Backend overcommit
-- Mitigation: start in `llama.cpp`; defer `vLLM` until feasibility is proven
+- Mitigation: start in `llama.cpp`; defer `MLX` until feasibility is proven; defer `vLLM` until local-backend value is proven
 
 4. Scope drift into mainline CX
 - Mitigation: no stable CLI/config changes without backend capability detection
