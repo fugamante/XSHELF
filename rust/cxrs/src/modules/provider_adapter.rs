@@ -590,6 +590,14 @@ mod tests {
     };
     use serde_json::Value;
     use std::env;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    fn env_test_lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env test lock")
+    }
 
     #[test]
     fn backend_normalization_defaults_to_codex() {
@@ -722,7 +730,9 @@ mod tests {
 
     #[test]
     fn https_block_default() {
+        let _guard = env_test_lock();
         unsafe {
+            env::remove_var("CX_HTTP_ALLOWED_HOSTS");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
@@ -732,7 +742,9 @@ mod tests {
 
     #[test]
     fn https_allow_local() {
+        let _guard = env_test_lock();
         unsafe {
+            env::remove_var("CX_HTTP_ALLOWED_HOSTS");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
@@ -741,6 +753,7 @@ mod tests {
 
     #[test]
     fn https_allow_override() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_REQUIRE_HTTPS", "0");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
@@ -772,6 +785,7 @@ mod tests {
 
     #[test]
     fn parse_hosts_norm() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var(
                 "CX_HTTP_ALLOWED_HOSTS",
@@ -788,6 +802,7 @@ mod tests {
 
     #[test]
     fn allowlist_blocks_unknown() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
@@ -804,6 +819,7 @@ mod tests {
 
     #[test]
     fn allowlist_allows_configured() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");

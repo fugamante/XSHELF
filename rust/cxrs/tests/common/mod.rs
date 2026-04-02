@@ -16,8 +16,14 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::sleep;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+fn unique_test_id() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
 
 fn git_bin() -> String {
     if let Ok(v) = std::env::var("GIT_BIN")
@@ -83,9 +89,13 @@ impl TempRepo {
             .duration_since(UNIX_EPOCH)
             .expect("system time before unix epoch")
             .as_nanos();
-        let root = base.join(format!("{prefix}-repo-{}-{ts}", std::process::id()));
-        let home = base.join(format!("{prefix}-home-{}-{ts}", std::process::id()));
-        let mock_bin = base.join(format!("{prefix}-mockbin-{}-{ts}", std::process::id()));
+        let uniq = unique_test_id();
+        let root = base.join(format!("{prefix}-repo-{}-{ts}-{uniq}", std::process::id()));
+        let home = base.join(format!("{prefix}-home-{}-{ts}-{uniq}", std::process::id()));
+        let mock_bin = base.join(format!(
+            "{prefix}-mockbin-{}-{ts}-{uniq}",
+            std::process::id()
+        ));
 
         fs::create_dir_all(&root).expect("create temp repo dir");
         fs::create_dir_all(&home).expect("create temp home dir");
