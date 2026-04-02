@@ -135,6 +135,24 @@ That constraint is documented in:
 
 - `docs/TURBOQUANT_EXEC.md`
 
+## Current Execution Scaffold
+
+The next Phase 2 checkpoint is now compile-clean:
+
+- cumulative artifact: `patches/tq_p2_slice2.patch`
+
+What it adds:
+
+- identity `ggml_map_custom1` scaffold on the `V` path
+- host/CPU-only activation
+- explicit fallback for unsupported backend/layout paths
+
+What it still does not add:
+
+- any real TurboQuant codec math
+- any memory win
+- any quality change
+
 ## Immediate Next Step
 
 Begin the first codec-bearing patch:
@@ -144,6 +162,12 @@ Begin the first codec-bearing patch:
 3. keep the baseline `ggml_set_rows()` path intact behind fallback
 4. only after the custom-op boundary exists, add write-side payload/scales handling
 5. then add dequant-on-read
+
+That custom-op boundary now exists, so the next practical step is:
+
+1. add codec-bearing CPU logic behind the scaffold
+2. keep it semantically lossless first if needed
+3. only then move to actual compressed payload storage/reporting
 
 Current branch artifacts:
 
@@ -155,3 +179,4 @@ Current branch artifacts:
 - machine-readable worklist: `docs/TURBOQUANT_WORK.json`
 - helper script: `scripts/turboquant_phase2.sh`
 - patch artifact: `patches/tq_p2_slice1.patch`
+- execution scaffold artifact: `patches/tq_p2_slice2.patch`

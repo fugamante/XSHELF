@@ -1,7 +1,7 @@
 # TurboQuant Execution Boundary
 
 Branch: `cx/turboquant-spike`
-Status: confirmed Phase 2 implementation constraint
+Status: confirmed Phase 2 implementation constraint and scaffold checkpoint
 Upstream target: `llama.cpp` `a1cfb64`
 
 ## Finding
@@ -76,13 +76,37 @@ So the next slice should assume:
 - CPU-only TurboQuant prototype path first
 - explicit fallback elsewhere
 
+## Scaffold Checkpoint
+
+The first execution-bearing scaffold now exists as a compile-clean cumulative artifact:
+
+- `patches/tq_p2_slice2.patch`
+
+What it does:
+
+- wires an identity `ggml_map_custom1` op onto the `V` path
+- only activates on host/CPU-backed `V` buffers
+- preserves baseline semantics
+- falls back explicitly on unsupported backend/layout paths
+
+What it does not do:
+
+- quantize
+- dequantize
+- reduce memory footprint
+- change model quality
+
+Its purpose is narrower:
+
+- prove the `V` path can carry an execution-time custom op without breaking the pinned backend build
+
 ## Immediate Next Patch Goal
 
 The next backend slice should add:
 
-- a `tq_v0` custom-op scaffold on the `V` write/read path
-- CPU-only support gating
-- explicit fallback reason for non-CPU execution
+- codec-bearing logic behind the custom-op scaffold
+- CPU-only support gating remains in place
+- explicit fallback reason for non-CPU execution remains in place
 
 It should not yet attempt:
 
