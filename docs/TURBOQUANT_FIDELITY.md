@@ -131,3 +131,38 @@ Updated next step:
    - residual quantization
    - rotation/projection before quantization
    - or a higher-fidelity fallback mode that proves a true quality ceiling
+
+## Stronger Codec Outcome
+
+The next stronger scalar checkpoint has also been tested and recorded.
+
+Prototype:
+
+- two-stage residual scalar quantization
+- checkpoint: `patches/tq_p2_slice14.patch`
+
+What changed:
+
+- first scalar pass quantizes each group
+- a second scalar pass quantizes the residual left by the first pass
+- decode reconstructs `out0 + out1`
+
+Result:
+
+- retrieval still failed
+- strict JSON still failed
+- measured decode error increased on many layers instead of decreasing
+- generation throughput also degraded sharply on the targeted probes
+
+Meaning:
+
+- “more scalar stages” is not enough
+- the remaining fidelity gap is not plausibly fixable by continuing scalar-only variants of this prototype family
+
+Updated Phase 2 conclusion:
+
+- stop scalar-only codec exploration on this branch state
+- the next meaningful experiment must introduce a different representation class:
+  - rotation/projection
+  - structured residual scheme closer to the paper’s intent
+  - or a deliberately higher-fidelity ceiling path to measure whether exact-task parity is still reachable at all
