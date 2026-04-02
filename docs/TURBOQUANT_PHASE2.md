@@ -311,6 +311,39 @@ Updated Phase 2 boundary:
 - sidecar encode is proven
 - sidecar decode is not yet proven on the active host-backed execution path
 - the next correct step is to trace where `V` actually enters the attention/read path under this backend configuration
+
+## Current Graph Checkpoint
+
+The newest diagnostic artifact is:
+
+- `patches/tq_p2_slice10.patch`
+- `docs/TURBOQUANT_GRAPH.md`
+
+What it adds:
+
+- `LLAMA_TQ_DUMP_DOT=/path/to/file.dot`
+- graph dump from the decoder execution path using `res->get_gf()`
+
+What it proved:
+
+- the executed graph on the validated host-backed path contains:
+  - `cache_v_l* (view)`
+  - `permute`
+  - `flash_attn_ext`
+- the executed graph does **not** contain:
+  - `MAP_CUSTOM1`
+
+Interpretation:
+
+- the `get_v()`-side custom wrapper is being dropped before the graph that actually executes
+- the present blocker is graph attachment, not quantization math quality
+
+Updated next step:
+
+- trace where the `get_v()` wrapper is lost:
+  - graph construction
+  - scheduler graph copy
+  - backend graph optimization
 - the fixed prompt suite passes on that host-backed path
 - direct sidecar reporting shows:
   - `raw_ratio=25.78%`
