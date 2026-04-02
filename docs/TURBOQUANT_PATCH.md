@@ -16,6 +16,27 @@ That artifact is intentionally narrow: config plumbing, sidecar state, and read/
 
 ## Patch Order
 
+### Step 0. Lock the execution boundary
+
+Files:
+
+- `/tmp/cx_llama_cpp/src/llama-kv-cache.cpp:1204`
+- `/tmp/cx_llama_cpp/src/llama-kv-cache.cpp:1275`
+- `/tmp/cx_llama_cpp/ggml/include/ggml.h:2484`
+
+Finding:
+
+- `get_v()` and `cpy_v()` operate on symbolic graph tensors
+- direct host-side row transforms inside these functions are not a valid codec path
+
+Implication:
+
+- the first codec-bearing patch must introduce a GGML custom-op boundary or equivalent execution-stage hook
+
+Reference:
+
+- `docs/TURBOQUANT_EXEC.md`
+
 ### Step 1. Extend KV-cache state
 
 Files:
@@ -95,7 +116,25 @@ Why before compression:
 - fallback must work first
 - otherwise every failure mode becomes a cache-corruption risk
 
-### Step 4. Implement `tq_v0` write transform
+### Step 4. Add custom-op scaffold for `V`
+
+Files:
+
+- `/tmp/cx_llama_cpp/src/llama-kv-cache.cpp:1275`
+- `/tmp/cx_llama_cpp/src/llama-kv-cache.cpp:1204`
+- `/tmp/cx_llama_cpp/ggml/include/ggml.h:2484`
+
+Add:
+
+1. CPU-only custom-op entry point for the `V` path
+2. userdata struct for layer/slot/codec params
+3. explicit fallback for non-CPU execution paths
+
+Why now:
+
+- this is the first point where `V` payloads can be acted on as data instead of graph symbols
+
+### Step 5. Implement `tq_v0` write transform
 
 File:
 
@@ -118,7 +157,7 @@ Phase 2 rule:
 - do not mutate existing `ggml_set_rows()` semantics
 - do not require graph changes at this stage
 
-### Step 5. Add read-path fallback gate
+### Step 6. Add read-path fallback gate
 
 File:
 
@@ -138,7 +177,7 @@ Why:
 - makes prototype rollback trivial
 - avoids mixed read semantics
 
-### Step 6. Implement `tq_v0` dequant-on-read
+### Step 7. Implement `tq_v0` dequant-on-read
 
 File:
 
@@ -160,7 +199,7 @@ Phase 2 rule:
 - preserve `build_attn_mha()` inputs
 - no fused compressed-attention path yet
 
-### Step 7. Preserve graph boundary
+### Step 8. Preserve graph boundary
 
 File:
 
@@ -180,7 +219,7 @@ Why:
 
 - the best Phase 2 result is a localized backend patch, not a graph refactor
 
-### Step 8. Add memory reporting
+### Step 9. Add memory reporting
 
 Files:
 
@@ -267,6 +306,7 @@ What the artifact includes:
 
 What remains for the next patch slice:
 
+- custom-op scaffold on the `V` path
 - actual `tq_v0` write transform
 - actual dequant-on-read path
 - compressed `V` memory accounting
