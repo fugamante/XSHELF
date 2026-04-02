@@ -33,6 +33,15 @@ This mirrors existing CX practice:
 
 - `llama.cpp`
 
+### Next backend after Phase 1
+
+- `MLX`
+
+Reason:
+
+- Apple Silicon is the actual local runtime
+- the same artifact contract should be reusable on a second backend before any production-serving track begins
+
 ### Baseline profile set
 
 The first baseline matrix is intentionally narrow.
@@ -243,3 +252,5 @@ Phase 2 may begin only after:
 - the first baseline artifact exists
 - the first baseline report exists
 - Phase 1 acceptance criteria are all satisfied
+
+After Phase 2/3 feasibility on `llama.cpp`, reuse this exact Phase 1 contract for an `MLX` comparison pass before considering `vLLM`.
