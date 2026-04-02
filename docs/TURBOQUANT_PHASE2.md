@@ -124,18 +124,32 @@ What the first slice does not cover:
 - compressed memory accounting
 - any graph-boundary rewrite
 
+## Execution Boundary Update
+
+Phase 2 now has one confirmed implementation constraint:
+
+- `cpy_v()` and `get_v()` are graph-build boundaries, not host-data mutation points
+- real codec work must happen through a GGML execution-bearing path, most likely a custom op
+
+That constraint is documented in:
+
+- `docs/TURBOQUANT_EXEC.md`
+
 ## Immediate Next Step
 
 Begin the first codec-bearing patch:
 
-1. implement `tq_v0` payload/scales sidecar write in `cpy_v()`
-2. keep the baseline `ggml_set_rows()` path intact behind fallback
-3. only after write-side storage exists, add dequant-on-read in `get_v()`
+1. add a `tq_v0` custom-op scaffold on the `V` path
+2. restrict the first codec-bearing slice to CPU-supported execution
+3. keep the baseline `ggml_set_rows()` path intact behind fallback
+4. only after the custom-op boundary exists, add write-side payload/scales handling
+5. then add dequant-on-read
 
 Current branch artifacts:
 
 - touchpoint map: `docs/TURBOQUANT_TOUCH.md`
 - codec contract: `docs/TURBOQUANT_CODEC.md`
+- execution-boundary note: `docs/TURBOQUANT_EXEC.md`
 - machine-readable prototype contract: `docs/TURBOQUANT_PROTO.json`
 - function-level patch plan: `docs/TURBOQUANT_PATCH.md`
 - machine-readable worklist: `docs/TURBOQUANT_WORK.json`
