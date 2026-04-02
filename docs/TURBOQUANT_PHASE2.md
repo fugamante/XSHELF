@@ -4,6 +4,35 @@ Branch: `cx/turboquant-spike`
 Status: active
 Scope: `llama.cpp` V-cache-first feasibility slice
 
+## Latest Checkpoint
+
+The newest cumulative backend checkpoint is:
+
+- `patches/tq_p2_slice12.patch`
+- `docs/TURBOQUANT_FIDELITY.md`
+
+What it changes:
+
+- sidecar row identities now come from `v_idxs`, not local row ordinals
+- read-side decode can now be measured numerically against raw `V`
+
+What it proves:
+
+- the earlier row-mapping bug was real
+- exact smoke parity is restored on the validated host-backed path
+- retrieval and strict JSON output still fail under the current codec math
+
+Current interpretation:
+
+- read-path attachment is no longer the blocker
+- row identity is no longer the blocker
+- the current `tq_v0` quantize/dequantize path is still too lossy for exact-output tasks
+
+Current Phase 2 decision:
+
+- do not retry raw-`V` shrinkage from this state
+- proceed with codec-fidelity work next
+
 ## Objective
 
 Implement the smallest backend-side prototype that can answer one question cleanly:
