@@ -8,29 +8,33 @@ cx_tqv_die() {
 }
 
 cx_tqv_parse() {
-  local out_file="$1"
-  local prompt_label="$2"
-  local context_size="$3"
-  local predict_n="$4"
-  local mode="$5"
-  local prompt_name="$6"
+  local out_stdout="$1"
+  local out_stderr="$2"
+  local prompt_label="$3"
+  local context_size="$4"
+  local predict_n="$5"
+  local mode="$6"
+  local prompt_name="$7"
 
-  python3 - "$out_file" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name" <<'PY'
+  python3 - "$out_stdout" "$out_stderr" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name" <<'PY'
 import json
 import pathlib
 import re
 import sys
 
-out_path = pathlib.Path(sys.argv[1])
-prompt_label = sys.argv[2]
-context_target = int(sys.argv[3])
-predict_n = int(sys.argv[4])
-mode = sys.argv[5]
-prompt_name = sys.argv[6]
-text = out_path.read_text()
+stdout_path = pathlib.Path(sys.argv[1])
+stderr_path = pathlib.Path(sys.argv[2])
+prompt_label = sys.argv[3]
+context_target = int(sys.argv[4])
+predict_n = int(sys.argv[5])
+mode = sys.argv[6]
+prompt_name = sys.argv[7]
+stdout_text = stdout_path.read_text()
+stderr_text = stderr_path.read_text()
+metrics_text = stderr_text + "\n" + stdout_text
 
 def cap(pattern, cast=float):
-    m = re.search(pattern, text, re.M)
+    m = re.search(pattern, metrics_text, re.M)
     if not m:
         return None
     return cast(m.group(1))
@@ -39,21 +43,26 @@ prompt_tps = cap(r"\[ Prompt: ([0-9.]+) t/s \|")
 decode_tps = cap(r"\| Generation: ([0-9.]+) t/s \]")
 wall_s = cap(r"^real ([0-9.]+)$", float)
 
-response = text
-if "llama_memory_breakdown_print:" in response:
-    response = response.split("llama_memory_breakdown_print:", 1)[0]
+response = stdout_text
 lines = []
 capture = False
 for raw in response.splitlines():
     line = raw.rstrip()
+    if line.startswith("turboquant_report:"):
+        continue
     if line.startswith("> "):
         capture = True
         continue
     if capture:
+        if line.startswith("[ Prompt:"):
+            break
+        if line == "Exiting...":
+            break
         lines.append(line)
 clean = "\n".join(lines).strip()
-if "\n\n" in clean:
-    clean = clean.split("\n\n")[-1].strip()
+blocks = [blk.strip() for blk in re.split(r"\n\s*\n", clean) if blk.strip()]
+if blocks:
+    clean = blocks[-1]
 
 quality = "observe"
 passed = None
@@ -105,8 +114,9 @@ cx_tqv_run_one() {
   local mode="$7"
   local prompt_name="$8"
   local extra_args="${9:-}"
-  local out_file
-  out_file="$(mktemp)"
+  local out_stdout out_stderr
+  out_stdout="$(mktemp)"
+  out_stderr="$(mktemp)"
 
   local -a cmd=(
     /usr/bin/time -p
@@ -132,9 +142,9 @@ cx_tqv_run_one() {
     cmd+=("${extra_array[@]}")
   fi
 
-  "${cmd[@]}" >"$out_file" 2>&1
-  cx_tqv_parse "$out_file" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name"
-  rm -f "$out_file"
+  "${cmd[@]}" >"$out_stdout" 2>"$out_stderr"
+  cx_tqv_parse "$out_stdout" "$out_stderr" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name"
+  rm -f "$out_stdout" "$out_stderr"
 }
 
 cx_tqv_run() {

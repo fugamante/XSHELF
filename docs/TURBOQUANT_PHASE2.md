@@ -221,7 +221,7 @@ What it still does not add:
 
 The current cumulative backend checkpoint is:
 
-- `patches/tq_p2_slice6.patch`
+- `patches/tq_p2_slice7.patch`
 
 What it adds:
 
@@ -235,11 +235,18 @@ What it adds:
 What it proves:
 
 - the default local validation path still passes at `8k`
+- the host-backed activation path is stable under:
+  - `--flash-attn on`
+  - `--no-kv-offload`
+- the fixed prompt suite passes on that host-backed path
+- direct sidecar reporting shows:
+  - `raw_ratio=25.78%`
+  - `sim_ratio=100.00%`
 
 What it does not yet prove:
 
-- stable runtime reporting on a truly host-backed active path
-- real sidecar ratio capture from a fully activated TurboQuant path
+- raw `V` eviction safety
+- backing-cache shrinkage after eviction
 
 ## Validation Checkpoint
 
@@ -302,30 +309,25 @@ The first sidecar-decode slice was then validated against the same prompt set an
 - `retrieval`
 - `instruct`
 
-The first instrumentation slice then confirmed:
+The current instrumentation slice now confirms:
 
 - the default local run path still passes the fixed suite at `8k`
-- but the intended host-backed activation probe currently crashes under:
-  - `--flash-attn on`
-  - `--no-kv-offload`
-
-Interpretation:
-
-- the branch now has the reporting hooks needed for byte-ratio validation
-- the remaining blocker is host-path stability, not missing instrumentation
+- the host-backed active path also passes the fixed suite at `8k`
+- the sidecar byte ratio on the active host path is approximately `25.78%` of raw `V`
+- the packed sidecar bytes currently match the simulated estimate exactly
 
 ## Immediate Next Step
 
 The custom-op boundary exists, the codec simulation is validated, and the branch now has host-side sidecar residency plus read-side decode on the validated path. The next practical step is:
 
-1. debug the host-backed activation crash under:
+1. decide whether raw `V` eviction should be prototyped behind a stricter fallback gate
+2. if yes, gate it to the validated host path only:
    - `--flash-attn on`
    - `--no-kv-offload`
-2. once that path is stable, capture:
-   - sidecar bytes
-   - simulated bytes
-   - raw bytes
-3. only then decide whether raw `V` eviction should be prototyped behind a stricter fallback gate
+3. re-run the fixed suite and compare:
+   - parity
+   - runtime delta
+   - host memory vs sidecar residency
 
 Current branch artifacts:
 
@@ -343,5 +345,5 @@ Current branch artifacts:
 - codec simulation artifact: `patches/tq_p2_slice3.patch`
 - sidecar residency artifact: `patches/tq_p2_slice4.patch`
 - sidecar decode artifact: `patches/tq_p2_slice5.patch`
-- instrumentation artifact: `patches/tq_p2_slice6.patch`
+- instrumentation artifact: `patches/tq_p2_slice7.patch`
 - validation artifact: `docs/TURBOQUANT_PHASE2_CHECK.json`
