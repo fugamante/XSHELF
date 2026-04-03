@@ -84,7 +84,7 @@ Current checkpoint:
 - `6` bits restores `4/4` once low-KV replay bypass is raised to `256`
 - the corrected `6`-bit baseline now stays green through `16k` and `32k`
 - `4` bits remains too lossy
-- next work should harden long-context runtime on the corrected `6`-bit baseline rather than reopen correctness recovery
+- next work should harden long-context read replay on the corrected `6`-bit baseline rather than reopen correctness recovery
 
 ### H3 Prompt-Shape Profiling
 
@@ -108,6 +108,13 @@ Tasks:
 Success:
 
 - one artifact explains why `instruct` and `context_fill` are slower than `smoke`
+
+Current result:
+
+- `instruct` is the dominant replay hotspot
+- `context_fill` is the second hotspot
+- `retrieval` stays exact but remains materially expensive
+- next work should optimize replay work/locality for those prompt shapes before changing representation family
 
 ### H4 Decode-Path Allocation Control
 

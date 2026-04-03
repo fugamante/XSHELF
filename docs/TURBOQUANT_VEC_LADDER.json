@@ -1,5 +1,5 @@
 {
-  "contract_version": "turboquant-vec-ladder.v2",
+  "contract_version": "turboquant-vec-ladder.v3",
   "variant": "bits6_bypass256",
   "contexts": [
     {
@@ -22,9 +22,9 @@
       "context_target": 16384,
       "passes": 4,
       "total": 4,
-      "decode_tps_mean": 13.9,
-      "wall_ms_mean": 32160,
-      "raw_ratio_mean": null,
+      "decode_tps_mean": 9.35,
+      "wall_ms_mean": 42380,
+      "raw_ratio_mean": 6.23,
       "details": {
         "smoke": true,
         "context_fill": true,
@@ -37,9 +37,9 @@
       "context_target": 32768,
       "passes": 4,
       "total": 4,
-      "decode_tps_mean": 13.97,
-      "wall_ms_mean": 32550,
-      "raw_ratio_mean": null,
+      "decode_tps_mean": 13.78,
+      "wall_ms_mean": 32030,
+      "raw_ratio_mean": 6.23,
       "details": {
         "smoke": true,
         "context_fill": true,

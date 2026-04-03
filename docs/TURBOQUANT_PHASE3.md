@@ -236,18 +236,48 @@ Corrected `6`-bit ladder under the patched replay path:
   - mean raw ratio: `3.12%`
 - `16k`
   - passes: `4/4`
-  - mean decode: `13.9 t/s`
-  - mean wall: `32160 ms`
+  - mean decode: `9.35 t/s`
+  - mean wall: `42380 ms`
+  - mean raw ratio: `6.23%`
 - `32k`
   - passes: `4/4`
-  - mean decode: `13.97 t/s`
-  - mean wall: `32550 ms`
+  - mean decode: `13.78 t/s`
+  - mean wall: `32030 ms`
+  - mean raw ratio: `6.23%`
 
 Reading:
 
 - the corrected `6`-bit baseline stays exact through `8k`, `16k`, and `32k`
-- the main remaining cost is throughput collapse on the long-context prompts, not correctness drift
+- the main remaining cost is read-side replay growth on the long-context prompts, not correctness drift
 - the active Phase 3 question is now runtime hardening, not replay-fidelity recovery
+
+## Corrected Read Profile
+
+Artifact:
+
+- `docs/TURBOQUANT_VEC_PROFILE.json`
+
+Prompt-shape reading:
+
+- `smoke`
+  - stays relatively cheap
+  - `read.decode_groups`: `20480`
+- `context_fill`
+  - spikes sharply at `16k` and stays elevated at `32k`
+  - `read.decode_groups`: `17859072`
+- `retrieval`
+  - stable but expensive across long contexts
+  - `read.decode_groups`: `5508096`
+- `instruct`
+  - highest replay pressure on the path
+  - `read.decode_groups`: `48589824`
+
+Meaning:
+
+- the remaining value problem is concentrated in the read-side decode path
+- `instruct` is the primary hardening hotspot
+- `context_fill` is the second hotspot
+- the next work item should reduce replay work or improve locality before opening any new vector family
 
 ## Historical Artifacts Now Considered Provisional
 
@@ -287,3 +317,14 @@ Harden the corrected `6`-bit baseline:
 2. profile the long-context throughput collapse on `context_fill`, `retrieval`, and `instruct`
 3. keep `8` bits only as a ceiling/reference path
 4. do not open a second vector family until the current path is either hardened or ruled out on value
+
+Completed:
+
+- read-side accounting restored in the ladder artifacts
+- prompt-shaped replay profile captured for `8k`, `16k`, and `32k`
+
+Next:
+
+1. reduce `instruct` replay cost on the current `6`-bit path
+2. then target `context_fill`
+3. keep `retrieval` and exact correctness as regression guards
