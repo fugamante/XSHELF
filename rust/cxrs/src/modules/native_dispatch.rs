@@ -154,7 +154,7 @@ fn dispatch_meta_commands(
             EXIT_OK
         }
         "version" | "-V" | "--version" => {
-            (deps.print_version)();
+            (deps.print_version)(&args[2..]);
             EXIT_OK
         }
         "schema" => (deps.cmd_schema)(&args[2..]),

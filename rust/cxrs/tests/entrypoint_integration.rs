@@ -116,3 +116,34 @@ fn core_tq_json() {
         Some("standard_provider")
     );
 }
+
+#[test]
+fn version_tq_json() {
+    let repo = repo_root();
+    let out = Command::new(repo.join("bin").join("cx"))
+        .args(["version", "--json"])
+        .current_dir(&repo)
+        .output()
+        .expect("run bin/cx version --json");
+
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let payload: Value = serde_json::from_slice(&out.stdout).expect("parse version json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("version.v1")
+    );
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
+    assert_eq!(payload.get("name").and_then(Value::as_str), Some("cxrs"));
+}

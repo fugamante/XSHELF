@@ -3,7 +3,7 @@ use super::CommandHelp;
 pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "version",
-        usage: "version",
+        usage: "version [--json]",
         description: "Print tool version",
     },
     CommandHelp {
