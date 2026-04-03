@@ -30,12 +30,14 @@ Current interpretation:
 - row identity is no longer the blocker
 - the generic custom-op path is not the blocker
 - the high-fidelity sidecar path is exact-task neutral on the fixed suite when replay uses snapshot-backed state
+- the current projection-assisted scalar path also regains exact-task neutrality when replay uses snapshot-backed state
 
 Current Phase 2 decision:
 
 - keep raw-`V` shrinkage disabled
 - treat snapshot-backed replay as the current correctness baseline for further Phase 2 work
 - resume deeper codec experiments only against snapshot-backed replay, not mutable shared replay
+- treat all pre-snapshot codec-family no-go verdicts as provisional until revalidated against snapshot-backed replay
 
 ## Objective
 
@@ -124,11 +126,11 @@ Phase 2 is a `no-go` if any of the following occur:
 - decode or wall-time degradation makes the approach net-worse
 - backend integration surface is materially larger than the feasibility value justifies
 
-## Current No-Go Boundary
+## Current Boundary
 
 Phase 2 has now accumulated enough evidence to define the current no-go line precisely.
 
-Recorded no-go results:
+Recorded pre-snapshot negative results:
 
 - grouped scalar quantization:
   - `patches/tq_p2_slice13.patch`
@@ -141,15 +143,49 @@ Recorded no-go results:
 
 Meaning:
 
+- those historical failures were measured before the mutable shared replay bug was isolated
+- they are still useful as branch history, but they are no longer sufficient to define the codec boundary
 - the branch is no longer blocked on “can we attach the path?”
-- it was blocked on “can the path preserve exact-task behavior at all on this host-backed implementation?”
+- it is now blocked on “which codec families remain viable once replay correctness is fixed?”
 
-That question is now answered positively for the high-fidelity ceiling path when replay uses a snapshot of sidecar state per read op.
+That question is now answered positively for:
+
+- the high-fidelity ceiling path:
+  - `docs/TURBOQUANT_SNAPSHOT.json`
+- the current projection-assisted scalar path:
+  - `docs/TURBOQUANT_SCALAR_SNAPSHOT.json`
 
 Current warning line:
 
 - mutable shared sidecar replay is a no-go
 - snapshot-backed replay is the only validated Phase 2 correctness baseline
+- codec-family viability must now be measured under snapshot replay, not inferred from the older mutable-replay runs
+
+## Current Snapshot Revalidation
+
+The newest scalar-path revalidation artifact is:
+
+- `docs/TURBOQUANT_SCALAR_SNAPSHOT.json`
+
+What it proves:
+
+- the current projection-assisted scalar path passes the fixed `8k` Phase 2 suite under snapshot-backed replay
+- exact outputs are restored for:
+  - `smoke`
+  - `retrieval`
+  - exact strict JSON `instruct`
+- the earlier projection-scalar no-go verdict was contaminated by the mutable replay bug
+
+What it does not yet prove:
+
+- whether the older grouped-scalar and residual-scalar failures were also contaminated
+- whether the current scalar path is still worthwhile once throughput and byte-ratio tradeoffs are weighed
+
+Observed tradeoff on the validated host path:
+
+- quality gate: restored
+- decode throughput: materially worse than baseline
+- next question: codec viability, not correctness attachment
 
 ## Output Artifacts
 
