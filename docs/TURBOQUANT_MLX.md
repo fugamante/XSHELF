@@ -1,7 +1,7 @@
 # TurboQuant `MLX` Comparative Track
 
 Branch: `cx/turboquant-spike`
-Status: active
+Status: closed
 Scope: compare the closed `llama.cpp` vector result against an Apple-native `MLX` path
 
 ## Why This Track Exists
@@ -252,3 +252,13 @@ Why:
 Remaining constraint:
 
 - do not overstate `cache_nbytes` as a direct `raw_ratio` analog
+
+## Closeout
+
+Closeout artifact:
+
+- `docs/TURBOQUANT_MLX_CLOSE.json`
+
+Current decision:
+
+- `mlx_portable_go`
