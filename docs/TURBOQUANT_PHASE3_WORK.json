@@ -1,6 +1,6 @@
 {
   "phase": "phase3",
-  "status": "active",
+  "status": "closed",
   "representation": "tq_v1_vec",
   "steps": [
     {
@@ -75,7 +75,7 @@
     },
     {
       "id": "p3_closeout",
-      "status": "in_progress",
+      "status": "complete",
       "goal": "decide whether the hardened 6-bit vec baseline is strong enough to close Phase 3 or merits one final narrow value pass"
     }
   ],
@@ -102,6 +102,7 @@
     "docs/TURBOQUANT_VEC_TUNE.json",
     "patches/tq_p3_slice7.patch",
     "patches/tq_p3_slice8.patch",
-    "docs/TURBOQUANT_VEC_HARDEN.json"
+    "docs/TURBOQUANT_VEC_HARDEN.json",
+    "docs/TURBOQUANT_PHASE3_CLOSE.json"
   ]
 }
