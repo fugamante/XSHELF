@@ -243,6 +243,19 @@ Acceptance:
 - explicit implementation-complexity assessment for `MLX`
 - clear go/no-go decision before any `vLLM` work
 
+Planning files:
+
+- `docs/TURBOQUANT_MLX.md`
+- `docs/TURBOQUANT_MLX_WORK.json`
+
+Current Phase 3A checkpoint:
+
+- planned
+- baseline reference locked to:
+  - `vec_bits6_bypass256`
+- next action:
+  - identify the practical local `MLX` runtime entrypoint and first comparable memory/accounting surface
+
 ## Risks
 
 1. Wrong layer
