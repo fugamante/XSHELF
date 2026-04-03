@@ -53,6 +53,12 @@ report_re = re.compile(
     r"decode_calls=(?P<decode_calls>\d+) decode_rows=(?P<decode_rows>\d+))?"
     r"(?: codec=(?P<codec>[a-z_]+))?"
 )
+read_rows = []
+read_re = re.compile(
+    r"turboquant_read: layer=(?P<layer>\d+) codec=(?P<codec>[a-z_]+) "
+    r"decode_calls=(?P<decode_calls>\d+) decode_rows=(?P<decode_rows>\d+) "
+    r"decode_groups=(?P<decode_groups>\d+) raw_evicted=(?P<raw_evicted>\d+) rows=(?P<rows>\d+)"
+)
 for match in report_re.finditer(stderr_text):
     gd = match.groupdict()
     report_rows.append({
@@ -69,6 +75,17 @@ for match in report_re.finditer(stderr_text):
         "evicted_bytes": None if gd.get("evicted_bytes") is None else int(gd["evicted_bytes"]),
         "decode_calls": None if gd.get("decode_calls") is None else int(gd["decode_calls"]),
         "decode_rows": None if gd.get("decode_rows") is None else int(gd["decode_rows"]),
+    })
+for match in read_re.finditer(stderr_text):
+    gd = match.groupdict()
+    read_rows.append({
+        "layer": int(gd["layer"]),
+        "codec": gd["codec"],
+        "decode_calls": int(gd["decode_calls"]),
+        "decode_rows": int(gd["decode_rows"]),
+        "decode_groups": int(gd["decode_groups"]),
+        "raw_evicted": int(gd["raw_evicted"]),
+        "rows": int(gd["rows"]),
     })
 
 report_summary = None
@@ -90,6 +107,18 @@ if report_rows:
     codecs = sorted({r["codec"] for r in report_rows if r.get("codec")})
     totals["codecs"] = codecs
     report_summary = totals
+if read_rows:
+    read_summary = {
+        "layers": len(read_rows),
+        "decode_calls": sum(r["decode_calls"] for r in read_rows),
+        "decode_rows": sum(r["decode_rows"] for r in read_rows),
+        "decode_groups": sum(r["decode_groups"] for r in read_rows),
+        "rows": sum(r["rows"] for r in read_rows),
+        "codecs": sorted({r["codec"] for r in read_rows}),
+    }
+    if report_summary is None:
+        report_summary = {}
+    report_summary["read"] = read_summary
 
 response = stdout_text
 lines = []

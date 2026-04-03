@@ -72,7 +72,8 @@ Current implementation state:
 
 - slice 1: codebook residency only
 - slice 2: write-side packed vector payload capture
-- slice 3: snapshot-backed vector decode validated at `8k`
+- slice 3: vector replay wiring landed
+- slice 4: read-path accounting corrected; real replay activity is now visible in artifacts
 
 ## Write Path Contract
 
@@ -84,13 +85,6 @@ At write-side capture:
 4. record row offsets/counts
 5. preserve baseline fallback on unsupported paths
 
-Slice 2 checkpoint:
-
-- nearest-centroid scoring is deterministic
-- packed codes are written into `vec_payload`
-- row metadata is reused from the Phase 2 sidecar row model
-- decode is intentionally gated off until the first vector replay slice exists
-
 ## Read Path Contract
 
 At snapshot-backed replay:
@@ -100,30 +94,37 @@ At snapshot-backed replay:
 3. reassemble the original row-group layout
 4. write reconstructed values into the temporary tensor used by the read-side custom op
 
-Current validation checkpoint:
+## Corrected Current Checkpoint
+
+Artifact:
 
 - `docs/TURBOQUANT_VEC_CHECK.json`
-- fixed `8k` suite passes under snapshot replay
-- the first vector path is correctness-viable on the validated host-backed execution path
 
-Current value checkpoint:
+Current corrected `8k` outcome under actual replay:
 
-- `docs/TURBOQUANT_VEC_VALUE.json`
-- mean decode throughput: `30.6 t/s`
-- mean raw ratio: `1.76%`
-- current decision: `vector_go`
+- `smoke`: fail
+- `context_fill`: pass
+- `retrieval`: pass
+- `instruct`: fail
 
-Current ladder checkpoint:
+Refined replay reading after the codebook sweep:
 
-- `docs/TURBOQUANT_VEC_LADDER.json`
-- correctness holds at `8k`, `16k`, and `32k`
-- storage ratio stays stable across the ladder
-- next work should harden the current path rather than open a second vector variant
+- `4` bits: `2/4`
+- `6` bits: `3/4`
+- `8` bits: `4/4`
 
-Current profiling/hardening artifacts:
+This means:
 
-- `docs/TURBOQUANT_VEC_PROFILE.json`
-- `docs/TURBOQUANT_HARDEN.md`
+- the vector path is no longer blocked by a generic replay bug
+- it is now bounded by codebook capacity versus runtime cost
+- `6` bits is the current optimization target
+- `8` bits is the current correctness ceiling
+
+Current reading:
+
+- the branch now proves real replay work with non-zero read counters
+- the earlier value/ladder artifacts remain useful as provisional storage/runtime markers
+- they are not sufficient as correctness proof until the corrected replay path returns to `4/4`
 
 ## Success Gates
 
@@ -137,6 +138,7 @@ Current profiling/hardening artifacts:
 
 Stop the first vector attempt immediately if:
 
+- exact `smoke` cannot be restored on the real replay path
 - exact retrieval breaks
 - exact strict JSON breaks
 - runtime stays within the scalar penalty band
@@ -153,3 +155,4 @@ Reference artifacts:
 
 - `docs/TURBOQUANT_SCALAR_VALUE.json`
 - `docs/TURBOQUANT_SCALAR_COMPARE.json`
+- `docs/TURBOQUANT_HARDEN.md`
