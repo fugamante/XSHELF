@@ -258,6 +258,31 @@ Examples:
 ./bin/cx llm unset model
 ```
 
+## Backend Capability Notes
+
+CX keeps backend experiments behind explicit capability language.
+
+Current rule:
+
+- provider adapters are the runtime abstraction
+- backend-specific inference experiments do not become core CX behavior until they prove value and preserve adapter boundaries
+
+Current TurboQuant reading:
+
+- `llama.cpp` is the current codec-bearing reference backend
+- `MLX` is currently documented as a comparative backend, not a codec-bearing backend
+- `MLX` memory reporting should be read as:
+  - `cache_nbytes`
+  - `peak_memory_gb`
+- `MLX` memory reporting must not be described as a direct `raw_ratio` equivalent
+
+Reference docs:
+
+- `docs/TURBOQUANT_SPIKE.md`
+- `docs/TURBOQUANT_METRIC.md`
+- `docs/TURBOQUANT_CAP_MLX.md`
+- `docs/PROVIDER_ADAPTER_PLAN.md`
+
 `llm use`/`llm set-*` now triggers an automatic quota probe notice to stderr.
 For local providers (`ollama`), CX reports a local-unmetered fallback notice when provider quota cannot be resolved.
 
