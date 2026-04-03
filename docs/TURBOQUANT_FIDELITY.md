@@ -342,3 +342,50 @@ Updated boundary:
 - snapshot replay is the required baseline for further codec work
 - projection-assisted scalar is provisionally back in the viable set
 - grouped-scalar and residual-scalar historical no-go results now require explicit revalidation before they can be treated as settled
+
+## Grouped Scalar Snapshot Revalidation
+
+The grouped-scalar path has now been rerun under the same snapshot-backed replay model.
+
+Artifact:
+
+- `docs/TURBOQUANT_GROUPED_SCALAR_SNAPSHOT.json`
+
+Result:
+
+- `smoke`: pass
+- `context_fill`: pass
+- `retrieval`: pass
+- `instruct`: pass
+
+Meaning:
+
+- the earlier grouped-scalar no-go verdict was also contaminated by the mutable shared replay bug
+- grouped scalar is now back in the viable set on exact-task correctness
+- its remaining concern is operational value, because decode throughput collapses sharply on the validated host path
+
+## Residual Scalar Snapshot Revalidation
+
+The residual-scalar path has also been rerun under snapshot-backed replay.
+
+Artifact:
+
+- `docs/TURBOQUANT_RESIDUAL_SNAPSHOT.json`
+
+Result:
+
+- `smoke`: fail
+- `context_fill`: pass by non-empty rule only
+- `retrieval`: fail
+- `instruct`: fail
+
+Meaning:
+
+- residual scalar remains a true codec-family no-go even after the replay bug is removed
+- the earlier residual failure was not just a mutable-state artifact
+
+Updated codec-family line:
+
+- grouped scalar: quality-viable, performance-questionable
+- projection-assisted scalar: quality-viable, performance-questionable
+- residual scalar: quality no-go
