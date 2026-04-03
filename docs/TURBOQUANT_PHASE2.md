@@ -187,6 +187,44 @@ Observed tradeoff on the validated host path:
 - decode throughput: materially worse than baseline
 - next question: codec viability, not correctness attachment
 
+## Codec Revalidation Matrix
+
+The next corrective checkpoint reran the remaining scalar-family variants under the same snapshot-backed replay model.
+
+Artifacts:
+
+- `docs/TURBOQUANT_GROUPED_SCALAR_SNAPSHOT.json`
+- `docs/TURBOQUANT_RESIDUAL_SNAPSHOT.json`
+- `patches/tq_p2_slice18.patch`
+
+What it proves:
+
+- grouped scalar:
+  - full fixed `8k` suite passes under snapshot replay
+  - exact outputs are restored for:
+    - `smoke`
+    - `retrieval`
+    - exact strict JSON `instruct`
+- residual scalar:
+  - remains a true no-go even under snapshot replay
+  - fails:
+    - `smoke`
+    - `retrieval`
+    - exact strict JSON `instruct`
+
+Updated Phase 2 boundary:
+
+- mutable shared replay invalidated the older grouped/projection no-go verdicts
+- grouped scalar is now provisionally viable on correctness
+- projection-assisted scalar is now provisionally viable on correctness
+- residual scalar remains a codec-family no-go
+
+Current decision:
+
+- correctness is no longer the blocker for grouped/projection scalar paths
+- throughput and byte-ratio value are now the primary gates for those paths
+- residual scalar should not receive more tuning time on this branch state
+
 ## Output Artifacts
 
 Phase 2 should create:
