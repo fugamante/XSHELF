@@ -154,6 +154,38 @@ What slice 3 does not decide yet:
 - no value verdict versus the closed scalar reference yet
 - no production-worthiness claim
 
+## Value Checkpoint
+
+Artifact:
+
+- `docs/TURBOQUANT_VEC_VALUE.json`
+
+Vector result at `8k` under snapshot replay:
+
+- passes: `4/4`
+- mean decode throughput: `30.6 t/s`
+- mean wall time: `6707.5 ms`
+- mean raw ratio: `1.76%`
+- mean bytes saved: `98.24%`
+
+Closed scalar reference:
+
+- mean decode throughput: `2.73 t/s`
+- mean wall time: `17022.5 ms`
+- mean raw ratio: `26.56%`
+- mean bytes saved: `73.44%`
+
+Phase 3 decision from the current data:
+
+- `vector_go`
+
+Reason:
+
+- the first vector snapshot path passes the fixed `8k` suite
+- it materially beats the closed scalar reference on runtime
+- it materially beats the scalar reference on storage ratio
+- the representation-class change is justified by measured value, not only by correctness
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -180,6 +212,6 @@ Reason:
 
 Implement the first executable vector slice only:
 
-1. compare vector runtime/value against the scalar reference
-2. decide whether the vector path is a true Phase 3 `go`
-3. only after that consider deeper representation work
+1. extend the vector checkpoint beyond the first `8k` suite
+2. decide whether to harden this path or open a second vector/codebook variant
+3. only after that consider broader backend or `MLX` follow-through
