@@ -1,7 +1,7 @@
 # TurboQuant Phase 3 Representation Spike
 
 Branch: `cx/turboquant-spike`
-Status: in progress
+Status: closeout
 Scope: new representation-class experiment after Phase 2 scalar closeout
 
 ## Why Phase 3 Exists
@@ -140,13 +140,13 @@ What changed from the earlier branch reading:
 
 ## Current Decision
 
-- `bits6_vector_hardened`
+- `phase3_vector_go`
 
 Reason:
 
-- the real replay path is green again on the fixed suite
-- the corrected `6`-bit baseline now holds `4/4` at `8k`, `16k`, and `32k`
-- the Phase 3 bottleneck has moved from correctness rescue to read-side replay efficiency
+- the real replay path is green on the fixed suite
+- the corrected `6`-bit baseline holds `4/4` at `8k`, `16k`, and `32k`
+- the hardened vector path is materially better than the closed scalar reference on both storage ratio and decode throughput
 
 ## Codebook Sweep
 
@@ -284,7 +284,7 @@ Interpretation:
 
 - Phase 3 moved from "correct but expensive" to "correct and materially hardened"
 - row lookup was necessary, but centroid decode locality was the larger payoff
-- the next question is no longer basic viability; it is whether the current vector path is already strong enough to close or deserves one more value pass
+- the current vector path is strong enough to close Phase 3 as the preferred non-scalar result
 
 ## Corrected Read Profile
 
@@ -312,6 +312,7 @@ Meaning:
 - the remaining value problem is concentrated in the read-side decode path
 - `instruct` is still the primary benchmark
 - the current branch is no longer blocked on correctness
+- the remaining replay cost is not large enough to overturn the vector win over scalar
 
 ## Historical Notes
 
@@ -321,10 +322,36 @@ These remain useful as branch history, but they are no longer the active decisio
 - earlier pre-hardening `16k` and `32k` observations that predate `patches/tq_p3_slice7.patch`
 - earlier pre-hardening `16k` and `32k` observations that predate `patches/tq_p3_slice8.patch`
 
+## Phase 3 Closeout
+
+Artifact:
+
+- `docs/TURBOQUANT_PHASE3_CLOSE.json`
+
+Decision:
+
+- `phase3_vector_go`
+
+Why:
+
+- scalar reference at `8k`
+  - decode `2.73 t/s`
+  - wall `17022.5 ms`
+  - raw ratio `26.56%`
+- hardened `6`-bit vector at `8k`
+  - decode `17.68 t/s`
+  - wall `12655 ms`
+  - raw ratio `3.12%`
+
+Closeout reading:
+
+- Phase 3 successfully found a non-scalar path that beats the closed scalar track on the metrics that matter
+- the current `6`-bit vector path is the preferred TurboQuant result on this branch
+- further optimization is optional, not required for the experimental conclusion
+
 ## Immediate Next Step
 
-Close the current hardening cycle cleanly:
+Choose one of:
 
-1. compare the hardened vector ladder against the scalar reference one more time
-2. decide whether the current `6`-bit vector path is already strong enough to close Phase 3
-3. only open another optimization slice if it has a specific value target beyond the current hardened baseline
+1. treat Phase 3 as closed and carry the result forward into the comparative `MLX` track
+2. keep this branch open for one final narrow value pass only if it has a specific target beyond the current hardened baseline

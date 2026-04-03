@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` closed, `Phase 3` in progress)
+Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` closed, `Phase 3` closed)
 Owner: CX runtime
 
 ## Objective
@@ -193,13 +193,23 @@ Phase 3 planning files:
 
 Current Phase 3 checkpoint:
 
-- slice 1 is compile-clean only
-- explicit vector codebook state is now resident per layer
-- deterministic `[16][8]` `fp16` centroid initialization is wired into the reset/init path
-- slice 2 now adds compile-clean vector payload capture on the host-backed write path
-- slice 3 now adds vector snapshot replay and passes the fixed `8k` suite
-- value is now judged as a `vector_go` against the closed scalar reference
-- the ladder now holds at `16k` and `32k`; next step is hardening, not a second vector family
+- Phase 3 is now closed as a `vector_go`
+- preferred result:
+  - `vec_bits6_bypass256`
+- correctness holds through:
+  - `8k`
+  - `16k`
+  - `32k`
+- hardened vector reference at `8k`:
+  - decode `17.68 t/s`
+  - wall `12655 ms`
+  - raw ratio `3.12%`
+- closed scalar reference at `8k`:
+  - decode `2.73 t/s`
+  - wall `17022.5 ms`
+  - raw ratio `26.56%`
+- Phase 3 conclusion artifact:
+  - `docs/TURBOQUANT_PHASE3_CLOSE.json`
 
 ### Phase 4: Read-Path Optimization
 

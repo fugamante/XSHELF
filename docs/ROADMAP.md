@@ -29,7 +29,8 @@
 - Current backend experiment harness spec: `docs/TURBOQUANT_PHASE1.md`
 - Current TurboQuant status:
   - Phase 2 scalar track closed as a value no-go
-  - next step, if any, is a non-scalar representation-class spike only
+  - Phase 3 vector track closed as a value go
+  - next step, if any, is comparative backend follow-through (`MLX`) or a narrowly scoped post-closeout optimization pass
 
 ## Phase VI Kickoff (current)
 
