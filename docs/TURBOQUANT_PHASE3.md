@@ -162,7 +162,7 @@ Corrected `8k` replay sweep:
   - mean decode: `13.6 t/s`
   - mean raw ratio: `1.97%`
 - `6` bits
-  - passes: `3/4`
+  - passes: `3/4` before bypass correction
   - failure: `smoke`
   - mean decode: `14.48 t/s`
   - mean raw ratio: `3.79%`
@@ -176,7 +176,48 @@ Reading:
 
 - `8` bits restores correctness on the real replay path
 - but the wall-time penalty is severe
-- `6` bits is the most interesting target because it keeps `retrieval` and `instruct` while missing only `smoke`
+- `6` bits was the most interesting target because it kept `retrieval` and `instruct` while missing only `smoke` before bypass correction
+
+
+## Bypass Correction
+
+Artifacts:
+
+- `patches/tq_p3_slice6.patch`
+- `docs/TURBOQUANT_VEC_TUNE.json`
+
+What changed:
+
+- low-bit `vec` replay now bypasses vector decode for very small KV windows by default
+- default small-KV bypass threshold: `256`
+- this is applied only when:
+  - codec mode is `vec`
+  - codebook bits are below `8`
+
+Corrected `6`-bit result:
+
+- passes: `4/4`
+- mean decode: `17.68 t/s`
+- mean wall: `12655 ms`
+- mean raw ratio: `3.12%`
+
+Comparison to `8`-bit ceiling:
+
+- `8` bits
+  - passes: `4/4`
+  - mean decode: `14.0 t/s`
+  - mean wall: `31415 ms`
+  - mean raw ratio: `6.23%`
+
+Decision:
+
+- `prefer_bits6_bypass256`
+
+Reason:
+
+- `6` bits now restores exact-task correctness at `8k`
+- it materially beats the `8`-bit ceiling on runtime
+- it materially beats the `8`-bit ceiling on storage ratio
 
 ## Historical Artifacts Now Considered Provisional
 
@@ -197,11 +238,10 @@ Artifact:
 Order:
 
 1. prove read-side activity in artifacts
-2. restore exact `smoke`
-3. keep `6` bits as the primary optimization target
-4. use `8` bits as the current correctness ceiling
-5. only then reopen prompt-shape/runtime hardening
-6. rerun the ladder from the corrected real replay baseline
+2. keep `6` bits with bypass `256` as the current vector baseline
+3. use `8` bits only as a ceiling/reference path
+4. reopen prompt-shape/runtime hardening on the corrected `6`-bit baseline
+5. rerun the ladder from the corrected real replay baseline
 
 ## Stop Conditions
 
@@ -216,8 +256,7 @@ Stop Phase 3 quickly if any of these happen:
 
 Work the replay-fidelity gap on the real `vec` path:
 
-1. isolate why `smoke` drifts from exact `OK`
-2. keep `6` bits as the primary optimization target
-3. keep `retrieval`, `instruct`, and `context_fill` as regression guards while correcting `smoke`
-4. use `8` bits only as the current correctness ceiling
-5. rerun `8k` before touching `16k/32k` again
+1. rerun the ladder on `6` bits with bypass `256`
+2. keep `retrieval`, `instruct`, and `context_fill` as regression guards
+3. profile the corrected `6`-bit path before opening a second vector family
+4. only use `8` bits as a ceiling/reference path

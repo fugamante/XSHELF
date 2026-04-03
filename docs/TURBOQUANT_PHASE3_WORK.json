@@ -35,13 +35,18 @@
     },
     {
       "id": "p3_replay_fix",
-      "status": "in_progress",
+      "status": "complete",
       "goal": "restore exact smoke and strict JSON correctness on the real vec replay path at 8k"
     },
     {
       "id": "p3_bits_sweep",
       "status": "complete",
       "goal": "map the corrected 8k replay curve for vec codebook bits and select the next optimization target"
+    },
+    {
+      "id": "p3_bits6_baseline",
+      "status": "complete",
+      "goal": "promote 6-bit vec replay with small-kv bypass 256 as the current Phase 3 baseline"
     }
   ],
   "references": [
@@ -62,6 +67,8 @@
     "docs/TURBOQUANT_VEC_LADDER.json",
     "docs/TURBOQUANT_VEC_PROFILE.json",
     "patches/tq_p3_slice5.patch",
-    "docs/TURBOQUANT_VEC_SWEEP.json"
+    "docs/TURBOQUANT_VEC_SWEEP.json",
+    "patches/tq_p3_slice6.patch",
+    "docs/TURBOQUANT_VEC_TUNE.json"
   ]
 }

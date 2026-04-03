@@ -81,9 +81,9 @@ Success:
 Current checkpoint:
 
 - `8` bits restores `4/4` correctness on the real replay path
-- `6` bits restores `3/4` and misses only `smoke`
+- `6` bits restores `4/4` once low-KV replay bypass is raised to `256`
 - `4` bits remains too lossy
-- next work should target `6` bits smoke recovery rather than push `8` bits up the ladder
+- next work should harden and ladder-test the corrected `6`-bit baseline rather than push `8` bits up the ladder
 
 ### H3 Prompt-Shape Profiling
 
