@@ -8,38 +8,34 @@ Scope: `llama.cpp` V-cache-first feasibility slice
 
 The newest cumulative backend checkpoint is:
 
-- `patches/tq_p2_slice16.patch`
+- `patches/tq_p2_slice17.patch`
 - `docs/TURBOQUANT_FIDELITY.md`
-- `docs/TURBOQUANT_CEILING.json`
+- `docs/TURBOQUANT_SNAPSHOT.json`
 
 What it changes:
 
-- exports the high-fidelity ceiling path
-- stores exact `f32` sidecar payload values on the host-backed path
-- flushes row tails before row metadata is finalized
+- exports the read-snapshot checkpoint
+- aligns ceiling payloads with cache semantics
+- snapshots sidecar state per read op for the validated host-backed path
 
 What it proves:
 
-- the previous “ceiling” path was not actually lossless
-- the corrected ceiling path reaches:
-  - `raw_ratio=100%`
-  - `sim_ratio=100%`
-- smoke still passes exactly
-- retrieval still fails
-- strict JSON still fails
+- the previous broad Phase 2 no-go diagnosis was overstated
+- exact retrieval and exact strict JSON are restored when read-side replay consumes a per-read snapshot of sidecar state
+- the remaining correctness fault was mutable shared sidecar state crossing generation steps
 
 Current interpretation:
 
 - read-path attachment is no longer the blocker
 - row identity is no longer the blocker
-- simple scalar codecs are no-go
-- even the current high-fidelity sidecar execution path is not exact-task neutral on the fixed Phase 2 suite
+- the generic custom-op path is not the blocker
+- the high-fidelity sidecar path is exact-task neutral on the fixed suite when replay uses snapshot-backed state
 
 Current Phase 2 decision:
 
-- do not retry raw-`V` shrinkage from this state
-- do not continue scalar codec-family tuning from this state
-- do not move to deeper TurboQuant-style vector/codebook work until the residual exact-task sensitivity of the host-backed sidecar path is explained or removed
+- keep raw-`V` shrinkage disabled
+- treat snapshot-backed replay as the current correctness baseline for further Phase 2 work
+- resume deeper codec experiments only against snapshot-backed replay, not mutable shared replay
 
 ## Objective
 
@@ -146,9 +142,14 @@ Recorded no-go results:
 Meaning:
 
 - the branch is no longer blocked on “can we attach the path?”
-- it is now blocked on “can the path preserve exact-task behavior at all on this host-backed implementation?”
+- it was blocked on “can the path preserve exact-task behavior at all on this host-backed implementation?”
 
-Until that is answered positively, Phase 2 should be treated as a feasibility warning rather than a compression-ready path.
+That question is now answered positively for the high-fidelity ceiling path when replay uses a snapshot of sidecar state per read op.
+
+Current warning line:
+
+- mutable shared sidecar replay is a no-go
+- snapshot-backed replay is the only validated Phase 2 correctness baseline
 
 ## Output Artifacts
 
