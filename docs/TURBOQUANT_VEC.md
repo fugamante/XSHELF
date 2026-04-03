@@ -1,7 +1,7 @@
 # TurboQuant Phase 3 Vector Contract
 
 Branch: `cx/turboquant-spike`
-Status: planned
+Status: in progress
 Scope: first non-scalar representation for Phase 3
 
 ## Representation Name
@@ -68,6 +68,12 @@ Per row:
 - offsets/counts
 - explicit row identity metadata already proven in Phase 2
 
+Current implementation state:
+
+- slice 1: codebook residency only
+- slice 2: write-side packed vector payload capture
+- read-side vector decode: not implemented yet
+
 ## Write Path Contract
 
 At write-side capture:
@@ -77,6 +83,13 @@ At write-side capture:
 3. pack centroid ids into the sidecar payload
 4. record row offsets/counts
 5. preserve baseline fallback on unsupported paths
+
+Slice 2 checkpoint:
+
+- nearest-centroid scoring is deterministic
+- packed codes are written into `vec_payload`
+- row metadata is reused from the Phase 2 sidecar row model
+- decode is intentionally gated off until the first vector replay slice exists
 
 ## Read Path Contract
 
