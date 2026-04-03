@@ -226,6 +226,46 @@ Reason:
 - the next risk is runtime behavior by prompt shape, not representation viability
 - opening a second vector/codebook variant now would blur the diagnosis
 
+## Prompt Profile
+
+Artifact:
+
+- `docs/TURBOQUANT_VEC_PROFILE.json`
+
+Hotspots from the current ladder:
+
+- `instruct`
+  - risk: `critical`
+  - long-context decode: about `1.5 t/s`
+- `context_fill`
+  - risk: `high`
+  - long-context decode: about `2.5` to `3.2 t/s`
+- `retrieval`
+  - risk: `high`
+  - unstable decode behavior across contexts
+- `smoke`
+  - risk: `stable`
+
+Interpretation:
+
+- the current vector path is not blocked by correctness
+- it is blocked by prompt-shape-sensitive runtime behavior
+- hardening should focus on the existing path before any second representation attempt
+
+## Hardening Plan
+
+Artifact:
+
+- `docs/TURBOQUANT_HARDEN.md`
+
+Hardening order:
+
+1. read-path accounting
+2. prompt-shape profiling
+3. decode-path allocation control
+4. access locality
+5. ladder re-run
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -252,6 +292,6 @@ Reason:
 
 Implement the first executable vector slice only:
 
-1. profile prompt-type-specific decode collapse on the current vector path
-2. harden the current vector path before opening any second variant
-3. only after that consider broader backend or `MLX` follow-through
+1. improve read-path accounting for the current vector decoder
+2. reduce obvious decode-path overhead on the hotspot prompts
+3. rerun the ladder before considering broader backend or `MLX` follow-through
