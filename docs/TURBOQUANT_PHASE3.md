@@ -80,6 +80,7 @@ Initial contract files:
 
 - `docs/TURBOQUANT_VEC.md`
 - `docs/TURBOQUANT_PHASE3_WORK.json`
+- `docs/TURBOQUANT_VEC_LAYOUT.md`
 
 ## Stop Conditions
 

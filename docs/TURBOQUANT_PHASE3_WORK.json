@@ -10,8 +10,8 @@
     },
     {
       "id": "p3_codebook",
-      "status": "pending",
-      "goal": "define fixed centroid table shape and sidecar payload layout"
+      "status": "complete",
+      "goal": "define fixed centroid table shape and sidecar payload layout in docs/TURBOQUANT_VEC_LAYOUT.md"
     },
     {
       "id": "p3_patch1",
@@ -32,6 +32,7 @@
   "references": [
     "docs/TURBOQUANT_PHASE3.md",
     "docs/TURBOQUANT_VEC.md",
-    "docs/TURBOQUANT_SCALAR_VALUE.json"
+    "docs/TURBOQUANT_SCALAR_VALUE.json",
+    "docs/TURBOQUANT_VEC_LAYOUT.md"
   ]
 }

@@ -188,6 +188,7 @@ Phase 3 planning files:
 - `docs/TURBOQUANT_PHASE3.md`
 - `docs/TURBOQUANT_VEC.md`
 - `docs/TURBOQUANT_PHASE3_WORK.json`
+- `docs/TURBOQUANT_VEC_LAYOUT.md`
 
 ### Phase 4: Read-Path Optimization
 
