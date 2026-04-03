@@ -225,6 +225,34 @@ Current decision:
 - throughput and byte-ratio value are now the primary gates for those paths
 - residual scalar should not receive more tuning time on this branch state
 
+## Current Scalar Baseline Decision
+
+The next comparison checkpoint reduces the viable scalar family to one preferred baseline.
+
+Artifact:
+
+- `docs/TURBOQUANT_SCALAR_COMPARE.json`
+
+Decision:
+
+- preferred scalar baseline: `projection`
+
+Why:
+
+- projection and grouped scalar both pass the full fixed `8k` suite under snapshot replay
+- projection is materially faster than grouped scalar on average decode throughput
+- grouped scalar has no compensating storage-structure advantage in the current prototype:
+  - same group size
+  - same codebook width
+  - same packed payload/scales layout
+- residual scalar remains a quality no-go
+
+Working interpretation:
+
+- use projection-assisted scalar as the current Phase 2 scalar reference
+- treat grouped scalar as a correctness control, not the forward baseline
+- do not spend further time on residual scalar in this branch state
+
 ## Output Artifacts
 
 Phase 2 should create:
