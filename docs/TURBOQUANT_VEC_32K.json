@@ -10,9 +10,9 @@
       "prompt_file": "docs/tq_prompts/smoke.txt",
       "context_target": 32768,
       "predict_n": 8,
-      "prompt_tokens_per_sec": 297.9,
-      "decode_tokens_per_sec": 80.5,
-      "wall_ms": 3100,
+      "prompt_tokens_per_sec": 293.4,
+      "decode_tokens_per_sec": 82.5,
+      "wall_ms": 2080,
       "quality_rule": "exact_OK",
       "passed": true,
       "response_text": "OK",
@@ -24,29 +24,13 @@
       "prompt_file": "docs/tq_prompts/smoke.txt",
       "context_target": 32768,
       "predict_n": 8,
-      "prompt_tokens_per_sec": 152.8,
-      "decode_tokens_per_sec": 48.4,
-      "wall_ms": 1560,
+      "prompt_tokens_per_sec": 49.6,
+      "decode_tokens_per_sec": 30.5,
+      "wall_ms": 2570,
       "quality_rule": "exact_OK",
       "passed": true,
       "response_text": "OK",
-      "turboquant_report": {
-        "layers": 128,
-        "raw": 5898240,
-        "sidecar": 124928,
-        "simulated": 124928,
-        "rows": 1440,
-        "bypassed": 0,
-        "evicted_rows": 0,
-        "evicted_bytes": 0,
-        "decode_calls": 0,
-        "decode_rows": 0,
-        "raw_ratio": 2.12,
-        "sim_ratio": 100.0,
-        "codecs": [
-          "vec"
-        ]
-      }
+      "turboquant_report": null
     },
     {
       "mode": "baseline",
@@ -54,9 +38,9 @@
       "prompt_file": "docs/tq_prompts/context_fill.txt",
       "context_target": 32768,
       "predict_n": 64,
-      "prompt_tokens_per_sec": 388.8,
-      "decode_tokens_per_sec": 34.9,
-      "wall_ms": 7610,
+      "prompt_tokens_per_sec": 587.1,
+      "decode_tokens_per_sec": 37.9,
+      "wall_ms": 5090,
       "quality_rule": "non_empty_summary",
       "passed": true,
       "response_text": "The archive contains 120 identical entries for a neutral project ledger entry for baseline context expansion.",
@@ -68,29 +52,13 @@
       "prompt_file": "docs/tq_prompts/context_fill.txt",
       "context_target": 32768,
       "predict_n": 64,
-      "prompt_tokens_per_sec": 194.6,
-      "decode_tokens_per_sec": 3.2,
-      "wall_ms": 17250,
+      "prompt_tokens_per_sec": 60.0,
+      "decode_tokens_per_sec": 9.7,
+      "wall_ms": 32320,
       "quality_rule": "non_empty_summary",
       "passed": true,
-      "response_text": "The archive contains 120 identical entries for a neutral project ledger entry for baseline context expansion.",
-      "turboquant_report": {
-        "layers": 768,
-        "raw": 229769216,
-        "sidecar": 3786752,
-        "simulated": 3786752,
-        "rows": 56096,
-        "bypassed": 0,
-        "evicted_rows": 0,
-        "evicted_bytes": 0,
-        "decode_calls": 0,
-        "decode_rows": 0,
-        "raw_ratio": 1.65,
-        "sim_ratio": 100.0,
-        "codecs": [
-          "vec"
-        ]
-      }
+      "response_text": "The archive contains 120 identical entries for neutral project ledger entries related to baseline context expansion.",
+      "turboquant_report": null
     },
     {
       "mode": "baseline",
@@ -98,9 +66,9 @@
       "prompt_file": "docs/tq_prompts/retrieval.txt",
       "context_target": 32768,
       "predict_n": 16,
-      "prompt_tokens_per_sec": 324.7,
-      "decode_tokens_per_sec": 32.6,
-      "wall_ms": 13170,
+      "prompt_tokens_per_sec": 563.3,
+      "decode_tokens_per_sec": 35.7,
+      "wall_ms": 7650,
       "quality_rule": "exact_TURBO-314159",
       "passed": true,
       "response_text": "TURBO-314159",
@@ -112,29 +80,13 @@
       "prompt_file": "docs/tq_prompts/retrieval.txt",
       "context_target": 32768,
       "predict_n": 16,
-      "prompt_tokens_per_sec": 190.5,
-      "decode_tokens_per_sec": 29.0,
-      "wall_ms": 20250,
+      "prompt_tokens_per_sec": 59.4,
+      "decode_tokens_per_sec": 6.9,
+      "wall_ms": 60490,
       "quality_rule": "exact_TURBO-314159",
       "passed": true,
       "response_text": "TURBO-314159",
-      "turboquant_report": {
-        "layers": 480,
-        "raw": 451936256,
-        "sidecar": 7184384,
-        "simulated": 7184384,
-        "rows": 110336,
-        "bypassed": 0,
-        "evicted_rows": 0,
-        "evicted_bytes": 0,
-        "decode_calls": 0,
-        "decode_rows": 0,
-        "raw_ratio": 1.59,
-        "sim_ratio": 100.0,
-        "codecs": [
-          "vec"
-        ]
-      }
+      "turboquant_report": null
     },
     {
       "mode": "baseline",
@@ -142,9 +94,9 @@
       "prompt_file": "docs/tq_prompts/instruct.txt",
       "context_target": 32768,
       "predict_n": 48,
-      "prompt_tokens_per_sec": 349.5,
-      "decode_tokens_per_sec": 28.1,
-      "wall_ms": 7640,
+      "prompt_tokens_per_sec": 578.0,
+      "decode_tokens_per_sec": 34.0,
+      "wall_ms": 6620,
       "quality_rule": "exact_JSON_contract",
       "passed": true,
       "response_text": "{\"status\": \"ready\", \"focus\": \"turboquant-baseline\", \"next_step\": \"phase2-v-cache\"}",
@@ -156,29 +108,13 @@
       "prompt_file": "docs/tq_prompts/instruct.txt",
       "context_target": 32768,
       "predict_n": 48,
-      "prompt_tokens_per_sec": 173.0,
-      "decode_tokens_per_sec": 1.5,
-      "wall_ms": 30910,
+      "prompt_tokens_per_sec": 59.7,
+      "decode_tokens_per_sec": 8.8,
+      "wall_ms": 34820,
       "quality_rule": "exact_JSON_contract",
       "passed": true,
       "response_text": "{\"status\": \"ready\", \"focus\": \"turboquant-baseline\", \"next_step\": \"phase2-v-cache\"}",
-      "turboquant_report": {
-        "layers": 1024,
-        "raw": 240123904,
-        "sidecar": 4014080,
-        "simulated": 4014080,
-        "rows": 58624,
-        "bypassed": 0,
-        "evicted_rows": 0,
-        "evicted_bytes": 0,
-        "decode_calls": 0,
-        "decode_rows": 0,
-        "raw_ratio": 1.67,
-        "sim_ratio": 100.0,
-        "codecs": [
-          "vec"
-        ]
-      }
+      "turboquant_report": null
     }
   ]
 }

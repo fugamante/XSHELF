@@ -47,6 +47,11 @@
       "id": "p3_bits6_baseline",
       "status": "complete",
       "goal": "promote 6-bit vec replay with small-kv bypass 256 as the current Phase 3 baseline"
+    },
+    {
+      "id": "p3_ladder_fix",
+      "status": "complete",
+      "goal": "re-run 16k and 32k on the corrected 6-bit vec baseline and replace provisional ladder readings"
     }
   ],
   "references": [
