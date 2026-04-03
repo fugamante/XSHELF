@@ -1,6 +1,6 @@
 {
   "phase": "phase3a",
-  "status": "active",
+  "status": "closed",
   "backend": "mlx",
   "baseline_reference": "vec_bits6_bypass256",
   "steps": [
@@ -31,7 +31,7 @@
     },
     {
       "id": "mlx_compare",
-      "status": "in_progress",
+      "status": "complete",
       "goal": "record the comparative decision against the closed llama.cpp vector result"
     }
   ],
@@ -45,5 +45,7 @@
     "docs/TURBOQUANT_PHASE3_CLOSE.json",
     "docs/TURBOQUANT_VEC_LADDER.json",
     "docs/TURBOQUANT_VEC_PROFILE.json"
-  ]
+  ],
+  "decision": "mlx_portable_go",
+  "close_artifact": "docs/TURBOQUANT_MLX_CLOSE.json"
 }

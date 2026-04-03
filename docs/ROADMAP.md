@@ -30,9 +30,9 @@
 - Current TurboQuant status:
   - Phase 2 scalar track closed as a value no-go
   - Phase 3 vector track closed as a value go
-  - active next step is comparative backend follow-through (`MLX`)
-  - `MLX` runtime is resolved and first `8k` parity pass is green
-  - `MLX` ladder is also green through `16k` and `32k`
+  - Phase 3A `MLX` comparative track is closed as `mlx_portable_go`
+  - `MLX` runtime is resolved and the ladder is green through `8k`, `16k`, and `32k`
+  - `MLX` comparison now records live `cache_nbytes` alongside peak memory
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
 ## Phase VI Kickoff (current)
