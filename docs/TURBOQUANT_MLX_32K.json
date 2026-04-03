@@ -1,0 +1,68 @@
+{
+  "contract_version": "turboquant-mlx.v1",
+  "backend": "mlx",
+  "python": "/tmp/cx_mlx_env/bin/python",
+  "model": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+  "context_target": 32768,
+  "runs": [
+    {
+      "mode": "mlx",
+      "prompt_name": "smoke",
+      "prompt_file": "docs/tq_prompts/smoke.txt",
+      "context_target": 32768,
+      "predict_n": 8,
+      "quality_rule": "exact_OK",
+      "passed": true,
+      "response_text": "OK",
+      "prompt_tokens_per_sec": 74.241,
+      "decode_tokens_per_sec": 381.491,
+      "peak_memory_gb": 1.917,
+      "wall_ms": 2997
+    },
+    {
+      "mode": "mlx",
+      "prompt_name": "context_fill",
+      "prompt_file": "docs/tq_prompts/context_fill.txt",
+      "context_target": 32768,
+      "predict_n": 64,
+      "quality_rule": "non_empty_summary",
+      "passed": true,
+      "response_text": "The archive contains 120 identical entries of a neutral project ledger entry for baseline context expansion.",
+      "prompt_tokens_per_sec": 895.421,
+      "decode_tokens_per_sec": 140.355,
+      "peak_memory_gb": 2.707,
+      "wall_ms": 4117
+    },
+    {
+      "mode": "mlx",
+      "prompt_name": "retrieval",
+      "prompt_file": "docs/tq_prompts/retrieval.txt",
+      "context_target": 32768,
+      "predict_n": 16,
+      "quality_rule": "exact_TURBO-314159",
+      "passed": true,
+      "response_text": "TURBO-314159",
+      "prompt_tokens_per_sec": 838.333,
+      "decode_tokens_per_sec": 73.949,
+      "peak_memory_gb": 2.96,
+      "wall_ms": 6370
+    },
+    {
+      "mode": "mlx",
+      "prompt_name": "instruct",
+      "prompt_file": "docs/tq_prompts/instruct.txt",
+      "context_target": 32768,
+      "predict_n": 48,
+      "quality_rule": "exact_JSON_contract",
+      "passed": true,
+      "response_text": "{\"status\": \"ready\", \"focus\": \"turboquant-baseline\", \"next_step\": \"phase2-v-cache\"}",
+      "prompt_tokens_per_sec": 859.621,
+      "decode_tokens_per_sec": 89.474,
+      "peak_memory_gb": 2.728,
+      "wall_ms": 4676
+    }
+  ],
+  "passes": 4,
+  "total": 4,
+  "metric_note": "peak_memory_gb is the current MLX memory proxy; raw_ratio is not yet available on this backend path"
+}
