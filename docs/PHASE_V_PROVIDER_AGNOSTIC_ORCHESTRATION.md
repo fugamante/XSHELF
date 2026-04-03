@@ -34,10 +34,12 @@ Evolve CX runtime orchestration from backend-specific execution paths into a pro
 - finalize provider capabilities contract (`jsonl_native`, `schema_strict`, `transport`)
 - complete HTTP adapter envelope normalization and structured error taxonomy
 - enforce parity invariants across `codex-cli`, `ollama-cli`, `http-curl`, and `mock` adapters
+- keep backend experiment claims outside the adapter contract unless the backend capability is explicitly typed and proven
 
 Acceptance:
 - adapter selection remains deterministic for the same inputs/config
 - schema commands remain deterministic and quarantine-backed under all adapters
+- experimental backend metrics are surfaced only through explicitly typed capability/telemetry fields
 
 ## B) Convergence Health Actions
 
@@ -86,3 +88,5 @@ Acceptance:
 - Telemetry contract drift/statistics surfaced with fixture-backed JSON contracts.
 - Mixed-mode queue/worker telemetry and fairness coverage expanded.
 - JSON diagnostics surfaces now expose explicit `contract_version` markers.
+- follow-on backend experiment rule is explicit:
+  - adapter transport and backend capability claims must remain separate concerns
