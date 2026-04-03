@@ -196,7 +196,8 @@ Current Phase 3 checkpoint:
 - slice 1 is compile-clean only
 - explicit vector codebook state is now resident per layer
 - deterministic `[16][8]` `fp16` centroid initialization is wired into the reset/init path
-- no vector execution path is active yet
+- slice 2 now adds compile-clean vector payload capture on the host-backed write path
+- vector mode remains capture-only until a read-side decoder exists
 
 ### Phase 4: Read-Path Optimization
 

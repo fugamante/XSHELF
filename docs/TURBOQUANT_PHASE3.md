@@ -104,6 +104,28 @@ What slice 1 does not add:
 - no runtime path switch away from the closed scalar baseline
 - no value claim yet
 
+Phase 3 slice 2 is now in place:
+
+- patch artifact: `patches/tq_p3_slice2.patch`
+- backend target: pinned `llama.cpp` analysis checkout
+- status: compile-clean vector capture only
+
+What slice 2 adds:
+
+- `vec` codec-mode parsing in the analysis checkout
+- deterministic nearest-centroid scoring against the fixed per-layer codebook
+- packed vector payload capture into explicit `vec_payload` storage
+- vector byte accounting for:
+  - payload bytes
+  - codebook bytes
+- explicit guard in `get_v()` so vector mode remains capture-only until a decoder exists
+
+What slice 2 does not add:
+
+- no vector snapshot decode
+- no fixed `8k` validation artifact yet
+- no value comparison yet
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -130,6 +152,6 @@ Reason:
 
 Implement the first executable vector slice only:
 
-1. write fixed vector payload rows on the host-backed `V` path
-2. keep snapshot replay as the correctness baseline
-3. validate on the fixed `8k` suite before any value comparison
+1. add the first vector snapshot decoder on the host-backed `V` path
+2. validate it on the fixed `8k` suite under snapshot replay
+3. only then compare runtime/value against the scalar reference

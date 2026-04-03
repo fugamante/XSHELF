@@ -33,6 +33,7 @@
     "docs/TURBOQUANT_PHASE3.md",
     "docs/TURBOQUANT_VEC.md",
     "docs/TURBOQUANT_SCALAR_VALUE.json",
-    "docs/TURBOQUANT_VEC_LAYOUT.md"
+    "docs/TURBOQUANT_VEC_LAYOUT.md",
+    "patches/tq_p3_slice2.patch"
   ]
 }
