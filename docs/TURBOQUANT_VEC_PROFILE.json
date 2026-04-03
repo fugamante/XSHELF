@@ -1,5 +1,5 @@
 {
-  "contract_version": "turboquant-vec-profile.v2",
+  "contract_version": "turboquant-vec-profile.v4",
   "variant": "bits6_bypass256",
   "contexts": [
     {
@@ -14,16 +14,16 @@
       "context_target": 16384,
       "passes": 4,
       "total": 4,
-      "decode_tps_mean": 9.35,
-      "wall_ms_mean": 42380,
+      "decode_tps_mean": 21.3,
+      "wall_ms_mean": 9632.5,
       "raw_ratio_mean": 6.23
     },
     {
       "context_target": 32768,
       "passes": 4,
       "total": 4,
-      "decode_tps_mean": 13.78,
-      "wall_ms_mean": 32030,
+      "decode_tps_mean": 19.05,
+      "wall_ms_mean": 10267.5,
       "raw_ratio_mean": 6.23
     }
   ],
@@ -41,8 +41,8 @@
       },
       {
         "context_target": 16384,
-        "decode_tps": 16.9,
-        "wall_ms": 3080,
+        "decode_tps": 48.9,
+        "wall_ms": 1570,
         "raw_ratio": 12.01,
         "read_layers": 32,
         "read_calls": 32,
@@ -51,8 +51,8 @@
       },
       {
         "context_target": 32768,
-        "decode_tps": 29.3,
-        "wall_ms": 2580,
+        "decode_tps": 43.5,
+        "wall_ms": 2080,
         "raw_ratio": 12.01,
         "read_layers": 32,
         "read_calls": 32,
@@ -73,8 +73,8 @@
       },
       {
         "context_target": 16384,
-        "decode_tps": 4.9,
-        "wall_ms": 69650,
+        "decode_tps": 13.9,
+        "wall_ms": 9630,
         "raw_ratio": 4.49,
         "read_layers": 672,
         "read_calls": 5568,
@@ -83,8 +83,8 @@
       },
       {
         "context_target": 32768,
-        "decode_tps": 10.1,
-        "wall_ms": 32280,
+        "decode_tps": 10.4,
+        "wall_ms": 10630,
         "raw_ratio": 4.49,
         "read_layers": 672,
         "read_calls": 5568,
@@ -105,8 +105,8 @@
       },
       {
         "context_target": 16384,
-        "decode_tps": 6.9,
-        "wall_ms": 61500,
+        "decode_tps": 10.7,
+        "wall_ms": 16190,
         "raw_ratio": 3.56,
         "read_layers": 384,
         "read_calls": 864,
@@ -115,8 +115,8 @@
       },
       {
         "context_target": 32768,
-        "decode_tps": 7.3,
-        "wall_ms": 58960,
+        "decode_tps": 10.5,
+        "wall_ms": 16700,
         "raw_ratio": 3.56,
         "read_layers": 384,
         "read_calls": 864,
@@ -137,8 +137,8 @@
       },
       {
         "context_target": 16384,
-        "decode_tps": 8.7,
-        "wall_ms": 35290,
+        "decode_tps": 11.7,
+        "wall_ms": 11140,
         "raw_ratio": 4.87,
         "read_layers": 928,
         "read_calls": 11328,
@@ -147,8 +147,8 @@
       },
       {
         "context_target": 32768,
-        "decode_tps": 8.4,
-        "wall_ms": 34300,
+        "decode_tps": 11.8,
+        "wall_ms": 11660,
         "raw_ratio": 4.87,
         "read_layers": 928,
         "read_calls": 11328,
