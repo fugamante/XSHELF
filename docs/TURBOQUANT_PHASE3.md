@@ -1,7 +1,7 @@
 # TurboQuant Phase 3 Representation Spike
 
 Branch: `cx/turboquant-spike`
-Status: planned
+Status: in progress
 Scope: new representation-class experiment after Phase 2 scalar closeout
 
 ## Why Phase 3 Exists
@@ -82,6 +82,28 @@ Initial contract files:
 - `docs/TURBOQUANT_PHASE3_WORK.json`
 - `docs/TURBOQUANT_VEC_LAYOUT.md`
 
+## Current Checkpoint
+
+Phase 3 slice 1 is now in place:
+
+- patch artifact: `patches/tq_p3_slice1.patch`
+- backend target: pinned `llama.cpp` analysis checkout
+- status: compile-clean scaffold only
+
+What slice 1 adds:
+
+- explicit vector codebook state per layer
+- deterministic `fp16` centroid residency for a fixed `[16][8]` codebook
+- explicit vector payload/codebook byte counters in TurboQuant layer state
+- reset/init wiring so the codebook exists before any vector read/write slice
+
+What slice 1 does not add:
+
+- no vector write-side encoding
+- no vector read-side decode
+- no runtime path switch away from the closed scalar baseline
+- no value claim yet
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -106,8 +128,8 @@ Reason:
 
 ## Immediate Next Step
 
-Implement the first narrow design step only:
+Implement the first executable vector slice only:
 
-1. define fixed centroid table shape and sidecar payload layout
-2. export that as the first Phase 3 patch-plan checkpoint
-3. do not touch read/write kernels until the storage contract is pinned
+1. write fixed vector payload rows on the host-backed `V` path
+2. keep snapshot replay as the correctness baseline
+3. validate on the fixed `8k` suite before any value comparison

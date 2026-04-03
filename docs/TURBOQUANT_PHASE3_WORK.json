@@ -15,7 +15,7 @@
     },
     {
       "id": "p3_patch1",
-      "status": "pending",
+      "status": "complete",
       "goal": "add compile-clean vector codebook scaffold on the host-backed V path"
     },
     {
