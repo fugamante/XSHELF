@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` ready)
+Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` closed, `Phase 3` pending)
 Owner: CX runtime
 
 ## Objective
@@ -156,15 +156,32 @@ Execution contract:
 - the first codec contract is pinned in `docs/TURBOQUANT_CODEC.md`
 - the first function-level work sequence is pinned in `docs/TURBOQUANT_PATCH.md`
 
+Completion notes:
+- Phase 2 has answered the scalar-family feasibility question.
+- Under snapshot-backed replay, correctness can be restored for:
+  - grouped scalar
+  - projection-assisted scalar
+- Residual scalar remains a quality no-go.
+- Report-backed value checks show the viable scalar modes reduce sidecar storage to `26.56%` of raw on the validated host path.
+- That same path collapses decode throughput to roughly `~2.7 t/s` and raises wall time to roughly triple baseline on the fixed `8k` suite.
+- Phase 2 is therefore closed as:
+  - `scalar correctness: yes`
+  - `scalar operational value: no`
+- No deeper scalar-path work is recommended on this branch state.
+
 ### Phase 3: Full KV Prototype
 
 Tasks:
-- quantize both K and V
-- add per-layer/per-head toggles
-- compare against baseline and simple cache quantization
+- begin a new representation-class experiment rather than extending scalar quantization
+- keep scope to `V`-side first until the new representation shows better value than the closed scalar track
+- compare new representation against:
+  - baseline
+  - projection-assisted scalar reference
+- only consider `K` work after the new representation clears both correctness and value gates
 
 Acceptance:
 - stable long-context quality within agreed threshold
+- materially better runtime/value tradeoff than the closed scalar track
 
 ### Phase 4: Read-Path Optimization
 
@@ -230,6 +247,6 @@ Acceptance:
 
 ## Immediate Next Actions
 
-1. Define Phase 1 baseline benchmark harness.
-2. Select first local model/config for long-context measurement.
-3. Add baseline artifact templates for Markdown + JSON outputs.
+1. Close Phase 2 in the branch record as a scalar value no-go.
+2. Define the first non-scalar representation-class experiment for Phase 3.
+3. Keep `MLX` and `vLLM` work out of scope until the next representation clears local `llama.cpp` value gates.
