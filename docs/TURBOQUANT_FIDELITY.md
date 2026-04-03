@@ -255,3 +255,53 @@ Current conclusion:
 - do not attempt raw-`V` shrinkage from this state
 - do not spend more time on scalar codec tuning from this state
 - the next meaningful work must explain or eliminate the residual path sensitivity before deeper TurboQuant-style vector/codebook work is justified
+
+## Snapshot Outcome
+
+The next isolation checkpoint has now identified the Phase 2 read-path fault more precisely.
+
+Artifacts:
+
+- `patches/tq_p2_slice17.patch`
+- `docs/TURBOQUANT_SNAPSHOT.json`
+
+What changed:
+
+- the sidecar ceiling path now captures cache-type payload semantics instead of pre-cache tensor semantics
+- the read path can force:
+  - identity read
+  - loop-copy from `src`
+  - snapshot-backed sidecar replay
+
+What it proved:
+
+1. `identity read + no write capture`: pass
+2. `identity read + write capture`: pass
+3. `loop-copy read`: pass
+4. `snapshot-backed sidecar replay`: pass
+
+Meaning:
+
+- the generic custom-op execution path is semantically neutral
+- the write-side capture path is semantically neutral
+- the sidecar replay loop shape is semantically neutral
+- the remaining failing surface was mutable shared sidecar state being consumed across generation steps
+
+Current interpretation:
+
+- the earlier Phase 2 “no-go” was too broad
+- the failure was not inherent to sidecar replay as a concept
+- it was a correctness bug in how read-side replay consumed mutable shared state
+
+New boundary:
+
+- scalar/residual/projection codecs remain recorded quality no-gos
+- but the high-fidelity ceiling path is now a confirmed `go` when replay uses a per-read snapshot of sidecar state
+
+This is the first Phase 2 result that restores:
+
+- exact `smoke`
+- exact `retrieval`
+- exact strict JSON `instruct`
+
+on the fixed validation suite under the host-backed path.
