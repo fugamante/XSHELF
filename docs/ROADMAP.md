@@ -33,6 +33,7 @@
   - Phase 3A `MLX` comparative track is closed as `mlx_portable_go`
   - `MLX` runtime is resolved and the ladder is green through `8k`, `16k`, and `32k`
   - `MLX` comparison now records live `cache_nbytes` alongside peak memory
+  - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
 ## Phase VI Kickoff (current)

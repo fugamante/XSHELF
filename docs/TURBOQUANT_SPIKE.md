@@ -274,6 +274,28 @@ Current Phase 3A checkpoint:
 - next action:
   - either freeze the MLX track here or open MLX-specific hardening as a fresh follow-on
 
+### Phase 3B: `MLX` Capability Follow-On
+
+Tasks:
+- normalize the `MLX` metric story against the `llama.cpp` vector reference
+- define the CX-facing backend capability contract for `MLX`
+- decide whether `MLX` remains comparative-only or advances to a codec-bearing experiment
+
+Planning files:
+
+- `docs/TURBOQUANT_MLX_HARDEN.md`
+- `docs/TURBOQUANT_MLX_PLAN.json`
+
+Current Phase 3B checkpoint:
+
+- closed
+- branch:
+  - `cx/tq-mlx-followon`
+- goal:
+  - capability integration and decision hygiene, not backend-kernel churn
+- decision:
+  - `mlx_comparative_only`
+
 ## Risks
 
 1. Wrong layer
