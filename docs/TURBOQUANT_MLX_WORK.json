@@ -11,22 +11,22 @@
     },
     {
       "id": "mlx_runtime",
-      "status": "pending",
+      "status": "complete",
       "goal": "identify the practical local MLX runtime entrypoint and compatible model surface"
     },
     {
       "id": "mlx_metrics",
-      "status": "pending",
+      "status": "complete",
       "goal": "define memory and runtime fields that can be compared honestly with the llama.cpp vector ladder"
     },
     {
       "id": "mlx_parity_8k",
-      "status": "pending",
+      "status": "complete",
       "goal": "run the first 8k parity pass on the fixed prompt set"
     },
     {
       "id": "mlx_ladder",
-      "status": "pending",
+      "status": "in_progress",
       "goal": "capture the 8k/16k/32k MLX ladder in a matching artifact shape"
     },
     {
@@ -37,6 +37,7 @@
   ],
   "references": [
     "docs/TURBOQUANT_MLX.md",
+    "docs/TURBOQUANT_MLX_8K.json",
     "docs/TURBOQUANT_PHASE3_CLOSE.json",
     "docs/TURBOQUANT_VEC_LADDER.json",
     "docs/TURBOQUANT_VEC_PROFILE.json"
