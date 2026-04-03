@@ -203,7 +203,124 @@ fn print_version_preferences() {
     );
 }
 
-pub fn print_version(app_name: &str, app_version: &str) {
+fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
+    let cwd = env::current_dir()
+        .ok()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "<unknown>".to_string());
+    let cfg = app_config();
+    let source = env::var("CX_SOURCE_LOCATION").unwrap_or_else(|_| "standalone:cxrs".to_string());
+    let execution_path = env::var("CX_EXECUTION_PATH").unwrap_or_else(|_| "rust".to_string());
+    let log_file = resolve_log_file()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "<unresolved>".to_string());
+    let state_file = resolve_state_file()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "<unresolved>".to_string());
+    let quarantine_dir = resolve_quarantine_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "<unresolved>".to_string());
+    let backend = llm_backend();
+    let model = llm_model();
+    let active_model = if model.is_empty() {
+        "<unset>".to_string()
+    } else {
+        model
+    };
+    let caps = current_provider_capabilities()
+        .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
+    let provider_status = selected_provider_status_kind().as_str();
+    let experiment_caps = selected_tq_caps();
+    let native_reduce = env::var("CX_NATIVE_REDUCE").unwrap_or_else(|_| "1".to_string());
+    let prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE").unwrap_or_else(|_| "1".to_string());
+    let mut provider = json!({
+        "adapter": selected_adapter_name(),
+        "transport": caps.transport,
+        "status": provider_status,
+        "jsonl_native": caps.jsonl_native,
+        "schema_strict": caps.schema_strict,
+    });
+    if caps.transport == "http" {
+        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
+            .ok()
+            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
+            .unwrap_or(true);
+        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
+            .ok()
+            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
+            .unwrap_or(true);
+        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "<any>".to_string());
+        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        provider["http_provider_format"] = json!(selected_http_provider_format());
+        provider["http_require_https"] = json!(require_https);
+        provider["http_allow_local_http"] = json!(allow_local_http);
+        provider["http_allowed_hosts"] = json!(allowed_hosts);
+        provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
+    }
+
+    json!({
+        "contract_version": "version.v1",
+        "name": app_name,
+        "version": toolchain_version_string(app_version),
+        "cwd": cwd,
+        "execution_path": execution_path,
+        "source": source,
+        "paths": {
+            "log_file": log_file,
+            "state_file": state_file,
+            "quarantine_dir": quarantine_dir,
+        },
+        "runtime": {
+            "mode": cfg.cx_mode,
+            "backend": backend,
+            "active_model": active_model,
+            "schema_relaxed": cfg.schema_relaxed,
+        },
+        "provider": provider,
+        "backend_capabilities": {
+            "turboquant": {
+                "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                "selected_backend_role": experiment_caps.turboquant_backend_role,
+                "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+            }
+        },
+        "capture": {
+            "provider": cfg.capture_provider,
+            "native_reduce": native_reduce,
+            "prefer_native": prefer_native,
+            "external_dependencies": "none",
+        },
+        "budget": {
+            "chars": cfg.budget_chars,
+            "lines": cfg.budget_lines,
+            "clip_mode": cfg.clip_mode,
+        },
+        "cmd_timeout_secs": cfg.cmd_timeout_secs,
+        "state_preferences": {
+            "conventional_commits": state_pref("preferences.conventional_commits"),
+            "pr_summary_format": state_pref("preferences.pr_summary_format"),
+        },
+    })
+}
+
+pub fn print_version(app_name: &str, app_version: &str, args: &[String]) {
+    let json_out = args.iter().any(|a| a == "--json");
+    if json_out {
+        let payload = version_payload(app_name, app_version);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).unwrap_or_else(|_| payload.to_string())
+        );
+        return;
+    }
+
     let cwd = env::current_dir()
         .ok()
         .map(|p| p.display().to_string())
@@ -237,6 +354,19 @@ pub fn print_version(app_name: &str, app_version: &str) {
     let prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE").unwrap_or_else(|_| "1".to_string());
     print_version_capture(&cfg.capture_provider, &native_reduce, &prefer_native);
 
+    let experiment_caps = selected_tq_caps();
+    println!(
+        "backend_capability.turboquant_runtime_support: {}",
+        experiment_caps.turboquant_runtime_support
+    );
+    println!(
+        "backend_capability.turboquant_backend_role: {}",
+        experiment_caps.turboquant_backend_role
+    );
+    println!(
+        "backend_capability.turboquant_metric_kind: {}",
+        experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
     println!("budget_chars: {}", cfg.budget_chars);
     println!("budget_lines: {}", cfg.budget_lines);
     println!("cmd_timeout_secs: {}", cfg.cmd_timeout_secs);

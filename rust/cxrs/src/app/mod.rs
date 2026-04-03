@@ -197,8 +197,8 @@ fn cmd_replay(id: &str) -> i32 {
     structured_cmds::cmd_replay(id, crate::execution::run_llm_jsonl)
 }
 
-fn compat_print_version() {
-    introspect_print_version(APP_NAME, APP_VERSION);
+fn compat_print_version(args: &[String]) {
+    introspect_print_version(APP_NAME, APP_VERSION, args);
 }
 
 fn compat_cmd_where(args: &[String]) -> i32 {
@@ -249,8 +249,8 @@ fn cmd_cx_compat(args: &[String]) -> i32 {
     compat_cmd::handler(&cmd_ctx(), args, &deps::compat_deps())
 }
 
-fn native_print_version() {
-    introspect_print_version(APP_NAME, APP_VERSION);
+fn native_print_version(args: &[String]) {
+    introspect_print_version(APP_NAME, APP_VERSION, args);
 }
 
 fn native_cmd_schema(args: &[String]) -> i32 {

@@ -138,7 +138,7 @@ fn dispatch_meta_commands(
             EXIT_OK
         }
         "cxversion" | "version" => {
-            (deps.print_version)();
+            (deps.print_version)(&args[1..]);
             EXIT_OK
         }
         "cxdoctor" | "doctor" => (deps.cmd_doctor)(),

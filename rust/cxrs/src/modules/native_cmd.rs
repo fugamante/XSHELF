@@ -4,7 +4,7 @@ mod native_dispatch;
 pub struct NativeDeps {
     pub print_help: fn(),
     pub print_task_help: fn(),
-    pub print_version: fn(),
+    pub print_version: fn(&[String]),
     pub cmd_schema: fn(&[String]) -> i32,
     pub cmd_logs: fn(&[String]) -> i32,
     pub cmd_ci: fn(&[String]) -> i32,
