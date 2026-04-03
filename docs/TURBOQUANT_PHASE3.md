@@ -186,6 +186,46 @@ Reason:
 - it materially beats the scalar reference on storage ratio
 - the representation-class change is justified by measured value, not only by correctness
 
+## Context Ladder
+
+Artifact:
+
+- `docs/TURBOQUANT_VEC_LADDER.json`
+
+Observed ladder:
+
+- `8k`
+  - passes: `4/4`
+  - mean decode throughput: `30.6 t/s`
+  - mean raw ratio: `1.76%`
+- `16k`
+  - passes: `4/4`
+  - mean decode throughput: `12.55 t/s`
+  - mean raw ratio: `1.76%`
+- `32k`
+  - passes: `4/4`
+  - mean decode throughput: `20.52 t/s`
+  - mean raw ratio: `1.76%`
+
+Important reading:
+
+- correctness holds across the fixed suite at `8k`, `16k`, and `32k`
+- storage ratio stays stable across the ladder
+- decode behavior becomes prompt-sensitive at longer contexts:
+  - `smoke` remains fast
+  - `instruct` remains the weakest path
+  - `context_fill` also degrades sharply at longer contexts
+
+Current branch decision:
+
+- `harden_current_vector_path`
+
+Reason:
+
+- the vector representation is already a correctness and storage win
+- the next risk is runtime behavior by prompt shape, not representation viability
+- opening a second vector/codebook variant now would blur the diagnosis
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -212,6 +252,6 @@ Reason:
 
 Implement the first executable vector slice only:
 
-1. extend the vector checkpoint beyond the first `8k` suite
-2. decide whether to harden this path or open a second vector/codebook variant
+1. profile prompt-type-specific decode collapse on the current vector path
+2. harden the current vector path before opening any second variant
 3. only after that consider broader backend or `MLX` follow-through
