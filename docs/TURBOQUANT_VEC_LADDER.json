@@ -1,0 +1,106 @@
+{
+  "contract_version": "turboquant-vec-ladder.v1",
+  "contexts": [
+    {
+      "context_target": 8192,
+      "passes": 4,
+      "total": 4,
+      "mean_baseline_decode_tps": 45.45,
+      "mean_turboquant_decode_tps": 30.6,
+      "mean_baseline_wall_ms": 4840.0,
+      "mean_turboquant_wall_ms": 6707.5,
+      "mean_raw_ratio": 1.76,
+      "mean_bytes_saved_pct": 98.24,
+      "prompt_results": {
+        "smoke": {
+          "passed": true,
+          "decode_tps": 33.2,
+          "wall_ms": 1610
+        },
+        "context_fill": {
+          "passed": true,
+          "decode_tps": 31.4,
+          "wall_ms": 6920
+        },
+        "retrieval": {
+          "passed": true,
+          "decode_tps": 27.5,
+          "wall_ms": 11170
+        },
+        "instruct": {
+          "passed": true,
+          "decode_tps": 30.3,
+          "wall_ms": 7130
+        }
+      }
+    },
+    {
+      "context_target": 16384,
+      "passes": 4,
+      "total": 4,
+      "mean_baseline_decode_tps": 22.78,
+      "mean_turboquant_decode_tps": 12.55,
+      "mean_baseline_wall_ms": 7747.5,
+      "mean_turboquant_wall_ms": 17632.5,
+      "mean_raw_ratio": 1.76,
+      "mean_bytes_saved_pct": 98.24,
+      "prompt_results": {
+        "smoke": {
+          "passed": true,
+          "decode_tps": 40.5,
+          "wall_ms": 1590
+        },
+        "context_fill": {
+          "passed": true,
+          "decode_tps": 2.5,
+          "wall_ms": 17760
+        },
+        "retrieval": {
+          "passed": true,
+          "decode_tps": 5.7,
+          "wall_ms": 20270
+        },
+        "instruct": {
+          "passed": true,
+          "decode_tps": 1.5,
+          "wall_ms": 30910
+        }
+      }
+    },
+    {
+      "context_target": 32768,
+      "passes": 4,
+      "total": 4,
+      "mean_baseline_decode_tps": 44.02,
+      "mean_turboquant_decode_tps": 20.52,
+      "mean_baseline_wall_ms": 7880.0,
+      "mean_turboquant_wall_ms": 17492.5,
+      "mean_raw_ratio": 1.76,
+      "mean_bytes_saved_pct": 98.24,
+      "prompt_results": {
+        "smoke": {
+          "passed": true,
+          "decode_tps": 48.4,
+          "wall_ms": 1560
+        },
+        "context_fill": {
+          "passed": true,
+          "decode_tps": 3.2,
+          "wall_ms": 17250
+        },
+        "retrieval": {
+          "passed": true,
+          "decode_tps": 29.0,
+          "wall_ms": 20250
+        },
+        "instruct": {
+          "passed": true,
+          "decode_tps": 1.5,
+          "wall_ms": 30910
+        }
+      }
+    }
+  ],
+  "decision": "harden_current_vector_path",
+  "reason": "Vector replay passes the fixed suite at 8k, 16k, and 32k with stable ~1.6%-2.1% raw ratio. The next priority is to harden the current vector path and profile prompt-type-specific decode collapse before opening a second vector variant."
+}

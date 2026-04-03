@@ -113,6 +113,13 @@ Current value checkpoint:
 - mean raw ratio: `1.76%`
 - current decision: `vector_go`
 
+Current ladder checkpoint:
+
+- `docs/TURBOQUANT_VEC_LADDER.json`
+- correctness holds at `8k`, `16k`, and `32k`
+- storage ratio stays stable across the ladder
+- next work should harden the current path rather than open a second vector variant
+
 ## Success Gates
 
 `tq_v1_vec` is a Phase 3 `go` only if all hold:

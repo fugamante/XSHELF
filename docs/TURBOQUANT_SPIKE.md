@@ -199,6 +199,7 @@ Current Phase 3 checkpoint:
 - slice 2 now adds compile-clean vector payload capture on the host-backed write path
 - slice 3 now adds vector snapshot replay and passes the fixed `8k` suite
 - value is now judged as a `vector_go` against the closed scalar reference
+- the ladder now holds at `16k` and `32k`; next step is hardening, not a second vector family
 
 ### Phase 4: Read-Path Optimization
 

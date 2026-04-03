@@ -37,6 +37,9 @@
     "patches/tq_p3_slice2.patch",
     "docs/TURBOQUANT_VEC_CHECK.json",
     "patches/tq_p3_slice3.patch",
-    "docs/TURBOQUANT_VEC_VALUE.json"
+    "docs/TURBOQUANT_VEC_VALUE.json",
+    "docs/TURBOQUANT_VEC_16K.json",
+    "docs/TURBOQUANT_VEC_32K.json",
+    "docs/TURBOQUANT_VEC_LADDER.json"
   ]
 }
