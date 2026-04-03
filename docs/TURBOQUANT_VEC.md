@@ -120,6 +120,11 @@ Current ladder checkpoint:
 - storage ratio stays stable across the ladder
 - next work should harden the current path rather than open a second vector variant
 
+Current profiling/hardening artifacts:
+
+- `docs/TURBOQUANT_VEC_PROFILE.json`
+- `docs/TURBOQUANT_HARDEN.md`
+
 ## Success Gates
 
 `tq_v1_vec` is a Phase 3 `go` only if all hold:

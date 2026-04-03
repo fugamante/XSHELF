@@ -1,0 +1,121 @@
+{
+  "contract_version": "turboquant-vec-profile.v1",
+  "profiles": {
+    "smoke": {
+      "contexts": [
+        {
+          "context_target": 8192,
+          "passed": true,
+          "decode_tps": 33.2,
+          "wall_ms": 1610
+        },
+        {
+          "context_target": 16384,
+          "passed": true,
+          "decode_tps": 40.5,
+          "wall_ms": 1590
+        },
+        {
+          "context_target": 32768,
+          "passed": true,
+          "decode_tps": 48.4,
+          "wall_ms": 1560
+        }
+      ],
+      "min_decode_tps": 33.2,
+      "max_wall_ms": 1610,
+      "risk": "stable"
+    },
+    "context_fill": {
+      "contexts": [
+        {
+          "context_target": 8192,
+          "passed": true,
+          "decode_tps": 31.4,
+          "wall_ms": 6920
+        },
+        {
+          "context_target": 16384,
+          "passed": true,
+          "decode_tps": 2.5,
+          "wall_ms": 17760
+        },
+        {
+          "context_target": 32768,
+          "passed": true,
+          "decode_tps": 3.2,
+          "wall_ms": 17250
+        }
+      ],
+      "min_decode_tps": 2.5,
+      "max_wall_ms": 17760,
+      "risk": "high"
+    },
+    "retrieval": {
+      "contexts": [
+        {
+          "context_target": 8192,
+          "passed": true,
+          "decode_tps": 27.5,
+          "wall_ms": 11170
+        },
+        {
+          "context_target": 16384,
+          "passed": true,
+          "decode_tps": 5.7,
+          "wall_ms": 20270
+        },
+        {
+          "context_target": 32768,
+          "passed": true,
+          "decode_tps": 29.0,
+          "wall_ms": 20250
+        }
+      ],
+      "min_decode_tps": 5.7,
+      "max_wall_ms": 20270,
+      "risk": "high"
+    },
+    "instruct": {
+      "contexts": [
+        {
+          "context_target": 8192,
+          "passed": true,
+          "decode_tps": 30.3,
+          "wall_ms": 7130
+        },
+        {
+          "context_target": 16384,
+          "passed": true,
+          "decode_tps": 1.5,
+          "wall_ms": 30910
+        },
+        {
+          "context_target": 32768,
+          "passed": true,
+          "decode_tps": 1.5,
+          "wall_ms": 30910
+        }
+      ],
+      "min_decode_tps": 1.5,
+      "max_wall_ms": 30910,
+      "risk": "critical"
+    }
+  },
+  "hotspots": [
+    {
+      "prompt_name": "context_fill",
+      "risk": "high"
+    },
+    {
+      "prompt_name": "retrieval",
+      "risk": "high"
+    },
+    {
+      "prompt_name": "instruct",
+      "risk": "critical"
+    }
+  ],
+  "decision": "profile_before_second_variant",
+  "reason": "Instruct and context_fill are the dominant long-context runtime hotspots; the current vector path should be hardened before exploring another vector/codebook family."
+}

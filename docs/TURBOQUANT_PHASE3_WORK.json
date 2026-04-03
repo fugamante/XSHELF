@@ -40,6 +40,8 @@
     "docs/TURBOQUANT_VEC_VALUE.json",
     "docs/TURBOQUANT_VEC_16K.json",
     "docs/TURBOQUANT_VEC_32K.json",
-    "docs/TURBOQUANT_VEC_LADDER.json"
+    "docs/TURBOQUANT_VEC_LADDER.json",
+    "docs/TURBOQUANT_VEC_PROFILE.json",
+    "docs/TURBOQUANT_HARDEN.md"
   ]
 }
