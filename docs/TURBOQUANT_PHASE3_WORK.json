@@ -1,0 +1,37 @@
+{
+  "phase": "phase3",
+  "status": "planned",
+  "representation": "tq_v1_vec",
+  "steps": [
+    {
+      "id": "p3_contract",
+      "status": "complete",
+      "goal": "lock first vector/codebook contract and success gates"
+    },
+    {
+      "id": "p3_codebook",
+      "status": "pending",
+      "goal": "define fixed centroid table shape and sidecar payload layout"
+    },
+    {
+      "id": "p3_patch1",
+      "status": "pending",
+      "goal": "add compile-clean vector codebook scaffold on the host-backed V path"
+    },
+    {
+      "id": "p3_validate",
+      "status": "pending",
+      "goal": "run fixed 8k validation suite against vector prototype under snapshot replay"
+    },
+    {
+      "id": "p3_value",
+      "status": "pending",
+      "goal": "compare vector runtime/value against scalar reference"
+    }
+  ],
+  "references": [
+    "docs/TURBOQUANT_PHASE3.md",
+    "docs/TURBOQUANT_VEC.md",
+    "docs/TURBOQUANT_SCALAR_VALUE.json"
+  ]
+}
