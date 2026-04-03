@@ -126,6 +126,34 @@ What slice 2 does not add:
 - no fixed `8k` validation artifact yet
 - no value comparison yet
 
+Phase 3 slice 3 is now in place:
+
+- patch artifact: `patches/tq_p3_slice3.patch`
+- validation artifact: `docs/TURBOQUANT_VEC_CHECK.json`
+- status: first vector snapshot decoder validated at `8k`
+
+What slice 3 adds:
+
+- vector snapshot replay on the host-backed `V` path
+- fixed `8k` suite validation under:
+  - `LLAMA_TQ_CODEC_MODE=vec`
+  - `LLAMA_TQ_SNAPSHOT_READ=1`
+  - `--flash-attn on`
+  - `--no-kv-offload`
+
+Observed checkpoint:
+
+- `smoke`: pass
+- `context_fill`: pass
+- `retrieval`: pass
+- `instruct`: pass
+- reported sidecar ratio on the validated `8k` runs: roughly `1.6%` to `2.1%` of raw
+
+What slice 3 does not decide yet:
+
+- no value verdict versus the closed scalar reference yet
+- no production-worthiness claim
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -152,6 +180,6 @@ Reason:
 
 Implement the first executable vector slice only:
 
-1. add the first vector snapshot decoder on the host-backed `V` path
-2. validate it on the fixed `8k` suite under snapshot replay
-3. only then compare runtime/value against the scalar reference
+1. compare vector runtime/value against the scalar reference
+2. decide whether the vector path is a true Phase 3 `go`
+3. only after that consider deeper representation work

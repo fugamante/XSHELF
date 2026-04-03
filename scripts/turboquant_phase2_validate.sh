@@ -51,6 +51,7 @@ report_re = re.compile(
     r"bypassed=(?P<bypassed>\d+)"
     r"(?: evicted_rows=(?P<evicted_rows>\d+) evicted_bytes=(?P<evicted_bytes>\d+) "
     r"decode_calls=(?P<decode_calls>\d+) decode_rows=(?P<decode_rows>\d+))?"
+    r"(?: codec=(?P<codec>[a-z_]+))?"
 )
 for match in report_re.finditer(stderr_text):
     gd = match.groupdict()
@@ -63,6 +64,7 @@ for match in report_re.finditer(stderr_text):
         "raw_ratio": float(gd["raw_ratio"]),
         "sim_ratio": float(gd["sim_ratio"]),
         "bypassed": int(gd["bypassed"]),
+        "codec": gd.get("codec"),
         "evicted_rows": None if gd.get("evicted_rows") is None else int(gd["evicted_rows"]),
         "evicted_bytes": None if gd.get("evicted_bytes") is None else int(gd["evicted_bytes"]),
         "decode_calls": None if gd.get("decode_calls") is None else int(gd["decode_calls"]),
@@ -85,6 +87,8 @@ if report_rows:
     }
     totals["raw_ratio"] = None if totals["raw"] == 0 else round(100.0 * totals["sidecar"] / totals["raw"], 2)
     totals["sim_ratio"] = None if totals["simulated"] == 0 else round(100.0 * totals["sidecar"] / totals["simulated"], 2)
+    codecs = sorted({r["codec"] for r in report_rows if r.get("codec")})
+    totals["codecs"] = codecs
     report_summary = totals
 
 response = stdout_text
