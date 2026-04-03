@@ -43,6 +43,50 @@ prompt_tps = cap(r"\[ Prompt: ([0-9.]+) t/s \|")
 decode_tps = cap(r"\| Generation: ([0-9.]+) t/s \]")
 wall_s = cap(r"^real ([0-9.]+)$", float)
 
+report_rows = []
+report_re = re.compile(
+    r"turboquant_report: layer=(?P<layer>\d+) rows=(?P<rows>\d+) raw=(?P<raw>\d+) "
+    r"sidecar=(?P<sidecar>\d+) simulated=(?P<simulated>\d+) "
+    r"raw_ratio=(?P<raw_ratio>[0-9.]+) sim_ratio=(?P<sim_ratio>[0-9.]+) "
+    r"bypassed=(?P<bypassed>\d+)"
+    r"(?: evicted_rows=(?P<evicted_rows>\d+) evicted_bytes=(?P<evicted_bytes>\d+) "
+    r"decode_calls=(?P<decode_calls>\d+) decode_rows=(?P<decode_rows>\d+))?"
+)
+for match in report_re.finditer(stderr_text):
+    gd = match.groupdict()
+    report_rows.append({
+        "layer": int(gd["layer"]),
+        "rows": int(gd["rows"]),
+        "raw": int(gd["raw"]),
+        "sidecar": int(gd["sidecar"]),
+        "simulated": int(gd["simulated"]),
+        "raw_ratio": float(gd["raw_ratio"]),
+        "sim_ratio": float(gd["sim_ratio"]),
+        "bypassed": int(gd["bypassed"]),
+        "evicted_rows": None if gd.get("evicted_rows") is None else int(gd["evicted_rows"]),
+        "evicted_bytes": None if gd.get("evicted_bytes") is None else int(gd["evicted_bytes"]),
+        "decode_calls": None if gd.get("decode_calls") is None else int(gd["decode_calls"]),
+        "decode_rows": None if gd.get("decode_rows") is None else int(gd["decode_rows"]),
+    })
+
+report_summary = None
+if report_rows:
+    totals = {
+        "layers": len(report_rows),
+        "raw": sum(r["raw"] for r in report_rows),
+        "sidecar": sum(r["sidecar"] for r in report_rows),
+        "simulated": sum(r["simulated"] for r in report_rows),
+        "rows": sum(r["rows"] for r in report_rows),
+        "bypassed": sum(r["bypassed"] for r in report_rows),
+        "evicted_rows": sum((r["evicted_rows"] or 0) for r in report_rows),
+        "evicted_bytes": sum((r["evicted_bytes"] or 0) for r in report_rows),
+        "decode_calls": sum((r["decode_calls"] or 0) for r in report_rows),
+        "decode_rows": sum((r["decode_rows"] or 0) for r in report_rows),
+    }
+    totals["raw_ratio"] = None if totals["raw"] == 0 else round(100.0 * totals["sidecar"] / totals["raw"], 2)
+    totals["sim_ratio"] = None if totals["simulated"] == 0 else round(100.0 * totals["sidecar"] / totals["simulated"], 2)
+    report_summary = totals
+
 response = stdout_text
 lines = []
 capture = False
@@ -99,6 +143,7 @@ result = {
     "quality_rule": quality,
     "passed": passed,
     "response_text": clean,
+    "turboquant_report": report_summary,
 }
 print(json.dumps(result))
 PY

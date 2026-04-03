@@ -225,33 +225,43 @@ Current decision:
 - throughput and byte-ratio value are now the primary gates for those paths
 - residual scalar should not receive more tuning time on this branch state
 
-## Current Scalar Baseline Decision
+## Current Scalar Value Check
 
-The next comparison checkpoint reduces the viable scalar family to one preferred baseline.
+The next report-backed checkpoint moves Phase 2 from correctness viability to cost/benefit.
 
-Artifact:
+Artifacts:
 
 - `docs/TURBOQUANT_SCALAR_COMPARE.json`
+- `docs/TURBOQUANT_SCALAR_VALUE.json`
 
-Decision:
+What it proves:
 
-- preferred scalar baseline: `projection`
+- projection and grouped scalar both remain correctness-viable under snapshot replay
+- both viable scalar modes reduce sidecar storage to:
+  - `raw_ratio = 26.56%`
+  - bytes saved versus raw = `73.44%`
+- both viable scalar modes also collapse decode throughput on the validated host path to roughly:
+  - `~2.7 t/s`
+- wall time rises from baseline to roughly triple on the fixed `8k` suite
+
+Updated decision:
+
+- no current scalar mode is worth deeper production-complexity follow-through on this branch state
 
 Why:
 
-- projection and grouped scalar both pass the full fixed `8k` suite under snapshot replay
-- projection is materially faster than grouped scalar on average decode throughput
-- grouped scalar has no compensating storage-structure advantage in the current prototype:
-  - same group size
-  - same codebook width
-  - same packed payload/scales layout
-- residual scalar remains a quality no-go
+- correctness is restored, but operational value is not
+- grouped scalar does not outperform projection on the metrics that matter here
+- projection no longer has a meaningful runtime edge once measured under the same report-backed path
+- residual scalar remains out on quality
 
 Working interpretation:
 
-- use projection-assisted scalar as the current Phase 2 scalar reference
-- treat grouped scalar as a correctness control, not the forward baseline
-- do not spend further time on residual scalar in this branch state
+- scalar-family work has answered the feasibility question
+- the answer is:
+  - quality can be restored under snapshot replay
+  - the current scalar-family path is still net-worse operationally
+- Phase 2 should not deepen the scalar track further unless a new representation class changes the cost curve
 
 ## Output Artifacts
 
