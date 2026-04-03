@@ -140,13 +140,13 @@ What changed from the earlier branch reading:
 
 ## Current Decision
 
-- `vector_replay_correction`
+- `bits6_vector_hardened`
 
 Reason:
 
-- the branch now measures the real replay path
-- the real replay path is not yet back to `4/4` on the fixed `8k` suite
-- further value expansion would be premature until exact `smoke` and strict JSON `instruct` are restored
+- the real replay path is green again on the fixed suite
+- the corrected `6`-bit baseline now holds `4/4` at `8k`, `16k`, and `32k`
+- the Phase 3 bottleneck has moved from correctness rescue to read-side replay efficiency
 
 ## Codebook Sweep
 
@@ -215,7 +215,7 @@ Decision:
 
 Reason:
 
-- `6` bits now restores exact-task correctness at `8k`
+- `6` bits restores exact-task correctness
 - it materially beats the `8`-bit ceiling on runtime
 - it materially beats the `8`-bit ceiling on storage ratio
 
@@ -227,29 +227,64 @@ Artifacts:
 - `docs/TURBOQUANT_VEC_32K.json`
 - `docs/TURBOQUANT_VEC_LADDER.json`
 
-Corrected `6`-bit ladder under the patched replay path:
+Corrected `6`-bit ladder:
 
 - `8k`
-  - passes: `4/4`
-  - mean decode: `17.68 t/s`
-  - mean wall: `12655 ms`
-  - mean raw ratio: `3.12%`
+  - `4/4`
+  - mean decode `17.68 t/s`
+  - mean wall `12655 ms`
+  - mean raw ratio `3.12%`
 - `16k`
-  - passes: `4/4`
-  - mean decode: `9.35 t/s`
-  - mean wall: `42380 ms`
-  - mean raw ratio: `6.23%`
+  - `4/4`
+  - mean decode `21.3 t/s`
+  - mean wall `9632.5 ms`
+  - mean raw ratio `6.23%`
 - `32k`
-  - passes: `4/4`
-  - mean decode: `13.78 t/s`
-  - mean wall: `32030 ms`
-  - mean raw ratio: `6.23%`
+  - `4/4`
+  - mean decode `19.05 t/s`
+  - mean wall `10267.5 ms`
+  - mean raw ratio `6.23%`
 
 Reading:
 
-- the corrected `6`-bit baseline stays exact through `8k`, `16k`, and `32k`
-- the main remaining cost is read-side replay growth on the long-context prompts, not correctness drift
-- the active Phase 3 question is now runtime hardening, not replay-fidelity recovery
+- correctness now holds through the ladder
+- long-context replay cost is still real, but no longer branch-blocking
+- `16k` and `32k` no longer look like collapse cases
+
+## Locality Hardening
+
+Artifacts:
+
+- `patches/tq_p3_slice7.patch`
+- `patches/tq_p3_slice8.patch`
+- `docs/TURBOQUANT_VEC_HARDEN.json`
+
+What changed:
+
+- removed linear row scans on replay
+- removed per-group decode allocation churn
+- added direct row lookup for `(slot, stream)` replay matching
+- added `f32` centroid shadow storage so vec decode no longer pays repeated `fp16 -> f32` conversion
+- tightened centroid replay locality on the active `vec` path
+
+Observed hardening result:
+
+- `16k`
+  - `smoke`: `3080 ms -> 1570 ms`
+  - `context_fill`: `69650 ms -> 9630 ms`
+  - `retrieval`: `61500 ms -> 16190 ms`
+  - `instruct`: `35290 ms -> 11140 ms`
+- `32k`
+  - `smoke`: `2580 ms -> 2080 ms`
+  - `context_fill`: `32280 ms -> 10630 ms`
+  - `retrieval`: `58960 ms -> 16700 ms`
+  - `instruct`: `34300 ms -> 11660 ms`
+
+Interpretation:
+
+- Phase 3 moved from "correct but expensive" to "correct and materially hardened"
+- row lookup was necessary, but centroid decode locality was the larger payoff
+- the next question is no longer basic viability; it is whether the current vector path is already strong enough to close or deserves one more value pass
 
 ## Corrected Read Profile
 
@@ -263,68 +298,33 @@ Prompt-shape reading:
   - stays relatively cheap
   - `read.decode_groups`: `20480`
 - `context_fill`
-  - spikes sharply at `16k` and stays elevated at `32k`
+  - still heavy on the replay path
   - `read.decode_groups`: `17859072`
 - `retrieval`
-  - stable but expensive across long contexts
+  - exact and materially cheaper than before hardening
   - `read.decode_groups`: `5508096`
 - `instruct`
-  - highest replay pressure on the path
+  - still the dominant replay hotspot
   - `read.decode_groups`: `48589824`
 
 Meaning:
 
 - the remaining value problem is concentrated in the read-side decode path
-- `instruct` is the primary hardening hotspot
-- `context_fill` is the second hotspot
-- the next work item should reduce replay work or improve locality before opening any new vector family
+- `instruct` is still the primary benchmark
+- the current branch is no longer blocked on correctness
 
-## Historical Artifacts Now Considered Provisional
+## Historical Notes
 
-These remain useful as branch history, but they are not the active correctness baseline:
+These remain useful as branch history, but they are no longer the active decision baseline:
 
 - `docs/TURBOQUANT_VEC_VALUE.json`
-- `docs/TURBOQUANT_VEC_PROFILE.json`
-
-## Correction Plan
-
-Artifact:
-
-- `docs/TURBOQUANT_HARDEN.md`
-
-Order:
-
-1. prove read-side activity in artifacts
-2. keep `6` bits with bypass `256` as the current vector baseline
-3. use `8` bits only as a ceiling/reference path
-4. reopen prompt-shape/runtime hardening on the corrected `6`-bit baseline
-5. rerun the ladder from the corrected real replay baseline
-
-## Stop Conditions
-
-Stop Phase 3 quickly if any of these happen:
-
-- exact `smoke` cannot be restored on the real replay path
-- exact `retrieval` breaks while correcting `smoke`/`instruct`
-- strict JSON `instruct` remains broken after replay-fidelity corrections
-- integration scope grows faster than the measured value
+- earlier pre-hardening `16k` and `32k` observations that predate `patches/tq_p3_slice7.patch`
+- earlier pre-hardening `16k` and `32k` observations that predate `patches/tq_p3_slice8.patch`
 
 ## Immediate Next Step
 
-Harden the corrected `6`-bit baseline:
+Close the current hardening cycle cleanly:
 
-1. restore read-side byte accounting on the corrected ladder path
-2. profile the long-context throughput collapse on `context_fill`, `retrieval`, and `instruct`
-3. keep `8` bits only as a ceiling/reference path
-4. do not open a second vector family until the current path is either hardened or ruled out on value
-
-Completed:
-
-- read-side accounting restored in the ladder artifacts
-- prompt-shaped replay profile captured for `8k`, `16k`, and `32k`
-
-Next:
-
-1. reduce `instruct` replay cost on the current `6`-bit path
-2. then target `context_fill`
-3. keep `retrieval` and exact correctness as regression guards
+1. compare the hardened vector ladder against the scalar reference one more time
+2. decide whether the current `6`-bit vector path is already strong enough to close Phase 3
+3. only open another optimization slice if it has a specific value target beyond the current hardened baseline

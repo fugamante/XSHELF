@@ -73,7 +73,9 @@ Current implementation state:
 - slice 1: codebook residency only
 - slice 2: write-side packed vector payload capture
 - slice 3: vector replay wiring landed
-- slice 4: read-path accounting corrected; real replay activity is now visible in artifacts
+- slice 4: read-path accounting corrected; real replay activity is visible in artifacts
+- slice 7: row lookup and decode scratch reuse remove linear replay scans and per-group allocation churn
+- slice 8: centroid shadow/locality hardening removes repeated centroid conversion on the hot path
 
 ## Write Path Contract
 
@@ -100,32 +102,44 @@ Artifact:
 
 - `docs/TURBOQUANT_VEC_CHECK.json`
 
-Current corrected `8k` outcome under actual replay:
-
-- `smoke`: fail
-- `context_fill`: pass
-- `retrieval`: pass
-- `instruct`: fail
-
-Refined replay reading after the codebook sweep:
+Corrected replay reading:
 
 - `4` bits: `2/4`
 - `6` bits: `4/4` with small-KV bypass `256`
 - `8` bits: `4/4`
 
-This means:
+This now means:
 
 - the vector path is no longer blocked by a generic replay bug
-- it is now bounded by codebook capacity versus runtime cost
 - `6` bits with bypass `256` is the current preferred vector baseline
-- `8` bits is the current correctness ceiling
+- `8` bits is the current correctness ceiling, but no longer the preferred operating point
 
 Current reading:
 
-- the branch now proves real replay work with non-zero read counters
-- the corrected `6`-bit baseline now holds `4/4` through `8k`, `16k`, and `32k`
-- the remaining problem is read-side replay cost, not replay correctness
-- `instruct` is the dominant hotspot on the current path
+- the branch proves real replay work with non-zero read counters
+- the corrected `6`-bit baseline holds `4/4` through `8k`, `16k`, and `32k`
+- read-side replay cost is still the main value constraint
+- `instruct` remains the dominant hotspot
+- row lookup plus centroid-locality hardening materially improved the long-context path
+
+Current corrected ladder:
+
+- `8k`
+  - mean decode `17.68 t/s`
+  - mean wall `12655 ms`
+  - mean raw ratio `3.12%`
+- `16k`
+  - mean decode `21.3 t/s`
+  - mean wall `9632.5 ms`
+  - mean raw ratio `6.23%`
+- `32k`
+  - mean decode `19.05 t/s`
+  - mean wall `10267.5 ms`
+  - mean raw ratio `6.23%`
+
+Hardening reference:
+
+- `docs/TURBOQUANT_VEC_HARDEN.json`
 
 ## Success Gates
 
@@ -139,10 +153,10 @@ Current reading:
 
 Stop the first vector attempt immediately if:
 
-- exact `smoke` cannot be restored on the real replay path
+- exact `smoke` regresses on the active replay path
 - exact retrieval breaks
 - exact strict JSON breaks
-- runtime stays within the scalar penalty band
+- runtime collapses back into the scalar penalty band
 - patch scope expands beyond a narrow sidecar/codebook experiment
 
 ## Comparison Baselines

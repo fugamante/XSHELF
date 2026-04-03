@@ -60,8 +60,23 @@
     },
     {
       "id": "p3_instruct_harden",
-      "status": "in_progress",
+      "status": "complete",
       "goal": "reduce instruct replay cost on the corrected 6-bit vec path without losing exact-task correctness"
+    },
+    {
+      "id": "p3_row_lookup",
+      "status": "complete",
+      "goal": "remove linear row scans and per-group decode allocation from the current vec replay path"
+    },
+    {
+      "id": "p3_locality",
+      "status": "complete",
+      "goal": "improve centroid decode/locality on the current 6-bit vec path after row lookup hardening"
+    },
+    {
+      "id": "p3_closeout",
+      "status": "in_progress",
+      "goal": "decide whether the hardened 6-bit vec baseline is strong enough to close Phase 3 or merits one final narrow value pass"
     }
   ],
   "references": [
@@ -84,6 +99,9 @@
     "patches/tq_p3_slice5.patch",
     "docs/TURBOQUANT_VEC_SWEEP.json",
     "patches/tq_p3_slice6.patch",
-    "docs/TURBOQUANT_VEC_TUNE.json"
+    "docs/TURBOQUANT_VEC_TUNE.json",
+    "patches/tq_p3_slice7.patch",
+    "patches/tq_p3_slice8.patch",
+    "docs/TURBOQUANT_VEC_HARDEN.json"
   ]
 }
