@@ -72,7 +72,7 @@ Current implementation state:
 
 - slice 1: codebook residency only
 - slice 2: write-side packed vector payload capture
-- read-side vector decode: not implemented yet
+- slice 3: snapshot-backed vector decode validated at `8k`
 
 ## Write Path Contract
 
@@ -99,6 +99,12 @@ At snapshot-backed replay:
 2. expand ids through the fixed centroid table
 3. reassemble the original row-group layout
 4. write reconstructed values into the temporary tensor used by the read-side custom op
+
+Current validation checkpoint:
+
+- `docs/TURBOQUANT_VEC_CHECK.json`
+- fixed `8k` suite passes under snapshot replay
+- the first vector path is correctness-viable on the validated host-backed execution path
 
 ## Success Gates
 
