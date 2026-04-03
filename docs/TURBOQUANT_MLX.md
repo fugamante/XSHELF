@@ -148,13 +148,16 @@ Current measurable fields on the `MLX` path:
 - decode tokens/sec
 - wall time
 - peak memory in GB
+- live cache bytes
 - exact-task correctness on the fixed prompt set
 
-Current limitation:
+Current reading:
 
-- `raw_ratio` is not yet directly available on the `MLX` path
-- for now, the comparison memory proxy is:
+- `raw_ratio` is still not directly available on the `MLX` path
+- but the branch now records:
+  - `cache_nbytes`
   - `peak_memory_gb`
+- `cache_nbytes` is the preferred cache-footprint metric on this backend path
 
 ## First `8k` Checkpoint
 
@@ -166,21 +169,25 @@ Current result:
 
 - `4/4` pass at `8k`
 - `smoke`
-  - decode `328.308 t/s`
-  - wall `2252 ms`
-  - peak memory `1.925 GB`
+  - decode `309.424 t/s`
+  - wall `751 ms`
+  - peak memory `1.908 GB`
+  - cache `28.0 MiB`
 - `context_fill`
-  - decode `121.816 t/s`
-  - wall `3476 ms`
-  - peak memory `2.707 GB`
+  - decode `14.543 t/s`
+  - wall `3402 ms`
+  - peak memory `2.828 GB`
+  - cache `196.0 MiB`
 - `retrieval`
-  - decode `159.299 t/s`
-  - wall `4398 ms`
-  - peak memory `2.96 GB`
+  - decode `10.289 t/s`
+  - wall `6344 ms`
+  - peak memory `2.961 GB`
+  - cache `392.0 MiB`
 - `instruct`
-  - decode `147.809 t/s`
-  - wall `3550 ms`
-  - peak memory `2.728 GB`
+  - decode `57.011 t/s`
+  - wall `3673 ms`
+  - peak memory `2.891 GB`
+  - cache `224.0 MiB`
 
 Reading:
 
@@ -200,25 +207,30 @@ Current result:
 
 - `8k`
   - `4/4`
-  - mean decode `189.308 t/s`
-  - mean wall `3419.0 ms`
-  - peak memory up to `2.96 GB`
+  - mean decode `97.817 t/s`
+  - mean wall `3542.5 ms`
+  - peak memory up to `2.961 GB`
+  - cache up to `392.0 MiB`
 - `16k`
   - `4/4`
-  - mean decode `138.389 t/s`
-  - mean wall `4540.0 ms`
-  - peak memory up to `2.96 GB`
+  - mean decode `59.288 t/s`
+  - mean wall `3536.8 ms`
+  - peak memory up to `2.961 GB`
+  - cache up to `392.0 MiB`
 - `32k`
   - `4/4`
-  - mean decode `171.317 t/s`
-  - mean wall `4540.0 ms`
-  - peak memory up to `2.96 GB`
+  - mean decode `84.729 t/s`
+  - mean wall `3538.8 ms`
+  - peak memory up to `2.961 GB`
+  - cache up to `392.0 MiB`
 
 Reading:
 
 - the fixed prompt ladder survives intact on `MLX`
 - on correctness and runtime shape, the Phase 3 vector result appears portable
-- memory comparison is still incomplete because this backend currently exposes only peak memory, not a direct `raw_ratio` analog
+- memory comparison is now materially better grounded because this backend records live cache bytes
+- the remaining limitation is narrower:
+  - `cache_nbytes` is not the same thing as `raw_ratio`
 
 ## Current Comparative Reading
 
@@ -228,14 +240,15 @@ Artifact:
 
 Current decision:
 
-- `mlx_portable_go_provisional`
+- `mlx_portable_go`
 
 Why:
 
 - `MLX` keeps `4/4` through `8k`, `16k`, and `32k`
 - runtime is strong enough that portability is no longer speculative
-- the only material comparison gap left is memory-accounting fidelity, not backend viability
+- the branch now records live cache bytes in addition to peak memory
+- the remaining memory caveat is about metric equivalence, not missing measurement
 
-Next constraint:
+Remaining constraint:
 
-- do not overstate memory conclusions until the `MLX` proxy story is improved
+- do not overstate `cache_nbytes` as a direct `raw_ratio` analog

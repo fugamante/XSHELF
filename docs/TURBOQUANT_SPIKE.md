@@ -250,7 +250,7 @@ Planning files:
 
 Current Phase 3A checkpoint:
 
-- active
+- closed
 - baseline reference locked to:
   - `vec_bits6_bypass256`
 - runtime now resolved:
@@ -266,11 +266,13 @@ Current Phase 3A checkpoint:
   - `16k`
   - `32k`
 - current comparative reading:
-  - provisional `mlx_portable_go`
+  - `mlx_portable_go`
 - current comparison caveat:
-  - memory is still measured through `peak_memory_gb`, not a direct `raw_ratio` analog
+  - `cache_nbytes` closes the memory-accounting blind spot, but it is still not a direct `raw_ratio` analog
+- closeout artifact:
+  - `docs/TURBOQUANT_MLX_CLOSE.json`
 - next action:
-  - close the first comparative decision with the correct memory-accounting caveat
+  - either freeze the MLX track here or open MLX-specific hardening as a fresh follow-on
 
 ## Risks
 

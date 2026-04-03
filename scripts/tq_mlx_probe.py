@@ -6,9 +6,6 @@ import argparse
 import json
 import os
 import pathlib
-import re
-import subprocess
-import sys
 import time
 
 
@@ -32,22 +29,9 @@ def parse_args() -> argparse.Namespace:
     run.add_argument(
         "--python",
         default=os.environ.get("CX_TQ_MLX_PYTHON", "/tmp/cx_mlx_env/bin/python"),
+        help="Kept for artifact provenance; the script itself should already be running under the desired interpreter.",
     )
     return ap.parse_args()
-
-
-def parse_metric(pattern: str, text: str) -> float | None:
-    m = re.search(pattern, text, re.M)
-    if not m:
-        return None
-    return float(m.group(1))
-
-
-def parse_response(text: str) -> str:
-    m = re.search(r"=+\n(.*?)\n=+", text, re.S)
-    if not m:
-        return text.strip()
-    return m.group(1).strip()
 
 
 def judge(prompt_name: str, response: str) -> tuple[bool, str]:
@@ -70,54 +54,58 @@ def judge(prompt_name: str, response: str) -> tuple[bool, str]:
     return False, "unknown"
 
 
-def run_one(py: str, model: str, prompt_file: pathlib.Path, ctx: int, max_tokens: int) -> dict:
-    prompt = prompt_file.read_text()
-    cmd = [
-        py,
-        "-m",
-        "mlx_lm",
-        "generate",
-        "--model",
-        model,
-        "--prompt",
-        prompt,
-        "--max-tokens",
-        str(max_tokens),
-        "--temp",
-        "0",
-        "--max-kv-size",
-        str(ctx),
-        "--verbose",
-        "true",
-    ]
-    start = time.monotonic()
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    wall_ms = round((time.monotonic() - start) * 1000)
-    out = (proc.stdout or "") + (proc.stderr or "")
-    response = parse_response(out)
-    prompt_tps = parse_metric(r"Prompt:\s+\d+\s+tokens,\s+([0-9.]+)\s+tokens-per-sec", out)
-    decode_tps = parse_metric(r"Generation:\s+\d+\s+tokens,\s+([0-9.]+)\s+tokens-per-sec", out)
-    peak_mem_gb = parse_metric(r"Peak memory:\s+([0-9.]+)\s+GB", out)
-    return {
-        "ok": proc.returncode == 0,
-        "wall_ms": wall_ms,
-        "response_text": response,
-        "prompt_tokens_per_sec": prompt_tps,
-        "decode_tokens_per_sec": decode_tps,
-        "peak_memory_gb": peak_mem_gb,
-        "raw_output": out,
-    }
-
-
 def main() -> int:
     ns = parse_args()
     if ns.cmd != "run":
         return 1
 
+    import mlx.core as mx
+    from mlx_lm import load, stream_generate
+    from mlx_lm.models import cache
+    from mlx_lm.sample_utils import make_sampler
+
+    model, tokenizer = load(ns.model)
+    sampler = make_sampler(
+        0.0,
+        1.0,
+        0.0,
+        1,
+        top_k=0,
+        xtc_probability=0.0,
+        xtc_threshold=0.0,
+        xtc_special_tokens=tokenizer.encode("\n") + list(tokenizer.eos_token_ids),
+    )
+
     results = []
     for name, prompt_file, max_tokens, _rule in PROMPTS:
-        one = run_one(ns.python, ns.model, prompt_file, ns.ctx, max_tokens)
-        passed, quality_rule = judge(name, one["response_text"])
+        prompt = prompt_file.read_text()
+        prompt_text = tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        prompt_cache = cache.make_prompt_cache(model, max_kv_size=ns.ctx)
+        mx.reset_peak_memory()
+        start = time.monotonic()
+        text = ""
+        last = None
+        for resp in stream_generate(
+            model,
+            tokenizer,
+            prompt_text,
+            max_tokens=max_tokens,
+            sampler=sampler,
+            max_kv_size=ns.ctx,
+            prompt_cache=prompt_cache,
+        ):
+            text += resp.text
+            last = resp
+        mx.synchronize()
+        wall_ms = round((time.monotonic() - start) * 1000)
+        response_text = text.strip()
+        passed, quality_rule = judge(name, response_text)
+        cache_nbytes = sum(c.nbytes for c in prompt_cache)
+        cache_tokens = max((getattr(c, "size", lambda: 0)() for c in prompt_cache), default=0)
         results.append(
             {
                 "mode": "mlx",
@@ -126,17 +114,19 @@ def main() -> int:
                 "context_target": ns.ctx,
                 "predict_n": max_tokens,
                 "quality_rule": quality_rule,
-                "passed": passed and one["ok"],
-                "response_text": one["response_text"],
-                "prompt_tokens_per_sec": one["prompt_tokens_per_sec"],
-                "decode_tokens_per_sec": one["decode_tokens_per_sec"],
-                "peak_memory_gb": one["peak_memory_gb"],
-                "wall_ms": one["wall_ms"],
+                "passed": passed,
+                "response_text": response_text,
+                "prompt_tokens_per_sec": None if last is None else last.prompt_tps,
+                "decode_tokens_per_sec": None if last is None else last.generation_tps,
+                "peak_memory_gb": None if last is None else last.peak_memory,
+                "cache_nbytes": cache_nbytes,
+                "cache_tokens": cache_tokens,
+                "wall_ms": wall_ms,
             }
         )
 
     payload = {
-        "contract_version": "turboquant-mlx.v1",
+        "contract_version": "turboquant-mlx.v2",
         "backend": "mlx",
         "python": ns.python,
         "model": ns.model,
@@ -144,7 +134,7 @@ def main() -> int:
         "runs": results,
         "passes": sum(1 for r in results if r["passed"]),
         "total": len(results),
-        "metric_note": "peak_memory_gb is the current MLX memory proxy; raw_ratio is not yet available on this backend path",
+        "metric_note": "MLX now records both peak_memory_gb and live cache_nbytes. cache_nbytes is the preferred cache-footprint metric on this backend path.",
     }
     pathlib.Path(ns.out).write_text(json.dumps(payload, indent=2) + "\n")
     return 0
