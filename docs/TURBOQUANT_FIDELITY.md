@@ -390,26 +390,29 @@ Updated codec-family line:
 - projection-assisted scalar: quality-viable, performance-questionable
 - residual scalar: quality no-go
 
-## Scalar Comparison Decision
+## Scalar Value Decision
 
-The scalar-family comparison is now narrow enough to choose a working Phase 2 baseline.
+The scalar-family comparison is now strong enough to decide the branch direction.
 
-Artifact:
+Artifacts:
 
 - `docs/TURBOQUANT_SCALAR_COMPARE.json`
+- `docs/TURBOQUANT_SCALAR_VALUE.json`
 
-Current winner:
+Current line:
 
-- projection-assisted scalar
+- grouped scalar: correctness-viable, operationally unattractive
+- projection-assisted scalar: correctness-viable, operationally unattractive
+- residual scalar: quality no-go
 
-Reason:
+Report-backed finding:
 
-- grouped scalar and projection both clear the exact-task correctness gate under snapshot replay
-- projection is materially faster on average decode throughput
-- grouped scalar does not buy a different packed-storage shape in the current prototype, so it does not offset the throughput loss
+- the viable scalar modes cut sidecar storage to `26.56%` of raw on the validated host path
+- that same path drives decode throughput down to roughly `~2.7 t/s`
+- wall time rises to roughly triple the baseline suite cost
 
-Operational line:
+Meaning:
 
-- projection is the scalar path worth keeping as the reference baseline
-- grouped scalar remains useful as a correctness cross-check
-- residual scalar remains out
+- the scalar-family work is no longer blocked by correctness
+- it is blocked by value
+- no current scalar mode justifies deeper production-complexity follow-through on this branch state
