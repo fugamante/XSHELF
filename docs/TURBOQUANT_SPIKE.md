@@ -1,7 +1,7 @@
 # TurboQuant Spike (Experimental)
 
 Branch: `cx/turboquant-spike`
-Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` closed, `Phase 3` pending)
+Status: active (`Phase 0` complete, `Phase 1` complete, `Phase 2` closed, `Phase 3` in progress)
 Owner: CX runtime
 
 ## Objective
@@ -189,6 +189,14 @@ Phase 3 planning files:
 - `docs/TURBOQUANT_VEC.md`
 - `docs/TURBOQUANT_PHASE3_WORK.json`
 - `docs/TURBOQUANT_VEC_LAYOUT.md`
+- `patches/tq_p3_slice1.patch`
+
+Current Phase 3 checkpoint:
+
+- slice 1 is compile-clean only
+- explicit vector codebook state is now resident per layer
+- deterministic `[16][8]` `fp16` centroid initialization is wired into the reset/init path
+- no vector execution path is active yet
 
 ### Phase 4: Read-Path Optimization
 
