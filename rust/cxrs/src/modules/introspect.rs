@@ -7,8 +7,8 @@ use crate::config::app_config;
 use crate::execmeta::toolchain_version_string;
 use crate::paths::{resolve_log_file, resolve_quarantine_dir, resolve_state_file};
 use crate::provider_adapter::{
-    current_provider_capabilities, selected_adapter_name, selected_backend_experiment_capabilities,
-    selected_http_provider_format, selected_provider_status_kind,
+    current_provider_capabilities, selected_adapter_name, selected_http_provider_format,
+    selected_provider_status_kind, selected_tq_caps,
 };
 use crate::runtime::{llm_backend, llm_model, logging_enabled};
 use crate::state::{read_state_value, value_at_path};
@@ -111,7 +111,7 @@ fn core_payload(app_version: &str) -> serde_json::Value {
     let provider_status = selected_provider_status_kind().as_str();
     let caps = current_provider_capabilities()
         .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
-    let experiment_caps = selected_backend_experiment_capabilities();
+    let experiment_caps = selected_tq_caps();
     let capture_prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE")
         .ok()
         .map(|v| v.trim() != "0")
@@ -265,7 +265,7 @@ pub fn cmd_core(app_version: &str, args: &[String]) -> i32 {
     let provider_status = selected_provider_status_kind().as_str();
     let caps = current_provider_capabilities()
         .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
-    let experiment_caps = selected_backend_experiment_capabilities();
+    let experiment_caps = selected_tq_caps();
     let capture_prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE")
         .ok()
         .map(|v| v.trim() != "0")

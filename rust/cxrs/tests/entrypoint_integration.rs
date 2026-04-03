@@ -80,7 +80,7 @@ fn lib_cx_sh_exports_functions() {
 }
 
 #[test]
-fn bin_cx_core_json_reports_backend_capability() {
+fn core_json_tq_caps() {
     let repo = repo_root();
     let out = Command::new(repo.join("bin").join("cx"))
         .args(["core", "--json"])
