@@ -214,13 +214,18 @@ cx_tqv_run_one() {
     cmd+=(--turboquant-enable --turboquant-group-size 64 --turboquant-codebook-bits 8)
   fi
 
+  local -a env_cmd=()
+  if [[ "$mode" == "turboquant" ]]; then
+    env_cmd+=(env LLAMA_TQ_REPORT="${LLAMA_TQ_REPORT:-1}")
+  fi
+
   if [[ -n "$extra_args" ]]; then
     # shellcheck disable=SC2206
     local extra_array=( $extra_args )
     cmd+=("${extra_array[@]}")
   fi
 
-  "${cmd[@]}" >"$out_stdout" 2>"$out_stderr"
+  "${env_cmd[@]}" "${cmd[@]}" >"$out_stdout" 2>"$out_stderr"
   cx_tqv_parse "$out_stdout" "$out_stderr" "$prompt_label" "$context_size" "$predict_n" "$mode" "$prompt_name"
   rm -f "$out_stdout" "$out_stderr"
 }

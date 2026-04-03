@@ -1,121 +1,160 @@
 {
-  "contract_version": "turboquant-vec-profile.v1",
-  "profiles": {
-    "smoke": {
-      "contexts": [
-        {
-          "context_target": 8192,
-          "passed": true,
-          "decode_tps": 33.2,
-          "wall_ms": 1610
-        },
-        {
-          "context_target": 16384,
-          "passed": true,
-          "decode_tps": 40.5,
-          "wall_ms": 1590
-        },
-        {
-          "context_target": 32768,
-          "passed": true,
-          "decode_tps": 48.4,
-          "wall_ms": 1560
-        }
-      ],
-      "min_decode_tps": 33.2,
-      "max_wall_ms": 1610,
-      "risk": "stable"
-    },
-    "context_fill": {
-      "contexts": [
-        {
-          "context_target": 8192,
-          "passed": true,
-          "decode_tps": 31.4,
-          "wall_ms": 6920
-        },
-        {
-          "context_target": 16384,
-          "passed": true,
-          "decode_tps": 2.5,
-          "wall_ms": 17760
-        },
-        {
-          "context_target": 32768,
-          "passed": true,
-          "decode_tps": 3.2,
-          "wall_ms": 17250
-        }
-      ],
-      "min_decode_tps": 2.5,
-      "max_wall_ms": 17760,
-      "risk": "high"
-    },
-    "retrieval": {
-      "contexts": [
-        {
-          "context_target": 8192,
-          "passed": true,
-          "decode_tps": 27.5,
-          "wall_ms": 11170
-        },
-        {
-          "context_target": 16384,
-          "passed": true,
-          "decode_tps": 5.7,
-          "wall_ms": 20270
-        },
-        {
-          "context_target": 32768,
-          "passed": true,
-          "decode_tps": 29.0,
-          "wall_ms": 20250
-        }
-      ],
-      "min_decode_tps": 5.7,
-      "max_wall_ms": 20270,
-      "risk": "high"
-    },
-    "instruct": {
-      "contexts": [
-        {
-          "context_target": 8192,
-          "passed": true,
-          "decode_tps": 30.3,
-          "wall_ms": 7130
-        },
-        {
-          "context_target": 16384,
-          "passed": true,
-          "decode_tps": 1.5,
-          "wall_ms": 30910
-        },
-        {
-          "context_target": 32768,
-          "passed": true,
-          "decode_tps": 1.5,
-          "wall_ms": 30910
-        }
-      ],
-      "min_decode_tps": 1.5,
-      "max_wall_ms": 30910,
-      "risk": "critical"
-    }
-  },
-  "hotspots": [
+  "contract_version": "turboquant-vec-profile.v2",
+  "variant": "bits6_bypass256",
+  "contexts": [
     {
-      "prompt_name": "context_fill",
-      "risk": "high"
+      "context_target": 8192,
+      "passes": 4,
+      "total": 4,
+      "decode_tps_mean": 17.68,
+      "wall_ms_mean": 12655,
+      "raw_ratio_mean": 3.12
     },
     {
-      "prompt_name": "retrieval",
-      "risk": "high"
+      "context_target": 16384,
+      "passes": 4,
+      "total": 4,
+      "decode_tps_mean": 9.35,
+      "wall_ms_mean": 42380,
+      "raw_ratio_mean": 6.23
     },
     {
-      "prompt_name": "instruct",
-      "risk": "critical"
+      "context_target": 32768,
+      "passes": 4,
+      "total": 4,
+      "decode_tps_mean": 13.78,
+      "wall_ms_mean": 32030,
+      "raw_ratio_mean": 6.23
     }
   ],
-  "decision": "profile_before_second_variant",
-  "reason": "Instruct and context_fill are the dominant long-context runtime hotspots; the current vector path should be hardened before exploring another vector/codebook family."
+  "prompts": {
+    "smoke": [
+      {
+        "context_target": 8192,
+        "decode_tps": 41.9,
+        "wall_ms": 1570,
+        "raw_ratio": 4.57,
+        "read_layers": 32,
+        "read_calls": 32,
+        "read_rows": 1280,
+        "read_groups": 20480
+      },
+      {
+        "context_target": 16384,
+        "decode_tps": 16.9,
+        "wall_ms": 3080,
+        "raw_ratio": 12.01,
+        "read_layers": 32,
+        "read_calls": 32,
+        "read_rows": 1280,
+        "read_groups": 20480
+      },
+      {
+        "context_target": 32768,
+        "decode_tps": 29.3,
+        "wall_ms": 2580,
+        "raw_ratio": 12.01,
+        "read_layers": 32,
+        "read_calls": 32,
+        "read_rows": 1280,
+        "read_groups": 20480
+      }
+    ],
+    "context_fill": [
+      {
+        "context_target": 8192,
+        "decode_tps": 11.7,
+        "wall_ms": 12650,
+        "raw_ratio": 2.66,
+        "read_layers": 608,
+        "read_calls": 4448,
+        "read_rows": 897792,
+        "read_groups": 14364672
+      },
+      {
+        "context_target": 16384,
+        "decode_tps": 4.9,
+        "wall_ms": 69650,
+        "raw_ratio": 4.49,
+        "read_layers": 672,
+        "read_calls": 5568,
+        "read_rows": 1116192,
+        "read_groups": 17859072
+      },
+      {
+        "context_target": 32768,
+        "decode_tps": 10.1,
+        "wall_ms": 32280,
+        "raw_ratio": 4.49,
+        "read_layers": 672,
+        "read_calls": 5568,
+        "read_rows": 1116192,
+        "read_groups": 17859072
+      }
+    ],
+    "retrieval": [
+      {
+        "context_target": 8192,
+        "decode_tps": 8.3,
+        "wall_ms": 21730,
+        "raw_ratio": 2.45,
+        "read_layers": 384,
+        "read_calls": 864,
+        "read_rows": 344256,
+        "read_groups": 5508096
+      },
+      {
+        "context_target": 16384,
+        "decode_tps": 6.9,
+        "wall_ms": 61500,
+        "raw_ratio": 3.56,
+        "read_layers": 384,
+        "read_calls": 864,
+        "read_rows": 344256,
+        "read_groups": 5508096
+      },
+      {
+        "context_target": 32768,
+        "decode_tps": 7.3,
+        "wall_ms": 58960,
+        "raw_ratio": 3.56,
+        "read_layers": 384,
+        "read_calls": 864,
+        "read_rows": 344256,
+        "read_groups": 5508096
+      }
+    ],
+    "instruct": [
+      {
+        "context_target": 8192,
+        "decode_tps": 8.8,
+        "wall_ms": 14670,
+        "raw_ratio": 2.78,
+        "read_layers": 928,
+        "read_calls": 11328,
+        "read_rows": 3036864,
+        "read_groups": 48589824
+      },
+      {
+        "context_target": 16384,
+        "decode_tps": 8.7,
+        "wall_ms": 35290,
+        "raw_ratio": 4.87,
+        "read_layers": 928,
+        "read_calls": 11328,
+        "read_rows": 3036864,
+        "read_groups": 48589824
+      },
+      {
+        "context_target": 32768,
+        "decode_tps": 8.4,
+        "wall_ms": 34300,
+        "raw_ratio": 4.87,
+        "read_layers": 928,
+        "read_calls": 11328,
+        "read_rows": 3036864,
+        "read_groups": 48589824
+      }
+    ]
+  }
 }

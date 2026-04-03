@@ -124,7 +124,8 @@ Current reading:
 
 - the branch now proves real replay work with non-zero read counters
 - the corrected `6`-bit baseline now holds `4/4` through `8k`, `16k`, and `32k`
-- the remaining problem is long-context runtime, not replay correctness
+- the remaining problem is read-side replay cost, not replay correctness
+- `instruct` is the dominant hotspot on the current path
 
 ## Success Gates
 

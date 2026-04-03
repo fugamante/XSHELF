@@ -10,9 +10,9 @@
       "prompt_file": "docs/tq_prompts/smoke.txt",
       "context_target": 32768,
       "predict_n": 8,
-      "prompt_tokens_per_sec": 293.4,
-      "decode_tokens_per_sec": 82.5,
-      "wall_ms": 2080,
+      "prompt_tokens_per_sec": 287.5,
+      "decode_tokens_per_sec": 80.5,
+      "wall_ms": 2070,
       "quality_rule": "exact_OK",
       "passed": true,
       "response_text": "OK",
@@ -24,13 +24,39 @@
       "prompt_file": "docs/tq_prompts/smoke.txt",
       "context_target": 32768,
       "predict_n": 8,
-      "prompt_tokens_per_sec": 49.6,
-      "decode_tokens_per_sec": 30.5,
-      "wall_ms": 2570,
+      "prompt_tokens_per_sec": 50.2,
+      "decode_tokens_per_sec": 29.3,
+      "wall_ms": 2580,
       "quality_rule": "exact_OK",
       "passed": true,
       "response_text": "OK",
-      "turboquant_report": null
+      "turboquant_report": {
+        "layers": 128,
+        "raw": 5898240,
+        "sidecar": 708608,
+        "simulated": 708608,
+        "rows": 1440,
+        "bypassed": 0,
+        "evicted_rows": 0,
+        "evicted_bytes": 0,
+        "decode_calls": 0,
+        "decode_rows": 0,
+        "raw_ratio": 12.01,
+        "sim_ratio": 100.0,
+        "codecs": [
+          "vec"
+        ],
+        "read": {
+          "layers": 32,
+          "decode_calls": 32,
+          "decode_rows": 1280,
+          "decode_groups": 20480,
+          "rows": 1280,
+          "codecs": [
+            "vec"
+          ]
+        }
+      }
     },
     {
       "mode": "baseline",
@@ -38,9 +64,9 @@
       "prompt_file": "docs/tq_prompts/context_fill.txt",
       "context_target": 32768,
       "predict_n": 64,
-      "prompt_tokens_per_sec": 587.1,
-      "decode_tokens_per_sec": 37.9,
-      "wall_ms": 5090,
+      "prompt_tokens_per_sec": 581.1,
+      "decode_tokens_per_sec": 38.3,
+      "wall_ms": 5100,
       "quality_rule": "non_empty_summary",
       "passed": true,
       "response_text": "The archive contains 120 identical entries for a neutral project ledger entry for baseline context expansion.",
@@ -52,13 +78,39 @@
       "prompt_file": "docs/tq_prompts/context_fill.txt",
       "context_target": 32768,
       "predict_n": 64,
-      "prompt_tokens_per_sec": 60.0,
-      "decode_tokens_per_sec": 9.7,
-      "wall_ms": 32320,
+      "prompt_tokens_per_sec": 59.8,
+      "decode_tokens_per_sec": 10.1,
+      "wall_ms": 32280,
       "quality_rule": "non_empty_summary",
       "passed": true,
       "response_text": "The archive contains 120 identical entries for neutral project ledger entries related to baseline context expansion.",
-      "turboquant_report": null
+      "turboquant_report": {
+        "layers": 768,
+        "raw": 229769216,
+        "sidecar": 10326016,
+        "simulated": 10326016,
+        "rows": 56096,
+        "bypassed": 0,
+        "evicted_rows": 0,
+        "evicted_bytes": 0,
+        "decode_calls": 0,
+        "decode_rows": 0,
+        "raw_ratio": 4.49,
+        "sim_ratio": 100.0,
+        "codecs": [
+          "vec"
+        ],
+        "read": {
+          "layers": 672,
+          "decode_calls": 5568,
+          "decode_rows": 1116192,
+          "decode_groups": 17859072,
+          "rows": 161472,
+          "codecs": [
+            "vec"
+          ]
+        }
+      }
     },
     {
       "mode": "baseline",
@@ -66,9 +118,9 @@
       "prompt_file": "docs/tq_prompts/retrieval.txt",
       "context_target": 32768,
       "predict_n": 16,
-      "prompt_tokens_per_sec": 563.3,
-      "decode_tokens_per_sec": 35.7,
-      "wall_ms": 7650,
+      "prompt_tokens_per_sec": 565.0,
+      "decode_tokens_per_sec": 35.2,
+      "wall_ms": 8140,
       "quality_rule": "exact_TURBO-314159",
       "passed": true,
       "response_text": "TURBO-314159",
@@ -80,13 +132,39 @@
       "prompt_file": "docs/tq_prompts/retrieval.txt",
       "context_target": 32768,
       "predict_n": 16,
-      "prompt_tokens_per_sec": 59.4,
-      "decode_tokens_per_sec": 6.9,
-      "wall_ms": 60490,
+      "prompt_tokens_per_sec": 60.8,
+      "decode_tokens_per_sec": 7.3,
+      "wall_ms": 58960,
       "quality_rule": "exact_TURBO-314159",
       "passed": true,
       "response_text": "TURBO-314159",
-      "turboquant_report": null
+      "turboquant_report": {
+        "layers": 480,
+        "raw": 451936256,
+        "sidecar": 16089088,
+        "simulated": 16089088,
+        "rows": 110336,
+        "bypassed": 0,
+        "evicted_rows": 0,
+        "evicted_bytes": 0,
+        "decode_calls": 0,
+        "decode_rows": 0,
+        "raw_ratio": 3.56,
+        "sim_ratio": 100.0,
+        "codecs": [
+          "vec"
+        ],
+        "read": {
+          "layers": 384,
+          "decode_calls": 864,
+          "decode_rows": 344256,
+          "decode_groups": 5508096,
+          "rows": 168576,
+          "codecs": [
+            "vec"
+          ]
+        }
+      }
     },
     {
       "mode": "baseline",
@@ -94,9 +172,9 @@
       "prompt_file": "docs/tq_prompts/instruct.txt",
       "context_target": 32768,
       "predict_n": 48,
-      "prompt_tokens_per_sec": 578.0,
-      "decode_tokens_per_sec": 34.0,
-      "wall_ms": 6620,
+      "prompt_tokens_per_sec": 587.6,
+      "decode_tokens_per_sec": 36.3,
+      "wall_ms": 5150,
       "quality_rule": "exact_JSON_contract",
       "passed": true,
       "response_text": "{\"status\": \"ready\", \"focus\": \"turboquant-baseline\", \"next_step\": \"phase2-v-cache\"}",
@@ -108,13 +186,39 @@
       "prompt_file": "docs/tq_prompts/instruct.txt",
       "context_target": 32768,
       "predict_n": 48,
-      "prompt_tokens_per_sec": 59.7,
-      "decode_tokens_per_sec": 8.8,
-      "wall_ms": 34820,
+      "prompt_tokens_per_sec": 60.7,
+      "decode_tokens_per_sec": 8.4,
+      "wall_ms": 34300,
       "quality_rule": "exact_JSON_contract",
       "passed": true,
       "response_text": "{\"status\": \"ready\", \"focus\": \"turboquant-baseline\", \"next_step\": \"phase2-v-cache\"}",
-      "turboquant_report": null
+      "turboquant_report": {
+        "layers": 1024,
+        "raw": 240123904,
+        "sidecar": 11698176,
+        "simulated": 11698176,
+        "rows": 58624,
+        "bypassed": 0,
+        "evicted_rows": 0,
+        "evicted_bytes": 0,
+        "decode_calls": 0,
+        "decode_rows": 0,
+        "raw_ratio": 4.87,
+        "sim_ratio": 100.0,
+        "codecs": [
+          "vec"
+        ],
+        "read": {
+          "layers": 928,
+          "decode_calls": 11328,
+          "decode_rows": 3036864,
+          "decode_groups": 48589824,
+          "rows": 270464,
+          "codecs": [
+            "vec"
+          ]
+        }
+      }
     }
   ]
 }

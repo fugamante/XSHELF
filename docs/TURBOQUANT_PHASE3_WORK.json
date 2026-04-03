@@ -52,6 +52,16 @@
       "id": "p3_ladder_fix",
       "status": "complete",
       "goal": "re-run 16k and 32k on the corrected 6-bit vec baseline and replace provisional ladder readings"
+    },
+    {
+      "id": "p3_profile_fix",
+      "status": "complete",
+      "goal": "restore read-side accounting on the corrected ladder path and identify the dominant long-context replay hotspots"
+    },
+    {
+      "id": "p3_instruct_harden",
+      "status": "in_progress",
+      "goal": "reduce instruct replay cost on the corrected 6-bit vec path without losing exact-task correctness"
     }
   ],
   "references": [
