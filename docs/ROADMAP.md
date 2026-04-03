@@ -32,6 +32,7 @@
   - Phase 3 vector track closed as a value go
   - active next step is comparative backend follow-through (`MLX`)
   - `MLX` runtime is resolved and first `8k` parity pass is green
+  - `MLX` ladder is also green through `16k` and `32k`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
 ## Phase VI Kickoff (current)

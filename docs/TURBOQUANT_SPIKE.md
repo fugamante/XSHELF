@@ -261,8 +261,16 @@ Current Phase 3A checkpoint:
   - `4/4`
 - current artifact:
   - `docs/TURBOQUANT_MLX_8K.json`
+- ladder now holds through:
+  - `8k`
+  - `16k`
+  - `32k`
+- current comparative reading:
+  - provisional `mlx_portable_go`
+- current comparison caveat:
+  - memory is still measured through `peak_memory_gb`, not a direct `raw_ratio` analog
 - next action:
-  - extend the ladder to `16k` and `32k`
+  - close the first comparative decision with the correct memory-accounting caveat
 
 ## Risks
 

@@ -187,3 +187,55 @@ Reading:
 - the fixed `8k` prompt suite survives the first `MLX` pass intact
 - `MLX` is no longer a planning-only backend for this spike
 - the next correct move is to extend the same measurement path to `16k` and `32k`
+
+## First Ladder
+
+Artifacts:
+
+- `docs/TURBOQUANT_MLX_16K.json`
+- `docs/TURBOQUANT_MLX_32K.json`
+- `docs/TURBOQUANT_MLX_LADDER.json`
+
+Current result:
+
+- `8k`
+  - `4/4`
+  - mean decode `189.308 t/s`
+  - mean wall `3419.0 ms`
+  - peak memory up to `2.96 GB`
+- `16k`
+  - `4/4`
+  - mean decode `138.389 t/s`
+  - mean wall `4540.0 ms`
+  - peak memory up to `2.96 GB`
+- `32k`
+  - `4/4`
+  - mean decode `171.317 t/s`
+  - mean wall `4540.0 ms`
+  - peak memory up to `2.96 GB`
+
+Reading:
+
+- the fixed prompt ladder survives intact on `MLX`
+- on correctness and runtime shape, the Phase 3 vector result appears portable
+- memory comparison is still incomplete because this backend currently exposes only peak memory, not a direct `raw_ratio` analog
+
+## Current Comparative Reading
+
+Artifact:
+
+- `docs/TURBOQUANT_MLX_COMPARE.json`
+
+Current decision:
+
+- `mlx_portable_go_provisional`
+
+Why:
+
+- `MLX` keeps `4/4` through `8k`, `16k`, and `32k`
+- runtime is strong enough that portability is no longer speculative
+- the only material comparison gap left is memory-accounting fidelity, not backend viability
+
+Next constraint:
+
+- do not overstate memory conclusions until the `MLX` proxy story is improved
