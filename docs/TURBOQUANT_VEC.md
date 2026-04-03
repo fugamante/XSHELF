@@ -110,14 +110,14 @@ Current corrected `8k` outcome under actual replay:
 Refined replay reading after the codebook sweep:
 
 - `4` bits: `2/4`
-- `6` bits: `3/4`
+- `6` bits: `4/4` with small-KV bypass `256`
 - `8` bits: `4/4`
 
 This means:
 
 - the vector path is no longer blocked by a generic replay bug
 - it is now bounded by codebook capacity versus runtime cost
-- `6` bits is the current optimization target
+- `6` bits with bypass `256` is the current preferred vector baseline
 - `8` bits is the current correctness ceiling
 
 Current reading:
