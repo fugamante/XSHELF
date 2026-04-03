@@ -213,8 +213,8 @@ fn compat_cmd_scheduler(args: &[String]) -> i32 {
     cmd_scheduler(args)
 }
 
-fn compat_cmd_core() -> i32 {
-    introspect_cmd_core(APP_VERSION)
+fn compat_cmd_core(args: &[String]) -> i32 {
+    introspect_cmd_core(APP_VERSION, args)
 }
 
 fn compat_cmd_mode(args: &[String]) -> i32 {
@@ -277,8 +277,8 @@ fn native_cmd_scheduler(args: &[String]) -> i32 {
     cmd_scheduler(args)
 }
 
-fn native_cmd_core() -> i32 {
-    introspect_cmd_core(APP_VERSION)
+fn native_cmd_core(args: &[String]) -> i32 {
+    introspect_cmd_core(APP_VERSION, args)
 }
 
 fn native_cmd_mode(args: &[String]) -> i32 {

@@ -36,6 +36,13 @@ pub struct ProviderCapabilities {
     pub transport: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackendExperimentCapabilities {
+    pub turboquant_runtime_support: &'static str,
+    pub turboquant_backend_role: &'static str,
+    pub turboquant_metric_kind: Option<&'static str>,
+}
+
 fn normalized_backend_name(raw: &str) -> &'static str {
     if raw.eq_ignore_ascii_case("ollama") {
         "ollama"
@@ -265,6 +272,30 @@ pub fn capabilities_for_adapter(adapter_name: &str) -> ProviderCapabilities {
 
 pub fn selected_provider_capabilities() -> ProviderCapabilities {
     capabilities_for_adapter(selected_adapter_name())
+}
+
+pub fn experiment_capabilities_for_backend(raw_backend: &str) -> BackendExperimentCapabilities {
+    match raw_backend.trim().to_ascii_lowercase().as_str() {
+        "mlx" => BackendExperimentCapabilities {
+            turboquant_runtime_support: "comparative_only",
+            turboquant_backend_role: "comparative_backend",
+            turboquant_metric_kind: Some("cache_nbytes"),
+        },
+        "llama.cpp" | "llamacpp" | "llama_cpp" => BackendExperimentCapabilities {
+            turboquant_runtime_support: "reference_only",
+            turboquant_backend_role: "codec_reference_backend",
+            turboquant_metric_kind: Some("raw_ratio"),
+        },
+        _ => BackendExperimentCapabilities {
+            turboquant_runtime_support: "none",
+            turboquant_backend_role: "standard_provider",
+            turboquant_metric_kind: None,
+        },
+    }
+}
+
+pub fn selected_backend_experiment_capabilities() -> BackendExperimentCapabilities {
+    experiment_capabilities_for_backend(&llm_backend())
 }
 
 pub fn current_provider_capabilities() -> Result<ProviderCapabilities, LlmRunError> {
@@ -584,9 +615,9 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, is_local_url, normalize_provider_status,
-        normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, url_host,
-        validate_http_url,
+        ProviderAdapter, ProviderStatus, experiment_capabilities_for_backend, is_local_url,
+        normalize_provider_status, normalized_backend_name, ollama_plain_to_jsonl,
+        parse_http_hosts, url_host, validate_http_url,
     };
     use serde_json::Value;
     use std::env;
@@ -674,6 +705,24 @@ mod tests {
         assert!(!http_curl.jsonl_native);
         assert!(http_curl.schema_strict);
         assert_eq!(http_curl.transport, "http");
+    }
+
+    #[test]
+    fn backend_experiment_capabilities_are_typed() {
+        let standard = experiment_capabilities_for_backend("codex");
+        assert_eq!(standard.turboquant_runtime_support, "none");
+        assert_eq!(standard.turboquant_backend_role, "standard_provider");
+        assert_eq!(standard.turboquant_metric_kind, None);
+
+        let mlx = experiment_capabilities_for_backend("mlx");
+        assert_eq!(mlx.turboquant_runtime_support, "comparative_only");
+        assert_eq!(mlx.turboquant_backend_role, "comparative_backend");
+        assert_eq!(mlx.turboquant_metric_kind, Some("cache_nbytes"));
+
+        let llama = experiment_capabilities_for_backend("llama.cpp");
+        assert_eq!(llama.turboquant_runtime_support, "reference_only");
+        assert_eq!(llama.turboquant_backend_role, "codec_reference_backend");
+        assert_eq!(llama.turboquant_metric_kind, Some("raw_ratio"));
     }
 
     #[test]

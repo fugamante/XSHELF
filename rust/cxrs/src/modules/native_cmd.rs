@@ -8,7 +8,7 @@ pub struct NativeDeps {
     pub cmd_schema: fn(&[String]) -> i32,
     pub cmd_logs: fn(&[String]) -> i32,
     pub cmd_ci: fn(&[String]) -> i32,
-    pub cmd_core: fn() -> i32,
+    pub cmd_core: fn(&[String]) -> i32,
     pub cmd_mode: fn(&[String]) -> i32,
     pub cmd_task: fn(&[String]) -> i32,
     pub cmd_where: fn(&[String]) -> i32,

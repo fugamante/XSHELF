@@ -147,7 +147,7 @@ fn dispatch_meta_commands(
         "cxdiag" | "diag" => (deps.cmd_diag)(&args[1..]),
         "cxscheduler" | "scheduler" => (deps.cmd_scheduler)(&args[1..]),
         "cxparity" | "parity" => (deps.cmd_parity)(),
-        "cxcore" | "core" => (deps.cmd_core)(),
+        "cxcore" | "core" => (deps.cmd_core)(&args[1..]),
         "cxmode" | "mode" => (deps.cmd_mode)(&args[1..]),
         "cxlogs" | "logs" => (deps.cmd_logs)(&args[1..]),
         "cxtelemetry" | "telemetry" => handle_telemetry(args, deps),

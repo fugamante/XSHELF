@@ -63,7 +63,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "core",
-        usage: "core",
+        usage: "core [--json]",
         description: "Show execution-core pipeline config",
     },
     CommandHelp {
