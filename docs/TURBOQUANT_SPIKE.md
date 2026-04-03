@@ -198,7 +198,7 @@ Current Phase 3 checkpoint:
 - deterministic `[16][8]` `fp16` centroid initialization is wired into the reset/init path
 - slice 2 now adds compile-clean vector payload capture on the host-backed write path
 - slice 3 now adds vector snapshot replay and passes the fixed `8k` suite
-- value has not been judged yet
+- value is now judged as a `vector_go` against the closed scalar reference
 
 ### Phase 4: Read-Path Optimization
 

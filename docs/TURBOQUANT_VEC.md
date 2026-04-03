@@ -106,6 +106,13 @@ Current validation checkpoint:
 - fixed `8k` suite passes under snapshot replay
 - the first vector path is correctness-viable on the validated host-backed execution path
 
+Current value checkpoint:
+
+- `docs/TURBOQUANT_VEC_VALUE.json`
+- mean decode throughput: `30.6 t/s`
+- mean raw ratio: `1.76%`
+- current decision: `vector_go`
+
 ## Success Gates
 
 `tq_v1_vec` is a Phase 3 `go` only if all hold:
