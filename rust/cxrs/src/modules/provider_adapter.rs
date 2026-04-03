@@ -274,7 +274,7 @@ pub fn selected_provider_capabilities() -> ProviderCapabilities {
     capabilities_for_adapter(selected_adapter_name())
 }
 
-pub fn tq_caps_for_backend(raw_backend: &str) -> BackendExperimentCapabilities {
+pub fn backend_tq_caps(raw_backend: &str) -> BackendExperimentCapabilities {
     match raw_backend.trim().to_ascii_lowercase().as_str() {
         "mlx" => BackendExperimentCapabilities {
             turboquant_runtime_support: "comparative_only",
@@ -295,7 +295,7 @@ pub fn tq_caps_for_backend(raw_backend: &str) -> BackendExperimentCapabilities {
 }
 
 pub fn selected_tq_caps() -> BackendExperimentCapabilities {
-    tq_caps_for_backend(&llm_backend())
+    backend_tq_caps(&llm_backend())
 }
 
 pub fn current_provider_capabilities() -> Result<ProviderCapabilities, LlmRunError> {
@@ -615,9 +615,9 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, is_local_url, normalize_provider_status,
-        normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, tq_caps_for_backend,
-        url_host, validate_http_url,
+        ProviderAdapter, ProviderStatus, backend_tq_caps, is_local_url, normalize_provider_status,
+        normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, url_host,
+        validate_http_url,
     };
     use serde_json::Value;
     use std::env;
@@ -709,17 +709,17 @@ mod tests {
 
     #[test]
     fn tq_caps_typed() {
-        let standard = tq_caps_for_backend("codex");
+        let standard = backend_tq_caps("codex");
         assert_eq!(standard.turboquant_runtime_support, "none");
         assert_eq!(standard.turboquant_backend_role, "standard_provider");
         assert_eq!(standard.turboquant_metric_kind, None);
 
-        let mlx = tq_caps_for_backend("mlx");
+        let mlx = backend_tq_caps("mlx");
         assert_eq!(mlx.turboquant_runtime_support, "comparative_only");
         assert_eq!(mlx.turboquant_backend_role, "comparative_backend");
         assert_eq!(mlx.turboquant_metric_kind, Some("cache_nbytes"));
 
-        let llama = tq_caps_for_backend("llama.cpp");
+        let llama = backend_tq_caps("llama.cpp");
         assert_eq!(llama.turboquant_runtime_support, "reference_only");
         assert_eq!(llama.turboquant_backend_role, "codec_reference_backend");
         assert_eq!(llama.turboquant_metric_kind, Some("raw_ratio"));
