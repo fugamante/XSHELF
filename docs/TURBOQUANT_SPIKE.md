@@ -250,11 +250,19 @@ Planning files:
 
 Current Phase 3A checkpoint:
 
-- planned
+- active
 - baseline reference locked to:
   - `vec_bits6_bypass256`
+- runtime now resolved:
+  - `/tmp/cx_mlx_env/bin/python -m mlx_lm generate`
+- current model surface:
+  - `mlx-community/Llama-3.2-3B-Instruct-4bit`
+- first `8k` parity pass:
+  - `4/4`
+- current artifact:
+  - `docs/TURBOQUANT_MLX_8K.json`
 - next action:
-  - identify the practical local `MLX` runtime entrypoint and first comparable memory/accounting surface
+  - extend the ladder to `16k` and `32k`
 
 ## Risks
 

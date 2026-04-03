@@ -1,7 +1,7 @@
 # TurboQuant `MLX` Comparative Track
 
 Branch: `cx/turboquant-spike`
-Status: planned
+Status: active
 Scope: compare the closed `llama.cpp` vector result against an Apple-native `MLX` path
 
 ## Why This Track Exists
@@ -118,3 +118,72 @@ Start with contract and measurement parity, not backend optimization:
 1. identify the practical `MLX` runtime entrypoint for the local model
 2. determine what memory/accounting fields `MLX` can expose without kernel surgery
 3. only then run the first `8k` parity pass
+
+## Resolved Runtime Surface
+
+Current local runtime:
+
+- Python env:
+  - `/tmp/cx_mlx_env`
+- entrypoint:
+  - `/tmp/cx_mlx_env/bin/python -m mlx_lm generate`
+- package state:
+  - `mlx_lm 0.31.1`
+
+Current model surface:
+
+- `mlx-community/Llama-3.2-3B-Instruct-4bit`
+
+Why this is the current probe target:
+
+- it runs on this machine now
+- it exposes prompt TPS, generation TPS, and peak memory directly
+- it is sufficient to establish the first backend-comparison shape without inventing a custom `MLX` kernel path yet
+
+## Current Metrics Contract
+
+Current measurable fields on the `MLX` path:
+
+- prompt tokens/sec
+- decode tokens/sec
+- wall time
+- peak memory in GB
+- exact-task correctness on the fixed prompt set
+
+Current limitation:
+
+- `raw_ratio` is not yet directly available on the `MLX` path
+- for now, the comparison memory proxy is:
+  - `peak_memory_gb`
+
+## First `8k` Checkpoint
+
+Artifact:
+
+- `docs/TURBOQUANT_MLX_8K.json`
+
+Current result:
+
+- `4/4` pass at `8k`
+- `smoke`
+  - decode `328.308 t/s`
+  - wall `2252 ms`
+  - peak memory `1.925 GB`
+- `context_fill`
+  - decode `121.816 t/s`
+  - wall `3476 ms`
+  - peak memory `2.707 GB`
+- `retrieval`
+  - decode `159.299 t/s`
+  - wall `4398 ms`
+  - peak memory `2.96 GB`
+- `instruct`
+  - decode `147.809 t/s`
+  - wall `3550 ms`
+  - peak memory `2.728 GB`
+
+Reading:
+
+- the fixed `8k` prompt suite survives the first `MLX` pass intact
+- `MLX` is no longer a planning-only backend for this spike
+- the next correct move is to extend the same measurement path to `16k` and `32k`
