@@ -305,3 +305,40 @@ This is the first Phase 2 result that restores:
 - exact strict JSON `instruct`
 
 on the fixed validation suite under the host-backed path.
+
+## Scalar Snapshot Revalidation
+
+The next corrective checkpoint reran the current scalar-path default under the same snapshot-backed replay model.
+
+Artifact:
+
+- `docs/TURBOQUANT_SCALAR_SNAPSHOT.json`
+
+Configuration:
+
+- host path:
+  - `--flash-attn on`
+  - `--no-kv-offload`
+- replay mode:
+  - `LLAMA_TQ_SNAPSHOT_READ=1`
+- codec path:
+  - current projection-assisted scalar default
+
+Result:
+
+- `smoke`: pass
+- `context_fill`: pass
+- `retrieval`: pass
+- `instruct`: pass
+
+Meaning:
+
+- the earlier projection-assisted scalar no-go verdict was contaminated by the mutable shared replay bug
+- snapshot-backed replay restores exact-task correctness for the current scalar-path default
+- the remaining open question for this path is now throughput and byte-ratio value, not exact-output correctness
+
+Updated boundary:
+
+- snapshot replay is the required baseline for further codec work
+- projection-assisted scalar is provisionally back in the viable set
+- grouped-scalar and residual-scalar historical no-go results now require explicit revalidation before they can be treated as settled
