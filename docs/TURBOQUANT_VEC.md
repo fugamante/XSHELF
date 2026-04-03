@@ -123,8 +123,8 @@ This means:
 Current reading:
 
 - the branch now proves real replay work with non-zero read counters
-- the earlier value/ladder artifacts remain useful as provisional storage/runtime markers
-- they are not sufficient as correctness proof until the corrected replay path returns to `4/4`
+- the corrected `6`-bit baseline now holds `4/4` through `8k`, `16k`, and `32k`
+- the remaining problem is long-context runtime, not replay correctness
 
 ## Success Gates
 

@@ -82,8 +82,9 @@ Current checkpoint:
 
 - `8` bits restores `4/4` correctness on the real replay path
 - `6` bits restores `4/4` once low-KV replay bypass is raised to `256`
+- the corrected `6`-bit baseline now stays green through `16k` and `32k`
 - `4` bits remains too lossy
-- next work should harden and ladder-test the corrected `6`-bit baseline rather than push `8` bits up the ladder
+- next work should harden long-context runtime on the corrected `6`-bit baseline rather than reopen correctness recovery
 
 ### H3 Prompt-Shape Profiling
 

@@ -219,14 +219,41 @@ Reason:
 - it materially beats the `8`-bit ceiling on runtime
 - it materially beats the `8`-bit ceiling on storage ratio
 
+## Corrected Ladder
+
+Artifacts:
+
+- `docs/TURBOQUANT_VEC_16K.json`
+- `docs/TURBOQUANT_VEC_32K.json`
+- `docs/TURBOQUANT_VEC_LADDER.json`
+
+Corrected `6`-bit ladder under the patched replay path:
+
+- `8k`
+  - passes: `4/4`
+  - mean decode: `17.68 t/s`
+  - mean wall: `12655 ms`
+  - mean raw ratio: `3.12%`
+- `16k`
+  - passes: `4/4`
+  - mean decode: `13.9 t/s`
+  - mean wall: `32160 ms`
+- `32k`
+  - passes: `4/4`
+  - mean decode: `13.97 t/s`
+  - mean wall: `32550 ms`
+
+Reading:
+
+- the corrected `6`-bit baseline stays exact through `8k`, `16k`, and `32k`
+- the main remaining cost is throughput collapse on the long-context prompts, not correctness drift
+- the active Phase 3 question is now runtime hardening, not replay-fidelity recovery
+
 ## Historical Artifacts Now Considered Provisional
 
 These remain useful as branch history, but they are not the active correctness baseline:
 
 - `docs/TURBOQUANT_VEC_VALUE.json`
-- `docs/TURBOQUANT_VEC_16K.json`
-- `docs/TURBOQUANT_VEC_32K.json`
-- `docs/TURBOQUANT_VEC_LADDER.json`
 - `docs/TURBOQUANT_VEC_PROFILE.json`
 
 ## Correction Plan
@@ -254,9 +281,9 @@ Stop Phase 3 quickly if any of these happen:
 
 ## Immediate Next Step
 
-Work the replay-fidelity gap on the real `vec` path:
+Harden the corrected `6`-bit baseline:
 
-1. rerun the ladder on `6` bits with bypass `256`
-2. keep `retrieval`, `instruct`, and `context_fill` as regression guards
-3. profile the corrected `6`-bit path before opening a second vector family
-4. only use `8` bits as a ceiling/reference path
+1. restore read-side byte accounting on the corrected ladder path
+2. profile the long-context throughput collapse on `context_fill`, `retrieval`, and `instruct`
+3. keep `8` bits only as a ceiling/reference path
+4. do not open a second vector family until the current path is either hardened or ruled out on value
