@@ -76,6 +76,11 @@ The new representation is only a Phase 3 `go` if all hold:
    - baseline
    - scalar reference
 
+Initial contract files:
+
+- `docs/TURBOQUANT_VEC.md`
+- `docs/TURBOQUANT_PHASE3_WORK.json`
+
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
@@ -97,3 +102,11 @@ Reason:
 - this is the cleanest representation-class change from the closed scalar track
 - it is closest to the paper's actual direction
 - it gives the best chance of changing the value curve rather than relabeling the same scalar family
+
+## Immediate Next Step
+
+Implement the first narrow design step only:
+
+1. define fixed centroid table shape and sidecar payload layout
+2. export that as the first Phase 3 patch-plan checkpoint
+3. do not touch read/write kernels until the storage contract is pinned

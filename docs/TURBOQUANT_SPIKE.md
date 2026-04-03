@@ -183,6 +183,12 @@ Acceptance:
 - stable long-context quality within agreed threshold
 - materially better runtime/value tradeoff than the closed scalar track
 
+Phase 3 planning files:
+
+- `docs/TURBOQUANT_PHASE3.md`
+- `docs/TURBOQUANT_VEC.md`
+- `docs/TURBOQUANT_PHASE3_WORK.json`
+
 ### Phase 4: Read-Path Optimization
 
 Tasks:
