@@ -1,6 +1,6 @@
 {
   "phase": "phase3",
-  "status": "planned",
+  "status": "active",
   "representation": "tq_v1_vec",
   "steps": [
     {
@@ -21,27 +21,47 @@
     {
       "id": "p3_validate",
       "status": "complete",
-      "goal": "run fixed 8k validation suite against vector prototype under snapshot replay"
+      "goal": "land the first vector replay wiring and validation artifact"
     },
     {
       "id": "p3_value",
       "status": "complete",
-      "goal": "compare vector runtime/value against scalar reference"
+      "goal": "record the provisional vector runtime/value comparison versus scalar reference"
+    },
+    {
+      "id": "p3_patch4",
+      "status": "complete",
+      "goal": "correct read-path accounting and prove real replay activity in docs/TURBOQUANT_VEC_CHECK.json"
+    },
+    {
+      "id": "p3_replay_fix",
+      "status": "in_progress",
+      "goal": "restore exact smoke and strict JSON correctness on the real vec replay path at 8k"
+    },
+    {
+      "id": "p3_bits_sweep",
+      "status": "complete",
+      "goal": "map the corrected 8k replay curve for vec codebook bits and select the next optimization target"
     }
   ],
   "references": [
     "docs/TURBOQUANT_PHASE3.md",
     "docs/TURBOQUANT_VEC.md",
+    "docs/TURBOQUANT_HARDEN.md",
     "docs/TURBOQUANT_SCALAR_VALUE.json",
+    "docs/TURBOQUANT_SCALAR_COMPARE.json",
     "docs/TURBOQUANT_VEC_LAYOUT.md",
-    "patches/tq_p3_slice2.patch",
     "docs/TURBOQUANT_VEC_CHECK.json",
+    "patches/tq_p3_slice1.patch",
+    "patches/tq_p3_slice2.patch",
     "patches/tq_p3_slice3.patch",
+    "patches/tq_p3_slice4.patch",
     "docs/TURBOQUANT_VEC_VALUE.json",
     "docs/TURBOQUANT_VEC_16K.json",
     "docs/TURBOQUANT_VEC_32K.json",
     "docs/TURBOQUANT_VEC_LADDER.json",
     "docs/TURBOQUANT_VEC_PROFILE.json",
-    "docs/TURBOQUANT_HARDEN.md"
+    "patches/tq_p3_slice5.patch",
+    "docs/TURBOQUANT_VEC_SWEEP.json"
   ]
 }

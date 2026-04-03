@@ -82,216 +82,142 @@ Initial contract files:
 - `docs/TURBOQUANT_PHASE3_WORK.json`
 - `docs/TURBOQUANT_VEC_LAYOUT.md`
 
-## Current Checkpoint
+## Slice History
 
-Phase 3 slice 1 is now in place:
+Phase 3 slice 1:
 
 - patch artifact: `patches/tq_p3_slice1.patch`
-- backend target: pinned `llama.cpp` analysis checkout
-- status: compile-clean scaffold only
-
-What slice 1 adds:
-
+- compile-clean scaffold only
 - explicit vector codebook state per layer
 - deterministic `fp16` centroid residency for a fixed `[16][8]` codebook
-- explicit vector payload/codebook byte counters in TurboQuant layer state
-- reset/init wiring so the codebook exists before any vector read/write slice
 
-What slice 1 does not add:
-
-- no vector write-side encoding
-- no vector read-side decode
-- no runtime path switch away from the closed scalar baseline
-- no value claim yet
-
-Phase 3 slice 2 is now in place:
+Phase 3 slice 2:
 
 - patch artifact: `patches/tq_p3_slice2.patch`
-- backend target: pinned `llama.cpp` analysis checkout
-- status: compile-clean vector capture only
+- vector payload capture landed
+- deterministic nearest-centroid scoring and packed `vec_payload` storage
+- no read-side replay yet
 
-What slice 2 adds:
-
-- `vec` codec-mode parsing in the analysis checkout
-- deterministic nearest-centroid scoring against the fixed per-layer codebook
-- packed vector payload capture into explicit `vec_payload` storage
-- vector byte accounting for:
-  - payload bytes
-  - codebook bytes
-- explicit guard in `get_v()` so vector mode remains capture-only until a decoder exists
-
-What slice 2 does not add:
-
-- no vector snapshot decode
-- no fixed `8k` validation artifact yet
-- no value comparison yet
-
-Phase 3 slice 3 is now in place:
+Phase 3 slice 3:
 
 - patch artifact: `patches/tq_p3_slice3.patch`
-- validation artifact: `docs/TURBOQUANT_VEC_CHECK.json`
-- status: first vector snapshot decoder validated at `8k`
+- vector replay wiring landed
+- but later correction work showed the earlier branch verdict was still contaminated by a capture-only path
 
-What slice 3 adds:
+Phase 3 slice 4:
 
-- vector snapshot replay on the host-backed `V` path
-- fixed `8k` suite validation under:
-  - `LLAMA_TQ_CODEC_MODE=vec`
-  - `LLAMA_TQ_SNAPSHOT_READ=1`
-  - `--flash-attn on`
-  - `--no-kv-offload`
+- patch artifact: `patches/tq_p3_slice4.patch`
+- read-path accounting corrected
+- the branch now proves real replay work through non-zero `turboquant_report.read` counters
+- this is the first checkpoint that can be treated as a real vector replay measurement
 
-Observed checkpoint:
+## Corrected Current Checkpoint
 
-- `smoke`: pass
+Artifact:
+
+- `docs/TURBOQUANT_VEC_CHECK.json`
+
+Corrected `8k` outcome under actual `vec` replay:
+
+- `smoke`: fail
 - `context_fill`: pass
 - `retrieval`: pass
-- `instruct`: pass
-- reported sidecar ratio on the validated `8k` runs: roughly `1.6%` to `2.1%` of raw
+- `instruct`: fail
 
-What slice 3 does not decide yet:
+What is now proven:
 
-- no value verdict versus the closed scalar reference yet
-- no production-worthiness claim
+- vector read-side work is real, not inferred from write-side accounting
+- `turboquant_report.read.decode_calls` is non-zero
+- `turboquant_report.read.decode_rows` is non-zero
+- `turboquant_report.read.decode_groups` is non-zero
+- replay fidelity depends strongly on vector codebook capacity
 
-## Value Checkpoint
+What changed from the earlier branch reading:
+
+- the old `vector_go`/ladder/value checkpoints should now be treated as provisional capture-side evidence
+- they are still useful for storage accounting and historical comparison
+- they are not sufficient as the current correctness decision point
+
+## Current Decision
+
+- `vector_replay_correction`
+
+Reason:
+
+- the branch now measures the real replay path
+- the real replay path is not yet back to `4/4` on the fixed `8k` suite
+- further value expansion would be premature until exact `smoke` and strict JSON `instruct` are restored
+
+## Codebook Sweep
 
 Artifact:
+
+- `docs/TURBOQUANT_VEC_SWEEP.json`
+
+Corrected `8k` replay sweep:
+
+- `4` bits
+  - passes: `2/4`
+  - failures: `smoke`, `retrieval`
+  - mean decode: `13.6 t/s`
+  - mean raw ratio: `1.97%`
+- `6` bits
+  - passes: `3/4`
+  - failure: `smoke`
+  - mean decode: `14.48 t/s`
+  - mean raw ratio: `3.79%`
+- `8` bits
+  - passes: `4/4`
+  - mean decode: `14.0 t/s`
+  - mean raw ratio: `6.23%`
+  - mean wall: `31415 ms`
+
+Reading:
+
+- `8` bits restores correctness on the real replay path
+- but the wall-time penalty is severe
+- `6` bits is the most interesting target because it keeps `retrieval` and `instruct` while missing only `smoke`
+
+## Historical Artifacts Now Considered Provisional
+
+These remain useful as branch history, but they are not the active correctness baseline:
 
 - `docs/TURBOQUANT_VEC_VALUE.json`
-
-Vector result at `8k` under snapshot replay:
-
-- passes: `4/4`
-- mean decode throughput: `30.6 t/s`
-- mean wall time: `6707.5 ms`
-- mean raw ratio: `1.76%`
-- mean bytes saved: `98.24%`
-
-Closed scalar reference:
-
-- mean decode throughput: `2.73 t/s`
-- mean wall time: `17022.5 ms`
-- mean raw ratio: `26.56%`
-- mean bytes saved: `73.44%`
-
-Phase 3 decision from the current data:
-
-- `vector_go`
-
-Reason:
-
-- the first vector snapshot path passes the fixed `8k` suite
-- it materially beats the closed scalar reference on runtime
-- it materially beats the scalar reference on storage ratio
-- the representation-class change is justified by measured value, not only by correctness
-
-## Context Ladder
-
-Artifact:
-
+- `docs/TURBOQUANT_VEC_16K.json`
+- `docs/TURBOQUANT_VEC_32K.json`
 - `docs/TURBOQUANT_VEC_LADDER.json`
-
-Observed ladder:
-
-- `8k`
-  - passes: `4/4`
-  - mean decode throughput: `30.6 t/s`
-  - mean raw ratio: `1.76%`
-- `16k`
-  - passes: `4/4`
-  - mean decode throughput: `12.55 t/s`
-  - mean raw ratio: `1.76%`
-- `32k`
-  - passes: `4/4`
-  - mean decode throughput: `20.52 t/s`
-  - mean raw ratio: `1.76%`
-
-Important reading:
-
-- correctness holds across the fixed suite at `8k`, `16k`, and `32k`
-- storage ratio stays stable across the ladder
-- decode behavior becomes prompt-sensitive at longer contexts:
-  - `smoke` remains fast
-  - `instruct` remains the weakest path
-  - `context_fill` also degrades sharply at longer contexts
-
-Current branch decision:
-
-- `harden_current_vector_path`
-
-Reason:
-
-- the vector representation is already a correctness and storage win
-- the next risk is runtime behavior by prompt shape, not representation viability
-- opening a second vector/codebook variant now would blur the diagnosis
-
-## Prompt Profile
-
-Artifact:
-
 - `docs/TURBOQUANT_VEC_PROFILE.json`
 
-Hotspots from the current ladder:
-
-- `instruct`
-  - risk: `critical`
-  - long-context decode: about `1.5 t/s`
-- `context_fill`
-  - risk: `high`
-  - long-context decode: about `2.5` to `3.2 t/s`
-- `retrieval`
-  - risk: `high`
-  - unstable decode behavior across contexts
-- `smoke`
-  - risk: `stable`
-
-Interpretation:
-
-- the current vector path is not blocked by correctness
-- it is blocked by prompt-shape-sensitive runtime behavior
-- hardening should focus on the existing path before any second representation attempt
-
-## Hardening Plan
+## Correction Plan
 
 Artifact:
 
 - `docs/TURBOQUANT_HARDEN.md`
 
-Hardening order:
+Order:
 
-1. read-path accounting
-2. prompt-shape profiling
-3. decode-path allocation control
-4. access locality
-5. ladder re-run
+1. prove read-side activity in artifacts
+2. restore exact `smoke`
+3. keep `6` bits as the primary optimization target
+4. use `8` bits as the current correctness ceiling
+5. only then reopen prompt-shape/runtime hardening
+6. rerun the ladder from the corrected real replay baseline
 
 ## Stop Conditions
 
 Stop Phase 3 quickly if any of these happen:
 
-- correctness fails in the same way as the rejected scalar paths
-- runtime remains near the scalar reference penalty band
+- exact `smoke` cannot be restored on the real replay path
+- exact `retrieval` breaks while correcting `smoke`/`instruct`
+- strict JSON `instruct` remains broken after replay-fidelity corrections
 - integration scope grows faster than the measured value
-
-## Recommended First Attempt
-
-Preferred first Phase 3 attempt:
-
-- vector/codebook `V`-side prototype
-- host-backed path only
-- snapshot replay retained as the correctness baseline
-
-Reason:
-
-- this is the cleanest representation-class change from the closed scalar track
-- it is closest to the paper's actual direction
-- it gives the best chance of changing the value curve rather than relabeling the same scalar family
 
 ## Immediate Next Step
 
-Implement the first executable vector slice only:
+Work the replay-fidelity gap on the real `vec` path:
 
-1. improve read-path accounting for the current vector decoder
-2. reduce obvious decode-path overhead on the hotspot prompts
-3. rerun the ladder before considering broader backend or `MLX` follow-through
+1. isolate why `smoke` drifts from exact `OK`
+2. keep `6` bits as the primary optimization target
+3. keep `retrieval`, `instruct`, and `context_fill` as regression guards while correcting `smoke`
+4. use `8` bits only as the current correctness ceiling
+5. rerun `8k` before touching `16k/32k` again

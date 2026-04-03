@@ -6,49 +6,35 @@ Scope: harden the current `tq_v1_vec` path before opening a second vector family
 
 ## Why This Exists
 
-Phase 3 now has enough evidence to stop broad exploration and tighten the current path.
+Phase 3 still looks promising, but the corrected branch state is narrower than the earlier provisional verdict.
 
 What is already proven:
 
-- correctness holds at `8k`, `16k`, and `32k`
-- storage ratio stays near `1.76%` of raw
-- the first vector path beats the closed scalar reference decisively on value
+- vector payload capture is materially compact
+- the branch can now surface real read-side decode work in artifacts
+- `retrieval` and `context_fill` still pass on the corrected real replay path at `8k`
 
 What is not yet stable enough:
 
-- decode throughput becomes strongly prompt-shape dependent at longer contexts
+- exact `smoke` fails on the corrected real replay path
+- exact strict JSON `instruct` fails on the corrected real replay path
+- the earlier ladder/value artifacts are provisional until real replay correctness is restored
 
 Artifacts:
 
+- `docs/TURBOQUANT_VEC_CHECK.json`
 - `docs/TURBOQUANT_VEC_VALUE.json`
 - `docs/TURBOQUANT_VEC_LADDER.json`
 - `docs/TURBOQUANT_VEC_PROFILE.json`
 
-## Hotspots
-
-From the current ladder/profile:
-
-- `instruct`
-  - risk: `critical`
-  - long-context decode: about `1.5 t/s`
-  - max wall: about `30910 ms`
-- `context_fill`
-  - risk: `high`
-  - long-context decode: about `2.5` to `3.2 t/s`
-  - max wall: about `17760 ms`
-- `retrieval`
-  - risk: `high`
-  - unstable decode behavior across the ladder
-- `smoke`
-  - risk: `stable`
-
 ## Hardening Order
 
 1. Read-path accounting
-2. Prompt-shape profiling
-3. Decode-path allocation control
-4. Codebook/payload access locality
-5. Re-run ladder
+2. Replay-fidelity correction
+3. Prompt-shape profiling
+4. Decode-path allocation control
+5. Codebook/payload access locality
+6. Re-run ladder
 
 ## Work Items
 
@@ -71,11 +57,39 @@ Success:
 
 - `docs/TURBOQUANT_VEC_*` artifacts show real read-side activity, not only write-side storage
 
-### H2 Prompt-Shape Profiling
+Status:
+
+- complete via `patches/tq_p3_slice4.patch`
+- real replay counters are now visible in `docs/TURBOQUANT_VEC_CHECK.json`
+
+### H2 Replay-Fidelity Correction
 
 Objective:
 
-- separate prompt-length effects from generation-shape effects
+- restore exact-task correctness on the real `vec` replay path
+
+Tasks:
+
+- isolate why `smoke` drifts from exact `OK`
+- isolate why `instruct` drifts from the strict JSON contract
+- keep `retrieval` and `context_fill` as regression guards while correcting replay fidelity
+
+Success:
+
+- corrected `8k` suite returns to `4/4` pass under actual replay, not capture-only accounting
+
+Current checkpoint:
+
+- `8` bits restores `4/4` correctness on the real replay path
+- `6` bits restores `3/4` and misses only `smoke`
+- `4` bits remains too lossy
+- next work should target `6` bits smoke recovery rather than push `8` bits up the ladder
+
+### H3 Prompt-Shape Profiling
+
+Objective:
+
+- separate prompt-length effects from generation-shape effects on the corrected replay path
 
 Tasks:
 
@@ -94,7 +108,7 @@ Success:
 
 - one artifact explains why `instruct` and `context_fill` are slower than `smoke`
 
-### H3 Decode-Path Allocation Control
+### H4 Decode-Path Allocation Control
 
 Objective:
 
@@ -109,7 +123,7 @@ Success:
 
 - measurable decode gain on the hotspot prompts without correctness drift
 
-### H4 Access Locality
+### H5 Access Locality
 
 Objective:
 
@@ -124,7 +138,7 @@ Success:
 
 - no representation change, but better decode efficiency on the same `tq_v1_vec` path
 
-### H5 Re-run Ladder
+### H6 Re-run Ladder
 
 Objective:
 
@@ -158,5 +172,5 @@ Success:
 
 Only open a second vector/codebook variant if:
 
-- the current path cannot be materially improved by hardening, or
-- hardening shows the slowdown is intrinsic to this exact representation layout
+- the current path cannot restore exact `smoke` and strict JSON under real replay, or
+- hardening shows the slowdown or drift is intrinsic to this exact representation layout
