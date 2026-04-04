@@ -322,6 +322,19 @@ fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
     ]
 }
 
+fn exec_wave_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
+    let value = wave_pressure_value(latest_summary, wave_summary);
+    let kind = value.get("kind").and_then(Value::as_str).unwrap_or("none");
+    let suggested_mode = value
+        .get("suggested_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    vec![
+        format!("task_execution_wave_pressure: {kind}"),
+        format!("task_execution_wave_pressure_mode: {suggested_mode}"),
+    ]
+}
+
 fn wave_pressure_value(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Value {
     let latest_wave_index = latest_summary
         .and_then(|s| s.get("run_all_latest_wave_index"))
@@ -667,6 +680,9 @@ fn print_exec_advice() {
     for line in exec_advice_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
+    for line in exec_wave_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
+        println!("{line}");
+    }
     for line in exec_next_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
@@ -744,7 +760,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        exec_advice_lines, exec_diag_value, exec_next_lines, exec_reco_lines,
+        exec_advice_lines, exec_diag_value, exec_next_lines, exec_reco_lines, exec_wave_lines,
         readiness_summary_lines,
     };
     use serde_json::Value;
@@ -906,6 +922,18 @@ mod tests {
             next_lines.contains("task_execution_next_action_kind: inspect_scheduler"),
             "{next_lines}"
         );
+        let wave_lines = exec_wave_lines(
+            Some(&serde_json::json!({
+                "run_all_wave_pressure_kind": "later_wave_queue",
+                "run_all_wave_pressure_suggested_mode": "sequential"
+            })),
+            None,
+        )
+        .join("\n");
+        assert!(
+            wave_lines.contains("task_execution_wave_pressure: later_wave_queue"),
+            "{wave_lines}"
+        );
     }
 
     #[test]
@@ -996,6 +1024,11 @@ mod tests {
             next_lines
                 .contains("task_execution_next_action_command: cx task run-all --dry-run --json"),
             "{next_lines}"
+        );
+        let wave_lines = exec_wave_lines(None, Some(&wave)).join("\n");
+        assert!(
+            wave_lines.contains("task_execution_wave_pressure: later_wave_queue"),
+            "{wave_lines}"
         );
     }
 }
