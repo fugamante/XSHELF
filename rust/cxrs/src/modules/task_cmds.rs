@@ -1102,7 +1102,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 println!("run-all halted_on_critical: true");
                 println!("run-all halted_remaining: {halted_remaining}");
             }
-            print_runall_preflight_text(&preflight);
+            print_preflight_text(&preflight);
             if !backend_fallbacks.is_empty() {
                 println!(
                     "run-all backend_fallbacks: {}",
@@ -1289,7 +1289,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
     })
 }
 
-fn print_runall_preflight_text(preflight: &Value) {
+fn print_preflight_text(preflight: &Value) {
     println!(
         "run-all preflight_advice: {}",
         preflight
@@ -1388,7 +1388,7 @@ fn dry_run_out(
             schedule.len(),
             blocked
         );
-        print_runall_preflight_text(&preflight);
+        print_preflight_text(&preflight);
     }
     if blocked > 0 || (options.strict_plan && !strict_ok) {
         1
