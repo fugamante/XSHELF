@@ -169,6 +169,15 @@ fn telemetry_json_matches_contract_fixture() {
         &next_action_keys,
         "telemetry.task_execution.next_action",
     );
+    let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("wave_pressure"))
+            .expect("task_execution.wave_pressure"),
+        &wave_pressure_keys,
+        "telemetry.task_execution.wave_pressure",
+    );
     let drift_keys = fixture_keys(&fixture, "contract_drift_keys");
     assert_has_keys(
         payload.get("contract_drift").expect("contract_drift"),
@@ -502,6 +511,14 @@ fn diag_json_matches_contract_fixture() {
             .expect("diag.task_execution.next_action"),
         &next_action_keys,
         "diag.task_execution.next_action",
+    );
+    let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        task_execution
+            .get("wave_pressure")
+            .expect("diag.task_execution.wave_pressure"),
+        &wave_pressure_keys,
+        "diag.task_execution.wave_pressure",
     );
     assert_eq!(
         payload

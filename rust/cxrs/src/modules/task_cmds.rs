@@ -206,6 +206,10 @@ struct ActiveLaunch {
     id: String,
     backend: String,
     requested_backend: Option<String>,
+    queue_ms: u64,
+    wave_index: u64,
+    wave_mode: String,
+    wave_size: u64,
     join: thread::JoinHandle<Result<(i32, Option<String>), String>>,
 }
 
@@ -258,6 +262,19 @@ struct TaskRunEvent {
     status: String,
     execution_id: Option<String>,
     failure_class: Option<String>,
+    queue_ms: u64,
+    wave_index: u64,
+    wave_mode: String,
+    wave_size: u64,
+}
+
+#[derive(Debug, Clone)]
+struct RunAllWavePressure {
+    kind: &'static str,
+    suggested_mode: Option<&'static str>,
+    latest_wave_index: Option<u64>,
+    max_queue_wave_index: Option<u64>,
+    max_queue_wave_ms: u64,
 }
 
 impl RunAllSummary {
@@ -292,8 +309,50 @@ impl RunAllSummary {
             "used_backend_fallback": used_backend_fallback,
             "status": ev.status,
             "execution_id": ev.execution_id,
-            "failure_class": ev.failure_class
+            "failure_class": ev.failure_class,
+            "queue_ms": ev.queue_ms,
+            "wave_index": ev.wave_index,
+            "wave_mode": ev.wave_mode,
+            "wave_size": ev.wave_size
         }));
+    }
+}
+
+fn runall_wave_pressure(summary: &RunAllSummary, mode: &str) -> RunAllWavePressure {
+    let mut latest_wave_index: Option<u64> = None;
+    let mut max_queue_wave_index: Option<u64> = None;
+    let mut max_queue_wave_ms = 0u64;
+    for task in &summary.task_runs {
+        let wave_index = task.get("wave_index").and_then(Value::as_u64);
+        if wave_index.is_some() {
+            latest_wave_index = wave_index;
+        }
+        let queue_ms = task.get("queue_ms").and_then(Value::as_u64).unwrap_or(0);
+        if queue_ms >= max_queue_wave_ms {
+            max_queue_wave_ms = queue_ms;
+            max_queue_wave_index = wave_index;
+        }
+    }
+    if max_queue_wave_index.unwrap_or(0) > 1 && max_queue_wave_ms >= 2000 {
+        let suggested_mode = match mode {
+            "parallel" => Some("mixed"),
+            "mixed" => Some("sequential"),
+            _ => None,
+        };
+        return RunAllWavePressure {
+            kind: "later_wave_queue",
+            suggested_mode,
+            latest_wave_index,
+            max_queue_wave_index,
+            max_queue_wave_ms,
+        };
+    }
+    RunAllWavePressure {
+        kind: "none",
+        suggested_mode: None,
+        latest_wave_index,
+        max_queue_wave_index,
+        max_queue_wave_ms,
     }
 }
 
@@ -887,6 +946,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
+                                queue_ms: 0,
+                                wave_index: wave_meta.index,
+                                wave_mode: wave_meta.mode.clone(),
+                                wave_size: wave_meta.size,
                             });
                             continue;
                         }
@@ -899,6 +962,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         continue;
                     }
@@ -912,6 +979,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
@@ -954,6 +1025,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
+                                queue_ms: 0,
+                                wave_index: wave_meta.index,
+                                wave_mode: wave_meta.mode.clone(),
+                                wave_size: wave_meta.size,
                             });
                             finished = true;
                             break;
@@ -977,6 +1052,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         finished = true;
                         break;
@@ -993,6 +1072,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
@@ -1015,6 +1098,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     status: "failed".to_string(),
                     execution_id: None,
                     failure_class: Some("non_retryable_failure".to_string()),
+                    queue_ms: 0,
+                    wave_index: wave_meta.index,
+                    wave_mode: wave_meta.mode.clone(),
+                    wave_size: wave_meta.size,
                 });
             }
         }
@@ -1122,6 +1209,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         }
     }
+    let wave_pressure = runall_wave_pressure(&summary, &options.run_mode);
     let _ = crate::runlog::log_task_run_all_summary(crate::runlog::TaskRunAllSummaryLogInput {
         mode: &options.run_mode,
         halt_on_critical: options.halt_on_critical,
@@ -1139,6 +1227,11 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         } else {
             Some(render_counts_compact(&backend_fallbacks))
         },
+        wave_pressure_kind: Some(wave_pressure.kind),
+        wave_pressure_suggested_mode: wave_pressure.suggested_mode,
+        latest_wave_index: wave_pressure.latest_wave_index,
+        max_queue_wave_index: wave_pressure.max_queue_wave_index,
+        max_queue_wave_ms: Some(wave_pressure.max_queue_wave_ms),
         duration_ms: started.elapsed().as_millis() as u64,
     });
     if summary.failed > 0 { 1 } else { 0 }
@@ -1855,6 +1948,9 @@ fn run_schedule_parallel(
             *backend_active.entry(launch.backend.clone()).or_insert(0) += 1;
             let id = launch.id.clone();
             let backend = launch.backend.clone();
+            let wave_index = launch.wave_index;
+            let wave_mode = launch.wave_mode.clone();
+            let wave_size = launch.wave_size;
             let task_parent_id = task_index.get(&id).and_then(|t| t.parent_id.clone());
             let max_retries = task_index.get(&id).and_then(|t| t.max_retries).unwrap_or(0);
             let join = thread::spawn(move || {
@@ -1868,9 +1964,9 @@ fn run_schedule_parallel(
                         task_parent_id,
                         max_retries,
                         wave: Some(TaskWaveMeta {
-                            index: launch.wave_index,
-                            mode: launch.wave_mode,
-                            size: launch.wave_size,
+                            index: wave_index,
+                            mode: wave_mode,
+                            size: wave_size,
                         }),
                     },
                 )
@@ -1879,6 +1975,10 @@ fn run_schedule_parallel(
                 id: launch.id,
                 backend: launch.backend,
                 requested_backend: launch.requested_backend,
+                queue_ms,
+                wave_index,
+                wave_mode: launch.wave_mode,
+                wave_size,
                 join,
             });
         }
@@ -1910,6 +2010,10 @@ fn run_schedule_parallel(
                             status: "complete".to_string(),
                             execution_id,
                             failure_class: None,
+                            queue_ms: done.queue_ms,
+                            wave_index: done.wave_index,
+                            wave_mode: done.wave_mode,
+                            wave_size: done.wave_size,
                         });
                     } else {
                         let failure = classify_failure_for_execution(execution_id.as_deref());
@@ -1923,6 +2027,10 @@ fn run_schedule_parallel(
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: done.queue_ms,
+                            wave_index: done.wave_index,
+                            wave_mode: done.wave_mode,
+                            wave_size: done.wave_size,
                         });
                     }
                 }
@@ -1937,6 +2045,10 @@ fn run_schedule_parallel(
                         status: "critical_error".to_string(),
                         execution_id: None,
                         failure_class: Some("critical_error".to_string()),
+                        queue_ms: done.queue_ms,
+                        wave_index: done.wave_index,
+                        wave_mode: done.wave_mode,
+                        wave_size: done.wave_size,
                     });
                     if options.halt_on_critical {
                         summary.halted_on_critical = true;
