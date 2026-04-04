@@ -1,6 +1,9 @@
 # Post-Phase-VI Cross-Phase Code Overview
 
-Status: planned follow-up after Phase VI stabilization
+Status: complete
+
+Completion note:
+- contract drift, duplicated guidance logic, stale task-surface coverage, and compatibility-policy drift were reviewed and corrected on `cx/tq-mlx-followon`
 
 ## Goal
 
