@@ -1128,6 +1128,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
         build_actions_from_reasons(
@@ -1144,6 +1145,13 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             "contract_version": SCHEDULER_JSON_CONTRACT_VERSION,
             "log_file": log_file,
             "scheduler_window_requested": window,
+            "backend_capabilities": {
+                "turboquant": {
+                    "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                    "selected_backend_role": experiment_caps.turboquant_backend_role,
+                    "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+                }
+            },
             "scheduler": scheduler,
             "retry": retry,
             "critical": critical,

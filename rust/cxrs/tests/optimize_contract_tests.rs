@@ -21,6 +21,23 @@ fn optimize_json_matches_contract_fixture() {
 
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "optimize");
+    let backend_caps_keys = fixture_keys(&fixture, "backend_capabilities_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .expect("backend_capabilities"),
+        &backend_caps_keys,
+        "optimize.backend_capabilities",
+    );
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .expect("backend_capabilities.turboquant"),
+        &turboquant_keys,
+        "optimize.backend_capabilities.turboquant",
+    );
     let sb_keys = fixture_keys(&fixture, "scoreboard_keys");
     assert_has_keys(
         payload.get("scoreboard").expect("scoreboard"),
@@ -44,6 +61,14 @@ fn optimize_json_matches_contract_fixture() {
             .expect("timing_attribution_coverage"),
         &timing_keys,
         "optimize.scoreboard.timing_attribution_coverage",
+    );
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
     );
 }
 

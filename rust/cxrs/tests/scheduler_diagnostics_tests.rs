@@ -328,6 +328,23 @@ fn scheduler_json_matches_contract_fixture() {
             ("concurrency", "concurrency_keys", "scheduler.concurrency"),
         ],
     );
+    let backend_caps_keys = fixture_keys(&fixture, "backend_capabilities_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .expect("backend_capabilities"),
+        &backend_caps_keys,
+        "scheduler.backend_capabilities",
+    );
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .expect("backend_capabilities.turboquant"),
+        &turboquant_keys,
+        "scheduler.backend_capabilities.turboquant",
+    );
 
     let concurrency = payload.get("concurrency").expect("scheduler.concurrency");
     let defaults = concurrency
@@ -361,4 +378,12 @@ fn scheduler_json_matches_contract_fixture() {
             "scheduler.concurrency.observed missing key '{key}' in {observed}"
         );
     }
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
 }
