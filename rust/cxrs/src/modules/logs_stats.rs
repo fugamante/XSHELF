@@ -1,4 +1,5 @@
 use crate::contract_versions::TELEMETRY_JSON_CONTRACT_VERSION;
+use crate::doctor::{exec_diag_value, latest_run_all_sum};
 use crate::json_mode::resolve_json_mode;
 use crate::log_contract::REQUIRED_STRICT_FIELDS;
 use crate::logs::load_values;
@@ -608,6 +609,7 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
         })
         .collect();
     let experiment_caps = selected_tq_caps();
+    let task_execution = exec_diag_value(latest_run_all_sum().as_ref());
     let payload = json!({
         "contract_version": TELEMETRY_JSON_CONTRACT_VERSION,
         "log_file": log_file.display().to_string(),
@@ -622,6 +624,7 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
                 "memory_metric_kind": experiment_caps.turboquant_metric_kind,
             }
         },
+        "task_execution": task_execution,
         "fields": fields,
         "contract_drift": {
             "new_keys_second_half": stats.new_in_second,
