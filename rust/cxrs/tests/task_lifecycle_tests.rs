@@ -314,7 +314,7 @@ fn list_text_summary() {
 }
 
 #[test]
-fn run_prints_preflight_when_blocked() {
+fn run_preflight_blocked() {
     let repo = TempRepo::new("cxrs-it");
 
     let parent = repo.run(&["task", "add", "Parent run task", "--role", "implementer"]);
