@@ -35,7 +35,13 @@
     "max_queue_wave_index",
     "max_queue_wave_ms",
     "advice",
-    "recommendations"
+    "recommendations",
+    "next_action"
+  ],
+  "task_execution_next_action_keys": [
+    "kind",
+    "command",
+    "reason"
   ],
   "retry_keys": [
     "rows_with_retry_metadata",

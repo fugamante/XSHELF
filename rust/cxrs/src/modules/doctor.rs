@@ -276,6 +276,34 @@ fn wave_pressure_advice(mode: &str, wave_summary: Option<&Value>) -> Option<Stri
     ))
 }
 
+fn next_action_kind(command: &str) -> &'static str {
+    if command.starts_with("cx task run-all") {
+        "rerun"
+    } else if command.starts_with("cx scheduler") {
+        "inspect_scheduler"
+    } else if command.starts_with("cx task check") {
+        "inspect_tasks"
+    } else if command.starts_with("cx diag") {
+        "inspect_diag"
+    } else if command.starts_with("cx doctor") {
+        "inspect_doctor"
+    } else {
+        "inspect"
+    }
+}
+
+fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
+    let primary = recommendations
+        .first()
+        .and_then(Value::as_str)
+        .unwrap_or("cx diag --json");
+    serde_json::json!({
+        "kind": next_action_kind(primary),
+        "command": primary,
+        "reason": advice
+    })
+}
+
 pub(crate) fn exec_advice_lines(
     latest_summary: Option<&Value>,
     wave_summary: Option<&Value>,
@@ -500,7 +528,8 @@ pub(crate) fn exec_diag_value(
             "max_queue_wave_index": max_queue_wave_index,
             "max_queue_wave_ms": max_queue_wave_ms,
             "advice": advice,
-            "recommendations": recommendations
+            "recommendations": recommendations,
+            "next_action": next_action_value(&advice, &recommendations)
         });
     };
     let mode = summary
@@ -549,7 +578,8 @@ pub(crate) fn exec_diag_value(
         "max_queue_wave_index": max_queue_wave_index,
         "max_queue_wave_ms": max_queue_wave_ms,
         "advice": advice,
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "next_action": next_action_value(&advice, &recommendations)
     })
 }
 
@@ -754,6 +784,13 @@ mod tests {
                 .any(|v| v.as_str() == Some("cx scheduler --json --window 20")),
             "{value}"
         );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("kind"))
+                .and_then(Value::as_str),
+            Some("inspect_scheduler")
+        );
     }
 
     #[test]
@@ -790,6 +827,13 @@ mod tests {
             value.get("max_queue_wave_ms").and_then(Value::as_u64),
             Some(2400)
         );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("command"))
+                .and_then(Value::as_str),
+            Some("cx task run-all --mode sequential --status pending")
+        );
     }
 
     #[test]
@@ -824,6 +868,13 @@ mod tests {
                 .and_then(Value::as_str)
                 .is_some_and(|v| v.contains("queue pressure is concentrating")),
             "{value}"
+        );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("kind"))
+                .and_then(Value::as_str),
+            Some("rerun")
         );
     }
 }

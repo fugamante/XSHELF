@@ -160,6 +160,15 @@ fn telemetry_json_matches_contract_fixture() {
         &task_execution_keys,
         "telemetry.task_execution",
     );
+    let next_action_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("next_action"))
+            .expect("task_execution.next_action"),
+        &next_action_keys,
+        "telemetry.task_execution.next_action",
+    );
     let drift_keys = fixture_keys(&fixture, "contract_drift_keys");
     assert_has_keys(
         payload.get("contract_drift").expect("contract_drift"),
@@ -478,6 +487,21 @@ fn diag_json_matches_contract_fixture() {
             .and_then(Value::as_array)
             .is_some(),
         "diag.task_execution.recommendations missing in {task_execution}"
+    );
+    assert!(
+        task_execution
+            .get("next_action")
+            .and_then(Value::as_object)
+            .is_some(),
+        "diag.task_execution.next_action missing in {task_execution}"
+    );
+    let next_action_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        task_execution
+            .get("next_action")
+            .expect("diag.task_execution.next_action"),
+        &next_action_keys,
+        "diag.task_execution.next_action",
     );
     assert_eq!(
         payload
