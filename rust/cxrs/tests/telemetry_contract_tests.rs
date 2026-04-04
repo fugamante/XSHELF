@@ -405,7 +405,11 @@ fn diag_json_matches_contract_fixture() {
             ),
             ("routing_trace", "routing_trace_keys", "diag.routing_trace"),
             ("scheduler", "scheduler_keys", "diag.scheduler"),
-            ("task_readiness", "task_readiness_keys", "diag.task_readiness"),
+            (
+                "task_readiness",
+                "task_readiness_keys",
+                "diag.task_readiness",
+            ),
             ("retry", "retry_keys", "diag.retry"),
             ("critical", "critical_keys", "diag.critical"),
             ("concurrency", "concurrency_keys", "diag.concurrency"),

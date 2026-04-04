@@ -1772,10 +1772,7 @@ fn plan_mode_counts(plan: &crate::tasks_plan::TaskRunPlan) -> (u64, u64, u64) {
     (sequential_waves, parallel_waves, largest_parallel_wave)
 }
 
-pub(crate) fn task_readiness_value(
-    tasks: &[TaskRecord],
-    status_filter: &str,
-) -> serde_json::Value {
+pub(crate) fn task_readiness_value(tasks: &[TaskRecord], status_filter: &str) -> serde_json::Value {
     let plan = build_task_run_plan(tasks, status_filter);
     let strict_reason = strict_issue_parallel(&plan);
     let strict_ok = strict_reason.is_none();
