@@ -202,7 +202,7 @@ fn print_task_readiness() {
     }
 }
 
-fn task_execution_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
+fn exec_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
     let Some(summary) = latest_summary else {
         return vec!["task_execution_advice: no recent task run-all summary".to_string()];
     };
@@ -264,7 +264,7 @@ fn task_execution_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
     lines
 }
 
-fn print_task_execution_advice() {
+fn print_exec_advice() {
     println!();
     println!("== task execution advice ==");
     let latest_summary = resolve_log_file()
@@ -274,7 +274,7 @@ fn print_task_execution_advice() {
                 .rev()
                 .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
         });
-    for line in task_execution_advice_lines(latest_summary.as_ref()) {
+    for line in exec_advice_lines(latest_summary.as_ref()) {
         println!("{line}");
     }
 }
@@ -295,7 +295,7 @@ pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
         return code;
     }
     print_task_readiness();
-    print_task_execution_advice();
+    print_exec_advice();
     print_git_context();
 
     println!();
@@ -347,7 +347,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{readiness_summary_lines, task_execution_advice_lines};
+    use super::{exec_advice_lines, readiness_summary_lines};
 
     #[test]
     fn readiness_summary_cov() {
@@ -378,8 +378,8 @@ mod tests {
     }
 
     #[test]
-    fn task_execution_advice_cov() {
-        let lines = task_execution_advice_lines(Some(&serde_json::json!({
+    fn exec_advice_cov() {
+        let lines = exec_advice_lines(Some(&serde_json::json!({
             "run_all_mode": "mixed",
             "run_all_halted_remaining": 2,
             "run_all_backend_fallback_rows": 1,
