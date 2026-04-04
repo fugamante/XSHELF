@@ -1019,7 +1019,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
-fn run_all_wave_preflight() {
+fn run_wave_preflight() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
