@@ -328,7 +328,11 @@ fn scheduler_json_matches_contract_fixture() {
         "top_level_keys",
         &[
             ("scheduler", "scheduler_keys", "scheduler.scheduler"),
-            ("task_readiness", "task_readiness_keys", "scheduler.task_readiness"),
+            (
+                "task_readiness",
+                "task_readiness_keys",
+                "scheduler.task_readiness",
+            ),
             ("retry", "retry_keys", "scheduler.retry"),
             ("critical", "critical_keys", "scheduler.critical"),
             ("concurrency", "concurrency_keys", "scheduler.concurrency"),
