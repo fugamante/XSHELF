@@ -264,6 +264,60 @@ fn exec_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
     lines
 }
 
+fn exec_reco_lines(latest_summary: Option<&Value>) -> Vec<String> {
+    let Some(summary) = latest_summary else {
+        return vec![
+            "task_execution_recommendation_1: cx task check --json".to_string(),
+            "task_execution_recommendation_2: cx scheduler --json".to_string(),
+        ];
+    };
+    let halted_remaining = summary
+        .get("run_all_halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let fallback_rows = summary
+        .get("run_all_backend_fallback_rows")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let failed = summary
+        .get("run_all_failed")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let critical = summary
+        .get("run_all_critical_errors")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+
+    if halted_remaining > 0 {
+        return vec![
+            "task_execution_recommendation_1: cx scheduler --json --window 20".to_string(),
+            "task_execution_recommendation_2: cx task run-all --status pending".to_string(),
+        ];
+    }
+    if critical > 0 {
+        return vec![
+            "task_execution_recommendation_1: cx scheduler --json --window 20".to_string(),
+            "task_execution_recommendation_2: cx task check --json".to_string(),
+        ];
+    }
+    if fallback_rows > 0 {
+        return vec![
+            "task_execution_recommendation_1: cx scheduler --json --window 20".to_string(),
+            "task_execution_recommendation_2: cx doctor".to_string(),
+        ];
+    }
+    if failed > 0 {
+        return vec![
+            "task_execution_recommendation_1: cx task check --json".to_string(),
+            "task_execution_recommendation_2: cx task run-all --status pending".to_string(),
+        ];
+    }
+    vec![
+        "task_execution_recommendation_1: cx diag --json".to_string(),
+        "task_execution_recommendation_2: cx scheduler --json".to_string(),
+    ]
+}
+
 fn print_exec_advice() {
     println!();
     println!("== task execution advice ==");
@@ -275,6 +329,9 @@ fn print_exec_advice() {
                 .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
         });
     for line in exec_advice_lines(latest_summary.as_ref()) {
+        println!("{line}");
+    }
+    for line in exec_reco_lines(latest_summary.as_ref()) {
         println!("{line}");
     }
 }
@@ -347,7 +404,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{exec_advice_lines, readiness_summary_lines};
+    use super::{exec_advice_lines, exec_reco_lines, readiness_summary_lines};
 
     #[test]
     fn readiness_summary_cov() {
@@ -402,6 +459,26 @@ mod tests {
         );
         assert!(
             joined.contains("rerun pending work after resolving the critical stop"),
+            "{joined}"
+        );
+    }
+
+    #[test]
+    fn exec_reco_cov() {
+        let lines = exec_reco_lines(Some(&serde_json::json!({
+            "run_all_mode": "mixed",
+            "run_all_halted_remaining": 2,
+            "run_all_backend_fallback_rows": 1,
+            "run_all_failed": 1,
+            "run_all_critical_errors": 1
+        })));
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("task_execution_recommendation_1: cx scheduler --json --window 20"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("task_execution_recommendation_2: cx task run-all --status pending"),
             "{joined}"
         );
     }
