@@ -192,7 +192,21 @@ Quick runtime verification:
 ```bash
 ./bin/cx doctor
 ./bin/cx health
+./bin/cx core --json
+./bin/cx version --json
+./bin/cx diag --json --window 50
 ```
+
+Backend capability note:
+- runtime JSON surfaces now report typed backend experiment metadata
+- current typed surfaces:
+  - `core --json`
+  - `version --json`
+  - `diag --json`
+- TurboQuant capability fields remain explicit:
+  - `cx_runtime_support`
+  - `selected_backend_role`
+  - `memory_metric_kind`
 
 ## Lean Daily Session
 

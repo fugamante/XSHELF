@@ -373,6 +373,11 @@ fn diag_json_matches_contract_fixture() {
         &fixture,
         "top_level_keys",
         &[
+            (
+                "backend_capabilities",
+                "backend_capabilities_keys",
+                "diag.backend_capabilities",
+            ),
             ("routing_trace", "routing_trace_keys", "diag.routing_trace"),
             ("scheduler", "scheduler_keys", "diag.scheduler"),
             ("retry", "retry_keys", "diag.retry"),
@@ -413,6 +418,24 @@ fn diag_json_matches_contract_fixture() {
             "diag.concurrency.observed missing key '{key}' in {observed}"
         );
     }
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
+    let turboquant = payload
+        .get("backend_capabilities")
+        .and_then(|v| v.get("turboquant"))
+        .expect("diag.backend_capabilities.turboquant");
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        turboquant,
+        &turboquant_keys,
+        "diag.backend_capabilities.turboquant",
+    );
 }
 
 #[test]

@@ -88,5 +88,9 @@ Acceptance:
 - Telemetry contract drift/statistics surfaced with fixture-backed JSON contracts.
 - Mixed-mode queue/worker telemetry and fairness coverage expanded.
 - JSON diagnostics surfaces now expose explicit `contract_version` markers.
+- typed backend capability metadata is now exposed in runtime JSON surfaces:
+  - `cx core --json`
+  - `cx version --json`
+  - `cx diag --json`
 - follow-on backend experiment rule is explicit:
   - adapter transport and backend capability claims must remain separate concerns
