@@ -9,7 +9,7 @@ use crate::config::app_config;
 use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
-use crate::doctor::{exec_diag_value, latest_run_all_sum};
+use crate::doctor::{exec_diag_value, latest_run_all_sum, latest_wave_sum};
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
@@ -1080,7 +1080,9 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
     let task_readiness = readiness_diag_value();
-    let task_execution = exec_diag_value(latest_run_all_sum().as_ref());
+    let latest_run = latest_run_all_sum();
+    let latest_wave = latest_wave_sum();
+    let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
