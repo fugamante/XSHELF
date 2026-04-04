@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use crate::cmdctx::CmdCtx;
 use crate::config::app_config;
+use crate::doctor::latest_wave_sum;
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
 use crate::paths::resolve_log_file;
@@ -1239,6 +1240,22 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         .get("blocked_total")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let latest_wave = latest_wave_sum();
+    let latest_wave_index = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("latest_wave_index"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let max_queue_wave_index = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("max_queue_wave_index"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let max_queue_wave_ms = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("max_queue_wave_ms"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
     let advice;
     let recommendations: Vec<String>;
     if options.strict_plan && options.run_mode == "parallel" && !strict_ok {
@@ -1271,6 +1288,20 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
                 options.status_filter
             ),
         ];
+    } else if max_queue_wave_index.as_u64().unwrap_or(0) > 1 && max_queue_wave_ms >= 2000 {
+        advice = "recent runs show queue pressure in later waves; prefer a narrower mode before widening concurrency again";
+        let narrower = match options.run_mode.as_str() {
+            "parallel" => "mixed",
+            "mixed" => "sequential",
+            _ => recommended_mode,
+        };
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, narrower
+            ),
+            "cx scheduler --json --window 20".to_string(),
+        ];
     } else {
         advice = "preflight is operationally clean";
         recommendations = vec![
@@ -1285,7 +1316,10 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         "strict_ok": strict_ok,
         "advice": advice,
         "recommendations": recommendations,
-        "strict_plan_reason": strict_reason
+        "strict_plan_reason": strict_reason,
+        "latest_wave_index": latest_wave_index,
+        "max_queue_wave_index": max_queue_wave_index,
+        "max_queue_wave_ms": max_queue_wave_ms
     })
 }
 

@@ -1019,6 +1019,90 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_all_dry_wave_pressure_advice() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"pw1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":12,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t1","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":250
+        }),
+        serde_json::json!({
+            "execution_id":"pw2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":14,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t2","wave_index":3,"wave_mode":"mixed","wave_size":1,"queue_ms":2400
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo wave-preflight-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--dry-run",
+        "--mode",
+        "mixed",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    let preflight = payload.get("preflight").expect("preflight");
+    assert!(
+        preflight
+            .get("advice")
+            .and_then(Value::as_str)
+            .is_some_and(|v| v.contains("queue pressure in later waves")),
+        "{payload}"
+    );
+    assert_eq!(
+        preflight.get("latest_wave_index").and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        preflight
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        preflight.get("max_queue_wave_ms").and_then(Value::as_u64),
+        Some(2400)
+    );
+    let recs = preflight
+        .get("recommendations")
+        .and_then(Value::as_array)
+        .expect("recommendations");
+    assert!(
+        recs.iter()
+            .any(|v| v.as_str() == Some("cx task run-all --status pending --mode sequential")),
+        "{payload}"
+    );
+}
+
+#[test]
 fn plan_json_dry() {
     let repo = TempRepo::new("cxrs-it");
     for i in 1..=2 {
