@@ -6,6 +6,8 @@ use std::process::Command;
 use crate::llm::extract_agent_text;
 use crate::process::run_command_output_with_timeout;
 use crate::runtime::{llm_backend, llm_bin_name};
+use crate::task_cmds::task_readiness_value;
+use crate::tasks::read_tasks;
 
 type JsonlRunner = fn(&str) -> Result<String, String>;
 type CxoRunner = fn(&[String]) -> i32;
@@ -124,6 +126,80 @@ fn print_git_context() {
     }
 }
 
+fn readiness_summary_lines(task_readiness: &Value) -> Vec<String> {
+    vec![
+        format!(
+            "task_readiness_mode: {}",
+            task_readiness
+                .get("recommended_mode")
+                .and_then(Value::as_str)
+                .unwrap_or("sequential")
+        ),
+        format!(
+            "task_readiness_mixed: {}",
+            task_readiness
+                .get("can_run_mixed")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        ),
+        format!(
+            "task_readiness_parallel: {}",
+            task_readiness
+                .get("can_run_parallel")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        ),
+        format!(
+            "task_readiness_waves: {}",
+            task_readiness
+                .get("waves")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        ),
+        format!(
+            "task_readiness_parallel_waves: {}",
+            task_readiness
+                .get("parallel_waves")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        ),
+        format!(
+            "task_readiness_largest_parallel_wave: {}",
+            task_readiness
+                .get("largest_parallel_wave")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        ),
+    ]
+}
+
+fn print_task_readiness() {
+    println!();
+    println!("== task readiness ==");
+    let task_readiness = match read_tasks() {
+        Ok(tasks) => task_readiness_value(&tasks, "pending"),
+        Err(e) => serde_json::json!({
+            "recommended_mode": "sequential",
+            "can_run_mixed": false,
+            "can_run_parallel": false,
+            "waves": 0,
+            "parallel_waves": 0,
+            "largest_parallel_wave": 0,
+            "strict_plan_reason": format!("task_read_failed: {e}")
+        }),
+    };
+    for line in readiness_summary_lines(&task_readiness) {
+        println!("{line}");
+    }
+    if let Some(reason) = task_readiness
+        .get("strict_plan_reason")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+    {
+        println!("task_readiness_reason: {reason}");
+    }
+}
+
 pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
     let backend = llm_backend();
     let llm_bin = llm_bin_name();
@@ -139,6 +215,7 @@ pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
     if let Err(code) = probe_text_pipeline(&backend, run_llm_jsonl) {
         return code;
     }
+    print_task_readiness();
     print_git_context();
 
     println!();
@@ -186,4 +263,34 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
     println!();
     println!("All systems operational.");
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::readiness_summary_lines;
+
+    #[test]
+    fn readiness_summary_cov() {
+        let lines = readiness_summary_lines(&serde_json::json!({
+            "recommended_mode": "mixed",
+            "can_run_mixed": true,
+            "can_run_parallel": false,
+            "waves": 3,
+            "parallel_waves": 2,
+            "largest_parallel_wave": 4
+        }));
+        let joined = lines.join("\n");
+        assert!(joined.contains("task_readiness_mode: mixed"), "{joined}");
+        assert!(joined.contains("task_readiness_mixed: true"), "{joined}");
+        assert!(joined.contains("task_readiness_parallel: false"), "{joined}");
+        assert!(joined.contains("task_readiness_waves: 3"), "{joined}");
+        assert!(
+            joined.contains("task_readiness_parallel_waves: 2"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("task_readiness_largest_parallel_wave: 4"),
+            "{joined}"
+        );
+    }
 }
