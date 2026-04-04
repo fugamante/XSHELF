@@ -533,8 +533,13 @@ Initial Phase VI scope is active with explicit controls only (no default behavio
 
 Spec:
 - `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
 - `--strict-plan` can be used with `--mode parallel` to fail fast when dependencies/resource locks would force serialized execution.
   - note: parallel tasks default to a conservative `repo:write` lock unless you set explicit resource keys.
+
+Planned follow-up after Phase VI stabilizes:
+
+- `docs/POST_PHASE_VI_OVERVIEW.md`
 
 ## Validation
 
