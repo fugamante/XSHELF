@@ -4,6 +4,8 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::llm::extract_agent_text;
+use crate::logs::load_values;
+use crate::paths::resolve_log_file;
 use crate::process::run_command_output_with_timeout;
 use crate::runtime::{llm_backend, llm_bin_name};
 use crate::task_cmds::task_readiness_value;
@@ -200,6 +202,83 @@ fn print_task_readiness() {
     }
 }
 
+fn task_execution_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
+    let Some(summary) = latest_summary else {
+        return vec!["task_execution_advice: no recent task run-all summary".to_string()];
+    };
+    let halted_remaining = summary
+        .get("run_all_halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let fallback_rows = summary
+        .get("run_all_backend_fallback_rows")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let fallback_map = summary
+        .get("run_all_backend_fallbacks")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+        .unwrap_or("none");
+    let failed = summary
+        .get("run_all_failed")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let critical = summary
+        .get("run_all_critical_errors")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let mode = summary
+        .get("run_all_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+
+    let mut lines = vec![
+        format!("task_execution_last_mode: {mode}"),
+        format!("task_execution_halted_remaining: {halted_remaining}"),
+        format!("task_execution_backend_fallback_rows: {fallback_rows}"),
+    ];
+
+    if halted_remaining > 0 {
+        lines.push(format!(
+            "task_execution_advice: rerun pending work after resolving the critical stop; {halted_remaining} task(s) were left unscheduled"
+        ));
+    } else if critical > 0 {
+        lines.push(
+            "task_execution_advice: inspect the latest critical failure before widening concurrency"
+                .to_string(),
+        );
+    } else if fallback_rows > 0 {
+        lines.push(format!(
+            "task_execution_advice: review backend availability or pool policy; fallback observed: {fallback_map}"
+        ));
+    } else if failed > 0 {
+        lines.push(
+            "task_execution_advice: inspect failed task ids from the latest run-all summary before retrying"
+                .to_string(),
+        );
+    } else {
+        lines.push(
+            "task_execution_advice: latest run-all summary is operationally clean".to_string(),
+        );
+    }
+    lines
+}
+
+fn print_task_execution_advice() {
+    println!();
+    println!("== task execution advice ==");
+    let latest_summary = resolve_log_file()
+        .and_then(|p| load_values(&p, 200).ok())
+        .and_then(|rows| {
+            rows.into_iter()
+                .rev()
+                .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
+        });
+    for line in task_execution_advice_lines(latest_summary.as_ref()) {
+        println!("{line}");
+    }
+}
+
 pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
     let backend = llm_backend();
     let llm_bin = llm_bin_name();
@@ -216,6 +295,7 @@ pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
         return code;
     }
     print_task_readiness();
+    print_task_execution_advice();
     print_git_context();
 
     println!();
@@ -267,7 +347,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::readiness_summary_lines;
+    use super::{readiness_summary_lines, task_execution_advice_lines};
 
     #[test]
     fn readiness_summary_cov() {
@@ -293,6 +373,35 @@ mod tests {
         );
         assert!(
             joined.contains("task_readiness_largest_parallel_wave: 4"),
+            "{joined}"
+        );
+    }
+
+    #[test]
+    fn task_execution_advice_cov() {
+        let lines = task_execution_advice_lines(Some(&serde_json::json!({
+            "run_all_mode": "mixed",
+            "run_all_halted_remaining": 2,
+            "run_all_backend_fallback_rows": 1,
+            "run_all_backend_fallbacks": "codex->ollama=1",
+            "run_all_failed": 1,
+            "run_all_critical_errors": 1
+        })));
+        let joined = lines.join("\n");
+        assert!(
+            joined.contains("task_execution_last_mode: mixed"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("task_execution_halted_remaining: 2"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("task_execution_backend_fallback_rows: 1"),
+            "{joined}"
+        );
+        assert!(
+            joined.contains("rerun pending work after resolving the critical stop"),
             "{joined}"
         );
     }
