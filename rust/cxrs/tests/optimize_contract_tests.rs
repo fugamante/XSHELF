@@ -98,6 +98,51 @@ fn optimize_json_actions_match_contract_fixture() {
 }
 
 #[test]
+fn optimize_actions_next() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"oexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":120,"schema_enforced":false,"schema_valid":true,
+            "run_all_mode":"parallel","halt_on_critical":false,
+            "run_all_scheduled":4,"run_all_complete":4,"run_all_failed":0,"run_all_critical_errors":0,
+            "run_all_halted_remaining":0,
+            "run_all_backend_fallback_rows":0,
+            "run_all_wave_pressure_kind":"later_wave_queue",
+            "run_all_wave_pressure_suggested_mode":"mixed",
+            "run_all_latest_wave_index":4,
+            "run_all_max_queue_wave_index":4,
+            "run_all_max_queue_wave_ms":4500
+        }),
+        serde_json::json!({
+            "execution_id":"oexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":5000,"schema_enforced":true,"schema_valid":false,
+            "input_tokens":1000,"cached_input_tokens":10
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["optimize", "10", "--json", "--actions"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("optimize json");
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions array");
+    let first = actions.first().expect("first action");
+    assert_eq!(
+        first.get("command").and_then(Value::as_str),
+        Some("cx task run-all --mode mixed --status pending")
+    );
+    assert_eq!(
+        first.get("id").and_then(Value::as_str),
+        Some("task_execution_rerun")
+    );
+}
+
+#[test]
 fn optimize_actions_strict_gate_is_deterministic() {
     let repo = TempRepo::new("cxrs-it");
     let row = serde_json::json!({
