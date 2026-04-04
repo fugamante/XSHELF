@@ -505,7 +505,7 @@ fn task_effective_dependencies(task: &TaskRecord) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn task_effective_resource_keys(task: &TaskRecord) -> Vec<String> {
+fn task_lock_keys(task: &TaskRecord) -> Vec<String> {
     if !task.resource_keys.is_empty() {
         return task.resource_keys.clone();
     }
@@ -517,7 +517,7 @@ fn task_effective_resource_keys(task: &TaskRecord) -> Vec<String> {
 
 fn task_show_readiness(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
     let dependencies = task_effective_dependencies(task);
-    let resource_keys = task_effective_resource_keys(task);
+    let resource_keys = task_lock_keys(task);
     if task.status != "pending" {
         return serde_json::json!({
             "status_filter": "pending",
