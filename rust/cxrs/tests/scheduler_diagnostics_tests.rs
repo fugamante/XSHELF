@@ -187,7 +187,10 @@ fn diag_json_reports_run_all_critical_telemetry() {
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
-            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1
+            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
+            "run_all_halted_remaining":1,
+            "run_all_backend_fallback_rows":2,
+            "run_all_backend_fallbacks":"codex->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"dc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
@@ -230,6 +233,28 @@ fn diag_json_reports_run_all_critical_telemetry() {
         reasons.contains("critical_halts_detected"),
         "expected critical_halts_detected reason, got: {reasons}"
     );
+    let observed = v
+        .get("concurrency")
+        .and_then(|x| x.get("observed"))
+        .expect("concurrency.observed");
+    assert_eq!(
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str),
+        Some("codex->ollama=2")
+    );
 }
 
 #[test]
@@ -270,7 +295,10 @@ fn scheduler_json_strict_flags_critical_halts() {
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
-            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1
+            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
+            "run_all_halted_remaining":1,
+            "run_all_backend_fallback_rows":2,
+            "run_all_backend_fallbacks":"codex->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"schc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
@@ -301,6 +329,22 @@ fn scheduler_json_strict_flags_critical_halts() {
     assert!(
         reasons.contains("critical_halts_detected"),
         "expected critical_halts_detected reason, got: {reasons}"
+    );
+    let observed = v
+        .get("concurrency")
+        .and_then(|x| x.get("observed"))
+        .expect("concurrency.observed");
+    assert_eq!(
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str),
+        Some("codex->ollama=2")
     );
 }
 
@@ -382,6 +426,10 @@ fn scheduler_json_matches_contract_fixture() {
         "latest_run_all_mode",
         "run_all_mode_counts",
         "halt_on_critical_rows",
+        "halted_remaining_total",
+        "latest_halted_remaining",
+        "backend_fallback_rows",
+        "latest_backend_fallbacks",
     ] {
         assert!(
             observed.get(key).is_some(),

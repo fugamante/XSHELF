@@ -1127,6 +1127,13 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         retryable_failures: summary.retryable_failed as u64,
         non_retryable_failures: summary.non_retryable_failed as u64,
         critical_errors: summary.critical_errors as u64,
+        halted_remaining: halted_remaining as u64,
+        backend_fallback_rows: backend_fallbacks.values().copied().sum::<usize>() as u64,
+        backend_fallbacks: if backend_fallbacks.is_empty() {
+            None
+        } else {
+            Some(render_counts_compact(&backend_fallbacks))
+        },
         duration_ms: started.elapsed().as_millis() as u64,
     });
     if summary.failed > 0 { 1 } else { 0 }

@@ -49,6 +49,9 @@ pub struct TaskRunAllSummaryLogInput<'a> {
     pub retryable_failures: u64,
     pub non_retryable_failures: u64,
     pub critical_errors: u64,
+    pub halted_remaining: u64,
+    pub backend_fallback_rows: u64,
+    pub backend_fallbacks: Option<String>,
     pub duration_ms: u64,
 }
 
@@ -306,6 +309,9 @@ pub fn log_task_run_all_summary(input: TaskRunAllSummaryLogInput<'_>) -> Result<
     row.run_all_retryable_failures = Some(input.retryable_failures);
     row.run_all_non_retryable_failures = Some(input.non_retryable_failures);
     row.run_all_critical_errors = Some(input.critical_errors);
+    row.run_all_halted_remaining = Some(input.halted_remaining);
+    row.run_all_backend_fallback_rows = Some(input.backend_fallback_rows);
+    row.run_all_backend_fallbacks = input.backend_fallbacks.map(|s| s.to_string());
     finalize_and_append_run(&run_log, row)
 }
 

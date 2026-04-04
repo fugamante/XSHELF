@@ -340,6 +340,9 @@ pub struct ExecutionLog {
     pub run_all_retryable_failures: Option<u64>,
     pub run_all_non_retryable_failures: Option<u64>,
     pub run_all_critical_errors: Option<u64>,
+    pub run_all_halted_remaining: Option<u64>,
+    pub run_all_backend_fallback_rows: Option<u64>,
+    pub run_all_backend_fallbacks: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
