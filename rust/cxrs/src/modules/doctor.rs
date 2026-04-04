@@ -281,7 +281,32 @@ pub(crate) fn exec_advice_lines(
     wave_summary: Option<&Value>,
 ) -> Vec<String> {
     let Some(summary) = latest_summary else {
-        return vec!["task_execution_advice: no recent task run-all summary".to_string()];
+        let latest_wave_index = wave_summary
+            .and_then(|w| w.get("latest_wave_index"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let max_queue_wave_index = wave_summary
+            .and_then(|w| w.get("max_queue_wave_index"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let max_queue_wave_ms = wave_summary
+            .and_then(|w| w.get("max_queue_wave_ms"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        let mut lines = vec![
+            "task_execution_last_mode: unknown".to_string(),
+            "task_execution_halted_remaining: 0".to_string(),
+            "task_execution_backend_fallback_rows: 0".to_string(),
+            format!("task_execution_latest_wave_index: {latest_wave_index}"),
+            format!("task_execution_max_queue_wave_index: {max_queue_wave_index}"),
+            format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
+        ];
+        if let Some(advice) = wave_pressure_advice("unknown", wave_summary) {
+            lines.push(format!("task_execution_advice: {advice}"));
+        } else {
+            lines.push("task_execution_advice: no recent task run-all summary".to_string());
+        }
+        return lines;
     };
     let halted_remaining = summary
         .get("run_all_halted_remaining")
@@ -363,6 +388,12 @@ pub(crate) fn exec_reco_lines(
     wave_summary: Option<&Value>,
 ) -> Vec<String> {
     let Some(summary) = latest_summary else {
+        if wave_pressure_advice("unknown", wave_summary).is_some() {
+            return vec![
+                "task_execution_recommendation_1: cx task run-all --dry-run --json".to_string(),
+                "task_execution_recommendation_2: cx scheduler --json --window 20".to_string(),
+            ];
+        }
         return vec![
             "task_execution_recommendation_1: cx task check --json".to_string(),
             "task_execution_recommendation_2: cx scheduler --json".to_string(),
@@ -435,18 +466,41 @@ pub(crate) fn exec_diag_value(
     wave_summary: Option<&Value>,
 ) -> Value {
     let Some(summary) = latest_summary else {
+        let advice = exec_advice_lines(None, wave_summary)
+            .into_iter()
+            .find_map(|line| {
+                line.strip_prefix("task_execution_advice: ")
+                    .map(str::to_string)
+            })
+            .unwrap_or_else(|| "no recent task run-all summary".to_string());
+        let recommendations = exec_reco_lines(None, wave_summary)
+            .into_iter()
+            .filter_map(|line| {
+                line.split_once(": ")
+                    .map(|(_, cmd)| Value::String(cmd.to_string()))
+            })
+            .collect::<Vec<Value>>();
+        let latest_wave_index = wave_summary
+            .and_then(|w| w.get("latest_wave_index"))
+            .cloned()
+            .unwrap_or(Value::Null);
+        let max_queue_wave_index = wave_summary
+            .and_then(|w| w.get("max_queue_wave_index"))
+            .cloned()
+            .unwrap_or(Value::Null);
+        let max_queue_wave_ms = wave_summary
+            .and_then(|w| w.get("max_queue_wave_ms"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
         return serde_json::json!({
             "last_mode": Value::Null,
             "halted_remaining": 0,
             "backend_fallback_rows": 0,
-            "latest_wave_index": Value::Null,
-            "max_queue_wave_index": Value::Null,
-            "max_queue_wave_ms": 0,
-            "advice": "no recent task run-all summary",
-            "recommendations": [
-                "cx task check --json",
-                "cx scheduler --json"
-            ]
+            "latest_wave_index": latest_wave_index,
+            "max_queue_wave_index": max_queue_wave_index,
+            "max_queue_wave_ms": max_queue_wave_ms,
+            "advice": advice,
+            "recommendations": recommendations
         });
     };
     let mode = summary
@@ -735,6 +789,41 @@ mod tests {
         assert_eq!(
             value.get("max_queue_wave_ms").and_then(Value::as_u64),
             Some(2400)
+        );
+    }
+
+    #[test]
+    fn exec_wave_missing_sum() {
+        let wave = serde_json::json!({
+            "latest_wave_index": 4,
+            "max_queue_wave_index": 4,
+            "max_queue_wave_ms": 2600
+        });
+        let lines = exec_advice_lines(None, Some(&wave)).join("\n");
+        assert!(
+            lines.contains("task_execution_last_mode: unknown"),
+            "{lines}"
+        );
+        assert!(
+            lines.contains("queue pressure is concentrating in later waves"),
+            "{lines}"
+        );
+        let recs = exec_reco_lines(None, Some(&wave)).join("\n");
+        assert!(
+            recs.contains("task_execution_recommendation_1: cx task run-all --dry-run --json"),
+            "{recs}"
+        );
+        let value = exec_diag_value(None, Some(&wave));
+        assert_eq!(
+            value.get("latest_wave_index").and_then(Value::as_u64),
+            Some(4)
+        );
+        assert!(
+            value
+                .get("advice")
+                .and_then(Value::as_str)
+                .is_some_and(|v| v.contains("queue pressure is concentrating")),
+            "{value}"
         );
     }
 }
