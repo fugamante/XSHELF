@@ -314,7 +314,7 @@ fn list_text_summary() {
 }
 
 #[test]
-fn list_json_complete_summary() {
+fn list_complete_summary() {
     let repo = TempRepo::new("cxrs-it");
 
     let add = repo.run(&["task", "add", "Complete list task", "--role", "implementer"]);
