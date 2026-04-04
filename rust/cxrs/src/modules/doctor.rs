@@ -304,10 +304,7 @@ fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
     })
 }
 
-fn exec_next_action_lines(
-    latest_summary: Option<&Value>,
-    wave_summary: Option<&Value>,
-) -> Vec<String> {
+fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
     let value = exec_diag_value(latest_summary, wave_summary);
     let kind = value
         .get("next_action")
@@ -612,7 +609,7 @@ fn print_exec_advice() {
     for line in exec_advice_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
-    for line in exec_next_action_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
+    for line in exec_next_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
     for line in exec_reco_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
@@ -689,7 +686,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        exec_advice_lines, exec_diag_value, exec_next_action_lines, exec_reco_lines,
+        exec_advice_lines, exec_diag_value, exec_next_lines, exec_reco_lines,
         readiness_summary_lines,
     };
     use serde_json::Value;
@@ -818,7 +815,7 @@ mod tests {
                 .and_then(Value::as_str),
             Some("inspect_scheduler")
         );
-        let next_lines = exec_next_action_lines(
+        let next_lines = exec_next_lines(
             Some(&serde_json::json!({
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
@@ -919,7 +916,7 @@ mod tests {
                 .and_then(Value::as_str),
             Some("rerun")
         );
-        let next_lines = exec_next_action_lines(None, Some(&wave)).join("\n");
+        let next_lines = exec_next_lines(None, Some(&wave)).join("\n");
         assert!(
             next_lines
                 .contains("task_execution_next_action_command: cx task run-all --dry-run --json"),
