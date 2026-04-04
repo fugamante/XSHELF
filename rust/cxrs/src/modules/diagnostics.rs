@@ -14,6 +14,7 @@ use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
+use crate::provider_adapter::selected_tq_caps;
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
 
@@ -429,12 +430,25 @@ fn print_diag_header(app_version: &str, cfg: &crate::config::AppConfig) {
     let backend = llm_backend();
     let model = llm_model();
     let active_model = if model.is_empty() { "<unset>" } else { &model };
+    let experiment_caps = selected_tq_caps();
     println!("== cxdiag ==");
     println!("timestamp: {}", utc_now_iso());
     println!("version: {}", toolchain_version_string(app_version));
     println!("mode: {}", cfg.cx_mode);
     println!("backend: {backend}");
     println!("active_model: {active_model}");
+    println!(
+        "backend_capability.turboquant_runtime_support: {}",
+        experiment_caps.turboquant_runtime_support
+    );
+    println!(
+        "backend_capability.turboquant_backend_role: {}",
+        experiment_caps.turboquant_backend_role
+    );
+    println!(
+        "backend_capability.turboquant_metric_kind: {}",
+        experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
 }
 
 fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
@@ -911,6 +925,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     } else {
         model
     };
+    let experiment_caps = selected_tq_caps();
     let scheduler = scheduler_diag_value(&log_file, window);
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
@@ -951,6 +966,13 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "mode": cfg.cx_mode,
             "backend": backend,
             "active_model": active_model,
+            "backend_capabilities": {
+                "turboquant": {
+                    "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                    "selected_backend_role": experiment_caps.turboquant_backend_role,
+                    "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+                }
+            },
             "capture_provider_config": provider,
             "capture_provider_resolved": resolved_provider(&cfg.capture_provider),
             "capture_external_dependencies": "none",

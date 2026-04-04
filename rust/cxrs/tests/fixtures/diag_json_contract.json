@@ -6,6 +6,7 @@
     "mode",
     "backend",
     "active_model",
+    "backend_capabilities",
     "capture_provider_config",
     "capture_provider_resolved",
     "capture_external_dependencies",
@@ -30,6 +31,14 @@
     "sample",
     "route",
     "reason"
+  ],
+  "backend_capabilities_keys": [
+    "turboquant"
+  ],
+  "backend_capabilities_turboquant_keys": [
+    "cx_runtime_support",
+    "selected_backend_role",
+    "memory_metric_kind"
   ],
   "scheduler_keys": [
     "window_runs",

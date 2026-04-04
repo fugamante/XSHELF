@@ -188,6 +188,10 @@ Metric rule:
 - CX must label memory metric kind explicitly when backends expose different memory signals
 - current normalized memory references are documented in:
   - `docs/TURBOQUANT_METRIC.md`
+- current typed runtime surfaces carrying backend capability metadata are:
+  - `cx core --json`
+  - `cx version --json`
+  - `cx diag --json`
 
 ## Risk Register
 
