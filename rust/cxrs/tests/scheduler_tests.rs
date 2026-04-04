@@ -757,6 +757,13 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             .and_then(Value::as_u64),
         Some(1)
     );
+    assert!(
+        v.get("preflight")
+            .and_then(|v| v.get("recommendations"))
+            .and_then(Value::as_array)
+            .is_some(),
+        "{v}"
+    );
     let tasks = v
         .get("tasks")
         .and_then(Value::as_array)
@@ -825,6 +832,13 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             .and_then(|v| v.get("recommended_mode"))
             .and_then(Value::as_str),
         Some("sequential")
+    );
+    assert_eq!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("advice"))
+            .and_then(Value::as_str),
+        Some("preflight is operationally clean")
     );
     let tasks = payload
         .get("tasks")
@@ -921,6 +935,14 @@ fn run_strict_dry() {
             .and_then(Value::as_bool),
         Some(false)
     );
+    assert!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("advice"))
+            .and_then(Value::as_str)
+            .is_some_and(|v| v.contains("parallel strict-plan is not executable")),
+        "{payload}"
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -978,6 +1000,12 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         payload.get("task_readiness").expect("task_readiness"),
         &readiness_keys,
         "task_run_all.task_readiness",
+    );
+    let preflight_keys = fixture_keys(&fixture, "preflight_keys");
+    assert_has_keys(
+        payload.get("preflight").expect("preflight"),
+        &preflight_keys,
+        "task_run_all.preflight",
     );
 
     let task_keys = fixture_keys(&fixture, "task_keys");

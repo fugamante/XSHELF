@@ -6,6 +6,7 @@
     "strict_plan",
     "plan_json",
     "task_readiness",
+    "preflight",
     "scheduled",
     "complete",
     "failed",
@@ -37,6 +38,15 @@
     "recommended_mode",
     "recommended_reason",
     "blocked"
+  ],
+  "preflight_keys": [
+    "requested_mode",
+    "recommended_mode",
+    "strict_plan",
+    "strict_ok",
+    "advice",
+    "recommendations",
+    "strict_plan_reason"
   ],
   "task_keys": [
     "task_id",
