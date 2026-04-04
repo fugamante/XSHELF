@@ -567,6 +567,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         .iter()
         .filter(|t| t.status == options.status_filter)
         .count();
+    let readiness = task_readiness_value(&tasks, &options.status_filter);
     if selected_count == 0 {
         if options.plan_json {
             let empty_plan = build_task_run_plan(&tasks, &options.status_filter);
@@ -587,6 +588,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "summary_format": options.summary_format,
                     "strict_plan": options.strict_plan,
                     "plan_json": options.plan_json,
+                    "task_readiness": readiness,
                     "scheduled": 0,
                     "complete": 0,
                     "failed": 0,
@@ -649,6 +651,33 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 return dry_run_out(&options, &ids, &task_index, plan.blocked.len(), false);
             }
             crate::cx_eprintln!("cxrs task run-all: strict-plan failed ({reason})");
+            crate::cx_eprintln!(
+                "preflight: recommended_mode={} can_run_mixed={} can_run_parallel={} waves={} parallel_waves={} largest_parallel_wave={}",
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
+                readiness
+                    .get("can_run_mixed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("parallel_waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("largest_parallel_wave")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+            );
             if !plan.blocked.is_empty() {
                 for b in &plan.blocked {
                     crate::cx_eprintln!(" - {}: {}", b.id, b.reason);
@@ -679,9 +708,32 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         let cap_notes = render_backend_caps(&options.backend_caps);
         if !options.as_json {
             println!(
-                "run-all mode={} waves={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
+                "run-all preflight: requested_mode={} recommended_mode={} can_run_mixed={} can_run_parallel={} waves={} parallel_waves={} largest_parallel_wave={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
                 options.run_mode,
-                plan.waves.len(),
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
+                readiness
+                    .get("can_run_mixed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("parallel_waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("largest_parallel_wave")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
                 ids.len(),
                 pool,
                 options.max_workers,
@@ -689,6 +741,18 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 options.fairness,
                 options.halt_on_critical
             );
+            if options.run_mode == "parallel"
+                && !readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+                && let Some(reason) = readiness
+                    .get("strict_plan_reason")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|v| !v.is_empty())
+            {
+                println!("run-all preflight_reason: {reason}");
+            }
             for wave in &plan.waves {
                 println!(
                     "wave {} [{}] -> {}",
@@ -906,6 +970,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "summary_format": options.summary_format,
             "strict_plan": options.strict_plan,
             "plan_json": options.plan_json,
+            "task_readiness": readiness,
             "scheduled": scheduled_count,
             "complete": summary.ok,
             "failed": summary.failed,
@@ -931,6 +996,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "contract_version": "task-run-all-summary.v1",
                 "status_filter": options.status_filter,
                 "mode": options.run_mode,
+                "task_readiness": readiness,
                 "scheduled": scheduled_count,
                 "complete": summary.ok,
                 "failed": summary.failed,
@@ -952,8 +1018,12 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         } else {
             println!(
-                "run-all summary: mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
+                "run-all summary: mode={}, recommended_mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
                 options.run_mode,
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
                 options.strict_plan,
                 summary.ok,
                 summary.failed,
@@ -1085,6 +1155,8 @@ fn dry_run_out(
     blocked: usize,
     strict_ok: bool,
 ) -> i32 {
+    let tasks: Vec<TaskRecord> = task_index.values().cloned().collect();
+    let readiness = task_readiness_value(&tasks, &options.status_filter);
     let available = available_pool(&options.backend_pool);
     let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
     for (idx, id) in schedule.iter().enumerate() {
@@ -1108,6 +1180,7 @@ fn dry_run_out(
         "mode": options.run_mode,
         "strict_plan": options.strict_plan,
         "plan_json": options.plan_json,
+        "task_readiness": readiness,
         "scheduled": schedule.len(),
         "complete": 0,
         "failed": 0,
@@ -1129,8 +1202,20 @@ fn dry_run_out(
         }
     } else {
         println!(
-            "run-all dry-run: mode={}, strict_plan={}, strict_ok={}, scheduled={}, blocked={}",
+            "run-all dry-run: mode={}, recommended_mode={}, can_run_mixed={}, can_run_parallel={}, strict_plan={}, strict_ok={}, scheduled={}, blocked={}",
             options.run_mode,
+            readiness
+                .get("recommended_mode")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("sequential"),
+            readiness
+                .get("can_run_mixed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            readiness
+                .get("can_run_parallel")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
             options.strict_plan,
             strict_ok,
             schedule.len(),

@@ -721,6 +721,12 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         Some("task-run-all.v1")
     );
     assert_eq!(v.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(
+        v.get("task_readiness")
+            .and_then(|t| t.get("can_run_mixed"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
     let tasks = v
         .get("tasks")
         .and_then(Value::as_array)
@@ -775,6 +781,13 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
     assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(0));
     assert_eq!(payload.get("failed").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("recommended_mode"))
+            .and_then(Value::as_str),
+        Some("sequential")
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -856,6 +869,20 @@ fn run_strict_dry() {
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
     assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
     assert_eq!(payload.get("blocked").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("recommended_mode"))
+            .and_then(Value::as_str),
+        Some("mixed")
+    );
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("can_run_parallel"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -908,6 +935,12 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     let fixture = load_fixture_json("run_all_contract.json");
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "task_run_all.top");
+    let readiness_keys = fixture_keys(&fixture, "task_readiness_keys");
+    assert_has_keys(
+        payload.get("task_readiness").expect("task_readiness"),
+        &readiness_keys,
+        "task_run_all.task_readiness",
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
