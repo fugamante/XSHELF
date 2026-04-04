@@ -229,9 +229,7 @@ fn list_json_readiness() {
         .get("list_readiness")
         .expect("list_readiness object");
     assert_eq!(
-        list_readiness
-            .get("selected_count")
-            .and_then(Value::as_u64),
+        list_readiness.get("selected_count").and_then(Value::as_u64),
         Some(2)
     );
     assert_eq!(
