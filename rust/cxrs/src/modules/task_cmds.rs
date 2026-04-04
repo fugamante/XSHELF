@@ -1021,6 +1021,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     };
     let backend_fallbacks = runall_backend_fallbacks(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
+    let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
         let payload = serde_json::json!({
             "contract_version": "task-run-all.v1",
@@ -1030,6 +1031,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "strict_plan": options.strict_plan,
             "plan_json": options.plan_json,
             "task_readiness": readiness,
+            "preflight": preflight,
             "scheduled": scheduled_count,
             "complete": summary.ok,
             "failed": summary.failed,
@@ -1058,6 +1060,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "status_filter": options.status_filter,
                 "mode": options.run_mode,
                 "task_readiness": readiness,
+                "preflight": preflight,
                 "scheduled": scheduled_count,
                 "complete": summary.ok,
                 "failed": summary.failed,
@@ -1099,6 +1102,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 println!("run-all halted_on_critical: true");
                 println!("run-all halted_remaining: {halted_remaining}");
             }
+            print_runall_preflight_text(&preflight);
             if !backend_fallbacks.is_empty() {
                 println!(
                     "run-all backend_fallbacks: {}",
@@ -1221,6 +1225,92 @@ fn plan_json_out(
     }
 }
 
+fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok: bool) -> Value {
+    let recommended_mode = readiness
+        .get("recommended_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("sequential");
+    let strict_reason = readiness
+        .get("strict_plan_reason")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+        .map(str::to_string);
+    let blocked_total = readiness
+        .get("blocked_total")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let advice;
+    let recommendations: Vec<String>;
+    if options.strict_plan && options.run_mode == "parallel" && !strict_ok {
+        advice = "parallel strict-plan is not executable; switch to the recommended mode or inspect the plan json";
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, recommended_mode
+            ),
+            format!(
+                "cx task run-all --status {} --mode parallel --strict-plan --plan-json",
+                options.status_filter
+            ),
+        ];
+    } else if options.run_mode != recommended_mode {
+        advice = "requested mode differs from the recommended mode; review the recommendation before widening concurrency";
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, recommended_mode
+            ),
+            "cx task check --json".to_string(),
+        ];
+    } else if blocked_total > 0 {
+        advice = "blocked tasks remain in the selected set; inspect dependency and resource blockers before expecting a full schedule";
+        recommendations = vec![
+            "cx task check --json".to_string(),
+            format!(
+                "cx task run-all --status {} --dry-run --json",
+                options.status_filter
+            ),
+        ];
+    } else {
+        advice = "preflight is operationally clean";
+        recommendations = vec![
+            "cx task check --json".to_string(),
+            format!("cx task run-all --status {}", options.status_filter),
+        ];
+    }
+    serde_json::json!({
+        "requested_mode": options.run_mode,
+        "recommended_mode": recommended_mode,
+        "strict_plan": options.strict_plan,
+        "strict_ok": strict_ok,
+        "advice": advice,
+        "recommendations": recommendations,
+        "strict_plan_reason": strict_reason
+    })
+}
+
+fn print_runall_preflight_text(preflight: &Value) {
+    println!(
+        "run-all preflight_advice: {}",
+        preflight
+            .get("advice")
+            .and_then(Value::as_str)
+            .unwrap_or("preflight is operationally clean")
+    );
+    if let Some(reason) = preflight
+        .get("strict_plan_reason")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+    {
+        println!("run-all preflight_reason: {reason}");
+    }
+    if let Some(recs) = preflight.get("recommendations").and_then(Value::as_array) {
+        for (idx, rec) in recs.iter().filter_map(Value::as_str).enumerate() {
+            println!("run-all preflight_recommendation_{}: {}", idx + 1, rec);
+        }
+    }
+}
+
 fn dry_run_out(
     options: &RunAllOptions,
     schedule: &[String],
@@ -1230,6 +1320,7 @@ fn dry_run_out(
 ) -> i32 {
     let tasks: Vec<TaskRecord> = task_index.values().cloned().collect();
     let readiness = task_readiness_value(&tasks, &options.status_filter);
+    let preflight = runall_preflight_value(options, &readiness, strict_ok);
     let available = available_pool(&options.backend_pool);
     let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
     for (idx, id) in schedule.iter().enumerate() {
@@ -1254,6 +1345,7 @@ fn dry_run_out(
         "strict_plan": options.strict_plan,
         "plan_json": options.plan_json,
         "task_readiness": readiness,
+        "preflight": preflight,
         "scheduled": schedule.len(),
         "complete": 0,
         "failed": 0,
@@ -1296,6 +1388,7 @@ fn dry_run_out(
             schedule.len(),
             blocked
         );
+        print_runall_preflight_text(&preflight);
     }
     if blocked > 0 || (options.strict_plan && !strict_ok) {
         1
