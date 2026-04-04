@@ -43,7 +43,7 @@ fi
 
 print_json_summary() {
   local file="$1"
-  jq -r '{
+  jq -r '({
     contract_version,
     actions_contract_version,
     severity,
@@ -59,8 +59,20 @@ print_json_summary() {
           pmax: .task_readiness.largest_parallel_wave
         }
       else null end
+    ),
+    task_execution: (
+      if .task_execution then
+        {
+          mode: .task_execution.last_mode,
+          halt: .task_execution.halted_remaining,
+          fb: .task_execution.backend_fallback_rows,
+          advice: .task_execution.advice,
+          reco1: (.task_execution.recommendations[0] // null),
+          reco2: (.task_execution.recommendations[1] // null)
+        }
+      else null end
     )
-  }' "$file"
+  } | with_entries(select(.value != null)))' "$file"
 }
 
 run_gate() {
