@@ -92,5 +92,6 @@ Acceptance:
   - `cx core --json`
   - `cx version --json`
   - `cx diag --json`
+  - `cx telemetry N --json`
 - follow-on backend experiment rule is explicit:
   - adapter transport and backend capability claims must remain separate concerns

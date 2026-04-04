@@ -192,6 +192,7 @@ Metric rule:
   - `cx core --json`
   - `cx version --json`
   - `cx diag --json`
+  - `cx telemetry N --json`
 
 ## Risk Register
 

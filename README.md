@@ -203,6 +203,7 @@ Backend capability note:
   - `core --json`
   - `version --json`
   - `diag --json`
+  - `telemetry N --json`
 - TurboQuant capability fields remain explicit:
   - `cx_runtime_support`
   - `selected_backend_role`

@@ -6,6 +6,7 @@
     "required_fields",
     "severity",
     "strict_violations",
+    "backend_capabilities",
     "fields",
     "contract_drift",
     "retry_telemetry",
@@ -16,6 +17,14 @@
   "contract_drift_keys": [
     "new_keys_second_half",
     "missing_keys_second_half"
+  ],
+  "backend_capabilities_keys": [
+    "turboquant"
+  ],
+  "backend_capabilities_turboquant_keys": [
+    "cx_runtime_support",
+    "selected_backend_role",
+    "memory_metric_kind"
   ],
   "retry_keys": [
     "rows_with_retry_metadata",

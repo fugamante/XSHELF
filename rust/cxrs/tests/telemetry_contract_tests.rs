@@ -137,6 +137,23 @@ fn telemetry_json_matches_contract_fixture() {
 
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "telemetry");
+    let backend_caps_keys = fixture_keys(&fixture, "backend_capabilities_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .expect("backend_capabilities"),
+        &backend_caps_keys,
+        "telemetry.backend_capabilities",
+    );
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .expect("backend_capabilities.turboquant"),
+        &turboquant_keys,
+        "telemetry.backend_capabilities.turboquant",
+    );
     let drift_keys = fixture_keys(&fixture, "contract_drift_keys");
     assert_has_keys(
         payload.get("contract_drift").expect("contract_drift"),
@@ -171,6 +188,14 @@ fn telemetry_json_matches_contract_fixture() {
     for item in modes {
         assert_has_keys(item, &item_keys, "telemetry.http_mode_stats[*]");
     }
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
 }
 
 #[test]

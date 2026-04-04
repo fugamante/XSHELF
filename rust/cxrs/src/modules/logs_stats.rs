@@ -3,6 +3,7 @@ use crate::json_mode::resolve_json_mode;
 use crate::log_contract::REQUIRED_STRICT_FIELDS;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
+use crate::provider_adapter::selected_tq_caps;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -606,6 +607,7 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
             })
         })
         .collect();
+    let experiment_caps = selected_tq_caps();
     let payload = json!({
         "contract_version": TELEMETRY_JSON_CONTRACT_VERSION,
         "log_file": log_file.display().to_string(),
@@ -613,6 +615,13 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
         "required_fields": REQUIRED_STRICT_FIELDS.len(),
         "severity": stats.severity,
         "strict_violations": stats.strict_violations,
+        "backend_capabilities": {
+            "turboquant": {
+                "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                "selected_backend_role": experiment_caps.turboquant_backend_role,
+                "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+            }
+        },
         "fields": fields,
         "contract_drift": {
             "new_keys_second_half": stats.new_in_second,
