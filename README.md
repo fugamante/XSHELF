@@ -227,6 +227,10 @@ cd <repo-root>
 
 Note:
 - `cx-lean-session` does not change broker policy implicitly.
+- gate summaries now include compact `task_readiness` data from `diag` / `scheduler`:
+  - recommended mode
+  - mixed-ready vs parallel-ready
+  - wave counts and largest parallel wave
 - Set broker policy explicitly when needed:
 ```bash
 ./bin/cx broker set --policy quota_saver

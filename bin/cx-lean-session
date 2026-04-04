@@ -43,7 +43,24 @@ fi
 
 print_json_summary() {
   local file="$1"
-  jq -r '{contract_version,actions_contract_version,severity,actions:(.actions|length)}' "$file"
+  jq -r '{
+    contract_version,
+    actions_contract_version,
+    severity,
+    actions:(.actions|length),
+    task_readiness: (
+      if .task_readiness then
+        {
+          mode: .task_readiness.recommended_mode,
+          mixed: .task_readiness.can_run_mixed,
+          parallel: .task_readiness.can_run_parallel,
+          waves: .task_readiness.waves,
+          pwaves: .task_readiness.parallel_waves,
+          pmax: .task_readiness.largest_parallel_wave
+        }
+      else null end
+    )
+  }' "$file"
 }
 
 run_gate() {
