@@ -529,9 +529,9 @@ Planned next migration focus:
 Design and schedule:
 - `docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md`
 
-## Phase VI Kickoff
+## Phase VI Execution Guidance
 
-Initial Phase VI scope is active with explicit controls only (no default behavior switch).
+Phase VI guidance substrate is active with explicit controls only. No default execution behavior switch has been introduced.
 
 Spec:
 - `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
@@ -539,7 +539,7 @@ Spec:
 - `--strict-plan` can be used with `--mode parallel` to fail fast when dependencies/resource locks would force serialized execution.
   - note: parallel tasks default to a conservative `repo:write` lock unless you set explicit resource keys.
 
-Planned follow-up after Phase VI stabilizes:
+Completed cross-phase follow-up:
 
 - `docs/POST_PHASE_VI_OVERVIEW.md`
 
