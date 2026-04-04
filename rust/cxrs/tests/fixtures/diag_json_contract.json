@@ -78,6 +78,9 @@
     "last_mode",
     "halted_remaining",
     "backend_fallback_rows",
+    "latest_wave_index",
+    "max_queue_wave_index",
+    "max_queue_wave_ms",
     "advice",
     "recommendations"
   ],
