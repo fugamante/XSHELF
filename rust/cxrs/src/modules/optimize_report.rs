@@ -2,7 +2,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 
 use crate::contract_versions::OPTIMIZE_JSON_CONTRACT_VERSION;
-use crate::doctor::{exec_diag_value, latest_run_all_sum, latest_wave_sum};
+use crate::doctor::{exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::load_runs;
 use crate::optimize_rules::{
@@ -548,7 +548,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
     let latest_run = latest_run_all_sum();
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
-    if let Some(exec_action) = optimize_exec_action(&task_execution) {
+    if let Some(exec_action) = exec_action_value(&task_execution) {
         actions.push(exec_action);
     }
     let Some(scoreboard) = report.get("scoreboard") else {
@@ -638,47 +638,6 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
         }));
     }
     actions
-}
-
-fn optimize_exec_action(task_execution: &Value) -> Option<Value> {
-    let next_action = task_execution.get("next_action")?;
-    let command = next_action.get("command").and_then(Value::as_str)?;
-    if command.trim().is_empty() {
-        return None;
-    }
-    let kind = next_action
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or("operator_followup");
-    let advice = task_execution
-        .get("advice")
-        .and_then(Value::as_str)
-        .unwrap_or("Review latest task execution state.");
-    let pressure_kind = task_execution
-        .get("wave_pressure")
-        .and_then(|v| v.get("kind"))
-        .and_then(Value::as_str)
-        .unwrap_or("none");
-    let halted_remaining = task_execution
-        .get("halted_remaining")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let severity = if halted_remaining > 0 {
-        "critical"
-    } else {
-        "warning"
-    };
-    let rationale = if pressure_kind != "none" {
-        format!("{advice} Wave pressure: {pressure_kind}.")
-    } else {
-        advice.to_string()
-    };
-    Some(json!({
-        "id": format!("task_execution_{kind}"),
-        "severity": severity,
-        "rationale": rationale,
-        "command": command
-    }))
 }
 
 pub fn action_gate_severity(actions: &[Value]) -> &'static str {
