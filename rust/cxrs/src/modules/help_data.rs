@@ -316,7 +316,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task list",
-        usage: "cx task list [--status pending|in_progress|complete|failed]",
+        usage: "cx task list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "List tasks with optional status filter",
     },
     CommandHelp {
@@ -336,7 +336,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task show",
-        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed]",
+        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "Show one task record or route to list view",
     },
     CommandHelp {

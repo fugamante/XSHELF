@@ -478,10 +478,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
     };
     if let Some(obj) = out.as_object_mut() {
         obj.insert("latest_run".to_string(), task_run_latest(id));
-        obj.insert(
-            "run_readiness".to_string(),
-            task_show_readiness(&task, &tasks),
-        );
+        obj.insert("run_readiness".to_string(), task_run_state(&task, &tasks));
     }
     match serde_json::to_string_pretty(&out) {
         Ok(s) => {
@@ -515,7 +512,7 @@ fn task_lock_keys(task: &TaskRecord) -> Vec<String> {
     Vec::new()
 }
 
-fn task_show_readiness(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
+pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
     let dependencies = task_effective_dependencies(task);
     let resource_keys = task_lock_keys(task);
     if task.status != "pending" {
