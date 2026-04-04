@@ -531,11 +531,11 @@ Design and schedule:
 
 ## Phase VI Execution Guidance
 
-Phase VI guidance substrate is active with explicit controls only. No default execution behavior switch has been introduced.
+Phase VI execution guidance is now a stabilized substrate with explicit controls only. No default execution behavior switch has been introduced.
 
 Spec:
-- `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
 - `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
+- `docs/PHASE_VI_PARALLEL_SUBSTRATE.md` (historical design context)
 - `--strict-plan` can be used with `--mode parallel` to fail fast when dependencies/resource locks would force serialized execution.
   - note: parallel tasks default to a conservative `repo:write` lock unless you set explicit resource keys.
 
