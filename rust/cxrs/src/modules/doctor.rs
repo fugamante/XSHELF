@@ -793,7 +793,7 @@ mod tests {
     }
 
     #[test]
-    fn exec_wave_missing_sum() {
+    fn exec_wave_missing() {
         let wave = serde_json::json!({
             "latest_wave_index": 4,
             "max_queue_wave_index": 4,
