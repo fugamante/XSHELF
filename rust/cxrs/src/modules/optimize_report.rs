@@ -10,6 +10,7 @@ use crate::optimize_rules::{
     push_token_anomaly,
 };
 use crate::paths::resolve_log_file;
+use crate::provider_adapter::selected_tq_caps;
 use crate::types::RunEntry;
 
 pub type OptimizeArgs = (usize, bool, bool, bool, Option<String>);
@@ -522,10 +523,18 @@ fn build_full_report(
     recommendations: Vec<String>,
     log_file: &std::path::Path,
 ) -> Value {
+    let experiment_caps = selected_tq_caps();
     json!({
         "contract_version": OPTIMIZE_JSON_CONTRACT_VERSION,
         "window": n,
         "runs": total,
+        "backend_capabilities": {
+            "turboquant": {
+                "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                "selected_backend_role": experiment_caps.turboquant_backend_role,
+                "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+            }
+        },
         "scoreboard": scoreboard,
         "anomalies": anomalies,
         "recommendations": recommendations,

@@ -3,6 +3,7 @@
     "contract_version",
     "log_file",
     "scheduler_window_requested",
+    "backend_capabilities",
     "scheduler",
     "retry",
     "critical",
@@ -22,6 +23,14 @@
     "workers_seen",
     "worker_distribution",
     "backend_distribution"
+  ],
+  "backend_capabilities_keys": [
+    "turboquant"
+  ],
+  "backend_capabilities_turboquant_keys": [
+    "cx_runtime_support",
+    "selected_backend_role",
+    "memory_metric_kind"
   ],
   "retry_keys": [
     "window_runs",
