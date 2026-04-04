@@ -85,14 +85,21 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         stderr_str(&show)
     );
     let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let fixture = load_fixture_json("task_show_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&out, &top_keys, "task_show.top");
     let latest = out.get("latest_run").expect("latest_run field");
     assert!(latest.is_object(), "latest_run should be object: {latest}");
+    let latest_keys = fixture_keys(&fixture, "latest_run_keys");
+    assert_has_keys(latest, &latest_keys, "task_show.latest_run");
     assert!(latest.get("execution_id").is_some(), "missing execution_id");
     assert!(
         latest.get("duration_ms").is_some(),
         "missing duration_ms: {latest}"
     );
     let readiness = out.get("run_readiness").expect("run_readiness field");
+    let readiness_keys = fixture_keys(&fixture, "run_readiness_keys");
+    assert_has_keys(readiness, &readiness_keys, "task_show.run_readiness");
     assert_eq!(
         readiness.get("runnable_now").and_then(Value::as_bool),
         Some(false)
@@ -137,7 +144,10 @@ fn show_ready_readiness() {
         stderr_str(&show)
     );
     let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let fixture = load_fixture_json("task_show_contract.json");
     let readiness = out.get("run_readiness").expect("run_readiness field");
+    let readiness_keys = fixture_keys(&fixture, "run_readiness_keys");
+    assert_has_keys(readiness, &readiness_keys, "task_show.run_readiness");
     assert_eq!(
         readiness.get("runnable_now").and_then(Value::as_bool),
         Some(true)
@@ -177,7 +187,10 @@ fn show_blocked_readiness() {
         stderr_str(&show)
     );
     let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let fixture = load_fixture_json("task_show_contract.json");
     let readiness = out.get("run_readiness").expect("run_readiness field");
+    let readiness_keys = fixture_keys(&fixture, "run_readiness_keys");
+    assert_has_keys(readiness, &readiness_keys, "task_show.run_readiness");
     assert_eq!(
         readiness.get("runnable_now").and_then(Value::as_bool),
         Some(false)
@@ -225,9 +238,14 @@ fn list_json_readiness() {
         payload.get("contract_version").and_then(Value::as_str),
         Some("task-list.v1")
     );
+    let fixture = load_fixture_json("task_list_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&payload, &top_keys, "task_list.top");
     let list_readiness = payload
         .get("list_readiness")
         .expect("list_readiness object");
+    let list_keys = fixture_keys(&fixture, "list_readiness_keys");
+    assert_has_keys(list_readiness, &list_keys, "task_list.list_readiness");
     assert_eq!(
         list_readiness.get("selected_count").and_then(Value::as_u64),
         Some(2)
@@ -245,6 +263,12 @@ fn list_json_readiness() {
         Some(1)
     );
     let next_wave = list_readiness.get("next_wave").expect("next_wave");
+    let next_wave_keys = fixture_keys(&fixture, "list_readiness_next_wave_keys");
+    assert_has_keys(
+        next_wave,
+        &next_wave_keys,
+        "task_list.list_readiness.next_wave",
+    );
     assert_eq!(next_wave.get("index").and_then(Value::as_u64), Some(1));
     assert_eq!(
         next_wave.get("mode").and_then(Value::as_str),
@@ -255,11 +279,19 @@ fn list_json_readiness() {
         .get("tasks")
         .and_then(Value::as_array)
         .expect("tasks array");
+    let task_keys = fixture_keys(&fixture, "task_keys");
     let child = tasks
         .iter()
         .find(|task| task.get("id").and_then(Value::as_str) == Some(child_id.as_str()))
         .expect("child task exists");
+    assert_has_keys(child, &task_keys, "task_list.tasks[]");
     let readiness = child.get("run_readiness").expect("run_readiness");
+    let readiness_keys = fixture_keys(&fixture, "run_readiness_keys");
+    assert_has_keys(
+        readiness,
+        &readiness_keys,
+        "task_list.tasks[].run_readiness",
+    );
     assert_eq!(
         readiness.get("runnable_now").and_then(Value::as_bool),
         Some(false)
@@ -332,9 +364,12 @@ fn list_complete_summary() {
         stderr_str(&out)
     );
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("valid json");
+    let fixture = load_fixture_json("task_list_contract.json");
     let list_readiness = payload
         .get("list_readiness")
         .expect("list_readiness object");
+    let list_keys = fixture_keys(&fixture, "list_readiness_keys");
+    assert_has_keys(list_readiness, &list_keys, "task_list.list_readiness");
     assert_eq!(
         list_readiness.get("selected_count").and_then(Value::as_u64),
         Some(1)

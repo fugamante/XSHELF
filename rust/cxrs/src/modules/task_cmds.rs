@@ -102,6 +102,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
             None => tasks.clone(),
         };
+        let plan = build_task_run_plan(&tasks, "pending");
         let list_readiness = list_readiness_value(&tasks, &filtered, status_filter);
         let task_rows: Vec<Value> = filtered
             .iter()
@@ -109,7 +110,10 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 let mut value =
                     serde_json::to_value(task).unwrap_or_else(|_| serde_json::json!({}));
                 if let Some(obj) = value.as_object_mut() {
-                    obj.insert("run_readiness".to_string(), task_run_state(task, &tasks));
+                    obj.insert(
+                        "run_readiness".to_string(),
+                        task_run_view(task, &tasks, &plan),
+                    );
                 }
                 value
             })
