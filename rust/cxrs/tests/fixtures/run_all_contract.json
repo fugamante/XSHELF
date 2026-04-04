@@ -14,6 +14,8 @@
     "non_retryable_failures",
     "critical_errors",
     "halted_on_critical",
+    "halted_remaining",
+    "backend_fallbacks",
     "duration_ms",
     "tasks"
   ],
@@ -39,6 +41,8 @@
   "task_keys": [
     "task_id",
     "backend",
+    "requested_backend",
+    "used_backend_fallback",
     "status",
     "execution_id",
     "failure_class"
