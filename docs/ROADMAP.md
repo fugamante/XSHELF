@@ -39,10 +39,13 @@
 ## Phase VI Kickoff (current)
 
 - Detailed kickoff spec: `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- Execution-guidance contract: `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
 - Keep single-worker execution as default; introduce explicit parallel plans only via task orchestration controls.
 - Preserve deterministic schema behavior under mixed/parallel scheduling paths.
 - Expand run-level telemetry quality checks for queue/start/finish attribution and worker-level observability.
 - Require parity + reliability suites green before each Phase VI increment merges.
+- After Phase VI stabilizes, run the explicit cross-phase review:
+  - `docs/POST_PHASE_VI_OVERVIEW.md`
 
 ## Guardrails
 
