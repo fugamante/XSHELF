@@ -101,7 +101,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
             None => tasks.clone(),
         };
-        let list_readiness = task_list_readiness_value(&tasks, &filtered);
+        let list_readiness = list_readiness_value(&tasks, &filtered);
         let task_rows: Vec<Value> = filtered
             .iter()
             .map(|task| {
@@ -2269,7 +2269,7 @@ pub(crate) fn task_readiness_value(tasks: &[TaskRecord], status_filter: &str) ->
     })
 }
 
-fn task_list_readiness_value(tasks: &[TaskRecord], filtered: &[TaskRecord]) -> serde_json::Value {
+fn list_readiness_value(tasks: &[TaskRecord], filtered: &[TaskRecord]) -> serde_json::Value {
     let plan = build_task_run_plan(tasks, "pending");
     let mut runnable_now = 0usize;
     let mut blocked_now = 0usize;
