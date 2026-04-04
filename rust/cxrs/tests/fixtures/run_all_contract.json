@@ -46,7 +46,10 @@
     "strict_ok",
     "advice",
     "recommendations",
-    "strict_plan_reason"
+    "strict_plan_reason",
+    "latest_wave_index",
+    "max_queue_wave_index",
+    "max_queue_wave_ms"
   ],
   "task_keys": [
     "task_id",
