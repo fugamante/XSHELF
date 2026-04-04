@@ -303,6 +303,47 @@ fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
     })
 }
 
+pub(crate) fn exec_action_value(task_execution: &Value) -> Option<Value> {
+    let next_action = task_execution.get("next_action")?;
+    let command = next_action.get("command").and_then(Value::as_str)?;
+    if command.trim().is_empty() {
+        return None;
+    }
+    let kind = next_action
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("operator_followup");
+    let advice = task_execution
+        .get("advice")
+        .and_then(Value::as_str)
+        .unwrap_or("Review latest task execution state.");
+    let pressure_kind = task_execution
+        .get("wave_pressure")
+        .and_then(|v| v.get("kind"))
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let halted_remaining = task_execution
+        .get("halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let severity = if halted_remaining > 0 {
+        "critical"
+    } else {
+        "warning"
+    };
+    let rationale = if pressure_kind != "none" {
+        format!("{advice} Wave pressure: {pressure_kind}.")
+    } else {
+        advice.to_string()
+    };
+    Some(serde_json::json!({
+        "id": format!("task_execution_{kind}"),
+        "severity": severity,
+        "rationale": rationale,
+        "command": command
+    }))
+}
+
 fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
     let value = exec_diag_value(latest_summary, wave_summary);
     let kind = value
