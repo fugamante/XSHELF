@@ -114,6 +114,16 @@ pub struct RunEntry {
     #[serde(default)]
     pub wave_size: Option<u64>,
     #[serde(default)]
+    pub run_all_wave_pressure_kind: Option<String>,
+    #[serde(default)]
+    pub run_all_wave_pressure_suggested_mode: Option<String>,
+    #[serde(default)]
+    pub run_all_latest_wave_index: Option<u64>,
+    #[serde(default)]
+    pub run_all_max_queue_wave_index: Option<u64>,
+    #[serde(default)]
+    pub run_all_max_queue_wave_ms: Option<u64>,
+    #[serde(default)]
     pub queue_started_at: Option<String>,
     #[serde(default)]
     pub task_started_at: Option<String>,
@@ -343,6 +353,11 @@ pub struct ExecutionLog {
     pub run_all_halted_remaining: Option<u64>,
     pub run_all_backend_fallback_rows: Option<u64>,
     pub run_all_backend_fallbacks: Option<String>,
+    pub run_all_wave_pressure_kind: Option<String>,
+    pub run_all_wave_pressure_suggested_mode: Option<String>,
+    pub run_all_latest_wave_index: Option<u64>,
+    pub run_all_max_queue_wave_index: Option<u64>,
+    pub run_all_max_queue_wave_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

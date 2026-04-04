@@ -34,9 +34,17 @@
     "latest_wave_index",
     "max_queue_wave_index",
     "max_queue_wave_ms",
+    "wave_pressure",
     "advice",
     "recommendations",
     "next_action"
+  ],
+  "task_execution_wave_pressure_keys": [
+    "kind",
+    "suggested_mode",
+    "latest_wave_index",
+    "max_queue_wave_index",
+    "max_queue_wave_ms"
   ],
   "task_execution_next_action_keys": [
     "kind",

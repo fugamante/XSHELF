@@ -322,6 +322,60 @@ fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
     ]
 }
 
+fn wave_pressure_value(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Value {
+    let latest_wave_index = latest_summary
+        .and_then(|s| s.get("run_all_latest_wave_index"))
+        .cloned()
+        .or_else(|| {
+            wave_summary
+                .and_then(|w| w.get("latest_wave_index"))
+                .cloned()
+        })
+        .unwrap_or(Value::Null);
+    let max_queue_wave_index = latest_summary
+        .and_then(|s| s.get("run_all_max_queue_wave_index"))
+        .cloned()
+        .or_else(|| {
+            wave_summary
+                .and_then(|w| w.get("max_queue_wave_index"))
+                .cloned()
+        })
+        .unwrap_or(Value::Null);
+    let max_queue_wave_ms = latest_summary
+        .and_then(|s| s.get("run_all_max_queue_wave_ms"))
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            wave_summary
+                .and_then(|w| w.get("max_queue_wave_ms"))
+                .and_then(Value::as_u64)
+        })
+        .unwrap_or(0);
+    let kind = latest_summary
+        .and_then(|s| s.get("run_all_wave_pressure_kind"))
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            if max_queue_wave_index.as_u64().unwrap_or(0) > 1
+                && max_queue_wave_ms >= WAVE_QUEUE_PRESSURE_MS
+            {
+                "later_wave_queue".to_string()
+            } else {
+                "none".to_string()
+            }
+        });
+    let suggested_mode = latest_summary
+        .and_then(|s| s.get("run_all_wave_pressure_suggested_mode"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    serde_json::json!({
+        "kind": kind,
+        "suggested_mode": suggested_mode,
+        "latest_wave_index": latest_wave_index,
+        "max_queue_wave_index": max_queue_wave_index,
+        "max_queue_wave_ms": max_queue_wave_ms
+    })
+}
+
 pub(crate) fn exec_advice_lines(
     latest_summary: Option<&Value>,
     wave_summary: Option<&Value>,
@@ -526,18 +580,19 @@ pub(crate) fn exec_diag_value(
                     .map(|(_, cmd)| Value::String(cmd.to_string()))
             })
             .collect::<Vec<Value>>();
-        let latest_wave_index = wave_summary
-            .and_then(|w| w.get("latest_wave_index"))
+        let latest_wave_index = wave_pressure_value(None, wave_summary)
+            .get("latest_wave_index")
             .cloned()
             .unwrap_or(Value::Null);
-        let max_queue_wave_index = wave_summary
-            .and_then(|w| w.get("max_queue_wave_index"))
+        let max_queue_wave_index = wave_pressure_value(None, wave_summary)
+            .get("max_queue_wave_index")
             .cloned()
             .unwrap_or(Value::Null);
-        let max_queue_wave_ms = wave_summary
-            .and_then(|w| w.get("max_queue_wave_ms"))
+        let max_queue_wave_ms = wave_pressure_value(None, wave_summary)
+            .get("max_queue_wave_ms")
             .and_then(Value::as_u64)
             .unwrap_or(0);
+        let wave_pressure = wave_pressure_value(None, wave_summary);
         return serde_json::json!({
             "last_mode": Value::Null,
             "halted_remaining": 0,
@@ -545,6 +600,7 @@ pub(crate) fn exec_diag_value(
             "latest_wave_index": latest_wave_index,
             "max_queue_wave_index": max_queue_wave_index,
             "max_queue_wave_ms": max_queue_wave_ms,
+            "wave_pressure": wave_pressure,
             "advice": advice,
             "recommendations": recommendations,
             "next_action": next_action_value(&advice, &recommendations)
@@ -562,16 +618,17 @@ pub(crate) fn exec_diag_value(
         .get("run_all_backend_fallback_rows")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    let latest_wave_index = wave_summary
-        .and_then(|w| w.get("latest_wave_index"))
+    let wave_pressure = wave_pressure_value(Some(summary), wave_summary);
+    let latest_wave_index = wave_pressure
+        .get("latest_wave_index")
         .cloned()
         .unwrap_or(Value::Null);
-    let max_queue_wave_index = wave_summary
-        .and_then(|w| w.get("max_queue_wave_index"))
+    let max_queue_wave_index = wave_pressure
+        .get("max_queue_wave_index")
         .cloned()
         .unwrap_or(Value::Null);
-    let max_queue_wave_ms = wave_summary
-        .and_then(|w| w.get("max_queue_wave_ms"))
+    let max_queue_wave_ms = wave_pressure
+        .get("max_queue_wave_ms")
         .and_then(Value::as_u64)
         .unwrap_or(0);
     let advice = exec_advice_lines(Some(summary), wave_summary)
@@ -595,6 +652,7 @@ pub(crate) fn exec_diag_value(
         "latest_wave_index": latest_wave_index,
         "max_queue_wave_index": max_queue_wave_index,
         "max_queue_wave_ms": max_queue_wave_ms,
+        "wave_pressure": wave_pressure,
         "advice": advice,
         "recommendations": recommendations,
         "next_action": next_action_value(&advice, &recommendations)
@@ -727,6 +785,11 @@ mod tests {
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
                 "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_wave_pressure_kind": "later_wave_queue",
+                "run_all_wave_pressure_suggested_mode": "sequential",
+                "run_all_latest_wave_index": 4,
+                "run_all_max_queue_wave_index": 4,
+                "run_all_max_queue_wave_ms": 2600,
                 "run_all_failed": 1,
                 "run_all_critical_errors": 1
             })),
@@ -782,6 +845,11 @@ mod tests {
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
                 "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_wave_pressure_kind": "later_wave_queue",
+                "run_all_wave_pressure_suggested_mode": "sequential",
+                "run_all_latest_wave_index": 4,
+                "run_all_max_queue_wave_index": 4,
+                "run_all_max_queue_wave_ms": 2600,
                 "run_all_failed": 1,
                 "run_all_critical_errors": 1
             })),
@@ -814,6 +882,13 @@ mod tests {
                 .and_then(|v| v.get("kind"))
                 .and_then(Value::as_str),
             Some("inspect_scheduler")
+        );
+        assert_eq!(
+            value
+                .get("wave_pressure")
+                .and_then(|v| v.get("kind"))
+                .and_then(Value::as_str),
+            Some("later_wave_queue")
         );
         let next_lines = exec_next_lines(
             Some(&serde_json::json!({
