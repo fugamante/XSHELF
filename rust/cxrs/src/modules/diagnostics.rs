@@ -180,7 +180,7 @@ fn print_scheduler_diag(log_file_path: &str, window: usize) {
     println!("scheduler_backend_distribution: {backend_distribution}");
 }
 
-fn task_readiness_diag_value() -> Value {
+fn readiness_diag_value() -> Value {
     match read_tasks() {
         Ok(tasks) => task_readiness_value(&tasks, "pending"),
         Err(e) => serde_json::json!({
@@ -205,7 +205,7 @@ fn task_readiness_diag_value() -> Value {
     }
 }
 
-fn print_task_readiness_diag(task_readiness: &Value) {
+fn print_readiness_diag(task_readiness: &Value) {
     println!(
         "task_readiness_selected: {}",
         task_readiness
@@ -1002,7 +1002,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
-    let task_readiness = task_readiness_diag_value();
+    let task_readiness = readiness_diag_value();
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -1106,7 +1106,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     println!("schema_registry_dir: {}", schema_dir.display());
     println!("schema_registry_files: {}", schema_count(&schema_dir));
     print_scheduler_diag(&log_file, window);
-    print_task_readiness_diag(&task_readiness);
+    print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
@@ -1203,7 +1203,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
-    let task_readiness = task_readiness_diag_value();
+    let task_readiness = readiness_diag_value();
     let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
@@ -1258,7 +1258,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     println!("== cxscheduler ==");
     println!("log_file: {log_file}");
     print_scheduler_diag(&log_file, window);
-    print_task_readiness_diag(&task_readiness);
+    print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
