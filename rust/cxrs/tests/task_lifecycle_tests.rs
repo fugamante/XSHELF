@@ -92,6 +92,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         latest.get("duration_ms").is_some(),
         "missing duration_ms: {latest}"
     );
+    let readiness = out.get("run_readiness").expect("run_readiness field");
+    assert_eq!(
+        readiness.get("runnable_now").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        readiness.get("recommended_reason").and_then(Value::as_str),
+        Some("inspect_non_pending_task")
+    );
 }
 
 #[test]
@@ -111,4 +120,75 @@ fn show_list_alias() {
     let text = stdout_str(&show_list);
     assert!(text.contains("id | role | status | parent_id | objective"));
     assert!(text.contains(&id), "{text}");
+}
+
+#[test]
+fn show_ready_readiness() {
+    let repo = TempRepo::new("cxrs-it");
+    let add = repo.run(&["task", "add", "Ready task", "--role", "implementer"]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+
+    let show = repo.run(&["task", "show", &id]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let readiness = out.get("run_readiness").expect("run_readiness field");
+    assert_eq!(
+        readiness.get("runnable_now").and_then(Value::as_bool),
+        Some(true)
+    );
+    let run_cmd = format!("cx task run {id}");
+    assert_eq!(
+        readiness.get("recommended_command").and_then(Value::as_str),
+        Some(run_cmd.as_str())
+    );
+}
+
+#[test]
+fn show_blocked_readiness() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let parent = repo.run(&["task", "add", "Parent task", "--role", "implementer"]);
+    assert!(parent.status.success(), "stderr={}", stderr_str(&parent));
+    let parent_id = stdout_str(&parent).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "Child task",
+        "--role",
+        "implementer",
+        "--depends-on",
+        &parent_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+    let child_id = stdout_str(&child).trim().to_string();
+
+    let show = repo.run(&["task", "show", &child_id]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&show)).expect("valid json");
+    let readiness = out.get("run_readiness").expect("run_readiness field");
+    assert_eq!(
+        readiness.get("runnable_now").and_then(Value::as_bool),
+        Some(false)
+    );
+    let blocked = format!("unresolved dependencies: {parent_id}");
+    assert_eq!(
+        readiness.get("blocked_reason").and_then(Value::as_str),
+        Some(blocked.as_str())
+    );
+    assert_eq!(
+        readiness.get("recommended_command").and_then(Value::as_str),
+        Some("cx task check --json")
+    );
 }
