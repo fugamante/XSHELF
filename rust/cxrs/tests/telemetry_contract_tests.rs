@@ -154,6 +154,12 @@ fn telemetry_json_matches_contract_fixture() {
         &turboquant_keys,
         "telemetry.backend_capabilities.turboquant",
     );
+    let task_execution_keys = fixture_keys(&fixture, "task_execution_keys");
+    assert_has_keys(
+        payload.get("task_execution").expect("task_execution"),
+        &task_execution_keys,
+        "telemetry.task_execution",
+    );
     let drift_keys = fixture_keys(&fixture, "contract_drift_keys");
     assert_has_keys(
         payload.get("contract_drift").expect("contract_drift"),

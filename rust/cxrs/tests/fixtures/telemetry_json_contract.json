@@ -7,6 +7,7 @@
     "severity",
     "strict_violations",
     "backend_capabilities",
+    "task_execution",
     "fields",
     "contract_drift",
     "retry_telemetry",
@@ -25,6 +26,13 @@
     "cx_runtime_support",
     "selected_backend_role",
     "memory_metric_kind"
+  ],
+  "task_execution_keys": [
+    "last_mode",
+    "halted_remaining",
+    "backend_fallback_rows",
+    "advice",
+    "recommendations"
   ],
   "retry_keys": [
     "rows_with_retry_metadata",
