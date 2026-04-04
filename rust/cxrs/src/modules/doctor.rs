@@ -282,7 +282,10 @@ mod tests {
         let joined = lines.join("\n");
         assert!(joined.contains("task_readiness_mode: mixed"), "{joined}");
         assert!(joined.contains("task_readiness_mixed: true"), "{joined}");
-        assert!(joined.contains("task_readiness_parallel: false"), "{joined}");
+        assert!(
+            joined.contains("task_readiness_parallel: false"),
+            "{joined}"
+        );
         assert!(joined.contains("task_readiness_waves: 3"), "{joined}");
         assert!(
             joined.contains("task_readiness_parallel_waves: 2"),
