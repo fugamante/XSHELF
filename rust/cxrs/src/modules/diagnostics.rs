@@ -897,6 +897,75 @@ fn build_actions_from_reasons(
     actions
 }
 
+fn exec_action_value(task_execution: &Value) -> Option<serde_json::Value> {
+    let next_action = task_execution.get("next_action")?;
+    let command = next_action.get("command").and_then(Value::as_str)?;
+    if command.trim().is_empty() {
+        return None;
+    }
+    let kind = next_action
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("operator_followup");
+    let advice = task_execution
+        .get("advice")
+        .and_then(Value::as_str)
+        .unwrap_or("Review latest task execution state.");
+    let pressure_kind = task_execution
+        .get("wave_pressure")
+        .and_then(|v| v.get("kind"))
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let halted_remaining = task_execution
+        .get("halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let fallback_rows = task_execution
+        .get("backend_fallback_rows")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let severity = if halted_remaining > 0 {
+        "critical"
+    } else {
+        let _ = (fallback_rows, pressure_kind);
+        "warning"
+    };
+    let rationale = if pressure_kind != "none" {
+        format!("{advice} Wave pressure: {pressure_kind}.")
+    } else {
+        advice.to_string()
+    };
+    Some(serde_json::json!({
+        "id": format!("task_execution_{kind}"),
+        "severity": severity,
+        "rationale": rationale,
+        "command": command
+    }))
+}
+
+fn merge_exec_action(
+    mut actions: Vec<serde_json::Value>,
+    task_execution: &Value,
+) -> Vec<serde_json::Value> {
+    let Some(exec_action) = exec_action_value(task_execution) else {
+        return actions;
+    };
+    let exec_command = exec_action
+        .get("command")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let duplicate = actions.iter().any(|action| {
+        action.get("command").and_then(Value::as_str) == Some(exec_command)
+            || action.get("id").and_then(Value::as_str)
+                == exec_action.get("id").and_then(Value::as_str)
+    });
+    if duplicate {
+        return actions;
+    }
+    actions.insert(0, exec_action);
+    actions
+}
+
 fn max_action_severity(actions: &[serde_json::Value]) -> &'static str {
     let mut max_level = "ok";
     for action in actions {
@@ -1102,10 +1171,13 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     };
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        build_actions_from_reasons(
-            &severity_reasons,
-            window,
-            "cx task run-all --status pending",
+        merge_exec_action(
+            build_actions_from_reasons(
+                &severity_reasons,
+                window,
+                "cx task run-all --status pending",
+            ),
+            &task_execution,
         )
     } else {
         Vec::new()
@@ -1372,13 +1444,19 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
     let task_readiness = readiness_diag_value();
+    let latest_run = latest_run_all_sum();
+    let latest_wave = latest_wave_sum();
+    let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        build_actions_from_reasons(
-            &severity_reasons,
-            window,
-            "cx task run-all --status pending",
+        merge_exec_action(
+            build_actions_from_reasons(
+                &severity_reasons,
+                window,
+                "cx task run-all --status pending",
+            ),
+            &task_execution,
         )
     } else {
         Vec::new()
@@ -1398,6 +1476,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             },
             "scheduler": scheduler,
             "task_readiness": task_readiness,
+            "task_execution": task_execution,
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,

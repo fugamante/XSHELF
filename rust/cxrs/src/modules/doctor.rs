@@ -257,8 +257,7 @@ pub(crate) fn latest_wave_sum() -> Option<Value> {
     })
 }
 
-fn wave_pressure_advice(mode: &str, wave_summary: Option<&Value>) -> Option<String> {
-    let wave = wave_summary?;
+fn wave_pressure_advice_value(mode: &str, wave: &Value) -> Option<String> {
     let max_queue_wave_ms = wave
         .get("max_queue_wave_ms")
         .and_then(Value::as_u64)
@@ -394,16 +393,17 @@ pub(crate) fn exec_advice_lines(
     wave_summary: Option<&Value>,
 ) -> Vec<String> {
     let Some(summary) = latest_summary else {
-        let latest_wave_index = wave_summary
-            .and_then(|w| w.get("latest_wave_index"))
+        let wave = wave_pressure_value(None, wave_summary);
+        let latest_wave_index = wave
+            .get("latest_wave_index")
             .and_then(Value::as_u64)
             .unwrap_or(0);
-        let max_queue_wave_index = wave_summary
-            .and_then(|w| w.get("max_queue_wave_index"))
+        let max_queue_wave_index = wave
+            .get("max_queue_wave_index")
             .and_then(Value::as_u64)
             .unwrap_or(0);
-        let max_queue_wave_ms = wave_summary
-            .and_then(|w| w.get("max_queue_wave_ms"))
+        let max_queue_wave_ms = wave
+            .get("max_queue_wave_ms")
             .and_then(Value::as_u64)
             .unwrap_or(0);
         let mut lines = vec![
@@ -414,7 +414,7 @@ pub(crate) fn exec_advice_lines(
             format!("task_execution_max_queue_wave_index: {max_queue_wave_index}"),
             format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
         ];
-        if let Some(advice) = wave_pressure_advice("unknown", wave_summary) {
+        if let Some(advice) = wave_pressure_advice_value("unknown", &wave) {
             lines.push(format!("task_execution_advice: {advice}"));
         } else {
             lines.push("task_execution_advice: no recent task run-all summary".to_string());
@@ -446,16 +446,17 @@ pub(crate) fn exec_advice_lines(
         .get("run_all_mode")
         .and_then(Value::as_str)
         .unwrap_or("unknown");
-    let latest_wave_index = wave_summary
-        .and_then(|w| w.get("latest_wave_index"))
+    let wave = wave_pressure_value(Some(summary), wave_summary);
+    let latest_wave_index = wave
+        .get("latest_wave_index")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    let max_queue_wave_index = wave_summary
-        .and_then(|w| w.get("max_queue_wave_index"))
+    let max_queue_wave_index = wave
+        .get("max_queue_wave_index")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    let max_queue_wave_ms = wave_summary
-        .and_then(|w| w.get("max_queue_wave_ms"))
+    let max_queue_wave_ms = wave
+        .get("max_queue_wave_ms")
         .and_then(Value::as_u64)
         .unwrap_or(0);
 
@@ -486,7 +487,7 @@ pub(crate) fn exec_advice_lines(
             "task_execution_advice: inspect failed task ids from the latest run-all summary before retrying"
                 .to_string(),
         );
-    } else if let Some(advice) = wave_pressure_advice(mode, wave_summary) {
+    } else if let Some(advice) = wave_pressure_advice_value(mode, &wave) {
         lines.push(format!("task_execution_advice: {advice}"));
     } else {
         lines.push(
@@ -501,7 +502,8 @@ pub(crate) fn exec_reco_lines(
     wave_summary: Option<&Value>,
 ) -> Vec<String> {
     let Some(summary) = latest_summary else {
-        if wave_pressure_advice("unknown", wave_summary).is_some() {
+        let wave = wave_pressure_value(None, wave_summary);
+        if wave_pressure_advice_value("unknown", &wave).is_some() {
             return vec![
                 "task_execution_recommendation_1: cx task run-all --dry-run --json".to_string(),
                 "task_execution_recommendation_2: cx scheduler --json --window 20".to_string(),
@@ -532,6 +534,7 @@ pub(crate) fn exec_reco_lines(
         .get("run_all_mode")
         .and_then(Value::as_str)
         .unwrap_or("unknown");
+    let wave = wave_pressure_value(Some(summary), wave_summary);
 
     if halted_remaining > 0 {
         return vec![
@@ -557,7 +560,7 @@ pub(crate) fn exec_reco_lines(
             "task_execution_recommendation_2: cx task run-all --status pending".to_string(),
         ];
     }
-    if wave_pressure_advice(mode, wave_summary).is_some() {
+    if wave_pressure_advice_value(mode, &wave).is_some() {
         let narrower = match mode {
             "parallel" => "cx task run-all --mode mixed --status pending",
             "mixed" => "cx task run-all --mode sequential --status pending",

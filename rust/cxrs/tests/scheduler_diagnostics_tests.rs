@@ -377,6 +377,11 @@ fn scheduler_json_matches_contract_fixture() {
                 "task_readiness_keys",
                 "scheduler.task_readiness",
             ),
+            (
+                "task_execution",
+                "task_execution_keys",
+                "scheduler.task_execution",
+            ),
             ("retry", "retry_keys", "scheduler.retry"),
             ("critical", "critical_keys", "scheduler.critical"),
             ("concurrency", "concurrency_keys", "scheduler.concurrency"),
@@ -398,6 +403,23 @@ fn scheduler_json_matches_contract_fixture() {
             .expect("backend_capabilities.turboquant"),
         &turboquant_keys,
         "scheduler.backend_capabilities.turboquant",
+    );
+    let task_execution = payload.get("task_execution").expect("task_execution");
+    let task_execution_wave_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        task_execution
+            .get("wave_pressure")
+            .expect("task_execution.wave_pressure"),
+        &task_execution_wave_keys,
+        "scheduler.task_execution.wave_pressure",
+    );
+    let task_execution_next_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        task_execution
+            .get("next_action")
+            .expect("task_execution.next_action"),
+        &task_execution_next_keys,
+        "scheduler.task_execution.next_action",
     );
 
     let concurrency = payload.get("concurrency").expect("scheduler.concurrency");
