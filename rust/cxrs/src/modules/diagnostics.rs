@@ -17,6 +17,8 @@ use crate::paths::{repo_root_hint, resolve_log_file};
 use crate::provider_adapter::selected_tq_caps;
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
+use crate::task_cmds::task_readiness_value;
+use crate::tasks::read_tasks;
 
 fn resolved_provider(cfg_provider: &str) -> &'static str {
     let _ = cfg_provider;
@@ -176,6 +178,76 @@ fn print_scheduler_diag(log_file_path: &str, window: usize) {
     println!("scheduler_workers_seen: {workers_seen}");
     println!("scheduler_worker_distribution: {worker_distribution}");
     println!("scheduler_backend_distribution: {backend_distribution}");
+}
+
+fn task_readiness_diag_value() -> Value {
+    match read_tasks() {
+        Ok(tasks) => task_readiness_value(&tasks, "pending"),
+        Err(e) => serde_json::json!({
+            "status_filter": "pending",
+            "selected": 0,
+            "waves": 0,
+            "blocked_total": 0,
+            "blocked_dependencies": 0,
+            "blocked_resources": 0,
+            "can_run": false,
+            "can_run_mixed": false,
+            "can_run_parallel": false,
+            "strict_plan_ok": false,
+            "strict_plan_reason": format!("task_read_failed: {e}"),
+            "sequential_waves": 0,
+            "parallel_waves": 0,
+            "largest_parallel_wave": 0,
+            "recommended_mode": "sequential",
+            "recommended_reason": "task_read_failed",
+            "blocked": []
+        }),
+    }
+}
+
+fn print_task_readiness_diag(task_readiness: &Value) {
+    println!(
+        "task_readiness_selected: {}",
+        task_readiness
+            .get("selected")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "task_readiness_can_run_mixed: {}",
+        task_readiness
+            .get("can_run_mixed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    );
+    println!(
+        "task_readiness_can_run_parallel: {}",
+        task_readiness
+            .get("can_run_parallel")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    );
+    println!(
+        "task_readiness_recommended_mode: {}",
+        task_readiness
+            .get("recommended_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("sequential")
+    );
+    println!(
+        "task_readiness_parallel_waves: {}",
+        task_readiness
+            .get("parallel_waves")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "task_readiness_largest_parallel_wave: {}",
+        task_readiness
+            .get("largest_parallel_wave")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
 }
 
 fn retry_diag_value(log_file_path: &str, window: usize) -> Value {
@@ -930,6 +1002,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let task_readiness = task_readiness_diag_value();
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -985,6 +1058,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "schema_registry_dir": schema_dir.display().to_string(),
             "schema_registry_files": schema_count(&schema_dir),
             "scheduler": scheduler,
+            "task_readiness": task_readiness,
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,
@@ -1032,6 +1106,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     println!("schema_registry_dir: {}", schema_dir.display());
     println!("schema_registry_files: {}", schema_count(&schema_dir));
     print_scheduler_diag(&log_file, window);
+    print_task_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
@@ -1128,6 +1203,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let task_readiness = task_readiness_diag_value();
     let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
@@ -1153,6 +1229,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
                 }
             },
             "scheduler": scheduler,
+            "task_readiness": task_readiness,
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,
@@ -1181,6 +1258,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     println!("== cxscheduler ==");
     println!("log_file: {log_file}");
     print_scheduler_diag(&log_file, window);
+    print_task_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
