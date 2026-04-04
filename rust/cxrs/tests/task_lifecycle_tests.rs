@@ -225,6 +225,34 @@ fn list_json_readiness() {
         payload.get("contract_version").and_then(Value::as_str),
         Some("task-list.v1")
     );
+    let list_readiness = payload
+        .get("list_readiness")
+        .expect("list_readiness object");
+    assert_eq!(
+        list_readiness
+            .get("selected_count")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        list_readiness
+            .get("runnable_now_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        list_readiness
+            .get("blocked_now_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    let next_wave = list_readiness.get("next_wave").expect("next_wave");
+    assert_eq!(next_wave.get("index").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        next_wave.get("mode").and_then(Value::as_str),
+        Some("sequential")
+    );
+    assert_eq!(next_wave.get("size").and_then(Value::as_u64), Some(1));
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
