@@ -66,6 +66,9 @@ print_json_summary() {
           mode: .task_execution.last_mode,
           halt: .task_execution.halted_remaining,
           fb: .task_execution.backend_fallback_rows,
+          pressure: (.task_execution.wave_pressure.kind // null),
+          pmode: (.task_execution.wave_pressure.suggested_mode // null),
+          pms: (.task_execution.wave_pressure.max_queue_wave_ms // null),
           advice: .task_execution.advice,
           next_kind: (.task_execution.next_action.kind // null),
           next: (.task_execution.next_action.command // null)
