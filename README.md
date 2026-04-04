@@ -236,7 +236,8 @@ Note:
   - halted remaining work
   - backend fallback row count
   - advice
-  - first two recommended follow-up commands
+  - typed next-action kind
+  - primary next command
 - Set broker policy explicitly when needed:
 ```bash
 ./bin/cx broker set --policy quota_saver
