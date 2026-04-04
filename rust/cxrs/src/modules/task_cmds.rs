@@ -1772,6 +1772,51 @@ fn plan_mode_counts(plan: &crate::tasks_plan::TaskRunPlan) -> (u64, u64, u64) {
     (sequential_waves, parallel_waves, largest_parallel_wave)
 }
 
+pub(crate) fn task_readiness_value(
+    tasks: &[TaskRecord],
+    status_filter: &str,
+) -> serde_json::Value {
+    let plan = build_task_run_plan(tasks, status_filter);
+    let strict_reason = strict_issue_parallel(&plan);
+    let strict_ok = strict_reason.is_none();
+    let (recommended_mode, recommended_reason) = rec_mode(&plan, strict_ok);
+    let blocked_total = plan.blocked.len();
+    let blocked_deps = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.starts_with("unresolved dependencies"))
+        .count();
+    let blocked_resources = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.to_lowercase().contains("resource"))
+        .count();
+    let can_run = blocked_total == 0;
+    let can_run_mixed = can_run;
+    let can_run_parallel = can_run && strict_ok;
+    let (sequential_waves, parallel_waves, largest_parallel_wave) = plan_mode_counts(&plan);
+
+    serde_json::json!({
+        "status_filter": plan.status_filter,
+        "selected": plan.selected,
+        "waves": plan.waves.len(),
+        "blocked_total": blocked_total,
+        "blocked_dependencies": blocked_deps,
+        "blocked_resources": blocked_resources,
+        "can_run": can_run,
+        "can_run_mixed": can_run_mixed,
+        "can_run_parallel": can_run_parallel,
+        "strict_plan_ok": strict_ok,
+        "strict_plan_reason": strict_reason,
+        "sequential_waves": sequential_waves,
+        "parallel_waves": parallel_waves,
+        "largest_parallel_wave": largest_parallel_wave,
+        "recommended_mode": recommended_mode,
+        "recommended_reason": recommended_reason,
+        "blocked": plan.blocked
+    })
+}
+
 fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let usage = format!(
         "Usage: {app_name} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]"
@@ -1820,48 +1865,38 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
             return 1;
         }
     };
-    let plan = build_task_run_plan(&tasks, &status_filter);
-    let strict_reason = strict_issue_parallel(&plan);
-    let strict_ok = strict_reason.is_none();
-    let (recommended_mode, recommended_reason) = rec_mode(&plan, strict_ok);
-    let blocked_total = plan.blocked.len();
-    let blocked_deps = plan
-        .blocked
-        .iter()
-        .filter(|b| b.reason.starts_with("unresolved dependencies"))
-        .count();
-    let blocked_resources = plan
-        .blocked
-        .iter()
-        .filter(|b| b.reason.to_lowercase().contains("resource"))
-        .count();
-    let can_run = blocked_total == 0;
-    let can_run_mixed = can_run;
-    let can_run_parallel = can_run && strict_ok;
-    let (sequential_waves, parallel_waves, largest_parallel_wave) = plan_mode_counts(&plan);
+    let readiness = task_readiness_value(&tasks, &status_filter);
+    let can_run = readiness
+        .get("can_run")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let strict_ok = readiness
+        .get("strict_plan_ok")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
 
     let out_json = resolve_json_mode(as_json, false);
     if out_json {
         let payload = serde_json::json!({
             "contract_version": "task-check.v1",
-            "status_filter": plan.status_filter,
-            "selected": plan.selected,
-            "waves": plan.waves.len(),
-            "blocked_total": blocked_total,
-            "blocked_dependencies": blocked_deps,
-            "blocked_resources": blocked_resources,
-            "can_run": can_run,
-            "can_run_mixed": can_run_mixed,
-            "can_run_parallel": can_run_parallel,
             "strict_plan": strict_plan,
-            "strict_plan_ok": strict_ok,
-            "strict_plan_reason": strict_reason,
-            "sequential_waves": sequential_waves,
-            "parallel_waves": parallel_waves,
-            "largest_parallel_wave": largest_parallel_wave,
-            "recommended_mode": recommended_mode,
-            "recommended_reason": recommended_reason,
-            "blocked": plan.blocked
+            "status_filter": readiness.get("status_filter").cloned().unwrap_or(serde_json::Value::String(status_filter.clone())),
+            "selected": readiness.get("selected").cloned().unwrap_or(serde_json::Value::from(0)),
+            "waves": readiness.get("waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_total": readiness.get("blocked_total").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_dependencies": readiness.get("blocked_dependencies").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_resources": readiness.get("blocked_resources").cloned().unwrap_or(serde_json::Value::from(0)),
+            "can_run": readiness.get("can_run").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "can_run_mixed": readiness.get("can_run_mixed").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "can_run_parallel": readiness.get("can_run_parallel").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "strict_plan_ok": readiness.get("strict_plan_ok").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "strict_plan_reason": readiness.get("strict_plan_reason").cloned().unwrap_or(serde_json::Value::Null),
+            "sequential_waves": readiness.get("sequential_waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "parallel_waves": readiness.get("parallel_waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "largest_parallel_wave": readiness.get("largest_parallel_wave").cloned().unwrap_or(serde_json::Value::from(0)),
+            "recommended_mode": readiness.get("recommended_mode").cloned().unwrap_or(serde_json::Value::String("sequential".to_string())),
+            "recommended_reason": readiness.get("recommended_reason").cloned().unwrap_or(serde_json::Value::String("unknown".to_string())),
+            "blocked": readiness.get("blocked").cloned().unwrap_or(serde_json::Value::Array(Vec::new()))
         });
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
@@ -1872,25 +1907,106 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
         }
     } else {
         println!("== cx task check ==");
-        println!("status_filter: {}", plan.status_filter);
-        println!("selected: {}", plan.selected);
-        println!("waves: {}", plan.waves.len());
-        println!("blocked_total: {}", blocked_total);
-        println!("blocked_dependencies: {}", blocked_deps);
-        println!("blocked_resources: {}", blocked_resources);
+        println!(
+            "status_filter: {}",
+            readiness
+                .get("status_filter")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(&status_filter)
+        );
+        println!(
+            "selected: {}",
+            readiness
+                .get("selected")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "waves: {}",
+            readiness
+                .get("waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_total: {}",
+            readiness
+                .get("blocked_total")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_dependencies: {}",
+            readiness
+                .get("blocked_dependencies")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_resources: {}",
+            readiness
+                .get("blocked_resources")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
         println!("can_run: {can_run}");
-        println!("can_run_mixed: {can_run_mixed}");
-        println!("can_run_parallel: {can_run_parallel}");
+        println!(
+            "can_run_mixed: {}",
+            readiness
+                .get("can_run_mixed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        );
+        println!(
+            "can_run_parallel: {}",
+            readiness
+                .get("can_run_parallel")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        );
         println!("strict_plan: {strict_plan}");
         println!("strict_plan_ok: {strict_ok}");
-        if let Some(reason) = strict_reason.as_deref() {
+        if let Some(reason) = readiness
+            .get("strict_plan_reason")
+            .and_then(serde_json::Value::as_str)
+        {
             println!("strict_plan_reason: {reason}");
         }
-        println!("sequential_waves: {sequential_waves}");
-        println!("parallel_waves: {parallel_waves}");
-        println!("largest_parallel_wave: {largest_parallel_wave}");
-        println!("recommended_mode: {recommended_mode}");
-        println!("recommended_reason: {recommended_reason}");
+        println!(
+            "sequential_waves: {}",
+            readiness
+                .get("sequential_waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "parallel_waves: {}",
+            readiness
+                .get("parallel_waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "largest_parallel_wave: {}",
+            readiness
+                .get("largest_parallel_wave")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "recommended_mode: {}",
+            readiness
+                .get("recommended_mode")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("sequential")
+        );
+        println!(
+            "recommended_reason: {}",
+            readiness
+                .get("recommended_reason")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("unknown")
+        );
     }
 
     if strict_plan {

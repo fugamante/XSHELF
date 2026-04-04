@@ -138,6 +138,11 @@ fn diag_json_reports_scheduler_object() {
         Some(0),
         "unexpected critical object: {critical}"
     );
+    let task_readiness = v.get("task_readiness").expect("task_readiness");
+    assert_eq!(
+        task_readiness.get("status_filter").and_then(Value::as_str),
+        Some("pending")
+    );
 }
 
 #[test]
@@ -323,6 +328,7 @@ fn scheduler_json_matches_contract_fixture() {
         "top_level_keys",
         &[
             ("scheduler", "scheduler_keys", "scheduler.scheduler"),
+            ("task_readiness", "task_readiness_keys", "scheduler.task_readiness"),
             ("retry", "retry_keys", "scheduler.retry"),
             ("critical", "critical_keys", "scheduler.critical"),
             ("concurrency", "concurrency_keys", "scheduler.concurrency"),
