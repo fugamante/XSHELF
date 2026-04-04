@@ -67,8 +67,8 @@ print_json_summary() {
           halt: .task_execution.halted_remaining,
           fb: .task_execution.backend_fallback_rows,
           advice: .task_execution.advice,
-          reco1: (.task_execution.recommendations[0] // null),
-          reco2: (.task_execution.recommendations[1] // null)
+          next_kind: (.task_execution.next_action.kind // null),
+          next: (.task_execution.next_action.command // null)
         }
       else null end
     )
