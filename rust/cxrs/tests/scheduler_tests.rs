@@ -402,6 +402,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         critical_count, 1,
         "expected one critical error before halt; stderr={stderr}"
     );
+    let stdout = stdout_str(&out);
+    assert!(
+        stdout.contains("run-all halted_on_critical: true"),
+        "expected halt summary line; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("run-all halted_remaining: 1"),
+        "expected halted remaining count; stdout={stdout}"
+    );
 }
 
 #[cfg(unix)]
@@ -687,7 +696,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 fn run_all_json() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
-        "codex",
+        "ollama",
         r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -696,6 +705,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     );
 
     for i in 1..=2 {
+        let backend = if i == 1 { "codex" } else { "ollama" };
         let add = repo.run(&[
             "task",
             "add",
@@ -703,15 +713,28 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            backend,
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
 
-    let out = repo.run(&["task", "run-all", "--status", "pending", "--json"]);
-    assert!(
-        out.status.success(),
-        "stdout={} stderr={}",
+    let mock_path = format!("{}:/usr/bin:/bin", repo.mock_bin.to_string_lossy());
+    let out = repo.run_with_env(
+        &[
+            "task",
+            "run-all",
+            "--status",
+            "pending",
+            "--backend-pool",
+            "codex,ollama",
+            "--json",
+        ],
+        &[("PATH", mock_path.as_str())],
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "expected non-zero because mocked ollama execution is not guaranteed clean; stdout={} stderr={}",
         stdout_str(&out),
         stderr_str(&out)
     );
@@ -721,17 +744,32 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         Some("task-run-all.v1")
     );
     assert_eq!(v.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(v.get("halted_remaining").and_then(Value::as_u64), Some(0));
     assert_eq!(
         v.get("task_readiness")
             .and_then(|t| t.get("can_run_mixed"))
             .and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        v.get("backend_fallbacks")
+            .and_then(|v| v.get("codex->ollama"))
+            .and_then(Value::as_u64),
+        Some(1)
+    );
     let tasks = v
         .get("tasks")
         .and_then(Value::as_array)
         .expect("tasks array");
     assert_eq!(tasks.len(), 2, "{v}");
+    assert!(
+        tasks.iter().any(|t| {
+            t.get("used_backend_fallback").and_then(Value::as_bool) == Some(true)
+                && t.get("requested_backend").and_then(Value::as_str) == Some("codex")
+                && t.get("backend").and_then(Value::as_str) == Some("ollama")
+        }),
+        "{v}"
+    );
 }
 
 #[test]

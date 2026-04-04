@@ -193,6 +193,7 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 struct PendingLaunch {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
     queue_since: Instant,
     queue_started_at: String,
     wave_index: u64,
@@ -203,6 +204,7 @@ struct PendingLaunch {
 struct ActiveLaunch {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
     join: thread::JoinHandle<Result<(i32, Option<String>), String>>,
 }
 
@@ -251,6 +253,7 @@ struct RunAllSummary {
 struct TaskRunEvent {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
     status: String,
     execution_id: Option<String>,
     failure_class: Option<String>,
@@ -277,9 +280,15 @@ impl RunAllSummary {
     }
 
     fn add_task_run(&mut self, ev: TaskRunEvent) {
+        let used_backend_fallback = ev
+            .requested_backend
+            .as_deref()
+            .is_some_and(|requested| requested != ev.backend);
         self.task_runs.push(serde_json::json!({
             "task_id": ev.id,
             "backend": ev.backend,
+            "requested_backend": ev.requested_backend,
+            "used_backend_fallback": used_backend_fallback,
             "status": ev.status,
             "execution_id": ev.execution_id,
             "failure_class": ev.failure_class
@@ -320,6 +329,46 @@ fn runall_failed_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
         })
         .take(limit)
         .collect()
+}
+
+fn runall_backend_fallbacks(summary: &RunAllSummary) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for task in &summary.task_runs {
+        let Some(true) = task.get("used_backend_fallback").and_then(Value::as_bool) else {
+            continue;
+        };
+        let requested = task
+            .get("requested_backend")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let actual = task
+            .get("backend")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let key = format!("{requested}->{actual}");
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn render_counts_compact(counts: &HashMap<String, usize>) -> String {
+    if counts.is_empty() {
+        return "none".to_string();
+    }
+    let mut pairs: Vec<(String, usize)> = counts.iter().map(|(k, v)| (k.clone(), *v)).collect();
+    pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    pairs
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
+fn runall_halted_remaining(summary: &RunAllSummary, scheduled_count: usize) -> usize {
+    if !summary.halted_on_critical {
+        return 0;
+    }
+    scheduled_count.saturating_sub(summary.task_runs.len())
 }
 
 fn classify_failure_for_execution(execution_id: Option<&str>) -> FailureInfo {
@@ -801,8 +850,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             let task = task_index.get(id);
             let max_retries = task.and_then(|t| t.max_retries).unwrap_or(0);
             let task_parent_id = task.and_then(|t| t.parent_id.clone());
+            let requested_backend = choose_backend_for_task(task, &options.backend_pool, idx);
             let backend_selected = fallback_backend(
-                choose_backend_for_task(task, &options.backend_pool, idx),
+                requested_backend.clone(),
                 &available_pool(&options.backend_pool),
             );
             let wave_meta = wave_meta_map
@@ -832,6 +882,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             summary.add_task_run(TaskRunEvent {
                                 id: id.clone(),
                                 backend,
+                                requested_backend: requested_backend.clone(),
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
@@ -843,6 +894,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
                             backend,
+                            requested_backend: requested_backend.clone(),
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
@@ -855,6 +907,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
                             backend,
+                            requested_backend: requested_backend.clone(),
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
@@ -896,6 +949,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 backend: backend_selected
                                     .clone()
                                     .unwrap_or_else(|| "unknown".to_string()),
+                                requested_backend: requested_backend.clone(),
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
@@ -918,6 +972,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             backend: backend_selected
                                 .clone()
                                 .unwrap_or_else(|| "unknown".to_string()),
+                            requested_backend: requested_backend.clone(),
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
@@ -933,6 +988,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             backend: backend_selected
                                 .clone()
                                 .unwrap_or_else(|| "unknown".to_string()),
+                            requested_backend: requested_backend.clone(),
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
@@ -954,6 +1010,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     backend: backend_selected
                         .clone()
                         .unwrap_or_else(|| "unknown".to_string()),
+                    requested_backend: requested_backend.clone(),
                     status: "failed".to_string(),
                     execution_id: None,
                     failure_class: Some("non_retryable_failure".to_string()),
@@ -962,6 +1019,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
         summary
     };
+    let backend_fallbacks = runall_backend_fallbacks(&summary);
+    let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
     if options.as_json {
         let payload = serde_json::json!({
             "contract_version": "task-run-all.v1",
@@ -979,6 +1038,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "non_retryable_failures": summary.non_retryable_failed,
             "critical_errors": summary.critical_errors,
             "halted_on_critical": summary.halted_on_critical,
+            "halted_remaining": halted_remaining,
+            "backend_fallbacks": backend_fallbacks,
             "duration_ms": started.elapsed().as_millis() as u64,
             "tasks": summary.task_runs
         });
@@ -1005,6 +1066,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "non_retryable_failures": summary.non_retryable_failed,
                 "critical_errors": summary.critical_errors,
                 "halted_on_critical": summary.halted_on_critical,
+                "halted_remaining": halted_remaining,
+                "backend_fallbacks": backend_fallbacks,
                 "duration_ms": started.elapsed().as_millis() as u64,
                 "failure_reasons": reason_counts,
                 "failed_task_ids": runall_failed_ids(&summary, 25)
@@ -1034,16 +1097,19 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             );
             if summary.halted_on_critical {
                 println!("run-all halted_on_critical: true");
+                println!("run-all halted_remaining: {halted_remaining}");
+            }
+            if !backend_fallbacks.is_empty() {
+                println!(
+                    "run-all backend_fallbacks: {}",
+                    render_counts_compact(&backend_fallbacks)
+                );
             }
             if summary.failed > 0 {
-                let mut reasons: Vec<(String, usize)> = reason_counts.into_iter().collect();
-                reasons.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-                let compact = reasons
-                    .iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                println!("run-all failure_reasons: {compact}");
+                println!(
+                    "run-all failure_reasons: {}",
+                    render_counts_compact(&reason_counts)
+                );
                 let failed_ids = runall_failed_ids(&summary, 10);
                 if !failed_ids.is_empty() {
                     println!("run-all failed_task_ids: {}", failed_ids.join(","));
@@ -1161,14 +1227,14 @@ fn dry_run_out(
     let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
     for (idx, id) in schedule.iter().enumerate() {
         let task = task_index.get(id);
-        let backend_selected = fallback_backend(
-            choose_backend_for_task(task, &options.backend_pool, idx),
-            &available,
-        )
-        .unwrap_or_else(|| "unknown".to_string());
+        let requested_backend = choose_backend_for_task(task, &options.backend_pool, idx);
+        let backend_selected = fallback_backend(requested_backend.clone(), &available)
+            .unwrap_or_else(|| "unknown".to_string());
         task_runs.push(serde_json::json!({
             "task_id": id,
             "backend": backend_selected,
+            "requested_backend": requested_backend,
+            "used_backend_fallback": false,
             "status": "dry_run",
             "execution_id": Value::Null,
             "failure_class": Value::Null
@@ -1189,6 +1255,8 @@ fn dry_run_out(
         "non_retryable_failures": 0,
         "critical_errors": 0,
         "halted_on_critical": false,
+        "halted_remaining": 0,
+        "backend_fallbacks": serde_json::json!({}),
         "duration_ms": 0,
         "tasks": task_runs
     });
@@ -1600,13 +1668,13 @@ fn run_schedule_parallel(
                 .get(id)
                 .cloned()
                 .unwrap_or_else(|| fallback_wave_meta(idx));
+            let requested_backend =
+                choose_backend_for_task(task_index.get(id), &options.backend_pool, idx);
             PendingLaunch {
                 id: id.clone(),
-                backend: fallback_backend(
-                    choose_backend_for_task(task_index.get(id), &options.backend_pool, idx),
-                    &available,
-                )
-                .unwrap_or_else(|| available[0].clone()),
+                backend: fallback_backend(requested_backend.clone(), &available)
+                    .unwrap_or_else(|| available[0].clone()),
+                requested_backend,
                 queue_since: Instant::now(),
                 queue_started_at: utc_now_iso(),
                 wave_index: wave.index,
@@ -1676,6 +1744,7 @@ fn run_schedule_parallel(
             active.push(ActiveLaunch {
                 id: launch.id,
                 backend: launch.backend,
+                requested_backend: launch.requested_backend,
                 join,
             });
         }
@@ -1703,6 +1772,7 @@ fn run_schedule_parallel(
                         summary.add_task_run(TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
+                            requested_backend: done.requested_backend,
                             status: "complete".to_string(),
                             execution_id,
                             failure_class: None,
@@ -1715,6 +1785,7 @@ fn run_schedule_parallel(
                         summary.add_task_run(TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
+                            requested_backend: done.requested_backend,
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
@@ -1728,6 +1799,7 @@ fn run_schedule_parallel(
                     summary.add_task_run(TaskRunEvent {
                         id: done.id,
                         backend: done.backend,
+                        requested_backend: done.requested_backend,
                         status: "critical_error".to_string(),
                         execution_id: None,
                         failure_class: Some("critical_error".to_string()),
