@@ -638,7 +638,11 @@ fn concurrency_diag_value(
                 "run_all_rows": 0,
                 "latest_run_all_mode": Value::Null,
                 "run_all_mode_counts": {},
-                "halt_on_critical_rows": 0
+                "halt_on_critical_rows": 0,
+                "halted_remaining_total": 0,
+                "latest_halted_remaining": 0,
+                "backend_fallback_rows": 0,
+                "latest_backend_fallbacks": Value::Null
             }
         });
     }
@@ -648,6 +652,10 @@ fn concurrency_diag_value(
     let mut mode_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut halt_rows = 0u64;
     let mut latest_run_all_mode: Option<String> = None;
+    let mut halted_remaining_total = 0u64;
+    let mut latest_halted_remaining = 0u64;
+    let mut backend_fallback_rows = 0u64;
+    let mut latest_backend_fallbacks: Option<String> = None;
     for v in &rows {
         if v.get("tool").and_then(Value::as_str) != Some("cxtask_runall") {
             continue;
@@ -660,6 +668,21 @@ fn concurrency_diag_value(
         if v.get("halt_on_critical").and_then(Value::as_bool) == Some(true) {
             halt_rows += 1;
         }
+        let halted_remaining = v
+            .get("run_all_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        halted_remaining_total += halted_remaining;
+        latest_halted_remaining = halted_remaining;
+        let fallback_rows = v
+            .get("run_all_backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        backend_fallback_rows += fallback_rows;
+        latest_backend_fallbacks = v
+            .get("run_all_backend_fallbacks")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
     }
 
     serde_json::json!({
@@ -669,7 +692,11 @@ fn concurrency_diag_value(
             "run_all_rows": run_all_rows,
             "latest_run_all_mode": latest_run_all_mode,
             "run_all_mode_counts": mode_counts,
-            "halt_on_critical_rows": halt_rows
+            "halt_on_critical_rows": halt_rows,
+            "halted_remaining_total": halted_remaining_total,
+            "latest_halted_remaining": latest_halted_remaining,
+            "backend_fallback_rows": backend_fallback_rows,
+            "latest_backend_fallbacks": latest_backend_fallbacks
         }
     })
 }
@@ -1145,6 +1172,34 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             .and_then(Value::as_str)
             .unwrap_or("n/a")
     );
+    println!(
+        "concurrency_observed_halted_remaining_total: {}",
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_halted_remaining: {}",
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_backend_fallback_rows: {}",
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_backend_fallbacks: {}",
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
+    );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
@@ -1296,6 +1351,34 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .get("latest_run_all_mode")
             .and_then(Value::as_str)
             .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_halted_remaining_total: {}",
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_halted_remaining: {}",
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_backend_fallback_rows: {}",
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_backend_fallbacks: {}",
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
     );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");

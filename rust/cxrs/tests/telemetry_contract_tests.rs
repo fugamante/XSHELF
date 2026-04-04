@@ -442,6 +442,10 @@ fn diag_json_matches_contract_fixture() {
         "latest_run_all_mode",
         "run_all_mode_counts",
         "halt_on_critical_rows",
+        "halted_remaining_total",
+        "latest_halted_remaining",
+        "backend_fallback_rows",
+        "latest_backend_fallbacks",
     ] {
         assert!(
             observed.get(key).is_some(),
