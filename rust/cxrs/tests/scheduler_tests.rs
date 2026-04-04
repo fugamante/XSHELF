@@ -1161,6 +1161,18 @@ fn task_check_json() {
         Some("parallel")
     );
     assert_eq!(
+        payload.get("can_run_parallel").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload.get("parallel_waves").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        payload.get("largest_parallel_wave").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
         payload.get("strict_plan_ok").and_then(Value::as_bool),
         Some(true)
     );
@@ -1225,6 +1237,22 @@ fn task_check_strict() {
         payload.get("recommended_mode").and_then(Value::as_str),
         Some("mixed")
     );
+    assert_eq!(
+        payload.get("can_run_mixed").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload.get("can_run_parallel").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload.get("sequential_waves").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        payload.get("parallel_waves").and_then(Value::as_u64),
+        Some(2)
+    );
 }
 
 #[test]
@@ -1269,6 +1297,41 @@ fn task_check_contract() {
         .get("strict_plan_ok")
         .and_then(Value::as_bool)
         .expect("strict_plan_ok");
+    assert_eq!(
+        payload.get("can_run_mixed").and_then(Value::as_bool),
+        payload.get("can_run").and_then(Value::as_bool)
+    );
+    let can_run_parallel = payload
+        .get("can_run_parallel")
+        .and_then(Value::as_bool)
+        .expect("can_run_parallel");
+    let sequential_waves = payload
+        .get("sequential_waves")
+        .and_then(Value::as_u64)
+        .expect("sequential_waves");
+    let parallel_waves = payload
+        .get("parallel_waves")
+        .and_then(Value::as_u64)
+        .expect("parallel_waves");
+    let largest_parallel_wave = payload
+        .get("largest_parallel_wave")
+        .and_then(Value::as_u64)
+        .expect("largest_parallel_wave");
+    if strict_ok {
+        assert_eq!(
+            can_run_parallel,
+            payload
+                .get("can_run")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        );
+    }
+    if parallel_waves == 0 {
+        assert_eq!(largest_parallel_wave, 0, "{payload}");
+    } else {
+        assert!(largest_parallel_wave >= 1, "{payload}");
+    }
+    assert!(sequential_waves + parallel_waves >= 1, "{payload}");
     let rules = fixture
         .get("strict_reason_rules")
         .expect("strict_reason_rules");

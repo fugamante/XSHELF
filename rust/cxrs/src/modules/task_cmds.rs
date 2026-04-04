@@ -1759,6 +1759,19 @@ fn rec_mode(
     ("sequential", "sequential_or_small_scope")
 }
 
+fn plan_mode_counts(plan: &crate::tasks_plan::TaskRunPlan) -> (u64, u64, u64) {
+    let sequential_waves = plan.waves.iter().filter(|w| w.mode != "parallel").count() as u64;
+    let parallel_waves = plan.waves.iter().filter(|w| w.mode == "parallel").count() as u64;
+    let largest_parallel_wave = plan
+        .waves
+        .iter()
+        .filter(|w| w.mode == "parallel")
+        .map(|w| w.task_ids.len() as u64)
+        .max()
+        .unwrap_or(0);
+    (sequential_waves, parallel_waves, largest_parallel_wave)
+}
+
 fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let usage = format!(
         "Usage: {app_name} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]"
@@ -1823,6 +1836,9 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
         .filter(|b| b.reason.to_lowercase().contains("resource"))
         .count();
     let can_run = blocked_total == 0;
+    let can_run_mixed = can_run;
+    let can_run_parallel = can_run && strict_ok;
+    let (sequential_waves, parallel_waves, largest_parallel_wave) = plan_mode_counts(&plan);
 
     let out_json = resolve_json_mode(as_json, false);
     if out_json {
@@ -1835,9 +1851,14 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
             "blocked_dependencies": blocked_deps,
             "blocked_resources": blocked_resources,
             "can_run": can_run,
+            "can_run_mixed": can_run_mixed,
+            "can_run_parallel": can_run_parallel,
             "strict_plan": strict_plan,
             "strict_plan_ok": strict_ok,
             "strict_plan_reason": strict_reason,
+            "sequential_waves": sequential_waves,
+            "parallel_waves": parallel_waves,
+            "largest_parallel_wave": largest_parallel_wave,
             "recommended_mode": recommended_mode,
             "recommended_reason": recommended_reason,
             "blocked": plan.blocked
@@ -1858,11 +1879,16 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
         println!("blocked_dependencies: {}", blocked_deps);
         println!("blocked_resources: {}", blocked_resources);
         println!("can_run: {can_run}");
+        println!("can_run_mixed: {can_run_mixed}");
+        println!("can_run_parallel: {can_run_parallel}");
         println!("strict_plan: {strict_plan}");
         println!("strict_plan_ok: {strict_ok}");
         if let Some(reason) = strict_reason.as_deref() {
             println!("strict_plan_reason: {reason}");
         }
+        println!("sequential_waves: {sequential_waves}");
+        println!("parallel_waves: {parallel_waves}");
+        println!("largest_parallel_wave: {largest_parallel_wave}");
         println!("recommended_mode: {recommended_mode}");
         println!("recommended_reason: {recommended_reason}");
     }
