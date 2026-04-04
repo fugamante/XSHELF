@@ -312,3 +312,37 @@ fn list_text_summary() {
         "{text}"
     );
 }
+
+#[test]
+fn run_prints_preflight_when_blocked() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let parent = repo.run(&["task", "add", "Parent run task", "--role", "implementer"]);
+    assert!(parent.status.success(), "stderr={}", stderr_str(&parent));
+    let parent_id = stdout_str(&parent).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "Child run task",
+        "--role",
+        "implementer",
+        "--depends-on",
+        &parent_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+    let child_id = stdout_str(&child).trim().to_string();
+
+    let run = repo.run(&["task", "run", &child_id]);
+    let text = stdout_str(&run);
+    assert!(
+        text.contains("task_run_preflight: runnable_now=false wave_index=2 wave_mode=sequential"),
+        "{text}"
+    );
+    let reason = format!("task_run_preflight_reason: unresolved dependencies: {parent_id}");
+    assert!(text.contains(&reason), "{text}");
+    assert!(
+        text.contains("task_run_preflight_recommended: cx task check --json"),
+        "{text}"
+    );
+}

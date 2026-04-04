@@ -221,6 +221,37 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             Err(code) => return code,
         };
 
+    if !managed_by_parent
+        && let Ok(tasks) = (deps.read_tasks)()
+        && let Some(task) = tasks.iter().find(|task| task.id == id)
+    {
+        let readiness = task_run_state(task, &tasks);
+        if readiness.get("runnable_now").and_then(Value::as_bool) != Some(true) {
+            println!(
+                "task_run_preflight: runnable_now={} wave_index={} wave_mode={}",
+                readiness
+                    .get("runnable_now")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("wave_index")
+                    .and_then(Value::as_u64)
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                readiness
+                    .get("wave_mode")
+                    .and_then(Value::as_str)
+                    .unwrap_or("-")
+            );
+            if let Some(reason) = readiness.get("blocked_reason").and_then(Value::as_str) {
+                println!("task_run_preflight_reason: {reason}");
+            }
+            if let Some(command) = readiness.get("recommended_command").and_then(Value::as_str) {
+                println!("task_run_preflight_recommended: {command}");
+            }
+        }
+    }
+
     match (deps.run_task_by_id)(
         &(deps.make_task_runner)(),
         &id,
