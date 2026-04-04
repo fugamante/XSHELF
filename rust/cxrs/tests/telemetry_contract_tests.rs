@@ -410,6 +410,11 @@ fn diag_json_matches_contract_fixture() {
                 "task_readiness_keys",
                 "diag.task_readiness",
             ),
+            (
+                "task_execution",
+                "task_execution_keys",
+                "diag.task_execution",
+            ),
             ("retry", "retry_keys", "diag.retry"),
             ("critical", "critical_keys", "diag.critical"),
             ("concurrency", "concurrency_keys", "diag.concurrency"),
@@ -417,6 +422,7 @@ fn diag_json_matches_contract_fixture() {
     );
 
     let concurrency = payload.get("concurrency").expect("diag.concurrency");
+    let task_execution = payload.get("task_execution").expect("diag.task_execution");
     let defaults = concurrency
         .get("defaults")
         .expect("diag.concurrency.defaults");
@@ -452,6 +458,13 @@ fn diag_json_matches_contract_fixture() {
             "diag.concurrency.observed missing key '{key}' in {observed}"
         );
     }
+    assert!(
+        task_execution
+            .get("recommendations")
+            .and_then(Value::as_array)
+            .is_some(),
+        "diag.task_execution.recommendations missing in {task_execution}"
+    );
     assert_eq!(
         payload
             .get("backend_capabilities")
