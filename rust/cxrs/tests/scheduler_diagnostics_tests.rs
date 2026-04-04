@@ -455,7 +455,7 @@ fn scheduler_json_matches_contract_fixture() {
 }
 
 #[test]
-fn diag_json_reports_wave_observed_telemetry() {
+fn diag_json_wave_observed() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
