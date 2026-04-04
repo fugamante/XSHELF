@@ -435,12 +435,51 @@ pub fn cmd_task_list(status_filter: Option<&str>) -> i32 {
         }
     };
     let filtered: Vec<TaskRecord> = match status_filter {
-        Some(s) => tasks.into_iter().filter(|t| t.status == s).collect(),
-        None => tasks,
+        Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
+        None => tasks.clone(),
     };
     if filtered.is_empty() {
         println!("No tasks.");
         return 0;
+    }
+    let runnable_now = filtered
+        .iter()
+        .filter(|task| {
+            task_run_state(task, &tasks)
+                .get("runnable_now")
+                .and_then(Value::as_bool)
+                == Some(true)
+        })
+        .count();
+    let blocked_now = filtered
+        .iter()
+        .filter(|task| {
+            task.status == "pending"
+                && task_run_state(task, &tasks)
+                    .get("runnable_now")
+                    .and_then(Value::as_bool)
+                    == Some(false)
+        })
+        .count();
+    let inspect_only = filtered.len().saturating_sub(runnable_now + blocked_now);
+    let plan = build_task_run_plan(&tasks, "pending");
+    let next_wave = plan.waves.first();
+    println!(
+        "list_readiness: selected={} runnable_now={} blocked_now={} inspect_only={} waves={} blocked={}",
+        filtered.len(),
+        runnable_now,
+        blocked_now,
+        inspect_only,
+        plan.waves.len(),
+        plan.blocked.len()
+    );
+    if let Some(wave) = next_wave {
+        println!(
+            "list_readiness_next_wave: index={} mode={} size={}",
+            wave.index,
+            wave.mode,
+            wave.task_ids.len()
+        );
     }
     println!("id | role | status | parent_id | objective");
     println!("---|---|---|---|---");

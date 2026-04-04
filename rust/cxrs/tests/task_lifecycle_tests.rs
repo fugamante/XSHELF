@@ -269,3 +269,46 @@ fn list_json_readiness() {
         Some("cx task check --json")
     );
 }
+
+#[test]
+fn list_text_summary() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let parent = repo.run(&["task", "add", "Parent text task", "--role", "implementer"]);
+    assert!(parent.status.success(), "stderr={}", stderr_str(&parent));
+    let parent_id = stdout_str(&parent).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "Child text task",
+        "--role",
+        "implementer",
+        "--depends-on",
+        &parent_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+
+    let out = repo.run(&["task", "list"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let text = stdout_str(&out);
+    assert!(
+        text.contains(
+            "list_readiness: selected=2 runnable_now=1 blocked_now=1 inspect_only=0 waves=2 blocked=0"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("list_readiness_next_wave: index=1 mode=sequential size=1"),
+        "{text}"
+    );
+    assert!(
+        text.contains("id | role | status | parent_id | objective"),
+        "{text}"
+    );
+}
