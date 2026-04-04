@@ -231,6 +231,12 @@ Note:
   - recommended mode
   - mixed-ready vs parallel-ready
   - wave counts and largest parallel wave
+- gate summaries now include compact `task_execution` data when available:
+  - latest run mode
+  - halted remaining work
+  - backend fallback row count
+  - advice
+  - first two recommended follow-up commands
 - Set broker policy explicitly when needed:
 ```bash
 ./bin/cx broker set --policy quota_saver
