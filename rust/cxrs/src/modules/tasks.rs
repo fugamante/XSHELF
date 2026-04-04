@@ -514,6 +514,10 @@ pub fn cmd_task_show(id: &str) -> i32 {
         }
     };
     if let Some(obj) = out.as_object_mut() {
+        obj.insert(
+            "contract_version".to_string(),
+            Value::String("task-show.v1".to_string()),
+        );
         obj.insert("latest_run".to_string(), task_run_latest(id));
         obj.insert(
             "run_readiness".to_string(),
