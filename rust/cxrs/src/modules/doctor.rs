@@ -703,7 +703,7 @@ mod tests {
     }
 
     #[test]
-    fn exec_wave_pressure_cov() {
+    fn exec_wave_cov() {
         let summary = serde_json::json!({
             "run_all_mode": "mixed",
             "run_all_halted_remaining": 0,
