@@ -235,6 +235,7 @@ Note:
   - latest run mode
   - halted remaining work
   - backend fallback row count
+  - wave-pressure kind, suggested mode, and max queue ms
   - advice
   - typed next-action kind
   - primary next command
