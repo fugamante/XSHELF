@@ -16,6 +16,7 @@ use crate::process::{run_command_output_with_timeout, run_command_status_with_ti
 use crate::state::{current_task_id, set_state_path};
 use crate::taskrun::{TaskRunError, TaskRunner};
 use crate::tasks::set_task_status;
+use crate::tasks::task_run_state;
 use crate::tasks_plan::build_task_run_plan;
 use crate::types::TaskRecord;
 
@@ -54,9 +55,11 @@ pub fn cmd_task_set_status(id: &str, new_status: &str) -> i32 {
 }
 
 fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
-    let usage =
-        format!("Usage: {app_name} task list [--status pending|in_progress|complete|failed]");
+    let usage = format!(
+        "Usage: {app_name} task list [--status pending|in_progress|complete|failed] [--json|--text]"
+    );
     let mut status_filter: Option<&str> = None;
+    let mut json_out: Option<bool> = None;
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -72,13 +75,60 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 status_filter = Some(v);
                 i += 2;
             }
+            "--json" => {
+                json_out = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                json_out = Some(false);
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task list: unknown flag '{other}'");
                 return 2;
             }
         }
     }
-    (deps.cmd_task_list)(status_filter)
+    if resolve_json_mode(json_out, false) {
+        let tasks = match (deps.read_tasks)() {
+            Ok(v) => v,
+            Err(e) => {
+                crate::cx_eprintln!("{e}");
+                return 1;
+            }
+        };
+        let filtered: Vec<TaskRecord> = match status_filter {
+            Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
+            None => tasks.clone(),
+        };
+        let task_rows: Vec<Value> = filtered
+            .iter()
+            .map(|task| {
+                let mut value =
+                    serde_json::to_value(task).unwrap_or_else(|_| serde_json::json!({}));
+                if let Some(obj) = value.as_object_mut() {
+                    obj.insert("run_readiness".to_string(), task_run_state(task, &tasks));
+                }
+                value
+            })
+            .collect();
+        let payload = serde_json::json!({
+            "contract_version": "task-list.v1",
+            "status_filter": status_filter,
+            "count": task_rows.len(),
+            "tasks": task_rows
+        });
+        match serde_json::to_string_pretty(&payload) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                crate::cx_eprintln!("cxrs task list: failed to render json: {e}");
+                return 1;
+            }
+        }
+        0
+    } else {
+        (deps.cmd_task_list)(status_filter)
+    }
 }
 
 fn require_id(app_name: &str, args: &[String], cmd: &str) -> Result<String, i32> {

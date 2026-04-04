@@ -192,3 +192,54 @@ fn show_blocked_readiness() {
         Some("cx task check --json")
     );
 }
+
+#[test]
+fn list_json_readiness() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let parent = repo.run(&["task", "add", "Parent list task", "--role", "implementer"]);
+    assert!(parent.status.success(), "stderr={}", stderr_str(&parent));
+    let parent_id = stdout_str(&parent).trim().to_string();
+
+    let child = repo.run(&[
+        "task",
+        "add",
+        "Child list task",
+        "--role",
+        "implementer",
+        "--depends-on",
+        &parent_id,
+    ]);
+    assert!(child.status.success(), "stderr={}", stderr_str(&child));
+    let child_id = stdout_str(&child).trim().to_string();
+
+    let out = repo.run(&["task", "list", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("valid json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("task-list.v1")
+    );
+    let tasks = payload
+        .get("tasks")
+        .and_then(Value::as_array)
+        .expect("tasks array");
+    let child = tasks
+        .iter()
+        .find(|task| task.get("id").and_then(Value::as_str) == Some(child_id.as_str()))
+        .expect("child task exists");
+    let readiness = child.get("run_readiness").expect("run_readiness");
+    assert_eq!(
+        readiness.get("runnable_now").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        readiness.get("recommended_command").and_then(Value::as_str),
+        Some("cx task check --json")
+    );
+}
