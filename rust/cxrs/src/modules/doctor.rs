@@ -257,7 +257,7 @@ pub(crate) fn latest_wave_sum() -> Option<Value> {
     })
 }
 
-fn wave_pressure_advice_value(mode: &str, wave: &Value) -> Option<String> {
+fn wave_pressure_note(mode: &str, wave: &Value) -> Option<String> {
     let max_queue_wave_ms = wave
         .get("max_queue_wave_ms")
         .and_then(Value::as_u64)
@@ -414,7 +414,7 @@ pub(crate) fn exec_advice_lines(
             format!("task_execution_max_queue_wave_index: {max_queue_wave_index}"),
             format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
         ];
-        if let Some(advice) = wave_pressure_advice_value("unknown", &wave) {
+        if let Some(advice) = wave_pressure_note("unknown", &wave) {
             lines.push(format!("task_execution_advice: {advice}"));
         } else {
             lines.push("task_execution_advice: no recent task run-all summary".to_string());
@@ -487,7 +487,7 @@ pub(crate) fn exec_advice_lines(
             "task_execution_advice: inspect failed task ids from the latest run-all summary before retrying"
                 .to_string(),
         );
-    } else if let Some(advice) = wave_pressure_advice_value(mode, &wave) {
+    } else if let Some(advice) = wave_pressure_note(mode, &wave) {
         lines.push(format!("task_execution_advice: {advice}"));
     } else {
         lines.push(
@@ -503,7 +503,7 @@ pub(crate) fn exec_reco_lines(
 ) -> Vec<String> {
     let Some(summary) = latest_summary else {
         let wave = wave_pressure_value(None, wave_summary);
-        if wave_pressure_advice_value("unknown", &wave).is_some() {
+        if wave_pressure_note("unknown", &wave).is_some() {
             return vec![
                 "task_execution_recommendation_1: cx task run-all --dry-run --json".to_string(),
                 "task_execution_recommendation_2: cx scheduler --json --window 20".to_string(),
@@ -560,7 +560,7 @@ pub(crate) fn exec_reco_lines(
             "task_execution_recommendation_2: cx task run-all --status pending".to_string(),
         ];
     }
-    if wave_pressure_advice_value(mode, &wave).is_some() {
+    if wave_pressure_note(mode, &wave).is_some() {
         let narrower = match mode {
             "parallel" => "cx task run-all --mode mixed --status pending",
             "mixed" => "cx task run-all --mode sequential --status pending",

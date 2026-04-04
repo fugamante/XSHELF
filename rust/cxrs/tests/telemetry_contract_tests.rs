@@ -641,7 +641,7 @@ fn scheduler_json_actions_match_contract_fixture() {
 }
 
 #[test]
-fn diag_actions_prefer_task_execution_next_action() {
+fn diag_actions_use_exec_next() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
@@ -684,7 +684,7 @@ fn diag_actions_prefer_task_execution_next_action() {
 }
 
 #[test]
-fn scheduler_actions_prefer_task_execution_next_action() {
+fn scheduler_actions_use_exec_next() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
