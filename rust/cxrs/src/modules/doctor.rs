@@ -202,7 +202,17 @@ fn print_task_readiness() {
     }
 }
 
-fn exec_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
+pub(crate) fn latest_run_all_sum() -> Option<Value> {
+    resolve_log_file()
+        .and_then(|p| load_values(&p, 200).ok())
+        .and_then(|rows| {
+            rows.into_iter()
+                .rev()
+                .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
+        })
+}
+
+pub(crate) fn exec_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
     let Some(summary) = latest_summary else {
         return vec!["task_execution_advice: no recent task run-all summary".to_string()];
     };
@@ -264,7 +274,7 @@ fn exec_advice_lines(latest_summary: Option<&Value>) -> Vec<String> {
     lines
 }
 
-fn exec_reco_lines(latest_summary: Option<&Value>) -> Vec<String> {
+pub(crate) fn exec_reco_lines(latest_summary: Option<&Value>) -> Vec<String> {
     let Some(summary) = latest_summary else {
         return vec![
             "task_execution_recommendation_1: cx task check --json".to_string(),
@@ -318,16 +328,58 @@ fn exec_reco_lines(latest_summary: Option<&Value>) -> Vec<String> {
     ]
 }
 
+pub(crate) fn exec_diag_value(latest_summary: Option<&Value>) -> Value {
+    let Some(summary) = latest_summary else {
+        return serde_json::json!({
+            "last_mode": Value::Null,
+            "halted_remaining": 0,
+            "backend_fallback_rows": 0,
+            "advice": "no recent task run-all summary",
+            "recommendations": [
+                "cx task check --json",
+                "cx scheduler --json"
+            ]
+        });
+    };
+    let mode = summary
+        .get("run_all_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let halted_remaining = summary
+        .get("run_all_halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let fallback_rows = summary
+        .get("run_all_backend_fallback_rows")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let advice = exec_advice_lines(Some(summary))
+        .into_iter()
+        .find_map(|line| {
+            line.strip_prefix("task_execution_advice: ")
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "no recent task run-all summary".to_string());
+    let recommendations = exec_reco_lines(Some(summary))
+        .into_iter()
+        .filter_map(|line| {
+            line.split_once(": ")
+                .map(|(_, cmd)| Value::String(cmd.to_string()))
+        })
+        .collect::<Vec<Value>>();
+    serde_json::json!({
+        "last_mode": mode,
+        "halted_remaining": halted_remaining,
+        "backend_fallback_rows": fallback_rows,
+        "advice": advice,
+        "recommendations": recommendations
+    })
+}
+
 fn print_exec_advice() {
     println!();
     println!("== task execution advice ==");
-    let latest_summary = resolve_log_file()
-        .and_then(|p| load_values(&p, 200).ok())
-        .and_then(|rows| {
-            rows.into_iter()
-                .rev()
-                .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
-        });
+    let latest_summary = latest_run_all_sum();
     for line in exec_advice_lines(latest_summary.as_ref()) {
         println!("{line}");
     }
@@ -404,7 +456,8 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{exec_advice_lines, exec_reco_lines, readiness_summary_lines};
+    use super::{exec_advice_lines, exec_diag_value, exec_reco_lines, readiness_summary_lines};
+    use serde_json::Value;
 
     #[test]
     fn readiness_summary_cov() {
@@ -480,6 +533,39 @@ mod tests {
         assert!(
             joined.contains("task_execution_recommendation_2: cx task run-all --status pending"),
             "{joined}"
+        );
+    }
+
+    #[test]
+    fn exec_diag_cov() {
+        let value = exec_diag_value(Some(&serde_json::json!({
+            "run_all_mode": "mixed",
+            "run_all_halted_remaining": 2,
+            "run_all_backend_fallback_rows": 1,
+            "run_all_backend_fallbacks": "codex->ollama=1",
+            "run_all_failed": 1,
+            "run_all_critical_errors": 1
+        })));
+        assert_eq!(
+            value.get("last_mode").and_then(Value::as_str),
+            Some("mixed")
+        );
+        assert_eq!(
+            value.get("halted_remaining").and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            value.get("backend_fallback_rows").and_then(Value::as_u64),
+            Some(1)
+        );
+        let recs = value
+            .get("recommendations")
+            .and_then(Value::as_array)
+            .expect("recommendations");
+        assert!(
+            recs.iter()
+                .any(|v| v.as_str() == Some("cx scheduler --json --window 20")),
+            "{value}"
         );
     }
 }

@@ -20,6 +20,7 @@
     "schema_registry_files",
     "scheduler",
     "task_readiness",
+    "task_execution",
     "retry",
     "critical",
     "concurrency",
@@ -72,6 +73,13 @@
     "recommended_mode",
     "recommended_reason",
     "blocked"
+  ],
+  "task_execution_keys": [
+    "last_mode",
+    "halted_remaining",
+    "backend_fallback_rows",
+    "advice",
+    "recommendations"
   ],
   "retry_keys": [
     "window_runs",
