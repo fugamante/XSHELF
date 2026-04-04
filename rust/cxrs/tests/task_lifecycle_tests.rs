@@ -314,6 +314,61 @@ fn list_text_summary() {
 }
 
 #[test]
+fn list_json_complete_summary() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let add = repo.run(&["task", "add", "Complete list task", "--role", "implementer"]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+
+    let done = repo.run(&["task", "complete", &id]);
+    assert!(done.status.success(), "stderr={}", stderr_str(&done));
+
+    let out = repo.run(&["task", "list", "--status", "complete", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("valid json");
+    let list_readiness = payload
+        .get("list_readiness")
+        .expect("list_readiness object");
+    assert_eq!(
+        list_readiness.get("selected_count").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        list_readiness
+            .get("runnable_now_count")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        list_readiness
+            .get("blocked_now_count")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        list_readiness
+            .get("inspect_only_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        list_readiness.get("wave_count").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        list_readiness.get("blocked_count").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert!(list_readiness.get("next_wave").unwrap().is_null());
+}
+
+#[test]
 fn run_preflight_blocked() {
     let repo = TempRepo::new("cxrs-it");
 

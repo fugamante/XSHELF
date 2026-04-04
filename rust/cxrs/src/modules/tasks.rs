@@ -4,7 +4,7 @@ use std::io::Read;
 use crate::execmeta::utc_now_iso;
 use crate::paths::{resolve_log_file, resolve_tasks_file};
 use crate::state::write_json_atomic;
-use crate::tasks_plan::build_task_run_plan;
+use crate::tasks_plan::{TaskRunPlan, build_task_run_plan};
 use crate::types::TaskRecord;
 use serde_json::Value;
 
@@ -442,27 +442,24 @@ pub fn cmd_task_list(status_filter: Option<&str>) -> i32 {
         println!("No tasks.");
         return 0;
     }
-    let runnable_now = filtered
+    let plan = build_task_run_plan(&tasks, "pending");
+    let readiness_rows: Vec<Value> = filtered
         .iter()
-        .filter(|task| {
-            task_run_state(task, &tasks)
-                .get("runnable_now")
-                .and_then(Value::as_bool)
-                == Some(true)
-        })
+        .map(|task| task_run_view(task, &tasks, &plan))
+        .collect();
+    let runnable_now = readiness_rows
+        .iter()
+        .filter(|row| row.get("runnable_now").and_then(Value::as_bool) == Some(true))
         .count();
     let blocked_now = filtered
         .iter()
-        .filter(|task| {
+        .zip(readiness_rows.iter())
+        .filter(|(task, row)| {
             task.status == "pending"
-                && task_run_state(task, &tasks)
-                    .get("runnable_now")
-                    .and_then(Value::as_bool)
-                    == Some(false)
+                && row.get("runnable_now").and_then(Value::as_bool) == Some(false)
         })
         .count();
     let inspect_only = filtered.len().saturating_sub(runnable_now + blocked_now);
-    let plan = build_task_run_plan(&tasks, "pending");
     let next_wave = plan.waves.first();
     println!(
         "list_readiness: selected={} runnable_now={} blocked_now={} inspect_only={} waves={} blocked={}",
@@ -508,6 +505,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
         crate::cx_eprintln!("cxrs task show: task not found: {id}");
         return 1;
     };
+    let plan = build_task_run_plan(&tasks, "pending");
     let mut out = match serde_json::to_value(&task) {
         Ok(v) => v,
         Err(e) => {
@@ -517,7 +515,10 @@ pub fn cmd_task_show(id: &str) -> i32 {
     };
     if let Some(obj) = out.as_object_mut() {
         obj.insert("latest_run".to_string(), task_run_latest(id));
-        obj.insert("run_readiness".to_string(), task_run_state(&task, &tasks));
+        obj.insert(
+            "run_readiness".to_string(),
+            task_run_view(&task, &tasks, &plan),
+        );
     }
     match serde_json::to_string_pretty(&out) {
         Ok(s) => {
@@ -551,7 +552,7 @@ fn task_lock_keys(task: &TaskRecord) -> Vec<String> {
     Vec::new()
 }
 
-pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
+pub fn task_run_view(task: &TaskRecord, tasks: &[TaskRecord], plan: &TaskRunPlan) -> Value {
     let dependencies = task_effective_dependencies(task);
     let resource_keys = task_lock_keys(task);
     if task.status != "pending" {
@@ -569,7 +570,6 @@ pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
         });
     }
 
-    let plan = build_task_run_plan(tasks, "pending");
     let complete_ids = tasks
         .iter()
         .filter(|t| t.status == "complete")
@@ -638,6 +638,11 @@ pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
         "recommended_command": recommended_command,
         "recommended_reason": recommended_reason
     })
+}
+
+pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
+    let plan = build_task_run_plan(tasks, "pending");
+    task_run_view(task, tasks, &plan)
 }
 
 fn task_run_latest(id: &str) -> Value {

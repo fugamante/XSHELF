@@ -12,10 +12,8 @@
 
 - Add richer command-level JSON outputs for diagnostics tools.
 - Add CI-level artifact reports for reliability suite failures.
-- Improve task orchestration ergonomics (`task show`/`task run` UX polish).
 - Broaden OS validation matrix (Linux-focused CI pass).
 - Add run-level concurrency telemetry refinement (`worker_id`, queue/start/finish timestamps, attempt) for SLO reporting.
-- Begin Phase VI (parallel execution substrate) on top of mixed-mode scheduler.
 - Lock adapter rollout policy and keep HTTP transport opt-in through Phase VI early cycles.
 - Expand provider adapter coverage beyond current HTTP/process parity.
 
@@ -36,14 +34,17 @@
   - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
-## Phase VI Kickoff (current)
+## Phase VI (active substrate)
 
-- Detailed kickoff spec: `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- Kickoff spec: `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
 - Execution-guidance contract: `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
 - Keep single-worker execution as default; introduce explicit parallel plans only via task orchestration controls.
 - Preserve deterministic schema behavior under mixed/parallel scheduling paths.
 - Expand run-level telemetry quality checks for queue/start/finish attribution and worker-level observability.
 - Require parity + reliability suites green before each Phase VI increment merges.
+- Current substrate coverage includes:
+  - stable `task_readiness`, `task_execution`, `run_readiness`, and `list_readiness` contracts
+  - operator guidance surfaced across `task`, `doctor`, diagnostics, telemetry, optimize, and lean-session surfaces
 - After Phase VI stabilizes, run the explicit cross-phase review:
   - `docs/POST_PHASE_VI_OVERVIEW.md`
 

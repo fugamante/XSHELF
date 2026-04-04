@@ -17,6 +17,7 @@ use crate::state::{current_task_id, set_state_path};
 use crate::taskrun::{TaskRunError, TaskRunner};
 use crate::tasks::set_task_status;
 use crate::tasks::task_run_state;
+use crate::tasks::task_run_view;
 use crate::tasks_plan::build_task_run_plan;
 use crate::types::TaskRecord;
 
@@ -101,7 +102,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
             None => tasks.clone(),
         };
-        let list_readiness = list_readiness_value(&tasks, &filtered);
+        let list_readiness = list_readiness_value(&tasks, &filtered, status_filter);
         let task_rows: Vec<Value> = filtered
             .iter()
             .map(|task| {
@@ -2300,14 +2301,26 @@ pub(crate) fn task_readiness_value(tasks: &[TaskRecord], status_filter: &str) ->
     })
 }
 
-fn list_readiness_value(tasks: &[TaskRecord], filtered: &[TaskRecord]) -> serde_json::Value {
-    let plan = build_task_run_plan(tasks, "pending");
+fn list_readiness_value(
+    tasks: &[TaskRecord],
+    filtered: &[TaskRecord],
+    status_filter: Option<&str>,
+) -> serde_json::Value {
+    let include_pending_plan = status_filter.is_none() || status_filter == Some("pending");
+    let plan = if include_pending_plan {
+        Some(build_task_run_plan(tasks, "pending"))
+    } else {
+        None
+    };
     let mut runnable_now = 0usize;
     let mut blocked_now = 0usize;
     let mut inspect_only = 0usize;
 
     for task in filtered {
-        let readiness = task_run_state(task, tasks);
+        let readiness = match plan.as_ref() {
+            Some(plan) => task_run_view(task, tasks, plan),
+            None => task_run_state(task, tasks),
+        };
         match readiness.get("runnable_now").and_then(Value::as_bool) {
             Some(true) => runnable_now += 1,
             Some(false) if task.status == "pending" => blocked_now += 1,
@@ -2315,21 +2328,24 @@ fn list_readiness_value(tasks: &[TaskRecord], filtered: &[TaskRecord]) -> serde_
         }
     }
 
-    let next_wave = plan.waves.first().map(|wave| {
-        serde_json::json!({
-            "index": wave.index,
-            "mode": wave.mode,
-            "size": wave.task_ids.len()
-        })
-    });
+    let next_wave = plan
+        .as_ref()
+        .and_then(|plan| plan.waves.first())
+        .map(|wave| {
+            serde_json::json!({
+                "index": wave.index,
+                "mode": wave.mode,
+                "size": wave.task_ids.len()
+            })
+        });
 
     serde_json::json!({
         "selected_count": filtered.len(),
         "runnable_now_count": runnable_now,
         "blocked_now_count": blocked_now,
         "inspect_only_count": inspect_only,
-        "wave_count": plan.waves.len(),
-        "blocked_count": plan.blocked.len(),
+        "wave_count": plan.as_ref().map(|plan| plan.waves.len()).unwrap_or(0),
+        "blocked_count": plan.as_ref().map(|plan| plan.blocked.len()).unwrap_or(0),
         "next_wave": next_wave,
     })
 }
