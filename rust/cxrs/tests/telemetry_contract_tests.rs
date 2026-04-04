@@ -458,6 +458,14 @@ fn diag_json_matches_contract_fixture() {
         "latest_halted_remaining",
         "backend_fallback_rows",
         "latest_backend_fallbacks",
+        "wave_task_rows",
+        "latest_wave_index",
+        "latest_wave_mode",
+        "latest_wave_size",
+        "largest_wave_index",
+        "largest_wave_size",
+        "max_queue_wave_index",
+        "max_queue_wave_ms",
     ] {
         assert!(
             observed.get(key).is_some(),

@@ -643,7 +643,15 @@ fn concurrency_diag_value(
                 "halted_remaining_total": 0,
                 "latest_halted_remaining": 0,
                 "backend_fallback_rows": 0,
-                "latest_backend_fallbacks": Value::Null
+                "latest_backend_fallbacks": Value::Null,
+                "wave_task_rows": 0,
+                "latest_wave_index": Value::Null,
+                "latest_wave_mode": Value::Null,
+                "latest_wave_size": 0,
+                "largest_wave_index": Value::Null,
+                "largest_wave_size": 0,
+                "max_queue_wave_index": Value::Null,
+                "max_queue_wave_ms": 0
             }
         });
     }
@@ -657,7 +665,40 @@ fn concurrency_diag_value(
     let mut latest_halted_remaining = 0u64;
     let mut backend_fallback_rows = 0u64;
     let mut latest_backend_fallbacks: Option<String> = None;
+    let mut wave_task_rows = 0u64;
+    let mut latest_wave_index: Option<u64> = None;
+    let mut latest_wave_mode: Option<String> = None;
+    let mut latest_wave_size = 0u64;
+    let mut largest_wave_index: Option<u64> = None;
+    let mut largest_wave_size = 0u64;
+    let mut max_queue_wave_index: Option<u64> = None;
+    let mut max_queue_wave_ms = 0u64;
     for v in &rows {
+        if let Some(wave_index) = v.get("wave_index").and_then(Value::as_u64) {
+            let has_task = v
+                .get("task_id")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .is_some_and(|task| !task.is_empty());
+            if has_task {
+                wave_task_rows += 1;
+            }
+            latest_wave_index = Some(wave_index);
+            latest_wave_mode = v
+                .get("wave_mode")
+                .and_then(Value::as_str)
+                .map(ToString::to_string);
+            latest_wave_size = v.get("wave_size").and_then(Value::as_u64).unwrap_or(0);
+            if latest_wave_size >= largest_wave_size {
+                largest_wave_size = latest_wave_size;
+                largest_wave_index = Some(wave_index);
+            }
+            let queue_ms = v.get("queue_ms").and_then(Value::as_u64).unwrap_or(0);
+            if queue_ms >= max_queue_wave_ms {
+                max_queue_wave_ms = queue_ms;
+                max_queue_wave_index = Some(wave_index);
+            }
+        }
         if v.get("tool").and_then(Value::as_str) != Some("cxtask_runall") {
             continue;
         }
@@ -697,7 +738,15 @@ fn concurrency_diag_value(
             "halted_remaining_total": halted_remaining_total,
             "latest_halted_remaining": latest_halted_remaining,
             "backend_fallback_rows": backend_fallback_rows,
-            "latest_backend_fallbacks": latest_backend_fallbacks
+            "latest_backend_fallbacks": latest_backend_fallbacks,
+            "wave_task_rows": wave_task_rows,
+            "latest_wave_index": latest_wave_index,
+            "latest_wave_mode": latest_wave_mode,
+            "latest_wave_size": latest_wave_size,
+            "largest_wave_index": largest_wave_index,
+            "largest_wave_size": largest_wave_size,
+            "max_queue_wave_index": max_queue_wave_index,
+            "max_queue_wave_ms": max_queue_wave_ms
         }
     })
 }
@@ -1203,6 +1252,65 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             .and_then(Value::as_str)
             .unwrap_or("none")
     );
+    println!(
+        "concurrency_observed_wave_task_rows: {}",
+        observed
+            .get("wave_task_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_wave_index: {}",
+        observed
+            .get("latest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_latest_wave_mode: {}",
+        observed
+            .get("latest_wave_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_wave_size: {}",
+        observed
+            .get("latest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_largest_wave_index: {}",
+        observed
+            .get("largest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_largest_wave_size: {}",
+        observed
+            .get("largest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_index: {}",
+        observed
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_ms: {}",
+        observed
+            .get("max_queue_wave_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
@@ -1382,6 +1490,65 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .get("latest_backend_fallbacks")
             .and_then(Value::as_str)
             .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_wave_task_rows: {}",
+        observed
+            .get("wave_task_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_wave_index: {}",
+        observed
+            .get("latest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_latest_wave_mode: {}",
+        observed
+            .get("latest_wave_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_wave_size: {}",
+        observed
+            .get("latest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_largest_wave_index: {}",
+        observed
+            .get("largest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_largest_wave_size: {}",
+        observed
+            .get("largest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_index: {}",
+        observed
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_ms: {}",
+        observed
+            .get("max_queue_wave_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
     );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
