@@ -230,7 +230,7 @@ mod tests {
     use super::bundle_value;
 
     #[test]
-    fn eval_lab_bundle_ok() {
+    fn eval_bundle_ok() {
         let bundle = bundle_value(
             "0.0.0-test",
             "eval-lab",
