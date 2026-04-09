@@ -18,6 +18,7 @@ use crate::config::{
     APP_DESC, APP_NAME, APP_VERSION, DEFAULT_QUARANTINE_LIST, DEFAULT_RUN_WINDOW, app_config,
     init_app_config,
 };
+use crate::contracts_cmd::cmd_contracts;
 use crate::diagnostics::{cmd_diag, cmd_scheduler};
 use crate::doctor;
 use crate::execmeta::utc_now_iso;
@@ -221,6 +222,10 @@ fn compat_cmd_mode(args: &[String]) -> i32 {
     cmd_mode(APP_NAME, args)
 }
 
+fn compat_cmd_contracts(args: &[String]) -> i32 {
+    cmd_contracts(APP_NAME, APP_VERSION, args)
+}
+
 fn compat_cmd_logs(args: &[String]) -> i32 {
     cmd_logs(APP_NAME, args)
 }
@@ -283,6 +288,10 @@ fn native_cmd_core(args: &[String]) -> i32 {
 
 fn native_cmd_mode(args: &[String]) -> i32 {
     cmd_mode(APP_NAME, args)
+}
+
+fn native_cmd_contracts(args: &[String]) -> i32 {
+    cmd_contracts(APP_NAME, APP_VERSION, args)
 }
 
 fn native_cmd_llm(args: &[String]) -> i32 {

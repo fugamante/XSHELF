@@ -157,6 +157,7 @@ fn dispatch_meta_commands(
             (deps.print_version)(&args[2..]);
             EXIT_OK
         }
+        "contracts" => (deps.cmd_contracts)(&args[2..]),
         "schema" => (deps.cmd_schema)(&args[2..]),
         "logs" => (deps.cmd_logs)(&args[2..]),
         "telemetry" => handle_telemetry(args, deps),

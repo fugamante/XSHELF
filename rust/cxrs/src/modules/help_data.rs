@@ -7,6 +7,11 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
         description: "Print tool version",
     },
     CommandHelp {
+        name: "contracts",
+        usage: "contracts export [--profile eval-lab|full] [--json]",
+        description: "Export stable machine-contract bundle metadata",
+    },
+    CommandHelp {
         name: "where",
         usage: "where",
         description: "Show binary/source/log resolution details",
@@ -356,7 +361,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task run",
-        usage: "cx task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]",
+        usage: "cx task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]",
         description: "Run one task objective",
     },
     CommandHelp {

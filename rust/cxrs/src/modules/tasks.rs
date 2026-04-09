@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
+use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
 use crate::paths::{resolve_log_file, resolve_tasks_file};
 use crate::state::write_json_atomic;
@@ -516,7 +517,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
     if let Some(obj) = out.as_object_mut() {
         obj.insert(
             "contract_version".to_string(),
-            Value::String("task-show.v1".to_string()),
+            Value::String(TASK_SHOW_JSON_CONTRACT_VERSION.to_string()),
         );
         obj.insert("latest_run".to_string(), task_run_latest(id));
         obj.insert(

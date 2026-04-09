@@ -5,6 +5,7 @@ pub struct NativeDeps {
     pub print_help: fn(),
     pub print_task_help: fn(),
     pub print_version: fn(&[String]),
+    pub cmd_contracts: fn(&[String]) -> i32,
     pub cmd_schema: fn(&[String]) -> i32,
     pub cmd_logs: fn(&[String]) -> i32,
     pub cmd_ci: fn(&[String]) -> i32,

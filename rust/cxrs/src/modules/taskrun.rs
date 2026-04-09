@@ -52,6 +52,15 @@ struct ReplicaOutcome {
     error: Option<String>,
 }
 
+struct ReplicaRunConfig<'a> {
+    mode_override: Option<&'a str>,
+    backend_override: Option<&'a str>,
+    emit_output: bool,
+    replica_index: u32,
+    replica_count: u32,
+    converge_mode: &'a str,
+}
+
 fn parse_words(input: &str) -> Vec<String> {
     match shell_words::split(input) {
         Ok(v) => v,
@@ -119,6 +128,7 @@ fn run_task_prompt(
     mode_override: Option<&str>,
     backend_override: Option<&str>,
     model_override: Option<&str>,
+    emit_output: bool,
 ) -> Result<(i32, Option<String>), String> {
     let prev_mode = env::var("CX_MODE").ok();
     let prev_backend = env::var("CX_LLM_BACKEND").ok();
@@ -146,7 +156,9 @@ fn run_task_prompt(
     set_optional_env("CX_LLM_BACKEND", prev_backend);
     set_optional_env("CX_OLLAMA_MODEL", prev_ollama_model);
     let res = exec_result?;
-    println!("{}", res.stdout);
+    if emit_output {
+        println!("{}", res.stdout);
+    }
     Ok((0, Some(res.execution_id)))
 }
 
@@ -155,6 +167,7 @@ fn run_objective_subprocess(
     mode_override: Option<&str>,
     backend_override: Option<&str>,
     model_override: Option<&str>,
+    emit_output: bool,
 ) -> Result<i32, String> {
     if objective_words.is_empty() {
         return Ok(2);
@@ -171,8 +184,12 @@ fn run_objective_subprocess(
     if let Some(model) = model_override {
         cmd.env("CX_OLLAMA_MODEL", model);
     }
-    let status = crate::process::run_command_status_with_timeout(cmd, "cxtask_run subprocess")?;
-    Ok(status.code().unwrap_or(1))
+    if emit_output {
+        let status = crate::process::run_command_status_with_timeout(cmd, "cxtask_run subprocess")?;
+        return Ok(status.code().unwrap_or(1));
+    }
+    let output = crate::process::run_command_output_with_timeout(cmd, "cxtask_run subprocess")?;
+    Ok(output.status.code().unwrap_or(1))
 }
 
 fn capture_log_cursor() -> Option<(PathBuf, u64)> {
@@ -219,12 +236,30 @@ fn dispatch_task_command(
     task: &TaskRecord,
     mode_override: Option<&str>,
     backend_override: Option<&str>,
+    emit_output: bool,
 ) -> Result<(i32, Option<String>), String> {
     let Some(cmd0) = words.first().map(String::as_str) else {
-        return run_task_prompt(runner, task, mode_override, backend_override, None);
+        return run_task_prompt(
+            runner,
+            task,
+            mode_override,
+            backend_override,
+            None,
+            emit_output,
+        );
     };
     let args: Vec<String> = words.iter().skip(1).cloned().collect();
     let model_override = task_model_override(task);
+    if !emit_output {
+        let code = run_objective_subprocess(
+            words,
+            mode_override,
+            backend_override,
+            model_override.as_deref(),
+            false,
+        )?;
+        return Ok((code, None));
+    }
     if mode_override.is_some() || backend_override.is_some() {
         match cmd0 {
             "cxcommitjson" | "commitjson" | "cxcommitmsg" | "commitmsg" | "cxdiffsum"
@@ -235,6 +270,7 @@ fn dispatch_task_command(
                     mode_override,
                     backend_override,
                     model_override.as_deref(),
+                    true,
                 )?;
                 return Ok((code, None));
             }
@@ -259,6 +295,7 @@ fn dispatch_task_command(
                 mode_override,
                 backend_override,
                 model_override.as_deref(),
+                emit_output,
             );
         }
     };
@@ -270,11 +307,18 @@ fn run_task_objective(
     task: &TaskRecord,
     mode_override: Option<&str>,
     backend_override: Option<&str>,
+    emit_output: bool,
 ) -> Result<(i32, Option<String>), String> {
     let log_cursor = capture_log_cursor();
     let words = parse_words(&task.objective);
-    let (status, execution_id) =
-        dispatch_task_command(runner, &words, task, mode_override, backend_override)?;
+    let (status, execution_id) = dispatch_task_command(
+        runner,
+        &words,
+        task,
+        mode_override,
+        backend_override,
+        emit_output,
+    )?;
     if execution_id.is_some() {
         return Ok((status, execution_id));
     }
@@ -461,25 +505,36 @@ fn judge_winner_with_model(
 fn run_replica(
     runner: &TaskRunner,
     task: &TaskRecord,
-    mode_override: Option<&str>,
-    backend_override: Option<&str>,
-    replica_index: u32,
-    replica_count: u32,
-    converge_mode: &str,
+    config: ReplicaRunConfig<'_>,
 ) -> ReplicaOutcome {
-    set_optional_env("CX_TASK_REPLICA_INDEX", Some(replica_index.to_string()));
-    set_optional_env("CX_TASK_REPLICA_COUNT", Some(replica_count.to_string()));
-    set_optional_env("CX_TASK_CONVERGE_MODE", Some(converge_mode.to_string()));
+    set_optional_env(
+        "CX_TASK_REPLICA_INDEX",
+        Some(config.replica_index.to_string()),
+    );
+    set_optional_env(
+        "CX_TASK_REPLICA_COUNT",
+        Some(config.replica_count.to_string()),
+    );
+    set_optional_env(
+        "CX_TASK_CONVERGE_MODE",
+        Some(config.converge_mode.to_string()),
+    );
     set_optional_env("CX_TASK_CONVERGE_WINNER", None);
-    match run_task_objective(runner, task, mode_override, backend_override) {
+    match run_task_objective(
+        runner,
+        task,
+        config.mode_override,
+        config.backend_override,
+        config.emit_output,
+    ) {
         Ok((code, execution_id)) => ReplicaOutcome {
-            index: replica_index,
+            index: config.replica_index,
             status_code: code,
             execution_id,
             error: None,
         },
         Err(e) => ReplicaOutcome {
-            index: replica_index,
+            index: config.replica_index,
             status_code: 1,
             execution_id: None,
             error: Some(e),
@@ -625,6 +680,7 @@ pub fn run_task_by_id(
     mode_override: Option<&str>,
     backend_override: Option<&str>,
     managed_by_parent: bool,
+    emit_output: bool,
 ) -> Result<(i32, Option<String>), TaskRunError> {
     let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
     let idx = tasks
@@ -677,11 +733,14 @@ pub fn run_task_by_id(
         let outcome = run_replica(
             runner,
             &tasks[idx],
-            effective_mode.as_deref(),
-            effective_backend.as_deref(),
-            replica_index,
-            replica_count,
-            &converge_mode,
+            ReplicaRunConfig {
+                mode_override: effective_mode.as_deref(),
+                backend_override: effective_backend.as_deref(),
+                emit_output,
+                replica_index,
+                replica_count,
+                converge_mode: &converge_mode,
+            },
         );
         let should_stop = converge_mode == "first_valid" && outcome.status_code == 0;
         outcomes.push(outcome);

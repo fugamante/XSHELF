@@ -141,6 +141,7 @@ fn dispatch_meta_commands(
             (deps.print_version)(&args[1..]);
             EXIT_OK
         }
+        "cxcontracts" | "contracts" => (deps.cmd_contracts)(&args[1..]),
         "cxdoctor" | "doctor" => (deps.cmd_doctor)(),
         "cxwhere" | "where" => (deps.cmd_where)(&args[1..]),
         "cxroutes" | "routes" => (deps.cmd_routes)(&args[1..]),

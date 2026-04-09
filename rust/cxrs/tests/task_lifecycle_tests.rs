@@ -111,6 +111,55 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_json_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "codex",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    let add = repo.run(&[
+        "task",
+        "add",
+        "cxo echo run-json",
+        "--role",
+        "implementer",
+        "--backend",
+        "codex",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+
+    let run = repo.run(&["task", "run", &id, "--json"]);
+    assert!(
+        run.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&run),
+        stderr_str(&run)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&run)).expect("valid json");
+    let fixture = load_fixture_json("task_run_contract.json");
+    let top_keys = fixture_keys(&fixture, "top_level_keys");
+    assert_has_keys(&out, &top_keys, "task_run.top");
+    assert_eq!(
+        out.get("contract_version").and_then(Value::as_str),
+        Some("task-run.v1")
+    );
+    assert_eq!(
+        out.get("task_id").and_then(Value::as_str),
+        Some(id.as_str())
+    );
+    assert_eq!(out.get("status").and_then(Value::as_str), Some("complete"));
+    let preflight = out.get("preflight").expect("preflight object");
+    let preflight_keys = fixture_keys(&fixture, "preflight_keys");
+    assert_has_keys(preflight, &preflight_keys, "task_run.preflight");
+}
+
+#[test]
 fn show_list_alias() {
     let repo = TempRepo::new("cxrs-it");
     let add = repo.run(&["task", "add", "Alias list", "--role", "implementer"]);

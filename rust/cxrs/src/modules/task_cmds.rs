@@ -8,6 +8,10 @@ use std::time::{Duration, Instant};
 
 use crate::cmdctx::CmdCtx;
 use crate::config::app_config;
+use crate::contract_versions::{
+    TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
+    TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
+};
 use crate::doctor::latest_wave_sum;
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
@@ -37,7 +41,15 @@ type TaskRunByIdFn = fn(
     Option<&str>,
     Option<&str>,
     bool,
+    bool,
 ) -> Result<(i32, Option<String>), TaskRunError>;
+
+struct TaskRunOverrides {
+    mode_override: Option<String>,
+    backend_override: Option<String>,
+    managed_by_parent: bool,
+    json_out: Option<bool>,
+}
 
 pub fn cmd_task_set_status(id: &str, new_status: &str) -> i32 {
     if let Err(e) = set_task_status(id, new_status) {
@@ -119,7 +131,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             })
             .collect();
         let payload = serde_json::json!({
-            "contract_version": "task-list.v1",
+            "contract_version": TASK_LIST_JSON_CONTRACT_VERSION,
             "status_filter": status_filter,
             "count": task_rows.len(),
             "list_readiness": list_readiness,
@@ -171,16 +183,14 @@ fn handle_fanout(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     (deps.cmd_task_fanout)(app_name, &objective_parts.join(" "), from)
 }
 
-fn parse_task_run_overrides(
-    app_name: &str,
-    args: &[String],
-) -> Result<(Option<String>, Option<String>, bool), i32> {
+fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOverrides, i32> {
     let usage = format!(
-        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]"
+        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
     );
     let mut mode_override: Option<String> = None;
     let mut backend_override: Option<String> = None;
     let mut managed_by_parent = false;
+    let mut json_out: Option<bool> = None;
     let mut i = 2usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -204,34 +214,56 @@ fn parse_task_run_overrides(
                 managed_by_parent = true;
                 i += 1;
             }
+            "--json" => {
+                json_out = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                json_out = Some(false);
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run: unknown flag '{other}'");
                 return Err(2);
             }
         }
     }
-    Ok((mode_override, backend_override, managed_by_parent))
+    Ok(TaskRunOverrides {
+        mode_override,
+        backend_override,
+        managed_by_parent,
+        json_out,
+    })
 }
 
 fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let Some(id) = args.get(1).cloned() else {
         crate::cx_eprintln!(
-            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]"
+            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
         );
         return 2;
     };
-    let (mode_override, backend_override, managed_by_parent) =
-        match parse_task_run_overrides(app_name, args) {
-            Ok(v) => v,
-            Err(code) => return code,
-        };
+    let overrides = match parse_task_run_overrides(app_name, args) {
+        Ok(v) => v,
+        Err(code) => return code,
+    };
+    let TaskRunOverrides {
+        mode_override,
+        backend_override,
+        managed_by_parent,
+        json_out,
+    } = overrides;
+    let as_json = resolve_json_mode(json_out, false);
+
+    let mut preflight: Option<Value> = None;
 
     if !managed_by_parent
         && let Ok(tasks) = (deps.read_tasks)()
         && let Some(task) = tasks.iter().find(|task| task.id == id)
     {
         let readiness = task_run_state(task, &tasks);
-        if readiness.get("runnable_now").and_then(Value::as_bool) != Some(true) {
+        preflight = Some(readiness.clone());
+        if !as_json && readiness.get("runnable_now").and_then(Value::as_bool) != Some(true) {
             println!(
                 "task_run_preflight: runnable_now={} wave_index={} wave_mode={}",
                 readiness
@@ -263,8 +295,29 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         mode_override.as_deref(),
         backend_override.as_deref(),
         managed_by_parent,
+        !as_json,
     ) {
         Ok((code, execution_id)) => {
+            if as_json {
+                let payload = serde_json::json!({
+                    "contract_version": TASK_RUN_JSON_CONTRACT_VERSION,
+                    "task_id": id,
+                    "mode_override": mode_override,
+                    "backend_override": backend_override,
+                    "managed_by_parent": managed_by_parent,
+                    "preflight": preflight,
+                    "status": if code == 0 { "complete" } else { "failed" },
+                    "execution_id": execution_id,
+                });
+                match serde_json::to_string_pretty(&payload) {
+                    Ok(s) => println!("{s}"),
+                    Err(e) => {
+                        crate::cx_eprintln!("cxrs task run: failed to render json: {e}");
+                        return 1;
+                    }
+                }
+                return code;
+            }
             if let Some(eid) = execution_id {
                 println!("task_id: {id}");
                 println!("execution_id: {eid}");
@@ -273,6 +326,26 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             code
         }
         Err(e) => {
+            if as_json {
+                let payload = serde_json::json!({
+                    "contract_version": TASK_RUN_JSON_CONTRACT_VERSION,
+                    "task_id": id,
+                    "mode_override": mode_override,
+                    "backend_override": backend_override,
+                    "managed_by_parent": managed_by_parent,
+                    "preflight": preflight,
+                    "status": "error",
+                    "execution_id": Value::Null,
+                    "error": e.to_string(),
+                });
+                match serde_json::to_string_pretty(&payload) {
+                    Ok(s) => println!("{s}"),
+                    Err(err) => {
+                        crate::cx_eprintln!("cxrs task run: failed to render json: {err}");
+                    }
+                }
+                return 1;
+            }
             crate::cx_eprintln!("{e}");
             1
         }
@@ -1097,6 +1170,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             None,
                             backend_selected.as_deref(),
                             false,
+                            true,
                         )
                     },
                 );
@@ -1200,7 +1274,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
         let payload = serde_json::json!({
-            "contract_version": "task-run-all.v1",
+            "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
             "status_filter": options.status_filter,
             "mode": options.run_mode,
             "summary_format": options.summary_format,
@@ -2415,7 +2489,7 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
     let out_json = resolve_json_mode(as_json, false);
     if out_json {
         let payload = serde_json::json!({
-            "contract_version": "task-check.v1",
+        "contract_version": TASK_CHECK_JSON_CONTRACT_VERSION,
             "strict_plan": strict_plan,
             "status_filter": readiness.get("status_filter").cloned().unwrap_or(serde_json::Value::String(status_filter.clone())),
             "selected": readiness.get("selected").cloned().unwrap_or(serde_json::Value::from(0)),
