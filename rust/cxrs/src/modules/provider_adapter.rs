@@ -36,6 +36,13 @@ pub struct ProviderCapabilities {
     pub transport: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackendExperimentCapabilities {
+    pub turboquant_runtime_support: &'static str,
+    pub turboquant_backend_role: &'static str,
+    pub turboquant_metric_kind: Option<&'static str>,
+}
+
 fn normalized_backend_name(raw: &str) -> &'static str {
     if raw.eq_ignore_ascii_case("ollama") {
         "ollama"
@@ -265,6 +272,30 @@ pub fn capabilities_for_adapter(adapter_name: &str) -> ProviderCapabilities {
 
 pub fn selected_provider_capabilities() -> ProviderCapabilities {
     capabilities_for_adapter(selected_adapter_name())
+}
+
+pub fn backend_tq_caps(raw_backend: &str) -> BackendExperimentCapabilities {
+    match raw_backend.trim().to_ascii_lowercase().as_str() {
+        "mlx" => BackendExperimentCapabilities {
+            turboquant_runtime_support: "comparative_only",
+            turboquant_backend_role: "comparative_backend",
+            turboquant_metric_kind: Some("cache_nbytes"),
+        },
+        "llama.cpp" | "llamacpp" | "llama_cpp" => BackendExperimentCapabilities {
+            turboquant_runtime_support: "reference_only",
+            turboquant_backend_role: "codec_reference_backend",
+            turboquant_metric_kind: Some("raw_ratio"),
+        },
+        _ => BackendExperimentCapabilities {
+            turboquant_runtime_support: "none",
+            turboquant_backend_role: "standard_provider",
+            turboquant_metric_kind: None,
+        },
+    }
+}
+
+pub fn selected_tq_caps() -> BackendExperimentCapabilities {
+    backend_tq_caps(&llm_backend())
 }
 
 pub fn current_provider_capabilities() -> Result<ProviderCapabilities, LlmRunError> {
@@ -584,12 +615,20 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, is_local_url, normalize_provider_status,
+        ProviderAdapter, ProviderStatus, backend_tq_caps, is_local_url, normalize_provider_status,
         normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, url_host,
         validate_http_url,
     };
     use serde_json::Value;
     use std::env;
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    fn env_test_lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .expect("env test lock")
+    }
 
     #[test]
     fn backend_normalization_defaults_to_codex() {
@@ -669,6 +708,24 @@ mod tests {
     }
 
     #[test]
+    fn tq_caps_typed() {
+        let standard = backend_tq_caps("codex");
+        assert_eq!(standard.turboquant_runtime_support, "none");
+        assert_eq!(standard.turboquant_backend_role, "standard_provider");
+        assert_eq!(standard.turboquant_metric_kind, None);
+
+        let mlx = backend_tq_caps("mlx");
+        assert_eq!(mlx.turboquant_runtime_support, "comparative_only");
+        assert_eq!(mlx.turboquant_backend_role, "comparative_backend");
+        assert_eq!(mlx.turboquant_metric_kind, Some("cache_nbytes"));
+
+        let llama = backend_tq_caps("llama.cpp");
+        assert_eq!(llama.turboquant_runtime_support, "reference_only");
+        assert_eq!(llama.turboquant_backend_role, "codec_reference_backend");
+        assert_eq!(llama.turboquant_metric_kind, Some("raw_ratio"));
+    }
+
+    #[test]
     fn adapter_trait_capabilities_match_mapping() {
         let codex = super::CodexCliAdapter;
         let caps = codex.capabilities();
@@ -722,7 +779,9 @@ mod tests {
 
     #[test]
     fn https_block_default() {
+        let _guard = env_test_lock();
         unsafe {
+            env::remove_var("CX_HTTP_ALLOWED_HOSTS");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
@@ -732,7 +791,9 @@ mod tests {
 
     #[test]
     fn https_allow_local() {
+        let _guard = env_test_lock();
         unsafe {
+            env::remove_var("CX_HTTP_ALLOWED_HOSTS");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
         }
@@ -741,6 +802,7 @@ mod tests {
 
     #[test]
     fn https_allow_override() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_REQUIRE_HTTPS", "0");
             env::remove_var("CX_HTTP_ALLOW_LOCAL_HTTP");
@@ -772,6 +834,7 @@ mod tests {
 
     #[test]
     fn parse_hosts_norm() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var(
                 "CX_HTTP_ALLOWED_HOSTS",
@@ -788,6 +851,7 @@ mod tests {
 
     #[test]
     fn allowlist_blocks_unknown() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");
@@ -804,6 +868,7 @@ mod tests {
 
     #[test]
     fn allowlist_allows_configured() {
+        let _guard = env_test_lock();
         unsafe {
             env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.example");
             env::remove_var("CX_HTTP_REQUIRE_HTTPS");

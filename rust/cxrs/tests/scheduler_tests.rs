@@ -402,6 +402,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         critical_count, 1,
         "expected one critical error before halt; stderr={stderr}"
     );
+    let stdout = stdout_str(&out);
+    assert!(
+        stdout.contains("run-all halted_on_critical: true"),
+        "expected halt summary line; stdout={stdout}"
+    );
+    assert!(
+        stdout.contains("run-all halted_remaining: 1"),
+        "expected halted remaining count; stdout={stdout}"
+    );
 }
 
 #[cfg(unix)]
@@ -687,7 +696,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 fn run_all_json() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
-        "codex",
+        "ollama",
         r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -696,6 +705,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     );
 
     for i in 1..=2 {
+        let backend = if i == 1 { "codex" } else { "ollama" };
         let add = repo.run(&[
             "task",
             "add",
@@ -703,15 +713,28 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            backend,
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
 
-    let out = repo.run(&["task", "run-all", "--status", "pending", "--json"]);
-    assert!(
-        out.status.success(),
-        "stdout={} stderr={}",
+    let mock_path = format!("{}:/usr/bin:/bin", repo.mock_bin.to_string_lossy());
+    let out = repo.run_with_env(
+        &[
+            "task",
+            "run-all",
+            "--status",
+            "pending",
+            "--backend-pool",
+            "codex,ollama",
+            "--json",
+        ],
+        &[("PATH", mock_path.as_str())],
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "expected non-zero because mocked ollama execution is not guaranteed clean; stdout={} stderr={}",
         stdout_str(&out),
         stderr_str(&out)
     );
@@ -721,11 +744,39 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         Some("task-run-all.v1")
     );
     assert_eq!(v.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(v.get("halted_remaining").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        v.get("task_readiness")
+            .and_then(|t| t.get("can_run_mixed"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        v.get("backend_fallbacks")
+            .and_then(|v| v.get("codex->ollama"))
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert!(
+        v.get("preflight")
+            .and_then(|v| v.get("recommendations"))
+            .and_then(Value::as_array)
+            .is_some(),
+        "{v}"
+    );
     let tasks = v
         .get("tasks")
         .and_then(Value::as_array)
         .expect("tasks array");
     assert_eq!(tasks.len(), 2, "{v}");
+    assert!(
+        tasks.iter().any(|t| {
+            t.get("used_backend_fallback").and_then(Value::as_bool) == Some(true)
+                && t.get("requested_backend").and_then(Value::as_str) == Some("codex")
+                && t.get("backend").and_then(Value::as_str) == Some("ollama")
+        }),
+        "{v}"
+    );
 }
 
 #[test]
@@ -775,6 +826,20 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
     assert_eq!(payload.get("complete").and_then(Value::as_u64), Some(0));
     assert_eq!(payload.get("failed").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("recommended_mode"))
+            .and_then(Value::as_str),
+        Some("sequential")
+    );
+    assert_eq!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("advice"))
+            .and_then(Value::as_str),
+        Some("preflight is operationally clean")
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -856,6 +921,28 @@ fn run_strict_dry() {
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
     assert_eq!(payload.get("scheduled").and_then(Value::as_u64), Some(2));
     assert_eq!(payload.get("blocked").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("recommended_mode"))
+            .and_then(Value::as_str),
+        Some("mixed")
+    );
+    assert_eq!(
+        payload
+            .get("task_readiness")
+            .and_then(|v| v.get("can_run_parallel"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("advice"))
+            .and_then(Value::as_str)
+            .is_some_and(|v| v.contains("parallel strict-plan is not executable")),
+        "{payload}"
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -908,6 +995,18 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     let fixture = load_fixture_json("run_all_contract.json");
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "task_run_all.top");
+    let readiness_keys = fixture_keys(&fixture, "task_readiness_keys");
+    assert_has_keys(
+        payload.get("task_readiness").expect("task_readiness"),
+        &readiness_keys,
+        "task_run_all.task_readiness",
+    );
+    let preflight_keys = fixture_keys(&fixture, "preflight_keys");
+    assert_has_keys(
+        payload.get("preflight").expect("preflight"),
+        &preflight_keys,
+        "task_run_all.preflight",
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
@@ -917,6 +1016,90 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     {
         assert_has_keys(task, &task_keys, "task_run_all.tasks.item");
     }
+}
+
+#[test]
+fn run_wave_preflight() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"pw1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":12,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t1","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":250
+        }),
+        serde_json::json!({
+            "execution_id":"pw2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":14,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t2","wave_index":3,"wave_mode":"mixed","wave_size":1,"queue_ms":2400
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo wave-preflight-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "codex",
+            "--mode",
+            "parallel",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--dry-run",
+        "--mode",
+        "mixed",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    let preflight = payload.get("preflight").expect("preflight");
+    assert!(
+        preflight
+            .get("advice")
+            .and_then(Value::as_str)
+            .is_some_and(|v| v.contains("queue pressure in later waves")),
+        "{payload}"
+    );
+    assert_eq!(
+        preflight.get("latest_wave_index").and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        preflight
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        preflight.get("max_queue_wave_ms").and_then(Value::as_u64),
+        Some(2400)
+    );
+    let recs = preflight
+        .get("recommendations")
+        .and_then(Value::as_array)
+        .expect("recommendations");
+    assert!(
+        recs.iter()
+            .any(|v| v.as_str() == Some("cx task run-all --status pending --mode sequential")),
+        "{payload}"
+    );
 }
 
 #[test]
@@ -1161,6 +1344,18 @@ fn task_check_json() {
         Some("parallel")
     );
     assert_eq!(
+        payload.get("can_run_parallel").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload.get("parallel_waves").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        payload.get("largest_parallel_wave").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
         payload.get("strict_plan_ok").and_then(Value::as_bool),
         Some(true)
     );
@@ -1225,6 +1420,22 @@ fn task_check_strict() {
         payload.get("recommended_mode").and_then(Value::as_str),
         Some("mixed")
     );
+    assert_eq!(
+        payload.get("can_run_mixed").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload.get("can_run_parallel").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload.get("sequential_waves").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        payload.get("parallel_waves").and_then(Value::as_u64),
+        Some(2)
+    );
 }
 
 #[test]
@@ -1269,6 +1480,41 @@ fn task_check_contract() {
         .get("strict_plan_ok")
         .and_then(Value::as_bool)
         .expect("strict_plan_ok");
+    assert_eq!(
+        payload.get("can_run_mixed").and_then(Value::as_bool),
+        payload.get("can_run").and_then(Value::as_bool)
+    );
+    let can_run_parallel = payload
+        .get("can_run_parallel")
+        .and_then(Value::as_bool)
+        .expect("can_run_parallel");
+    let sequential_waves = payload
+        .get("sequential_waves")
+        .and_then(Value::as_u64)
+        .expect("sequential_waves");
+    let parallel_waves = payload
+        .get("parallel_waves")
+        .and_then(Value::as_u64)
+        .expect("parallel_waves");
+    let largest_parallel_wave = payload
+        .get("largest_parallel_wave")
+        .and_then(Value::as_u64)
+        .expect("largest_parallel_wave");
+    if strict_ok {
+        assert_eq!(
+            can_run_parallel,
+            payload
+                .get("can_run")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        );
+    }
+    if parallel_waves == 0 {
+        assert_eq!(largest_parallel_wave, 0, "{payload}");
+    } else {
+        assert!(largest_parallel_wave >= 1, "{payload}");
+    }
+    assert!(sequential_waves + parallel_waves >= 1, "{payload}");
     let rules = fixture
         .get("strict_reason_rules")
         .expect("strict_reason_rules");

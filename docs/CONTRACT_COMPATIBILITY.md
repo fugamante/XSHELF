@@ -12,6 +12,10 @@ Covered JSON surfaces:
 - `cx optimize --json`
 - `cx logs stats --json` (and `cx telemetry --json`)
 - `cx broker benchmark --json`
+- `cx task check --json`
+- `cx task run-all --json`
+- `cx task list --json`
+- `cx task show <id>`
 
 ## Version Markers
 
@@ -23,6 +27,9 @@ Current versions:
 - `optimize.v1`
 - `telemetry.v1`
 - `broker-benchmark.v1`
+- `task-check.v1`
+- `task-run-all.v1`
+- `task-list.v1`
 - actions extension: `actions.v1` (`actions_contract_version`)
 
 ## Stability Rules

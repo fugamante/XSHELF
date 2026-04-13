@@ -9,13 +9,17 @@ use crate::config::app_config;
 use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
+use crate::doctor::{exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum};
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
+use crate::provider_adapter::selected_tq_caps;
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
+use crate::task_cmds::task_readiness_value;
+use crate::tasks::read_tasks;
 
 fn resolved_provider(cfg_provider: &str) -> &'static str {
     let _ = cfg_provider;
@@ -175,6 +179,76 @@ fn print_scheduler_diag(log_file_path: &str, window: usize) {
     println!("scheduler_workers_seen: {workers_seen}");
     println!("scheduler_worker_distribution: {worker_distribution}");
     println!("scheduler_backend_distribution: {backend_distribution}");
+}
+
+fn readiness_diag_value() -> Value {
+    match read_tasks() {
+        Ok(tasks) => task_readiness_value(&tasks, "pending"),
+        Err(e) => serde_json::json!({
+            "status_filter": "pending",
+            "selected": 0,
+            "waves": 0,
+            "blocked_total": 0,
+            "blocked_dependencies": 0,
+            "blocked_resources": 0,
+            "can_run": false,
+            "can_run_mixed": false,
+            "can_run_parallel": false,
+            "strict_plan_ok": false,
+            "strict_plan_reason": format!("task_read_failed: {e}"),
+            "sequential_waves": 0,
+            "parallel_waves": 0,
+            "largest_parallel_wave": 0,
+            "recommended_mode": "sequential",
+            "recommended_reason": "task_read_failed",
+            "blocked": []
+        }),
+    }
+}
+
+fn print_readiness_diag(task_readiness: &Value) {
+    println!(
+        "task_readiness_selected: {}",
+        task_readiness
+            .get("selected")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "task_readiness_can_run_mixed: {}",
+        task_readiness
+            .get("can_run_mixed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    );
+    println!(
+        "task_readiness_can_run_parallel: {}",
+        task_readiness
+            .get("can_run_parallel")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    );
+    println!(
+        "task_readiness_recommended_mode: {}",
+        task_readiness
+            .get("recommended_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("sequential")
+    );
+    println!(
+        "task_readiness_parallel_waves: {}",
+        task_readiness
+            .get("parallel_waves")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "task_readiness_largest_parallel_wave: {}",
+        task_readiness
+            .get("largest_parallel_wave")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
 }
 
 fn retry_diag_value(log_file_path: &str, window: usize) -> Value {
@@ -429,12 +503,25 @@ fn print_diag_header(app_version: &str, cfg: &crate::config::AppConfig) {
     let backend = llm_backend();
     let model = llm_model();
     let active_model = if model.is_empty() { "<unset>" } else { &model };
+    let experiment_caps = selected_tq_caps();
     println!("== cxdiag ==");
     println!("timestamp: {}", utc_now_iso());
     println!("version: {}", toolchain_version_string(app_version));
     println!("mode: {}", cfg.cx_mode);
     println!("backend: {backend}");
     println!("active_model: {active_model}");
+    println!(
+        "backend_capability.turboquant_runtime_support: {}",
+        experiment_caps.turboquant_runtime_support
+    );
+    println!(
+        "backend_capability.turboquant_backend_role: {}",
+        experiment_caps.turboquant_backend_role
+    );
+    println!(
+        "backend_capability.turboquant_metric_kind: {}",
+        experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
 }
 
 fn scheduler_diag_value(log_file_path: &str, window: usize) -> Value {
@@ -552,7 +639,19 @@ fn concurrency_diag_value(
                 "run_all_rows": 0,
                 "latest_run_all_mode": Value::Null,
                 "run_all_mode_counts": {},
-                "halt_on_critical_rows": 0
+                "halt_on_critical_rows": 0,
+                "halted_remaining_total": 0,
+                "latest_halted_remaining": 0,
+                "backend_fallback_rows": 0,
+                "latest_backend_fallbacks": Value::Null,
+                "wave_task_rows": 0,
+                "latest_wave_index": Value::Null,
+                "latest_wave_mode": Value::Null,
+                "latest_wave_size": 0,
+                "largest_wave_index": Value::Null,
+                "largest_wave_size": 0,
+                "max_queue_wave_index": Value::Null,
+                "max_queue_wave_ms": 0
             }
         });
     }
@@ -562,7 +661,44 @@ fn concurrency_diag_value(
     let mut mode_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut halt_rows = 0u64;
     let mut latest_run_all_mode: Option<String> = None;
+    let mut halted_remaining_total = 0u64;
+    let mut latest_halted_remaining = 0u64;
+    let mut backend_fallback_rows = 0u64;
+    let mut latest_backend_fallbacks: Option<String> = None;
+    let mut wave_task_rows = 0u64;
+    let mut latest_wave_index: Option<u64> = None;
+    let mut latest_wave_mode: Option<String> = None;
+    let mut latest_wave_size = 0u64;
+    let mut largest_wave_index: Option<u64> = None;
+    let mut largest_wave_size = 0u64;
+    let mut max_queue_wave_index: Option<u64> = None;
+    let mut max_queue_wave_ms = 0u64;
     for v in &rows {
+        if let Some(wave_index) = v.get("wave_index").and_then(Value::as_u64) {
+            let has_task = v
+                .get("task_id")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .is_some_and(|task| !task.is_empty());
+            if has_task {
+                wave_task_rows += 1;
+            }
+            latest_wave_index = Some(wave_index);
+            latest_wave_mode = v
+                .get("wave_mode")
+                .and_then(Value::as_str)
+                .map(ToString::to_string);
+            latest_wave_size = v.get("wave_size").and_then(Value::as_u64).unwrap_or(0);
+            if latest_wave_size >= largest_wave_size {
+                largest_wave_size = latest_wave_size;
+                largest_wave_index = Some(wave_index);
+            }
+            let queue_ms = v.get("queue_ms").and_then(Value::as_u64).unwrap_or(0);
+            if queue_ms >= max_queue_wave_ms {
+                max_queue_wave_ms = queue_ms;
+                max_queue_wave_index = Some(wave_index);
+            }
+        }
         if v.get("tool").and_then(Value::as_str) != Some("cxtask_runall") {
             continue;
         }
@@ -574,6 +710,21 @@ fn concurrency_diag_value(
         if v.get("halt_on_critical").and_then(Value::as_bool) == Some(true) {
             halt_rows += 1;
         }
+        let halted_remaining = v
+            .get("run_all_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        halted_remaining_total += halted_remaining;
+        latest_halted_remaining = halted_remaining;
+        let fallback_rows = v
+            .get("run_all_backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        backend_fallback_rows += fallback_rows;
+        latest_backend_fallbacks = v
+            .get("run_all_backend_fallbacks")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
     }
 
     serde_json::json!({
@@ -583,7 +734,19 @@ fn concurrency_diag_value(
             "run_all_rows": run_all_rows,
             "latest_run_all_mode": latest_run_all_mode,
             "run_all_mode_counts": mode_counts,
-            "halt_on_critical_rows": halt_rows
+            "halt_on_critical_rows": halt_rows,
+            "halted_remaining_total": halted_remaining_total,
+            "latest_halted_remaining": latest_halted_remaining,
+            "backend_fallback_rows": backend_fallback_rows,
+            "latest_backend_fallbacks": latest_backend_fallbacks,
+            "wave_task_rows": wave_task_rows,
+            "latest_wave_index": latest_wave_index,
+            "latest_wave_mode": latest_wave_mode,
+            "latest_wave_size": latest_wave_size,
+            "largest_wave_index": largest_wave_index,
+            "largest_wave_size": largest_wave_size,
+            "max_queue_wave_index": max_queue_wave_index,
+            "max_queue_wave_ms": max_queue_wave_ms
         }
     })
 }
@@ -731,6 +894,29 @@ fn build_actions_from_reasons(
             "command": command
         }));
     }
+    actions
+}
+
+fn merge_exec_action(
+    mut actions: Vec<serde_json::Value>,
+    task_execution: &Value,
+) -> Vec<serde_json::Value> {
+    let Some(exec_action) = exec_action_value(task_execution) else {
+        return actions;
+    };
+    let exec_command = exec_action
+        .get("command")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let duplicate = actions.iter().any(|action| {
+        action.get("command").and_then(Value::as_str) == Some(exec_command)
+            || action.get("id").and_then(Value::as_str)
+                == exec_action.get("id").and_then(Value::as_str)
+    });
+    if duplicate {
+        return actions;
+    }
+    actions.insert(0, exec_action);
     actions
 }
 
@@ -911,10 +1097,15 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     } else {
         model
     };
+    let experiment_caps = selected_tq_caps();
     let scheduler = scheduler_diag_value(&log_file, window);
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let task_readiness = readiness_diag_value();
+    let latest_run = latest_run_all_sum();
+    let latest_wave = latest_wave_sum();
+    let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -934,10 +1125,13 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     };
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        build_actions_from_reasons(
-            &severity_reasons,
-            window,
-            "cx task run-all --status pending",
+        merge_exec_action(
+            build_actions_from_reasons(
+                &severity_reasons,
+                window,
+                "cx task run-all --status pending",
+            ),
+            &task_execution,
         )
     } else {
         Vec::new()
@@ -951,6 +1145,13 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "mode": cfg.cx_mode,
             "backend": backend,
             "active_model": active_model,
+            "backend_capabilities": {
+                "turboquant": {
+                    "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                    "selected_backend_role": experiment_caps.turboquant_backend_role,
+                    "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+                }
+            },
             "capture_provider_config": provider,
             "capture_provider_resolved": resolved_provider(&cfg.capture_provider),
             "capture_external_dependencies": "none",
@@ -963,6 +1164,8 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "schema_registry_dir": schema_dir.display().to_string(),
             "schema_registry_files": schema_count(&schema_dir),
             "scheduler": scheduler,
+            "task_readiness": task_readiness,
+            "task_execution": task_execution,
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,
@@ -1010,6 +1213,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     println!("schema_registry_dir: {}", schema_dir.display());
     println!("schema_registry_files: {}", schema_count(&schema_dir));
     print_scheduler_diag(&log_file, window);
+    print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
@@ -1047,6 +1251,93 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             .get("latest_run_all_mode")
             .and_then(Value::as_str)
             .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_halted_remaining_total: {}",
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_halted_remaining: {}",
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_backend_fallback_rows: {}",
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_backend_fallbacks: {}",
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_wave_task_rows: {}",
+        observed
+            .get("wave_task_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_wave_index: {}",
+        observed
+            .get("latest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_latest_wave_mode: {}",
+        observed
+            .get("latest_wave_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_wave_size: {}",
+        observed
+            .get("latest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_largest_wave_index: {}",
+        observed
+            .get("largest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_largest_wave_size: {}",
+        observed
+            .get("largest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_index: {}",
+        observed
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_ms: {}",
+        observed
+            .get("max_queue_wave_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
     );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
@@ -1106,12 +1397,20 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let task_readiness = readiness_diag_value();
+    let latest_run = latest_run_all_sum();
+    let latest_wave = latest_wave_sum();
+    let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
+    let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        build_actions_from_reasons(
-            &severity_reasons,
-            window,
-            "cx task run-all --status pending",
+        merge_exec_action(
+            build_actions_from_reasons(
+                &severity_reasons,
+                window,
+                "cx task run-all --status pending",
+            ),
+            &task_execution,
         )
     } else {
         Vec::new()
@@ -1122,7 +1421,16 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             "contract_version": SCHEDULER_JSON_CONTRACT_VERSION,
             "log_file": log_file,
             "scheduler_window_requested": window,
+            "backend_capabilities": {
+                "turboquant": {
+                    "cx_runtime_support": experiment_caps.turboquant_runtime_support,
+                    "selected_backend_role": experiment_caps.turboquant_backend_role,
+                    "memory_metric_kind": experiment_caps.turboquant_metric_kind,
+                }
+            },
             "scheduler": scheduler,
+            "task_readiness": task_readiness,
+            "task_execution": task_execution,
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,
@@ -1151,6 +1459,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     println!("== cxscheduler ==");
     println!("log_file: {log_file}");
     print_scheduler_diag(&log_file, window);
+    print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
     let observed = concurrency
@@ -1188,6 +1497,93 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .get("latest_run_all_mode")
             .and_then(Value::as_str)
             .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_halted_remaining_total: {}",
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_halted_remaining: {}",
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_backend_fallback_rows: {}",
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_backend_fallbacks: {}",
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_wave_task_rows: {}",
+        observed
+            .get("wave_task_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_wave_index: {}",
+        observed
+            .get("latest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_latest_wave_mode: {}",
+        observed
+            .get("latest_wave_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_wave_size: {}",
+        observed
+            .get("latest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_largest_wave_index: {}",
+        observed
+            .get("largest_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_largest_wave_size: {}",
+        observed
+            .get("largest_wave_size")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_index: {}",
+        observed
+            .get("max_queue_wave_index")
+            .and_then(Value::as_u64)
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "n/a".to_string())
+    );
+    println!(
+        "concurrency_observed_max_queue_wave_ms: {}",
+        observed
+            .get("max_queue_wave_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
     );
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");

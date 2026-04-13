@@ -138,6 +138,11 @@ fn diag_json_reports_scheduler_object() {
         Some(0),
         "unexpected critical object: {critical}"
     );
+    let task_readiness = v.get("task_readiness").expect("task_readiness");
+    assert_eq!(
+        task_readiness.get("status_filter").and_then(Value::as_str),
+        Some("pending")
+    );
 }
 
 #[test]
@@ -182,7 +187,10 @@ fn diag_json_reports_run_all_critical_telemetry() {
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
-            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1
+            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
+            "run_all_halted_remaining":1,
+            "run_all_backend_fallback_rows":2,
+            "run_all_backend_fallbacks":"codex->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"dc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
@@ -225,6 +233,28 @@ fn diag_json_reports_run_all_critical_telemetry() {
         reasons.contains("critical_halts_detected"),
         "expected critical_halts_detected reason, got: {reasons}"
     );
+    let observed = v
+        .get("concurrency")
+        .and_then(|x| x.get("observed"))
+        .expect("concurrency.observed");
+    assert_eq!(
+        observed
+            .get("halted_remaining_total")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed
+            .get("backend_fallback_rows")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str),
+        Some("codex->ollama=2")
+    );
 }
 
 #[test]
@@ -265,7 +295,10 @@ fn scheduler_json_strict_flags_critical_halts() {
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
-            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1
+            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
+            "run_all_halted_remaining":1,
+            "run_all_backend_fallback_rows":2,
+            "run_all_backend_fallbacks":"codex->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"schc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
@@ -297,6 +330,22 @@ fn scheduler_json_strict_flags_critical_halts() {
         reasons.contains("critical_halts_detected"),
         "expected critical_halts_detected reason, got: {reasons}"
     );
+    let observed = v
+        .get("concurrency")
+        .and_then(|x| x.get("observed"))
+        .expect("concurrency.observed");
+    assert_eq!(
+        observed
+            .get("latest_halted_remaining")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed
+            .get("latest_backend_fallbacks")
+            .and_then(Value::as_str),
+        Some("codex->ollama=2")
+    );
 }
 
 #[test]
@@ -323,10 +372,54 @@ fn scheduler_json_matches_contract_fixture() {
         "top_level_keys",
         &[
             ("scheduler", "scheduler_keys", "scheduler.scheduler"),
+            (
+                "task_readiness",
+                "task_readiness_keys",
+                "scheduler.task_readiness",
+            ),
+            (
+                "task_execution",
+                "task_execution_keys",
+                "scheduler.task_execution",
+            ),
             ("retry", "retry_keys", "scheduler.retry"),
             ("critical", "critical_keys", "scheduler.critical"),
             ("concurrency", "concurrency_keys", "scheduler.concurrency"),
         ],
+    );
+    let backend_caps_keys = fixture_keys(&fixture, "backend_capabilities_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .expect("backend_capabilities"),
+        &backend_caps_keys,
+        "scheduler.backend_capabilities",
+    );
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .expect("backend_capabilities.turboquant"),
+        &turboquant_keys,
+        "scheduler.backend_capabilities.turboquant",
+    );
+    let task_execution = payload.get("task_execution").expect("task_execution");
+    let task_execution_wave_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        task_execution
+            .get("wave_pressure")
+            .expect("task_execution.wave_pressure"),
+        &task_execution_wave_keys,
+        "scheduler.task_execution.wave_pressure",
+    );
+    let task_execution_next_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        task_execution
+            .get("next_action")
+            .expect("task_execution.next_action"),
+        &task_execution_next_keys,
+        "scheduler.task_execution.next_action",
     );
 
     let concurrency = payload.get("concurrency").expect("scheduler.concurrency");
@@ -355,10 +448,96 @@ fn scheduler_json_matches_contract_fixture() {
         "latest_run_all_mode",
         "run_all_mode_counts",
         "halt_on_critical_rows",
+        "halted_remaining_total",
+        "latest_halted_remaining",
+        "backend_fallback_rows",
+        "latest_backend_fallbacks",
+        "wave_task_rows",
+        "latest_wave_index",
+        "latest_wave_mode",
+        "latest_wave_size",
+        "largest_wave_index",
+        "largest_wave_size",
+        "max_queue_wave_index",
+        "max_queue_wave_ms",
     ] {
         assert!(
             observed.get(key).is_some(),
             "scheduler.concurrency.observed missing key '{key}' in {observed}"
         );
     }
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
+}
+
+#[test]
+fn diag_wave_observed() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"wv1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":10,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t1","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":120
+        }),
+        serde_json::json!({
+            "execution_id":"wv2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":12,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t2","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":180
+        }),
+        serde_json::json!({
+            "execution_id":"wv3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":14,"schema_enforced":false,"schema_valid":true,
+            "task_id":"t3","wave_index":2,"wave_mode":"sequential","wave_size":1,"queue_ms":260
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["diag", "--json", "--window", "5"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let v: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
+    let observed = v
+        .get("concurrency")
+        .and_then(|x| x.get("observed"))
+        .expect("concurrency.observed");
+    assert_eq!(
+        observed.get("wave_task_rows").and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        observed.get("latest_wave_index").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        observed.get("latest_wave_mode").and_then(Value::as_str),
+        Some("sequential")
+    );
+    assert_eq!(
+        observed.get("latest_wave_size").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed.get("largest_wave_index").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        observed.get("largest_wave_size").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        observed.get("max_queue_wave_index").and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        observed.get("max_queue_wave_ms").and_then(Value::as_u64),
+        Some(260)
+    );
 }

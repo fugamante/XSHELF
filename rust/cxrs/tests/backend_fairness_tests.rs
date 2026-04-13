@@ -2,10 +2,19 @@ mod common;
 
 use common::*;
 use serde_json::Value;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::Instant;
+
+fn suite_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("backend fairness test lock")
+}
 
 #[test]
 fn run_all_balanced_pool_uses_both_backends() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
@@ -99,6 +108,7 @@ printf '%s\n' "ok"
 
 #[test]
 fn run_all_pool_backend_unavailable_falls_back() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
@@ -161,6 +171,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 
 #[test]
 fn run_all_least_loaded_balances_backends_workers() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
@@ -281,6 +292,7 @@ printf '%s\n' "ok"
 
 #[test]
 fn run_all_round_robin_assigns_backends() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "codex",
@@ -374,6 +386,7 @@ printf '%s\n' "ok"
 
 #[test]
 fn run_all_pool_no_backends_errors() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     let add = repo.run(&[
         "task",

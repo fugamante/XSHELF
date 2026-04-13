@@ -2,9 +2,18 @@ mod common;
 
 use common::*;
 use serde_json::Value;
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
+fn suite_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .expect("adapter telemetry test lock")
+}
 
 #[test]
 fn adapter_telemetry_fields_present_for_codex_runs() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock_codex(
         r#"#!/usr/bin/env bash
@@ -55,6 +64,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input
 
 #[test]
 fn adapter_telemetry_fields_present_for_ollama_runs() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "ollama",
@@ -116,6 +126,7 @@ printf '%s\n' "ok"
 
 #[test]
 fn http_stub_fails_fast_logs_transport() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     let out = repo.run_with_env(
         &["cxo", "echo", "http-stub"],
@@ -162,6 +173,7 @@ fn http_stub_fails_fast_logs_transport() {
 
 #[test]
 fn http_curl_requires_url_logs_experimental_status() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     let out = repo.run_with_env(
         &["cxo", "echo", "http-curl"],
@@ -207,6 +219,7 @@ fn http_curl_requires_url_logs_experimental_status() {
 
 #[test]
 fn http_curl_parses_json_text_payload() {
+    let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "curl",
@@ -254,6 +267,7 @@ printf '%s\n' '{"text":"http adapter ok"}'
 
 #[test]
 fn http_curl_hits_server_with_auth_prompt() {
+    let _guard = suite_lock();
     if std::process::Command::new("curl")
         .arg("--version")
         .output()

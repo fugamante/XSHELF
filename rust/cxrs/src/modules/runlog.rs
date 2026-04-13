@@ -49,6 +49,14 @@ pub struct TaskRunAllSummaryLogInput<'a> {
     pub retryable_failures: u64,
     pub non_retryable_failures: u64,
     pub critical_errors: u64,
+    pub halted_remaining: u64,
+    pub backend_fallback_rows: u64,
+    pub backend_fallbacks: Option<String>,
+    pub wave_pressure_kind: Option<&'a str>,
+    pub wave_pressure_suggested_mode: Option<&'a str>,
+    pub latest_wave_index: Option<u64>,
+    pub max_queue_wave_index: Option<u64>,
+    pub max_queue_wave_ms: Option<u64>,
     pub duration_ms: u64,
 }
 
@@ -306,6 +314,15 @@ pub fn log_task_run_all_summary(input: TaskRunAllSummaryLogInput<'_>) -> Result<
     row.run_all_retryable_failures = Some(input.retryable_failures);
     row.run_all_non_retryable_failures = Some(input.non_retryable_failures);
     row.run_all_critical_errors = Some(input.critical_errors);
+    row.run_all_halted_remaining = Some(input.halted_remaining);
+    row.run_all_backend_fallback_rows = Some(input.backend_fallback_rows);
+    row.run_all_backend_fallbacks = input.backend_fallbacks.map(|s| s.to_string());
+    row.run_all_wave_pressure_kind = input.wave_pressure_kind.map(|s| s.to_string());
+    row.run_all_wave_pressure_suggested_mode =
+        input.wave_pressure_suggested_mode.map(|s| s.to_string());
+    row.run_all_latest_wave_index = input.latest_wave_index;
+    row.run_all_max_queue_wave_index = input.max_queue_wave_index;
+    row.run_all_max_queue_wave_ms = input.max_queue_wave_ms;
     finalize_and_append_run(&run_log, row)
 }
 

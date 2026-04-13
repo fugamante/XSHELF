@@ -1,9 +1,11 @@
 use std::fs::File;
 use std::io::Read;
 
+use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
 use crate::paths::{resolve_log_file, resolve_tasks_file};
 use crate::state::write_json_atomic;
+use crate::tasks_plan::{TaskRunPlan, build_task_run_plan};
 use crate::types::TaskRecord;
 use serde_json::Value;
 
@@ -434,12 +436,48 @@ pub fn cmd_task_list(status_filter: Option<&str>) -> i32 {
         }
     };
     let filtered: Vec<TaskRecord> = match status_filter {
-        Some(s) => tasks.into_iter().filter(|t| t.status == s).collect(),
-        None => tasks,
+        Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
+        None => tasks.clone(),
     };
     if filtered.is_empty() {
         println!("No tasks.");
         return 0;
+    }
+    let plan = build_task_run_plan(&tasks, "pending");
+    let readiness_rows: Vec<Value> = filtered
+        .iter()
+        .map(|task| task_run_view(task, &tasks, &plan))
+        .collect();
+    let runnable_now = readiness_rows
+        .iter()
+        .filter(|row| row.get("runnable_now").and_then(Value::as_bool) == Some(true))
+        .count();
+    let blocked_now = filtered
+        .iter()
+        .zip(readiness_rows.iter())
+        .filter(|(task, row)| {
+            task.status == "pending"
+                && row.get("runnable_now").and_then(Value::as_bool) == Some(false)
+        })
+        .count();
+    let inspect_only = filtered.len().saturating_sub(runnable_now + blocked_now);
+    let next_wave = plan.waves.first();
+    println!(
+        "list_readiness: selected={} runnable_now={} blocked_now={} inspect_only={} waves={} blocked={}",
+        filtered.len(),
+        runnable_now,
+        blocked_now,
+        inspect_only,
+        plan.waves.len(),
+        plan.blocked.len()
+    );
+    if let Some(wave) = next_wave {
+        println!(
+            "list_readiness_next_wave: index={} mode={} size={}",
+            wave.index,
+            wave.mode,
+            wave.task_ids.len()
+        );
     }
     println!("id | role | status | parent_id | objective");
     println!("---|---|---|---|---");
@@ -464,10 +502,11 @@ pub fn cmd_task_show(id: &str) -> i32 {
             return 1;
         }
     };
-    let Some(task) = tasks.into_iter().find(|t| t.id == id) else {
+    let Some(task) = tasks.iter().find(|t| t.id == id).cloned() else {
         crate::cx_eprintln!("cxrs task show: task not found: {id}");
         return 1;
     };
+    let plan = build_task_run_plan(&tasks, "pending");
     let mut out = match serde_json::to_value(&task) {
         Ok(v) => v,
         Err(e) => {
@@ -476,7 +515,15 @@ pub fn cmd_task_show(id: &str) -> i32 {
         }
     };
     if let Some(obj) = out.as_object_mut() {
+        obj.insert(
+            "contract_version".to_string(),
+            Value::String(TASK_SHOW_JSON_CONTRACT_VERSION.to_string()),
+        );
         obj.insert("latest_run".to_string(), task_run_latest(id));
+        obj.insert(
+            "run_readiness".to_string(),
+            task_run_view(&task, &tasks, &plan),
+        );
     }
     match serde_json::to_string_pretty(&out) {
         Ok(s) => {
@@ -488,6 +535,119 @@ pub fn cmd_task_show(id: &str) -> i32 {
             1
         }
     }
+}
+
+fn task_effective_dependencies(task: &TaskRecord) -> Vec<String> {
+    if !task.depends_on.is_empty() {
+        return task.depends_on.clone();
+    }
+    task.parent_id
+        .as_ref()
+        .map(|v| vec![v.clone()])
+        .unwrap_or_default()
+}
+
+fn task_lock_keys(task: &TaskRecord) -> Vec<String> {
+    if !task.resource_keys.is_empty() {
+        return task.resource_keys.clone();
+    }
+    if task.run_mode == "parallel" {
+        return vec!["repo:write".to_string()];
+    }
+    Vec::new()
+}
+
+pub fn task_run_view(task: &TaskRecord, tasks: &[TaskRecord], plan: &TaskRunPlan) -> Value {
+    let dependencies = task_effective_dependencies(task);
+    let resource_keys = task_lock_keys(task);
+    if task.status != "pending" {
+        return serde_json::json!({
+            "status_filter": "pending",
+            "selected_status_count": tasks.iter().filter(|t| t.status == "pending").count(),
+            "runnable_now": false,
+            "wave_index": Value::Null,
+            "wave_mode": Value::Null,
+            "blocked_reason": format!("task status is {}", task.status),
+            "dependencies": dependencies,
+            "resource_keys": resource_keys,
+            "recommended_command": format!("cx task show {}", task.id),
+            "recommended_reason": "inspect_non_pending_task"
+        });
+    }
+
+    let complete_ids = tasks
+        .iter()
+        .filter(|t| t.status == "complete")
+        .map(|t| t.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let unresolved_dependencies: Vec<String> = dependencies
+        .iter()
+        .filter(|dep| !complete_ids.contains(dep.as_str()))
+        .cloned()
+        .collect();
+    let wave = plan.waves.iter().find_map(|wave| {
+        if wave.task_ids.iter().any(|tid| tid == &task.id) {
+            Some((wave.index, wave.mode.clone()))
+        } else {
+            None
+        }
+    });
+    let blocked_reason = if !unresolved_dependencies.is_empty() {
+        Some(format!(
+            "unresolved dependencies: {}",
+            unresolved_dependencies.join(", ")
+        ))
+    } else {
+        plan.blocked
+            .iter()
+            .find(|blocked| blocked.id == task.id)
+            .map(|blocked| blocked.reason.clone())
+    };
+
+    let runnable_now =
+        wave.as_ref().map(|(idx, _)| *idx == 1).unwrap_or(false) && blocked_reason.is_none();
+    let (recommended_command, recommended_reason) = if let Some(reason) = blocked_reason.as_ref() {
+        let _ = reason;
+        (
+            "cx task check --json".to_string(),
+            "inspect_blockers".to_string(),
+        )
+    } else if let Some((wave_index, _)) = wave.as_ref() {
+        if *wave_index == 1 {
+            (
+                format!("cx task run {}", task.id),
+                "task_is_ready_now".to_string(),
+            )
+        } else {
+            (
+                "cx task run-all --status pending --dry-run --json".to_string(),
+                "task_is_scheduled_in_later_wave".to_string(),
+            )
+        }
+    } else {
+        (
+            "cx task check --json".to_string(),
+            "inspect_schedule_gap".to_string(),
+        )
+    };
+
+    serde_json::json!({
+        "status_filter": "pending",
+        "selected_status_count": plan.selected,
+        "runnable_now": runnable_now,
+        "wave_index": wave.as_ref().map(|(idx, _)| *idx),
+        "wave_mode": wave.as_ref().map(|(_, mode)| mode.clone()),
+        "blocked_reason": blocked_reason,
+        "dependencies": dependencies,
+        "resource_keys": resource_keys,
+        "recommended_command": recommended_command,
+        "recommended_reason": recommended_reason
+    })
+}
+
+pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
+    let plan = build_task_run_plan(tasks, "pending");
+    task_run_view(task, tasks, &plan)
 }
 
 fn task_run_latest(id: &str) -> Value {

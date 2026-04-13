@@ -8,6 +8,11 @@ use std::time::{Duration, Instant};
 
 use crate::cmdctx::CmdCtx;
 use crate::config::app_config;
+use crate::contract_versions::{
+    TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
+    TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
+};
+use crate::doctor::latest_wave_sum;
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
 use crate::paths::resolve_log_file;
@@ -15,6 +20,8 @@ use crate::process::{run_command_output_with_timeout, run_command_status_with_ti
 use crate::state::{current_task_id, set_state_path};
 use crate::taskrun::{TaskRunError, TaskRunner};
 use crate::tasks::set_task_status;
+use crate::tasks::task_run_state;
+use crate::tasks::task_run_view;
 use crate::tasks_plan::build_task_run_plan;
 use crate::types::TaskRecord;
 
@@ -34,7 +41,15 @@ type TaskRunByIdFn = fn(
     Option<&str>,
     Option<&str>,
     bool,
+    bool,
 ) -> Result<(i32, Option<String>), TaskRunError>;
+
+struct TaskRunOverrides {
+    mode_override: Option<String>,
+    backend_override: Option<String>,
+    managed_by_parent: bool,
+    json_out: Option<bool>,
+}
 
 pub fn cmd_task_set_status(id: &str, new_status: &str) -> i32 {
     if let Err(e) = set_task_status(id, new_status) {
@@ -53,9 +68,11 @@ pub fn cmd_task_set_status(id: &str, new_status: &str) -> i32 {
 }
 
 fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
-    let usage =
-        format!("Usage: {app_name} task list [--status pending|in_progress|complete|failed]");
+    let usage = format!(
+        "Usage: {app_name} task list [--status pending|in_progress|complete|failed] [--json|--text]"
+    );
     let mut status_filter: Option<&str> = None;
+    let mut json_out: Option<bool> = None;
     let mut i = 1usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -71,13 +88,66 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 status_filter = Some(v);
                 i += 2;
             }
+            "--json" => {
+                json_out = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                json_out = Some(false);
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task list: unknown flag '{other}'");
                 return 2;
             }
         }
     }
-    (deps.cmd_task_list)(status_filter)
+    if resolve_json_mode(json_out, false) {
+        let tasks = match (deps.read_tasks)() {
+            Ok(v) => v,
+            Err(e) => {
+                crate::cx_eprintln!("{e}");
+                return 1;
+            }
+        };
+        let filtered: Vec<TaskRecord> = match status_filter {
+            Some(s) => tasks.iter().filter(|t| t.status == s).cloned().collect(),
+            None => tasks.clone(),
+        };
+        let plan = build_task_run_plan(&tasks, "pending");
+        let list_readiness = list_readiness_value(&tasks, &filtered, status_filter);
+        let task_rows: Vec<Value> = filtered
+            .iter()
+            .map(|task| {
+                let mut value =
+                    serde_json::to_value(task).unwrap_or_else(|_| serde_json::json!({}));
+                if let Some(obj) = value.as_object_mut() {
+                    obj.insert(
+                        "run_readiness".to_string(),
+                        task_run_view(task, &tasks, &plan),
+                    );
+                }
+                value
+            })
+            .collect();
+        let payload = serde_json::json!({
+            "contract_version": TASK_LIST_JSON_CONTRACT_VERSION,
+            "status_filter": status_filter,
+            "count": task_rows.len(),
+            "list_readiness": list_readiness,
+            "tasks": task_rows
+        });
+        match serde_json::to_string_pretty(&payload) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                crate::cx_eprintln!("cxrs task list: failed to render json: {e}");
+                return 1;
+            }
+        }
+        0
+    } else {
+        (deps.cmd_task_list)(status_filter)
+    }
 }
 
 fn require_id(app_name: &str, args: &[String], cmd: &str) -> Result<String, i32> {
@@ -113,16 +183,14 @@ fn handle_fanout(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     (deps.cmd_task_fanout)(app_name, &objective_parts.join(" "), from)
 }
 
-fn parse_task_run_overrides(
-    app_name: &str,
-    args: &[String],
-) -> Result<(Option<String>, Option<String>, bool), i32> {
+fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOverrides, i32> {
     let usage = format!(
-        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]"
+        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
     );
     let mut mode_override: Option<String> = None;
     let mut backend_override: Option<String> = None;
     let mut managed_by_parent = false;
+    let mut json_out: Option<bool> = None;
     let mut i = 2usize;
     while i < args.len() {
         match args[i].as_str() {
@@ -146,27 +214,80 @@ fn parse_task_run_overrides(
                 managed_by_parent = true;
                 i += 1;
             }
+            "--json" => {
+                json_out = Some(true);
+                i += 1;
+            }
+            "--text" => {
+                json_out = Some(false);
+                i += 1;
+            }
             other => {
                 crate::cx_eprintln!("cxrs task run: unknown flag '{other}'");
                 return Err(2);
             }
         }
     }
-    Ok((mode_override, backend_override, managed_by_parent))
+    Ok(TaskRunOverrides {
+        mode_override,
+        backend_override,
+        managed_by_parent,
+        json_out,
+    })
 }
 
 fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let Some(id) = args.get(1).cloned() else {
         crate::cx_eprintln!(
-            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]"
+            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
         );
         return 2;
     };
-    let (mode_override, backend_override, managed_by_parent) =
-        match parse_task_run_overrides(app_name, args) {
-            Ok(v) => v,
-            Err(code) => return code,
-        };
+    let overrides = match parse_task_run_overrides(app_name, args) {
+        Ok(v) => v,
+        Err(code) => return code,
+    };
+    let TaskRunOverrides {
+        mode_override,
+        backend_override,
+        managed_by_parent,
+        json_out,
+    } = overrides;
+    let as_json = resolve_json_mode(json_out, false);
+
+    let mut preflight: Option<Value> = None;
+
+    if !managed_by_parent
+        && let Ok(tasks) = (deps.read_tasks)()
+        && let Some(task) = tasks.iter().find(|task| task.id == id)
+    {
+        let readiness = task_run_state(task, &tasks);
+        preflight = Some(readiness.clone());
+        if !as_json && readiness.get("runnable_now").and_then(Value::as_bool) != Some(true) {
+            println!(
+                "task_run_preflight: runnable_now={} wave_index={} wave_mode={}",
+                readiness
+                    .get("runnable_now")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("wave_index")
+                    .and_then(Value::as_u64)
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+                readiness
+                    .get("wave_mode")
+                    .and_then(Value::as_str)
+                    .unwrap_or("-")
+            );
+            if let Some(reason) = readiness.get("blocked_reason").and_then(Value::as_str) {
+                println!("task_run_preflight_reason: {reason}");
+            }
+            if let Some(command) = readiness.get("recommended_command").and_then(Value::as_str) {
+                println!("task_run_preflight_recommended: {command}");
+            }
+        }
+    }
 
     match (deps.run_task_by_id)(
         &(deps.make_task_runner)(),
@@ -174,8 +295,29 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         mode_override.as_deref(),
         backend_override.as_deref(),
         managed_by_parent,
+        !as_json,
     ) {
         Ok((code, execution_id)) => {
+            if as_json {
+                let payload = serde_json::json!({
+                    "contract_version": TASK_RUN_JSON_CONTRACT_VERSION,
+                    "task_id": id,
+                    "mode_override": mode_override,
+                    "backend_override": backend_override,
+                    "managed_by_parent": managed_by_parent,
+                    "preflight": preflight,
+                    "status": if code == 0 { "complete" } else { "failed" },
+                    "execution_id": execution_id,
+                });
+                match serde_json::to_string_pretty(&payload) {
+                    Ok(s) => println!("{s}"),
+                    Err(e) => {
+                        crate::cx_eprintln!("cxrs task run: failed to render json: {e}");
+                        return 1;
+                    }
+                }
+                return code;
+            }
             if let Some(eid) = execution_id {
                 println!("task_id: {id}");
                 println!("execution_id: {eid}");
@@ -184,6 +326,26 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             code
         }
         Err(e) => {
+            if as_json {
+                let payload = serde_json::json!({
+                    "contract_version": TASK_RUN_JSON_CONTRACT_VERSION,
+                    "task_id": id,
+                    "mode_override": mode_override,
+                    "backend_override": backend_override,
+                    "managed_by_parent": managed_by_parent,
+                    "preflight": preflight,
+                    "status": "error",
+                    "execution_id": Value::Null,
+                    "error": e.to_string(),
+                });
+                match serde_json::to_string_pretty(&payload) {
+                    Ok(s) => println!("{s}"),
+                    Err(err) => {
+                        crate::cx_eprintln!("cxrs task run: failed to render json: {err}");
+                    }
+                }
+                return 1;
+            }
             crate::cx_eprintln!("{e}");
             1
         }
@@ -193,6 +355,7 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 struct PendingLaunch {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
     queue_since: Instant,
     queue_started_at: String,
     wave_index: u64,
@@ -203,6 +366,11 @@ struct PendingLaunch {
 struct ActiveLaunch {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
+    queue_ms: u64,
+    wave_index: u64,
+    wave_mode: String,
+    wave_size: u64,
     join: thread::JoinHandle<Result<(i32, Option<String>), String>>,
 }
 
@@ -251,9 +419,23 @@ struct RunAllSummary {
 struct TaskRunEvent {
     id: String,
     backend: String,
+    requested_backend: Option<String>,
     status: String,
     execution_id: Option<String>,
     failure_class: Option<String>,
+    queue_ms: u64,
+    wave_index: u64,
+    wave_mode: String,
+    wave_size: u64,
+}
+
+#[derive(Debug, Clone)]
+struct RunAllWavePressure {
+    kind: &'static str,
+    suggested_mode: Option<&'static str>,
+    latest_wave_index: Option<u64>,
+    max_queue_wave_index: Option<u64>,
+    max_queue_wave_ms: u64,
 }
 
 impl RunAllSummary {
@@ -277,13 +459,61 @@ impl RunAllSummary {
     }
 
     fn add_task_run(&mut self, ev: TaskRunEvent) {
+        let used_backend_fallback = ev
+            .requested_backend
+            .as_deref()
+            .is_some_and(|requested| requested != ev.backend);
         self.task_runs.push(serde_json::json!({
             "task_id": ev.id,
             "backend": ev.backend,
+            "requested_backend": ev.requested_backend,
+            "used_backend_fallback": used_backend_fallback,
             "status": ev.status,
             "execution_id": ev.execution_id,
-            "failure_class": ev.failure_class
+            "failure_class": ev.failure_class,
+            "queue_ms": ev.queue_ms,
+            "wave_index": ev.wave_index,
+            "wave_mode": ev.wave_mode,
+            "wave_size": ev.wave_size
         }));
+    }
+}
+
+fn runall_wave_pressure(summary: &RunAllSummary, mode: &str) -> RunAllWavePressure {
+    let mut latest_wave_index: Option<u64> = None;
+    let mut max_queue_wave_index: Option<u64> = None;
+    let mut max_queue_wave_ms = 0u64;
+    for task in &summary.task_runs {
+        let wave_index = task.get("wave_index").and_then(Value::as_u64);
+        if wave_index.is_some() {
+            latest_wave_index = wave_index;
+        }
+        let queue_ms = task.get("queue_ms").and_then(Value::as_u64).unwrap_or(0);
+        if queue_ms >= max_queue_wave_ms {
+            max_queue_wave_ms = queue_ms;
+            max_queue_wave_index = wave_index;
+        }
+    }
+    if max_queue_wave_index.unwrap_or(0) > 1 && max_queue_wave_ms >= 2000 {
+        let suggested_mode = match mode {
+            "parallel" => Some("mixed"),
+            "mixed" => Some("sequential"),
+            _ => None,
+        };
+        return RunAllWavePressure {
+            kind: "later_wave_queue",
+            suggested_mode,
+            latest_wave_index,
+            max_queue_wave_index,
+            max_queue_wave_ms,
+        };
+    }
+    RunAllWavePressure {
+        kind: "none",
+        suggested_mode: None,
+        latest_wave_index,
+        max_queue_wave_index,
+        max_queue_wave_ms,
     }
 }
 
@@ -320,6 +550,46 @@ fn runall_failed_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
         })
         .take(limit)
         .collect()
+}
+
+fn runall_backend_fallbacks(summary: &RunAllSummary) -> HashMap<String, usize> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for task in &summary.task_runs {
+        let Some(true) = task.get("used_backend_fallback").and_then(Value::as_bool) else {
+            continue;
+        };
+        let requested = task
+            .get("requested_backend")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let actual = task
+            .get("backend")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let key = format!("{requested}->{actual}");
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn render_counts_compact(counts: &HashMap<String, usize>) -> String {
+    if counts.is_empty() {
+        return "none".to_string();
+    }
+    let mut pairs: Vec<(String, usize)> = counts.iter().map(|(k, v)| (k.clone(), *v)).collect();
+    pairs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    pairs
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
+fn runall_halted_remaining(summary: &RunAllSummary, scheduled_count: usize) -> usize {
+    if !summary.halted_on_critical {
+        return 0;
+    }
+    scheduled_count.saturating_sub(summary.task_runs.len())
 }
 
 fn classify_failure_for_execution(execution_id: Option<&str>) -> FailureInfo {
@@ -567,6 +837,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         .iter()
         .filter(|t| t.status == options.status_filter)
         .count();
+    let readiness = task_readiness_value(&tasks, &options.status_filter);
     if selected_count == 0 {
         if options.plan_json {
             let empty_plan = build_task_run_plan(&tasks, &options.status_filter);
@@ -587,6 +858,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "summary_format": options.summary_format,
                     "strict_plan": options.strict_plan,
                     "plan_json": options.plan_json,
+                    "task_readiness": readiness,
                     "scheduled": 0,
                     "complete": 0,
                     "failed": 0,
@@ -649,6 +921,33 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 return dry_run_out(&options, &ids, &task_index, plan.blocked.len(), false);
             }
             crate::cx_eprintln!("cxrs task run-all: strict-plan failed ({reason})");
+            crate::cx_eprintln!(
+                "preflight: recommended_mode={} can_run_mixed={} can_run_parallel={} waves={} parallel_waves={} largest_parallel_wave={}",
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
+                readiness
+                    .get("can_run_mixed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("parallel_waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("largest_parallel_wave")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+            );
             if !plan.blocked.is_empty() {
                 for b in &plan.blocked {
                     crate::cx_eprintln!(" - {}: {}", b.id, b.reason);
@@ -679,9 +978,32 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         let cap_notes = render_backend_caps(&options.backend_caps);
         if !options.as_json {
             println!(
-                "run-all mode={} waves={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
+                "run-all preflight: requested_mode={} recommended_mode={} can_run_mixed={} can_run_parallel={} waves={} parallel_waves={} largest_parallel_wave={} runnable={} backend_pool={} max_workers={} backend_caps={} fairness={} halt_on_critical={}",
                 options.run_mode,
-                plan.waves.len(),
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
+                readiness
+                    .get("can_run_mixed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false),
+                readiness
+                    .get("waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("parallel_waves")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                readiness
+                    .get("largest_parallel_wave")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
                 ids.len(),
                 pool,
                 options.max_workers,
@@ -689,6 +1011,18 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 options.fairness,
                 options.halt_on_critical
             );
+            if options.run_mode == "parallel"
+                && !readiness
+                    .get("can_run_parallel")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
+                && let Some(reason) = readiness
+                    .get("strict_plan_reason")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|v| !v.is_empty())
+            {
+                println!("run-all preflight_reason: {reason}");
+            }
             for wave in &plan.waves {
                 println!(
                     "wave {} [{}] -> {}",
@@ -737,8 +1071,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             let task = task_index.get(id);
             let max_retries = task.and_then(|t| t.max_retries).unwrap_or(0);
             let task_parent_id = task.and_then(|t| t.parent_id.clone());
+            let requested_backend = choose_backend_for_task(task, &options.backend_pool, idx);
             let backend_selected = fallback_backend(
-                choose_backend_for_task(task, &options.backend_pool, idx),
+                requested_backend.clone(),
                 &available_pool(&options.backend_pool),
             );
             let wave_meta = wave_meta_map
@@ -768,9 +1103,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             summary.add_task_run(TaskRunEvent {
                                 id: id.clone(),
                                 backend,
+                                requested_backend: requested_backend.clone(),
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
+                                queue_ms: 0,
+                                wave_index: wave_meta.index,
+                                wave_mode: wave_meta.mode.clone(),
+                                wave_size: wave_meta.size,
                             });
                             continue;
                         }
@@ -779,9 +1119,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
                             backend,
+                            requested_backend: requested_backend.clone(),
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         continue;
                     }
@@ -791,9 +1136,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
                             backend,
+                            requested_backend: requested_backend.clone(),
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
@@ -820,6 +1170,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             None,
                             backend_selected.as_deref(),
                             false,
+                            true,
                         )
                     },
                 );
@@ -832,9 +1183,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 backend: backend_selected
                                     .clone()
                                     .unwrap_or_else(|| "unknown".to_string()),
+                                requested_backend: requested_backend.clone(),
                                 status: "complete".to_string(),
                                 execution_id,
                                 failure_class: None,
+                                queue_ms: 0,
+                                wave_index: wave_meta.index,
+                                wave_mode: wave_meta.mode.clone(),
+                                wave_size: wave_meta.size,
                             });
                             finished = true;
                             break;
@@ -854,9 +1210,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             backend: backend_selected
                                 .clone()
                                 .unwrap_or_else(|| "unknown".to_string()),
+                            requested_backend: requested_backend.clone(),
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         finished = true;
                         break;
@@ -869,9 +1230,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             backend: backend_selected
                                 .clone()
                                 .unwrap_or_else(|| "unknown".to_string()),
+                            requested_backend: requested_backend.clone(),
                             status: "critical_error".to_string(),
                             execution_id: None,
                             failure_class: Some("critical_error".to_string()),
+                            queue_ms: 0,
+                            wave_index: wave_meta.index,
+                            wave_mode: wave_meta.mode.clone(),
+                            wave_size: wave_meta.size,
                         });
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
@@ -890,22 +1256,32 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     backend: backend_selected
                         .clone()
                         .unwrap_or_else(|| "unknown".to_string()),
+                    requested_backend: requested_backend.clone(),
                     status: "failed".to_string(),
                     execution_id: None,
                     failure_class: Some("non_retryable_failure".to_string()),
+                    queue_ms: 0,
+                    wave_index: wave_meta.index,
+                    wave_mode: wave_meta.mode.clone(),
+                    wave_size: wave_meta.size,
                 });
             }
         }
         summary
     };
+    let backend_fallbacks = runall_backend_fallbacks(&summary);
+    let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
+    let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
         let payload = serde_json::json!({
-            "contract_version": "task-run-all.v1",
+            "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
             "status_filter": options.status_filter,
             "mode": options.run_mode,
             "summary_format": options.summary_format,
             "strict_plan": options.strict_plan,
             "plan_json": options.plan_json,
+            "task_readiness": readiness,
+            "preflight": preflight,
             "scheduled": scheduled_count,
             "complete": summary.ok,
             "failed": summary.failed,
@@ -914,6 +1290,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "non_retryable_failures": summary.non_retryable_failed,
             "critical_errors": summary.critical_errors,
             "halted_on_critical": summary.halted_on_critical,
+            "halted_remaining": halted_remaining,
+            "backend_fallbacks": backend_fallbacks,
             "duration_ms": started.elapsed().as_millis() as u64,
             "tasks": summary.task_runs
         });
@@ -931,6 +1309,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "contract_version": "task-run-all-summary.v1",
                 "status_filter": options.status_filter,
                 "mode": options.run_mode,
+                "task_readiness": readiness,
+                "preflight": preflight,
                 "scheduled": scheduled_count,
                 "complete": summary.ok,
                 "failed": summary.failed,
@@ -939,6 +1319,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "non_retryable_failures": summary.non_retryable_failed,
                 "critical_errors": summary.critical_errors,
                 "halted_on_critical": summary.halted_on_critical,
+                "halted_remaining": halted_remaining,
+                "backend_fallbacks": backend_fallbacks,
                 "duration_ms": started.elapsed().as_millis() as u64,
                 "failure_reasons": reason_counts,
                 "failed_task_ids": runall_failed_ids(&summary, 25)
@@ -952,8 +1334,12 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         } else {
             println!(
-                "run-all summary: mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
+                "run-all summary: mode={}, recommended_mode={}, strict_plan={}, complete={}, failed={}, blocked={}, retryable_failures={}, non_retryable_failures={}, critical_errors={}",
                 options.run_mode,
+                readiness
+                    .get("recommended_mode")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("sequential"),
                 options.strict_plan,
                 summary.ok,
                 summary.failed,
@@ -964,16 +1350,20 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             );
             if summary.halted_on_critical {
                 println!("run-all halted_on_critical: true");
+                println!("run-all halted_remaining: {halted_remaining}");
+            }
+            print_preflight_text(&preflight);
+            if !backend_fallbacks.is_empty() {
+                println!(
+                    "run-all backend_fallbacks: {}",
+                    render_counts_compact(&backend_fallbacks)
+                );
             }
             if summary.failed > 0 {
-                let mut reasons: Vec<(String, usize)> = reason_counts.into_iter().collect();
-                reasons.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
-                let compact = reasons
-                    .iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<String>>()
-                    .join(", ");
-                println!("run-all failure_reasons: {compact}");
+                println!(
+                    "run-all failure_reasons: {}",
+                    render_counts_compact(&reason_counts)
+                );
                 let failed_ids = runall_failed_ids(&summary, 10);
                 if !failed_ids.is_empty() {
                     println!("run-all failed_task_ids: {}", failed_ids.join(","));
@@ -981,6 +1371,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         }
     }
+    let wave_pressure = runall_wave_pressure(&summary, &options.run_mode);
     let _ = crate::runlog::log_task_run_all_summary(crate::runlog::TaskRunAllSummaryLogInput {
         mode: &options.run_mode,
         halt_on_critical: options.halt_on_critical,
@@ -991,6 +1382,18 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         retryable_failures: summary.retryable_failed as u64,
         non_retryable_failures: summary.non_retryable_failed as u64,
         critical_errors: summary.critical_errors as u64,
+        halted_remaining: halted_remaining as u64,
+        backend_fallback_rows: backend_fallbacks.values().copied().sum::<usize>() as u64,
+        backend_fallbacks: if backend_fallbacks.is_empty() {
+            None
+        } else {
+            Some(render_counts_compact(&backend_fallbacks))
+        },
+        wave_pressure_kind: Some(wave_pressure.kind),
+        wave_pressure_suggested_mode: wave_pressure.suggested_mode,
+        latest_wave_index: wave_pressure.latest_wave_index,
+        max_queue_wave_index: wave_pressure.max_queue_wave_index,
+        max_queue_wave_ms: Some(wave_pressure.max_queue_wave_ms),
         duration_ms: started.elapsed().as_millis() as u64,
     });
     if summary.failed > 0 { 1 } else { 0 }
@@ -1078,6 +1481,125 @@ fn plan_json_out(
     }
 }
 
+fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok: bool) -> Value {
+    let recommended_mode = readiness
+        .get("recommended_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("sequential");
+    let strict_reason = readiness
+        .get("strict_plan_reason")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+        .map(str::to_string);
+    let blocked_total = readiness
+        .get("blocked_total")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let latest_wave = latest_wave_sum();
+    let latest_wave_index = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("latest_wave_index"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let max_queue_wave_index = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("max_queue_wave_index"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let max_queue_wave_ms = latest_wave
+        .as_ref()
+        .and_then(|w| w.get("max_queue_wave_ms"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let advice;
+    let recommendations: Vec<String>;
+    if options.strict_plan && options.run_mode == "parallel" && !strict_ok {
+        advice = "parallel strict-plan is not executable; switch to the recommended mode or inspect the plan json";
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, recommended_mode
+            ),
+            format!(
+                "cx task run-all --status {} --mode parallel --strict-plan --plan-json",
+                options.status_filter
+            ),
+        ];
+    } else if options.run_mode != recommended_mode {
+        advice = "requested mode differs from the recommended mode; review the recommendation before widening concurrency";
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, recommended_mode
+            ),
+            "cx task check --json".to_string(),
+        ];
+    } else if blocked_total > 0 {
+        advice = "blocked tasks remain in the selected set; inspect dependency and resource blockers before expecting a full schedule";
+        recommendations = vec![
+            "cx task check --json".to_string(),
+            format!(
+                "cx task run-all --status {} --dry-run --json",
+                options.status_filter
+            ),
+        ];
+    } else if max_queue_wave_index.as_u64().unwrap_or(0) > 1 && max_queue_wave_ms >= 2000 {
+        advice = "recent runs show queue pressure in later waves; prefer a narrower mode before widening concurrency again";
+        let narrower = match options.run_mode.as_str() {
+            "parallel" => "mixed",
+            "mixed" => "sequential",
+            _ => recommended_mode,
+        };
+        recommendations = vec![
+            format!(
+                "cx task run-all --status {} --mode {}",
+                options.status_filter, narrower
+            ),
+            "cx scheduler --json --window 20".to_string(),
+        ];
+    } else {
+        advice = "preflight is operationally clean";
+        recommendations = vec![
+            "cx task check --json".to_string(),
+            format!("cx task run-all --status {}", options.status_filter),
+        ];
+    }
+    serde_json::json!({
+        "requested_mode": options.run_mode,
+        "recommended_mode": recommended_mode,
+        "strict_plan": options.strict_plan,
+        "strict_ok": strict_ok,
+        "advice": advice,
+        "recommendations": recommendations,
+        "strict_plan_reason": strict_reason,
+        "latest_wave_index": latest_wave_index,
+        "max_queue_wave_index": max_queue_wave_index,
+        "max_queue_wave_ms": max_queue_wave_ms
+    })
+}
+
+fn print_preflight_text(preflight: &Value) {
+    println!(
+        "run-all preflight_advice: {}",
+        preflight
+            .get("advice")
+            .and_then(Value::as_str)
+            .unwrap_or("preflight is operationally clean")
+    );
+    if let Some(reason) = preflight
+        .get("strict_plan_reason")
+        .and_then(Value::as_str)
+        .filter(|v| !v.is_empty())
+    {
+        println!("run-all preflight_reason: {reason}");
+    }
+    if let Some(recs) = preflight.get("recommendations").and_then(Value::as_array) {
+        for (idx, rec) in recs.iter().filter_map(Value::as_str).enumerate() {
+            println!("run-all preflight_recommendation_{}: {}", idx + 1, rec);
+        }
+    }
+}
+
 fn dry_run_out(
     options: &RunAllOptions,
     schedule: &[String],
@@ -1085,18 +1607,21 @@ fn dry_run_out(
     blocked: usize,
     strict_ok: bool,
 ) -> i32 {
+    let tasks: Vec<TaskRecord> = task_index.values().cloned().collect();
+    let readiness = task_readiness_value(&tasks, &options.status_filter);
+    let preflight = runall_preflight_value(options, &readiness, strict_ok);
     let available = available_pool(&options.backend_pool);
     let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
     for (idx, id) in schedule.iter().enumerate() {
         let task = task_index.get(id);
-        let backend_selected = fallback_backend(
-            choose_backend_for_task(task, &options.backend_pool, idx),
-            &available,
-        )
-        .unwrap_or_else(|| "unknown".to_string());
+        let requested_backend = choose_backend_for_task(task, &options.backend_pool, idx);
+        let backend_selected = fallback_backend(requested_backend.clone(), &available)
+            .unwrap_or_else(|| "unknown".to_string());
         task_runs.push(serde_json::json!({
             "task_id": id,
             "backend": backend_selected,
+            "requested_backend": requested_backend,
+            "used_backend_fallback": false,
             "status": "dry_run",
             "execution_id": Value::Null,
             "failure_class": Value::Null
@@ -1108,6 +1633,8 @@ fn dry_run_out(
         "mode": options.run_mode,
         "strict_plan": options.strict_plan,
         "plan_json": options.plan_json,
+        "task_readiness": readiness,
+        "preflight": preflight,
         "scheduled": schedule.len(),
         "complete": 0,
         "failed": 0,
@@ -1116,6 +1643,8 @@ fn dry_run_out(
         "non_retryable_failures": 0,
         "critical_errors": 0,
         "halted_on_critical": false,
+        "halted_remaining": 0,
+        "backend_fallbacks": serde_json::json!({}),
         "duration_ms": 0,
         "tasks": task_runs
     });
@@ -1129,13 +1658,26 @@ fn dry_run_out(
         }
     } else {
         println!(
-            "run-all dry-run: mode={}, strict_plan={}, strict_ok={}, scheduled={}, blocked={}",
+            "run-all dry-run: mode={}, recommended_mode={}, can_run_mixed={}, can_run_parallel={}, strict_plan={}, strict_ok={}, scheduled={}, blocked={}",
             options.run_mode,
+            readiness
+                .get("recommended_mode")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("sequential"),
+            readiness
+                .get("can_run_mixed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            readiness
+                .get("can_run_parallel")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
             options.strict_plan,
             strict_ok,
             schedule.len(),
             blocked
         );
+        print_preflight_text(&preflight);
     }
     if blocked > 0 || (options.strict_plan && !strict_ok) {
         1
@@ -1515,13 +2057,13 @@ fn run_schedule_parallel(
                 .get(id)
                 .cloned()
                 .unwrap_or_else(|| fallback_wave_meta(idx));
+            let requested_backend =
+                choose_backend_for_task(task_index.get(id), &options.backend_pool, idx);
             PendingLaunch {
                 id: id.clone(),
-                backend: fallback_backend(
-                    choose_backend_for_task(task_index.get(id), &options.backend_pool, idx),
-                    &available,
-                )
-                .unwrap_or_else(|| available[0].clone()),
+                backend: fallback_backend(requested_backend.clone(), &available)
+                    .unwrap_or_else(|| available[0].clone()),
+                requested_backend,
                 queue_since: Instant::now(),
                 queue_started_at: utc_now_iso(),
                 wave_index: wave.index,
@@ -1568,6 +2110,9 @@ fn run_schedule_parallel(
             *backend_active.entry(launch.backend.clone()).or_insert(0) += 1;
             let id = launch.id.clone();
             let backend = launch.backend.clone();
+            let wave_index = launch.wave_index;
+            let wave_mode = launch.wave_mode.clone();
+            let wave_size = launch.wave_size;
             let task_parent_id = task_index.get(&id).and_then(|t| t.parent_id.clone());
             let max_retries = task_index.get(&id).and_then(|t| t.max_retries).unwrap_or(0);
             let join = thread::spawn(move || {
@@ -1581,9 +2126,9 @@ fn run_schedule_parallel(
                         task_parent_id,
                         max_retries,
                         wave: Some(TaskWaveMeta {
-                            index: launch.wave_index,
-                            mode: launch.wave_mode,
-                            size: launch.wave_size,
+                            index: wave_index,
+                            mode: wave_mode,
+                            size: wave_size,
                         }),
                     },
                 )
@@ -1591,6 +2136,11 @@ fn run_schedule_parallel(
             active.push(ActiveLaunch {
                 id: launch.id,
                 backend: launch.backend,
+                requested_backend: launch.requested_backend,
+                queue_ms,
+                wave_index,
+                wave_mode: launch.wave_mode,
+                wave_size,
                 join,
             });
         }
@@ -1618,9 +2168,14 @@ fn run_schedule_parallel(
                         summary.add_task_run(TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
+                            requested_backend: done.requested_backend,
                             status: "complete".to_string(),
                             execution_id,
                             failure_class: None,
+                            queue_ms: done.queue_ms,
+                            wave_index: done.wave_index,
+                            wave_mode: done.wave_mode,
+                            wave_size: done.wave_size,
                         });
                     } else {
                         let failure = classify_failure_for_execution(execution_id.as_deref());
@@ -1630,9 +2185,14 @@ fn run_schedule_parallel(
                         summary.add_task_run(TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
+                            requested_backend: done.requested_backend,
                             status: "failed".to_string(),
                             execution_id,
                             failure_class: Some(failure.reason),
+                            queue_ms: done.queue_ms,
+                            wave_index: done.wave_index,
+                            wave_mode: done.wave_mode,
+                            wave_size: done.wave_size,
                         });
                     }
                 }
@@ -1643,9 +2203,14 @@ fn run_schedule_parallel(
                     summary.add_task_run(TaskRunEvent {
                         id: done.id,
                         backend: done.backend,
+                        requested_backend: done.requested_backend,
                         status: "critical_error".to_string(),
                         execution_id: None,
                         failure_class: Some("critical_error".to_string()),
+                        queue_ms: done.queue_ms,
+                        wave_index: done.wave_index,
+                        wave_mode: done.wave_mode,
+                        wave_size: done.wave_size,
                     });
                     if options.halt_on_critical {
                         summary.halted_on_critical = true;
@@ -1759,6 +2324,110 @@ fn rec_mode(
     ("sequential", "sequential_or_small_scope")
 }
 
+fn plan_mode_counts(plan: &crate::tasks_plan::TaskRunPlan) -> (u64, u64, u64) {
+    let sequential_waves = plan.waves.iter().filter(|w| w.mode != "parallel").count() as u64;
+    let parallel_waves = plan.waves.iter().filter(|w| w.mode == "parallel").count() as u64;
+    let largest_parallel_wave = plan
+        .waves
+        .iter()
+        .filter(|w| w.mode == "parallel")
+        .map(|w| w.task_ids.len() as u64)
+        .max()
+        .unwrap_or(0);
+    (sequential_waves, parallel_waves, largest_parallel_wave)
+}
+
+pub(crate) fn task_readiness_value(tasks: &[TaskRecord], status_filter: &str) -> serde_json::Value {
+    let plan = build_task_run_plan(tasks, status_filter);
+    let strict_reason = strict_issue_parallel(&plan);
+    let strict_ok = strict_reason.is_none();
+    let (recommended_mode, recommended_reason) = rec_mode(&plan, strict_ok);
+    let blocked_total = plan.blocked.len();
+    let blocked_deps = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.starts_with("unresolved dependencies"))
+        .count();
+    let blocked_resources = plan
+        .blocked
+        .iter()
+        .filter(|b| b.reason.to_lowercase().contains("resource"))
+        .count();
+    let can_run = blocked_total == 0;
+    let can_run_mixed = can_run;
+    let can_run_parallel = can_run && strict_ok;
+    let (sequential_waves, parallel_waves, largest_parallel_wave) = plan_mode_counts(&plan);
+
+    serde_json::json!({
+        "status_filter": plan.status_filter,
+        "selected": plan.selected,
+        "waves": plan.waves.len(),
+        "blocked_total": blocked_total,
+        "blocked_dependencies": blocked_deps,
+        "blocked_resources": blocked_resources,
+        "can_run": can_run,
+        "can_run_mixed": can_run_mixed,
+        "can_run_parallel": can_run_parallel,
+        "strict_plan_ok": strict_ok,
+        "strict_plan_reason": strict_reason,
+        "sequential_waves": sequential_waves,
+        "parallel_waves": parallel_waves,
+        "largest_parallel_wave": largest_parallel_wave,
+        "recommended_mode": recommended_mode,
+        "recommended_reason": recommended_reason,
+        "blocked": plan.blocked
+    })
+}
+
+fn list_readiness_value(
+    tasks: &[TaskRecord],
+    filtered: &[TaskRecord],
+    status_filter: Option<&str>,
+) -> serde_json::Value {
+    let include_pending_plan = status_filter.is_none() || status_filter == Some("pending");
+    let plan = if include_pending_plan {
+        Some(build_task_run_plan(tasks, "pending"))
+    } else {
+        None
+    };
+    let mut runnable_now = 0usize;
+    let mut blocked_now = 0usize;
+    let mut inspect_only = 0usize;
+
+    for task in filtered {
+        let readiness = match plan.as_ref() {
+            Some(plan) => task_run_view(task, tasks, plan),
+            None => task_run_state(task, tasks),
+        };
+        match readiness.get("runnable_now").and_then(Value::as_bool) {
+            Some(true) => runnable_now += 1,
+            Some(false) if task.status == "pending" => blocked_now += 1,
+            _ => inspect_only += 1,
+        }
+    }
+
+    let next_wave = plan
+        .as_ref()
+        .and_then(|plan| plan.waves.first())
+        .map(|wave| {
+            serde_json::json!({
+                "index": wave.index,
+                "mode": wave.mode,
+                "size": wave.task_ids.len()
+            })
+        });
+
+    serde_json::json!({
+        "selected_count": filtered.len(),
+        "runnable_now_count": runnable_now,
+        "blocked_now_count": blocked_now,
+        "inspect_only_count": inspect_only,
+        "wave_count": plan.as_ref().map(|plan| plan.waves.len()).unwrap_or(0),
+        "blocked_count": plan.as_ref().map(|plan| plan.blocked.len()).unwrap_or(0),
+        "next_wave": next_wave,
+    })
+}
+
 fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let usage = format!(
         "Usage: {app_name} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]"
@@ -1807,40 +2476,38 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
             return 1;
         }
     };
-    let plan = build_task_run_plan(&tasks, &status_filter);
-    let strict_reason = strict_issue_parallel(&plan);
-    let strict_ok = strict_reason.is_none();
-    let (recommended_mode, recommended_reason) = rec_mode(&plan, strict_ok);
-    let blocked_total = plan.blocked.len();
-    let blocked_deps = plan
-        .blocked
-        .iter()
-        .filter(|b| b.reason.starts_with("unresolved dependencies"))
-        .count();
-    let blocked_resources = plan
-        .blocked
-        .iter()
-        .filter(|b| b.reason.to_lowercase().contains("resource"))
-        .count();
-    let can_run = blocked_total == 0;
+    let readiness = task_readiness_value(&tasks, &status_filter);
+    let can_run = readiness
+        .get("can_run")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let strict_ok = readiness
+        .get("strict_plan_ok")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
 
     let out_json = resolve_json_mode(as_json, false);
     if out_json {
         let payload = serde_json::json!({
-            "contract_version": "task-check.v1",
-            "status_filter": plan.status_filter,
-            "selected": plan.selected,
-            "waves": plan.waves.len(),
-            "blocked_total": blocked_total,
-            "blocked_dependencies": blocked_deps,
-            "blocked_resources": blocked_resources,
-            "can_run": can_run,
+        "contract_version": TASK_CHECK_JSON_CONTRACT_VERSION,
             "strict_plan": strict_plan,
-            "strict_plan_ok": strict_ok,
-            "strict_plan_reason": strict_reason,
-            "recommended_mode": recommended_mode,
-            "recommended_reason": recommended_reason,
-            "blocked": plan.blocked
+            "status_filter": readiness.get("status_filter").cloned().unwrap_or(serde_json::Value::String(status_filter.clone())),
+            "selected": readiness.get("selected").cloned().unwrap_or(serde_json::Value::from(0)),
+            "waves": readiness.get("waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_total": readiness.get("blocked_total").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_dependencies": readiness.get("blocked_dependencies").cloned().unwrap_or(serde_json::Value::from(0)),
+            "blocked_resources": readiness.get("blocked_resources").cloned().unwrap_or(serde_json::Value::from(0)),
+            "can_run": readiness.get("can_run").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "can_run_mixed": readiness.get("can_run_mixed").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "can_run_parallel": readiness.get("can_run_parallel").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "strict_plan_ok": readiness.get("strict_plan_ok").cloned().unwrap_or(serde_json::Value::Bool(false)),
+            "strict_plan_reason": readiness.get("strict_plan_reason").cloned().unwrap_or(serde_json::Value::Null),
+            "sequential_waves": readiness.get("sequential_waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "parallel_waves": readiness.get("parallel_waves").cloned().unwrap_or(serde_json::Value::from(0)),
+            "largest_parallel_wave": readiness.get("largest_parallel_wave").cloned().unwrap_or(serde_json::Value::from(0)),
+            "recommended_mode": readiness.get("recommended_mode").cloned().unwrap_or(serde_json::Value::String("sequential".to_string())),
+            "recommended_reason": readiness.get("recommended_reason").cloned().unwrap_or(serde_json::Value::String("unknown".to_string())),
+            "blocked": readiness.get("blocked").cloned().unwrap_or(serde_json::Value::Array(Vec::new()))
         });
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
@@ -1851,20 +2518,106 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
         }
     } else {
         println!("== cx task check ==");
-        println!("status_filter: {}", plan.status_filter);
-        println!("selected: {}", plan.selected);
-        println!("waves: {}", plan.waves.len());
-        println!("blocked_total: {}", blocked_total);
-        println!("blocked_dependencies: {}", blocked_deps);
-        println!("blocked_resources: {}", blocked_resources);
+        println!(
+            "status_filter: {}",
+            readiness
+                .get("status_filter")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or(&status_filter)
+        );
+        println!(
+            "selected: {}",
+            readiness
+                .get("selected")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "waves: {}",
+            readiness
+                .get("waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_total: {}",
+            readiness
+                .get("blocked_total")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_dependencies: {}",
+            readiness
+                .get("blocked_dependencies")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "blocked_resources: {}",
+            readiness
+                .get("blocked_resources")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
         println!("can_run: {can_run}");
+        println!(
+            "can_run_mixed: {}",
+            readiness
+                .get("can_run_mixed")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        );
+        println!(
+            "can_run_parallel: {}",
+            readiness
+                .get("can_run_parallel")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        );
         println!("strict_plan: {strict_plan}");
         println!("strict_plan_ok: {strict_ok}");
-        if let Some(reason) = strict_reason.as_deref() {
+        if let Some(reason) = readiness
+            .get("strict_plan_reason")
+            .and_then(serde_json::Value::as_str)
+        {
             println!("strict_plan_reason: {reason}");
         }
-        println!("recommended_mode: {recommended_mode}");
-        println!("recommended_reason: {recommended_reason}");
+        println!(
+            "sequential_waves: {}",
+            readiness
+                .get("sequential_waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "parallel_waves: {}",
+            readiness
+                .get("parallel_waves")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "largest_parallel_wave: {}",
+            readiness
+                .get("largest_parallel_wave")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0)
+        );
+        println!(
+            "recommended_mode: {}",
+            readiness
+                .get("recommended_mode")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("sequential")
+        );
+        println!(
+            "recommended_reason: {}",
+            readiness
+                .get("recommended_reason")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("unknown")
+        );
     }
 
     if strict_plan {

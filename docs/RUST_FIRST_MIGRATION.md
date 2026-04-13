@@ -16,12 +16,17 @@ Scope: entire `CX` project
 
 - `main`: stable operational branch for incremental Rust-first rollout.
 - `codex/*`: feature branches for scoped migration phases.
-- current phase branch: `codex/orchestration-mode-phase` (switchable sequential/parallel orchestration planning + contracts).
+- use short `codex/*` scope slugs for active work.
 
 Flow:
 1. Branch from `main` into a scoped `codex/*` feature branch.
 2. Promote to `main` only after parity + smoke checks pass.
 3. Keep branch READMEs branch-specific.
+4. Prefer concise names that stay within `3` segments total.
+
+Examples:
+- good: `codex/contract-bundle`, `codex/task-guidance`
+- avoid: `codex/session-token-pairing-integration`
 
 Current branch focus:
 - define and stage Phase III orchestration contracts before enabling concurrency by default
