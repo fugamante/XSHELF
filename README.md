@@ -98,6 +98,10 @@ Repo role boundary:
 - Cross-repo sync plan:
 - `docs/REPO_SYNC_PLAN.md`
 
+Cross-repo contract export:
+- `./bin/cx contracts export --profile eval-lab --json`
+- consumed by `cx-eval-lab` as a vendored contract manifest
+
 ## Design Discipline
 
 CX design/readability standards are enforced through guardrails and local template policy.

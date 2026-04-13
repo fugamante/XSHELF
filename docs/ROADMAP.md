@@ -16,6 +16,7 @@
 - Add run-level concurrency telemetry refinement (`worker_id`, queue/start/finish timestamps, attempt) for SLO reporting.
 - Lock adapter rollout policy and keep HTTP transport opt-in through Phase VI early cycles.
 - Expand provider adapter coverage beyond current HTTP/process parity.
+- Land and maintain the exported contract-bundle path used by `cx-eval-lab`, including bundle ownership and contract drift discipline.
 
 ## Later (2+ months)
 
