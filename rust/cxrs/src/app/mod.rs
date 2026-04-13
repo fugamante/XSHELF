@@ -18,6 +18,7 @@ use crate::config::{
     APP_DESC, APP_NAME, APP_VERSION, DEFAULT_QUARANTINE_LIST, DEFAULT_RUN_WINDOW, app_config,
     init_app_config,
 };
+use crate::contracts_cmd::cmd_contracts;
 use crate::diagnostics::{cmd_diag, cmd_scheduler};
 use crate::doctor;
 use crate::execmeta::utc_now_iso;
@@ -197,8 +198,8 @@ fn cmd_replay(id: &str) -> i32 {
     structured_cmds::cmd_replay(id, crate::execution::run_llm_jsonl)
 }
 
-fn compat_print_version() {
-    introspect_print_version(APP_NAME, APP_VERSION);
+fn compat_print_version(args: &[String]) {
+    introspect_print_version(APP_NAME, APP_VERSION, args);
 }
 
 fn compat_cmd_where(args: &[String]) -> i32 {
@@ -213,12 +214,16 @@ fn compat_cmd_scheduler(args: &[String]) -> i32 {
     cmd_scheduler(args)
 }
 
-fn compat_cmd_core() -> i32 {
-    introspect_cmd_core(APP_VERSION)
+fn compat_cmd_core(args: &[String]) -> i32 {
+    introspect_cmd_core(APP_VERSION, args)
 }
 
 fn compat_cmd_mode(args: &[String]) -> i32 {
     cmd_mode(APP_NAME, args)
+}
+
+fn compat_cmd_contracts(args: &[String]) -> i32 {
+    cmd_contracts(APP_NAME, APP_VERSION, args)
 }
 
 fn compat_cmd_logs(args: &[String]) -> i32 {
@@ -249,8 +254,8 @@ fn cmd_cx_compat(args: &[String]) -> i32 {
     compat_cmd::handler(&cmd_ctx(), args, &deps::compat_deps())
 }
 
-fn native_print_version() {
-    introspect_print_version(APP_NAME, APP_VERSION);
+fn native_print_version(args: &[String]) {
+    introspect_print_version(APP_NAME, APP_VERSION, args);
 }
 
 fn native_cmd_schema(args: &[String]) -> i32 {
@@ -277,12 +282,16 @@ fn native_cmd_scheduler(args: &[String]) -> i32 {
     cmd_scheduler(args)
 }
 
-fn native_cmd_core() -> i32 {
-    introspect_cmd_core(APP_VERSION)
+fn native_cmd_core(args: &[String]) -> i32 {
+    introspect_cmd_core(APP_VERSION, args)
 }
 
 fn native_cmd_mode(args: &[String]) -> i32 {
     cmd_mode(APP_NAME, args)
+}
+
+fn native_cmd_contracts(args: &[String]) -> i32 {
+    cmd_contracts(APP_NAME, APP_VERSION, args)
 }
 
 fn native_cmd_llm(args: &[String]) -> i32 {

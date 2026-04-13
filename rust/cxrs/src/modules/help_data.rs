@@ -3,8 +3,13 @@ use super::CommandHelp;
 pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "version",
-        usage: "version",
+        usage: "version [--json]",
         description: "Print tool version",
+    },
+    CommandHelp {
+        name: "contracts",
+        usage: "contracts export [--profile eval-lab|full] [--json]",
+        description: "Export stable machine-contract bundle metadata",
     },
     CommandHelp {
         name: "where",
@@ -63,7 +68,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "core",
-        usage: "core",
+        usage: "core [--json]",
         description: "Show execution-core pipeline config",
     },
     CommandHelp {
@@ -316,7 +321,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task list",
-        usage: "cx task list [--status pending|in_progress|complete|failed]",
+        usage: "cx task list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "List tasks with optional status filter",
     },
     CommandHelp {
@@ -336,7 +341,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task show",
-        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed]",
+        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "Show one task record or route to list view",
     },
     CommandHelp {
@@ -356,7 +361,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task run",
-        usage: "cx task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama]",
+        usage: "cx task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]",
         description: "Run one task objective",
     },
     CommandHelp {

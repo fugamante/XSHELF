@@ -42,3 +42,19 @@ python3 tools/quality_gate.py --max-raw-eprintln 0
 - Keep commits focused and reviewable.
 - Prefer small mechanical refactors before functional changes.
 - Add migration notes when changing log/schema contracts.
+
+## Branch Naming
+
+- Use `codex/<short-scope>` for local feature branches.
+- Prefer short scope slugs over phase-sentence names.
+- Keep branch names within the same readability rule used elsewhere:
+  - max `3` segments
+  - concise snake_case or kebab-case scope
+- Good:
+  - `codex/session-pairing`
+  - `codex/contract-bundle`
+  - `codex/provider-adapter`
+- Avoid:
+  - `codex/session-token-pairing-integration`
+  - `codex/add-phase-vi-execution-guidance-surface`
+- Do not rename already-published shared `cx/*` branches casually; shorten new work by default.

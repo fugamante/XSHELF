@@ -27,6 +27,8 @@ mod compat_cmd;
 mod config;
 #[path = "modules/contract_versions.rs"]
 mod contract_versions;
+#[path = "modules/contracts_cmd.rs"]
+mod contracts_cmd;
 #[path = "modules/diagnostics.rs"]
 mod diagnostics;
 #[path = "modules/doctor.rs"]

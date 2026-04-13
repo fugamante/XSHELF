@@ -138,16 +138,17 @@ fn dispatch_meta_commands(
             EXIT_OK
         }
         "cxversion" | "version" => {
-            (deps.print_version)();
+            (deps.print_version)(&args[1..]);
             EXIT_OK
         }
+        "cxcontracts" | "contracts" => (deps.cmd_contracts)(&args[1..]),
         "cxdoctor" | "doctor" => (deps.cmd_doctor)(),
         "cxwhere" | "where" => (deps.cmd_where)(&args[1..]),
         "cxroutes" | "routes" => (deps.cmd_routes)(&args[1..]),
         "cxdiag" | "diag" => (deps.cmd_diag)(&args[1..]),
         "cxscheduler" | "scheduler" => (deps.cmd_scheduler)(&args[1..]),
         "cxparity" | "parity" => (deps.cmd_parity)(),
-        "cxcore" | "core" => (deps.cmd_core)(),
+        "cxcore" | "core" => (deps.cmd_core)(&args[1..]),
         "cxmode" | "mode" => (deps.cmd_mode)(&args[1..]),
         "cxlogs" | "logs" => (deps.cmd_logs)(&args[1..]),
         "cxtelemetry" | "telemetry" => handle_telemetry(args, deps),

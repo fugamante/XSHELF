@@ -137,6 +137,47 @@ fn telemetry_json_matches_contract_fixture() {
 
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "telemetry");
+    let backend_caps_keys = fixture_keys(&fixture, "backend_capabilities_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .expect("backend_capabilities"),
+        &backend_caps_keys,
+        "telemetry.backend_capabilities",
+    );
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .expect("backend_capabilities.turboquant"),
+        &turboquant_keys,
+        "telemetry.backend_capabilities.turboquant",
+    );
+    let task_execution_keys = fixture_keys(&fixture, "task_execution_keys");
+    assert_has_keys(
+        payload.get("task_execution").expect("task_execution"),
+        &task_execution_keys,
+        "telemetry.task_execution",
+    );
+    let next_action_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("next_action"))
+            .expect("task_execution.next_action"),
+        &next_action_keys,
+        "telemetry.task_execution.next_action",
+    );
+    let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("wave_pressure"))
+            .expect("task_execution.wave_pressure"),
+        &wave_pressure_keys,
+        "telemetry.task_execution.wave_pressure",
+    );
     let drift_keys = fixture_keys(&fixture, "contract_drift_keys");
     assert_has_keys(
         payload.get("contract_drift").expect("contract_drift"),
@@ -171,6 +212,14 @@ fn telemetry_json_matches_contract_fixture() {
     for item in modes {
         assert_has_keys(item, &item_keys, "telemetry.http_mode_stats[*]");
     }
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
 }
 
 #[test]
@@ -373,8 +422,23 @@ fn diag_json_matches_contract_fixture() {
         &fixture,
         "top_level_keys",
         &[
+            (
+                "backend_capabilities",
+                "backend_capabilities_keys",
+                "diag.backend_capabilities",
+            ),
             ("routing_trace", "routing_trace_keys", "diag.routing_trace"),
             ("scheduler", "scheduler_keys", "diag.scheduler"),
+            (
+                "task_readiness",
+                "task_readiness_keys",
+                "diag.task_readiness",
+            ),
+            (
+                "task_execution",
+                "task_execution_keys",
+                "diag.task_execution",
+            ),
             ("retry", "retry_keys", "diag.retry"),
             ("critical", "critical_keys", "diag.critical"),
             ("concurrency", "concurrency_keys", "diag.concurrency"),
@@ -382,6 +446,7 @@ fn diag_json_matches_contract_fixture() {
     );
 
     let concurrency = payload.get("concurrency").expect("diag.concurrency");
+    let task_execution = payload.get("task_execution").expect("diag.task_execution");
     let defaults = concurrency
         .get("defaults")
         .expect("diag.concurrency.defaults");
@@ -407,12 +472,72 @@ fn diag_json_matches_contract_fixture() {
         "latest_run_all_mode",
         "run_all_mode_counts",
         "halt_on_critical_rows",
+        "halted_remaining_total",
+        "latest_halted_remaining",
+        "backend_fallback_rows",
+        "latest_backend_fallbacks",
+        "wave_task_rows",
+        "latest_wave_index",
+        "latest_wave_mode",
+        "latest_wave_size",
+        "largest_wave_index",
+        "largest_wave_size",
+        "max_queue_wave_index",
+        "max_queue_wave_ms",
     ] {
         assert!(
             observed.get(key).is_some(),
             "diag.concurrency.observed missing key '{key}' in {observed}"
         );
     }
+    assert!(
+        task_execution
+            .get("recommendations")
+            .and_then(Value::as_array)
+            .is_some(),
+        "diag.task_execution.recommendations missing in {task_execution}"
+    );
+    assert!(
+        task_execution
+            .get("next_action")
+            .and_then(Value::as_object)
+            .is_some(),
+        "diag.task_execution.next_action missing in {task_execution}"
+    );
+    let next_action_keys = fixture_keys(&fixture, "task_execution_next_action_keys");
+    assert_has_keys(
+        task_execution
+            .get("next_action")
+            .expect("diag.task_execution.next_action"),
+        &next_action_keys,
+        "diag.task_execution.next_action",
+    );
+    let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
+    assert_has_keys(
+        task_execution
+            .get("wave_pressure")
+            .expect("diag.task_execution.wave_pressure"),
+        &wave_pressure_keys,
+        "diag.task_execution.wave_pressure",
+    );
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("turboquant"))
+            .and_then(|v| v.get("cx_runtime_support"))
+            .and_then(Value::as_str),
+        Some("none")
+    );
+    let turboquant = payload
+        .get("backend_capabilities")
+        .and_then(|v| v.get("turboquant"))
+        .expect("diag.backend_capabilities.turboquant");
+    let turboquant_keys = fixture_keys(&fixture, "backend_capabilities_turboquant_keys");
+    assert_has_keys(
+        turboquant,
+        &turboquant_keys,
+        "diag.backend_capabilities.turboquant",
+    );
 }
 
 #[test]
@@ -512,5 +637,92 @@ fn scheduler_json_actions_match_contract_fixture() {
         &["scheduler", "--json", "--actions", "--window", "4"],
         &rows,
         "scheduler actions",
+    );
+}
+
+#[test]
+fn diag_actions_next() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"dexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":120,"schema_enforced":false,"schema_valid":true,
+            "run_all_mode":"mixed","halt_on_critical":true,
+            "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
+            "run_all_halted_remaining":1,
+            "run_all_backend_fallback_rows":0,
+            "run_all_wave_pressure_kind":"none",
+            "run_all_latest_wave_index":2,
+            "run_all_max_queue_wave_index":2,
+            "run_all_max_queue_wave_ms":1000
+        }),
+        serde_json::json!({
+            "execution_id":"dexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":20,"schema_enforced":false,"schema_valid":true,"queue_ms":2500,"worker_id":"w1"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["diag", "--json", "--actions", "--window", "4"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions array");
+    let first = actions.first().expect("first action");
+    assert_eq!(
+        first.get("command").and_then(Value::as_str),
+        Some("cx scheduler --json --window 20")
+    );
+    assert_eq!(
+        first.get("id").and_then(Value::as_str),
+        Some("task_execution_inspect_scheduler")
+    );
+}
+
+#[test]
+fn scheduler_actions_next() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"sexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":100,"schema_enforced":false,"schema_valid":true,
+            "run_all_mode":"parallel","halt_on_critical":false,
+            "run_all_scheduled":4,"run_all_complete":4,"run_all_failed":0,"run_all_critical_errors":0,
+            "run_all_halted_remaining":0,
+            "run_all_backend_fallback_rows":0,
+            "run_all_wave_pressure_kind":"later_wave_queue",
+            "run_all_wave_pressure_suggested_mode":"mixed",
+            "run_all_latest_wave_index":4,
+            "run_all_max_queue_wave_index":4,
+            "run_all_max_queue_wave_ms":4500
+        }),
+        serde_json::json!({
+            "execution_id":"sexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":24,"schema_enforced":false,"schema_valid":true,"queue_ms":2600,"worker_id":"w1"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["scheduler", "--json", "--actions", "--window", "4"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("scheduler json");
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions array");
+    let first = actions.first().expect("first action");
+    assert_eq!(
+        first.get("command").and_then(Value::as_str),
+        Some("cx task run-all --mode mixed --status pending")
+    );
+    assert_eq!(
+        first.get("id").and_then(Value::as_str),
+        Some("task_execution_rerun")
     );
 }

@@ -160,6 +160,40 @@ Adapter interface (conceptual):
 - `token_usage` (nullable)
 - `raw_status` (nullable)
 
+## Backend Capability Boundary
+
+Provider adapters and backend capabilities are related, but they are not the same thing.
+
+Adapter layer:
+
+- chooses transport/execution surface
+- normalizes provider behavior into a stable CX contract
+- preserves schema/policy/logging guarantees
+
+Backend capability layer:
+
+- describes what a selected backend can truthfully claim beyond transport
+- must remain explicit and typed
+- must not smuggle experimental inference claims into default runtime behavior
+
+Current TurboQuant rule:
+
+- `llama.cpp` may be discussed as the current codec-bearing reference backend in experiment docs
+- `MLX` may be discussed as a comparative backend
+- `MLX` must not yet be described as a `kv_cache_codec_backend`
+
+Metric rule:
+
+- CX may compare correctness and runtime directly across backends
+- CX must label memory metric kind explicitly when backends expose different memory signals
+- current normalized memory references are documented in:
+  - `docs/TURBOQUANT_METRIC.md`
+- current typed runtime surfaces carrying backend capability metadata are:
+  - `cx core --json`
+  - `cx version --json`
+  - `cx diag --json`
+  - `cx telemetry N --json`
+
 ## Risk Register
 
 1. Behavior drift in schema commands.

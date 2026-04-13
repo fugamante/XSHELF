@@ -98,6 +98,10 @@ Repo role boundary:
 - Cross-repo sync plan:
 - `docs/REPO_SYNC_PLAN.md`
 
+Cross-repo contract export:
+- `./bin/cx contracts export --profile eval-lab --json`
+- consumed by `cx-eval-lab` as a vendored contract manifest
+
 ## Design Discipline
 
 CX design/readability standards are enforced through guardrails and local template policy.
@@ -192,7 +196,22 @@ Quick runtime verification:
 ```bash
 ./bin/cx doctor
 ./bin/cx health
+./bin/cx core --json
+./bin/cx version --json
+./bin/cx diag --json --window 50
 ```
+
+Backend capability note:
+- runtime JSON surfaces now report typed backend experiment metadata
+- current typed surfaces:
+  - `core --json`
+  - `version --json`
+  - `diag --json`
+  - `telemetry N --json`
+- TurboQuant capability fields remain explicit:
+  - `cx_runtime_support`
+  - `selected_backend_role`
+  - `memory_metric_kind`
 
 ## Lean Daily Session
 
@@ -212,6 +231,18 @@ cd <repo-root>
 
 Note:
 - `cx-lean-session` does not change broker policy implicitly.
+- gate summaries now include compact `task_readiness` data from `diag` / `scheduler`:
+  - recommended mode
+  - mixed-ready vs parallel-ready
+  - wave counts and largest parallel wave
+- gate summaries now include compact `task_execution` data when available:
+  - latest run mode
+  - halted remaining work
+  - backend fallback row count
+  - wave-pressure kind, suggested mode, and max queue ms
+  - advice
+  - typed next-action kind
+  - primary next command
 - Set broker policy explicitly when needed:
 ```bash
 ./bin/cx broker set --policy quota_saver
@@ -257,6 +288,31 @@ Examples:
 ./bin/cx llm use ollama llama3.1
 ./bin/cx llm unset model
 ```
+
+## Backend Capability Notes
+
+CX keeps backend experiments behind explicit capability language.
+
+Current rule:
+
+- provider adapters are the runtime abstraction
+- backend-specific inference experiments do not become core CX behavior until they prove value and preserve adapter boundaries
+
+Current TurboQuant reading:
+
+- `llama.cpp` is the current codec-bearing reference backend
+- `MLX` is currently documented as a comparative backend, not a codec-bearing backend
+- `MLX` memory reporting should be read as:
+  - `cache_nbytes`
+  - `peak_memory_gb`
+- `MLX` memory reporting must not be described as a direct `raw_ratio` equivalent
+
+Reference docs:
+
+- `docs/TURBOQUANT_SPIKE.md`
+- `docs/TURBOQUANT_METRIC.md`
+- `docs/TURBOQUANT_CAP_MLX.md`
+- `docs/PROVIDER_ADAPTER_PLAN.md`
 
 `llm use`/`llm set-*` now triggers an automatic quota probe notice to stderr.
 For local providers (`ollama`), CX reports a local-unmetered fallback notice when provider quota cannot be resolved.
@@ -421,10 +477,12 @@ Stage II runtime commands:
 ```bash
 ./bin/cx task add "Implement parser hardening" --role implementer
 ./bin/cx task list --status pending
+./bin/cx task list --json | jq .
 ./bin/cx task fanout "Ship release notes improvements" --from staged-diff
 ./bin/cx task check --json | jq .
 ./bin/cx task check --strict-plan --json | jq .
 ./bin/cx task run-plan --status pending
+./bin/cx task show <task_id> | jq .
 ./bin/cx task run <task_id> --mode deterministic --backend codex
 ./bin/cx task run-all --status pending
 ./bin/cx task run-all --status pending --mode mixed
@@ -475,14 +533,19 @@ Planned next migration focus:
 Design and schedule:
 - `docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md`
 
-## Phase VI Kickoff
+## Phase VI Execution Guidance
 
-Initial Phase VI scope is active with explicit controls only (no default behavior switch).
+Phase VI execution guidance is now a stabilized substrate with explicit controls only. No default execution behavior switch has been introduced.
 
 Spec:
-- `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
+- `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
+- `docs/PHASE_VI_PARALLEL_SUBSTRATE.md` (historical design context)
 - `--strict-plan` can be used with `--mode parallel` to fail fast when dependencies/resource locks would force serialized execution.
   - note: parallel tasks default to a conservative `repo:write` lock unless you set explicit resource keys.
+
+Completed cross-phase follow-up:
+
+- `docs/POST_PHASE_VI_OVERVIEW.md`
 
 ## Validation
 
@@ -505,7 +568,7 @@ Schema failures are quarantined under `.codex/quarantine/`, and invalid structur
 
 ## Maintainer Validation
 
-`cxrs-compat` workflow is manual-only (`workflow_dispatch`) while CI billing is constrained. Use this local gate before push:
+`cxrs-compat` remains a manual maintainer workflow. Use this local gate before push:
 
 ```bash
 ./scripts/compat_local.sh --quick

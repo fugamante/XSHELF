@@ -3,6 +3,7 @@
     "contract_version",
     "window",
     "runs",
+    "backend_capabilities",
     "scoreboard",
     "anomalies",
     "recommendations",
@@ -22,6 +23,14 @@
     "timing_attribution_coverage",
     "capture_provider_compression",
     "budget_clipping_frequency"
+  ],
+  "backend_capabilities_keys": [
+    "turboquant"
+  ],
+  "backend_capabilities_turboquant_keys": [
+    "cx_runtime_support",
+    "selected_backend_role",
+    "memory_metric_kind"
   ],
   "retry_health_keys": [
     "rows_after_retry",

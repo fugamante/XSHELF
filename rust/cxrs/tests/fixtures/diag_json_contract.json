@@ -6,6 +6,7 @@
     "mode",
     "backend",
     "active_model",
+    "backend_capabilities",
     "capture_provider_config",
     "capture_provider_resolved",
     "capture_external_dependencies",
@@ -18,6 +19,8 @@
     "schema_registry_dir",
     "schema_registry_files",
     "scheduler",
+    "task_readiness",
+    "task_execution",
     "retry",
     "critical",
     "concurrency",
@@ -31,6 +34,14 @@
     "route",
     "reason"
   ],
+  "backend_capabilities_keys": [
+    "turboquant"
+  ],
+  "backend_capabilities_turboquant_keys": [
+    "cx_runtime_support",
+    "selected_backend_role",
+    "memory_metric_kind"
+  ],
   "scheduler_keys": [
     "window_runs",
     "queue_rows",
@@ -43,6 +54,49 @@
     "workers_seen",
     "worker_distribution",
     "backend_distribution"
+  ],
+  "task_readiness_keys": [
+    "status_filter",
+    "selected",
+    "waves",
+    "blocked_total",
+    "blocked_dependencies",
+    "blocked_resources",
+    "can_run",
+    "can_run_mixed",
+    "can_run_parallel",
+    "strict_plan_ok",
+    "strict_plan_reason",
+    "sequential_waves",
+    "parallel_waves",
+    "largest_parallel_wave",
+    "recommended_mode",
+    "recommended_reason",
+    "blocked"
+  ],
+  "task_execution_keys": [
+    "last_mode",
+    "halted_remaining",
+    "backend_fallback_rows",
+    "latest_wave_index",
+    "max_queue_wave_index",
+    "max_queue_wave_ms",
+    "wave_pressure",
+    "advice",
+    "recommendations",
+    "next_action"
+  ],
+  "task_execution_wave_pressure_keys": [
+    "kind",
+    "suggested_mode",
+    "latest_wave_index",
+    "max_queue_wave_index",
+    "max_queue_wave_ms"
+  ],
+  "task_execution_next_action_keys": [
+    "kind",
+    "command",
+    "reason"
   ],
   "retry_keys": [
     "window_runs",
