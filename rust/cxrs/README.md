@@ -172,7 +172,7 @@ Current compat coverage:
 
 GitHub Actions:
 - Workflow: `cxrs-compat` (`.github/workflows/cxrs-compat.yml`)
-- Manual-only (`workflow_dispatch`) while billing is constrained.
+- Maintainer-invoked workflow used alongside local compat gates.
 
 Capture provider:
 - Native internal capture/reduction path only.
