@@ -35,19 +35,34 @@
   - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
-## Phase VI (active substrate)
+## Phase VI (stabilized substrate)
 
 - Kickoff spec: `docs/PHASE_VI_PARALLEL_SUBSTRATE.md`
 - Execution-guidance contract: `docs/PHASE_VI_EXECUTION_GUIDANCE.md`
 - Keep single-worker execution as default; introduce explicit parallel plans only via task orchestration controls.
 - Preserve deterministic schema behavior under mixed/parallel scheduling paths.
 - Expand run-level telemetry quality checks for queue/start/finish attribution and worker-level observability.
-- Require parity + reliability suites green before each Phase VI increment merges.
 - Current substrate coverage includes:
   - stable `task_readiness`, `task_execution`, `run_readiness`, and `list_readiness` contracts
   - operator guidance surfaced across `task`, `doctor`, diagnostics, telemetry, optimize, and lean-session surfaces
-- After Phase VI stabilizes, run the explicit cross-phase review:
+- Cross-phase review completed:
   - `docs/POST_PHASE_VI_OVERVIEW.md`
+
+## Phase VII (active planning)
+
+- Planning spec: `docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md`
+- Work queue: `docs/PHASE_VII_WORK.json`
+- Goal: make CX choose the cheapest sufficient path without allowing quality drift.
+- First contract focus:
+  - `next_action.cost_class`
+  - `next_action.reasoning_required`
+  - `next_action.quality_risk`
+  - `next_action.escalates_if`
+- Capability lanes locked for Phase VII:
+  - reasoning gate
+  - cheap structured action router
+  - low-cost defaults
+  - context carry-forward
 
 ## Guardrails
 
