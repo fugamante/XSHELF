@@ -1,0 +1,45 @@
+{
+  "phase": "phase7",
+  "status": "active",
+  "title": "budget_aware_orchestration",
+  "goal": "optimize action selection and reasoning cost inside CX without allowing quality drift",
+  "constraints": [
+    "preserve schema determinism",
+    "preserve policy gates and quarantine behavior",
+    "prefer cheapest sufficient path, not cheapest path",
+    "keep escalation logic explicit and typed"
+  ],
+  "slices": [
+    {
+      "id": "p7_contract",
+      "status": "pending",
+      "goal": "add typed cost and quality metadata to next-action and action surfaces"
+    },
+    {
+      "id": "p7_gate",
+      "status": "pending",
+      "goal": "introduce explicit reasoning-gate policy that chooses between structured action, cheap diagnosis, and deep reasoning"
+    },
+    {
+      "id": "p7_context",
+      "status": "pending",
+      "goal": "persist and surface compact recent execution context so unchanged state does not trigger re-derivation"
+    },
+    {
+      "id": "p7_metrics",
+      "status": "pending",
+      "goal": "add measurable efficiency and reuse metrics for budget-aware orchestration"
+    }
+  ],
+  "initial_contract_fields": [
+    "next_action.cost_class",
+    "next_action.reasoning_required",
+    "next_action.quality_risk",
+    "next_action.escalates_if"
+  ],
+  "references": [
+    "docs/PHASE_VI_EXECUTION_GUIDANCE.md",
+    "docs/ROADMAP.md",
+    "docs/TURBOQUANT_SPIKE.md"
+  ]
+}

@@ -547,6 +547,20 @@ Completed cross-phase follow-up:
 
 - `docs/POST_PHASE_VI_OVERVIEW.md`
 
+## Phase VII Budget-Aware Orchestration
+
+Phase VII planning is now open. Its goal is to make CX choose the cheapest sufficient path without allowing quality drift.
+
+Planning spec:
+- `docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md`
+- `docs/PHASE_VII_WORK.json`
+
+First contract focus:
+- `next_action.cost_class`
+- `next_action.reasoning_required`
+- `next_action.quality_risk`
+- `next_action.escalates_if`
+
 ## Validation
 
 Validation in `CX` means checking that structured outputs, logs, and runtime contracts remain consistent and machine-readable.
