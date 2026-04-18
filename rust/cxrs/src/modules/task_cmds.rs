@@ -12,7 +12,10 @@ use crate::contract_versions::{
     TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
     TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
 };
-use crate::doctor::latest_wave_sum;
+use crate::doctor::{
+    latest_wave_sum, next_cost_class, next_quality_risk, next_reasoning_required,
+    reasoning_gate_value,
+};
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
 use crate::paths::resolve_log_file;
@@ -1513,8 +1516,10 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         .unwrap_or(0);
     let advice;
     let recommendations: Vec<String>;
+    let mut blockers: Vec<String> = Vec::new();
     if options.strict_plan && options.run_mode == "parallel" && !strict_ok {
         advice = "parallel strict-plan is not executable; switch to the recommended mode or inspect the plan json";
+        blockers.push("strict_plan_blocked".to_string());
         recommendations = vec![
             format!(
                 "cx task run-all --status {} --mode {}",
@@ -1527,6 +1532,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         ];
     } else if options.run_mode != recommended_mode {
         advice = "requested mode differs from the recommended mode; review the recommendation before widening concurrency";
+        blockers.push("mode_mismatch".to_string());
         recommendations = vec![
             format!(
                 "cx task run-all --status {} --mode {}",
@@ -1536,6 +1542,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         ];
     } else if blocked_total > 0 {
         advice = "blocked tasks remain in the selected set; inspect dependency and resource blockers before expecting a full schedule";
+        blockers.push("blocked_tasks".to_string());
         recommendations = vec![
             "cx task check --json".to_string(),
             format!(
@@ -1545,6 +1552,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         ];
     } else if max_queue_wave_index.as_u64().unwrap_or(0) > 1 && max_queue_wave_ms >= 2000 {
         advice = "recent runs show queue pressure in later waves; prefer a narrower mode before widening concurrency again";
+        blockers.push("later_wave_queue".to_string());
         let narrower = match options.run_mode.as_str() {
             "parallel" => "mixed",
             "mixed" => "sequential",
@@ -1564,6 +1572,15 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
             format!("cx task run-all --status {}", options.status_filter),
         ];
     }
+    let primary = recommendations.first().map(String::as_str);
+    let reasoning_gate = reasoning_gate_value(
+        primary,
+        primary.map(next_cost_class),
+        primary.map(next_reasoning_required),
+        primary.map(next_quality_risk),
+        &blockers,
+        advice == "preflight is operationally clean",
+    );
     serde_json::json!({
         "requested_mode": options.run_mode,
         "recommended_mode": recommended_mode,
@@ -1574,7 +1591,8 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         "strict_plan_reason": strict_reason,
         "latest_wave_index": latest_wave_index,
         "max_queue_wave_index": max_queue_wave_index,
-        "max_queue_wave_ms": max_queue_wave_ms
+        "max_queue_wave_ms": max_queue_wave_ms,
+        "reasoning_gate": reasoning_gate
     })
 }
 
@@ -1592,6 +1610,22 @@ fn print_preflight_text(preflight: &Value) {
         .filter(|v| !v.is_empty())
     {
         println!("run-all preflight_reason: {reason}");
+    }
+    if let Some(gate) = preflight.get("reasoning_gate") {
+        if let Some(mode) = gate.get("mode").and_then(Value::as_str) {
+            println!("run-all preflight_reasoning_gate_mode: {mode}");
+        }
+        if let Some(why) = gate.get("why").and_then(Value::as_str) {
+            println!("run-all preflight_reasoning_gate_why: {why}");
+        }
+        if let Some(blockers) = gate.get("blockers").and_then(Value::as_array) {
+            for (idx, blocker) in blockers.iter().filter_map(Value::as_str).enumerate() {
+                println!(
+                    "run-all preflight_reasoning_gate_blocker_{}: {blocker}",
+                    idx + 1
+                );
+            }
+        }
     }
     if let Some(recs) = preflight.get("recommendations").and_then(Value::as_array) {
         for (idx, rec) in recs.iter().filter_map(Value::as_str).enumerate() {

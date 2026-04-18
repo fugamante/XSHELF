@@ -169,6 +169,15 @@ fn telemetry_json_matches_contract_fixture() {
         &next_action_keys,
         "telemetry.task_execution.next_action",
     );
+    let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("reasoning_gate"))
+            .expect("task_execution.reasoning_gate"),
+        &reasoning_gate_keys,
+        "telemetry.task_execution.reasoning_gate",
+    );
     let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
     assert_has_keys(
         payload
@@ -511,6 +520,14 @@ fn diag_json_matches_contract_fixture() {
             .expect("diag.task_execution.next_action"),
         &next_action_keys,
         "diag.task_execution.next_action",
+    );
+    let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
+    assert_has_keys(
+        task_execution
+            .get("reasoning_gate")
+            .expect("diag.task_execution.reasoning_gate"),
+        &reasoning_gate_keys,
+        "diag.task_execution.reasoning_gate",
     );
     let wave_pressure_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
     assert_has_keys(

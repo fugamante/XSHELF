@@ -840,6 +840,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             .and_then(Value::as_str),
         Some("preflight is operationally clean")
     );
+    assert_eq!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("reasoning_gate"))
+            .and_then(|v| v.get("mode"))
+            .and_then(Value::as_str),
+        Some("no_reasoning_needed")
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -1007,6 +1015,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         &preflight_keys,
         "task_run_all.preflight",
     );
+    let preflight_gate_keys = fixture_keys(&fixture, "preflight_reasoning_gate_keys");
+    assert_has_keys(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("reasoning_gate"))
+            .expect("preflight.reasoning_gate"),
+        &preflight_gate_keys,
+        "task_run_all.preflight.reasoning_gate",
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
@@ -1090,6 +1107,13 @@ fn run_wave_preflight() {
     assert_eq!(
         preflight.get("max_queue_wave_ms").and_then(Value::as_u64),
         Some(2400)
+    );
+    assert_eq!(
+        preflight
+            .get("reasoning_gate")
+            .and_then(|v| v.get("mode"))
+            .and_then(Value::as_str),
+        Some("cheap_structured_action")
     );
     let recs = preflight
         .get("recommendations")
