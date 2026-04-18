@@ -84,7 +84,13 @@
     "wave_pressure",
     "advice",
     "recommendations",
-    "next_action"
+    "next_action",
+    "reasoning_gate"
+  ],
+  "task_execution_reasoning_gate_keys": [
+    "mode",
+    "why",
+    "blockers"
   ],
   "task_execution_wave_pressure_keys": [
     "kind",

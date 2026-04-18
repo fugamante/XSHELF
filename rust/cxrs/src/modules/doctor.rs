@@ -291,7 +291,7 @@ fn next_action_kind(command: &str) -> &'static str {
     }
 }
 
-fn next_cost_class(command: &str) -> &'static str {
+pub(crate) fn next_cost_class(command: &str) -> &'static str {
     if command.starts_with("cx task run-all")
         || command.starts_with("cx task check")
         || command.starts_with("cx scheduler")
@@ -302,18 +302,20 @@ fn next_cost_class(command: &str) -> &'static str {
     }
 }
 
-fn next_reasoning_required(command: &str) -> &'static str {
+pub(crate) fn next_reasoning_required(command: &str) -> &'static str {
     if command.starts_with("cx task run-all")
         || command.starts_with("cx task check")
         || command.starts_with("cx scheduler")
     {
         "none"
+    } else if command.starts_with("cx doctor") {
+        "deep"
     } else {
         "light"
     }
 }
 
-fn next_quality_risk(command: &str) -> &'static str {
+pub(crate) fn next_quality_risk(command: &str) -> &'static str {
     if command.starts_with("cx task run-all")
         || command.starts_with("cx task check")
         || command.starts_with("cx scheduler")
@@ -338,6 +340,47 @@ fn next_escalates_if(command: &str) -> &'static str {
     } else {
         "current structured path does not resolve the issue"
     }
+}
+
+pub(crate) fn reasoning_gate_value(
+    command: Option<&str>,
+    cost_class: Option<&str>,
+    reasoning_required: Option<&str>,
+    quality_risk: Option<&str>,
+    blockers: &[String],
+    allow_no_reasoning: bool,
+) -> Value {
+    let mode = if allow_no_reasoning {
+        "no_reasoning_needed"
+    } else if command.is_some_and(|cmd| cmd.starts_with("cx task run-all"))
+        && cost_class == Some("cheap")
+        && reasoning_required == Some("none")
+        && quality_risk == Some("low")
+    {
+        "cheap_structured_action"
+    } else if reasoning_required == Some("deep") || quality_risk == Some("high") {
+        "expensive_reasoning_required"
+    } else {
+        "cheap_diagnosis"
+    };
+    let why = match mode {
+        "no_reasoning_needed" => {
+            "current state is executable without additional reasoning".to_string()
+        }
+        "cheap_structured_action" => {
+            "a typed structured action is sufficient on current evidence".to_string()
+        }
+        "cheap_diagnosis" => {
+            "a low-cost diagnostic surface should run before deeper reasoning".to_string()
+        }
+        _ => "state remains ambiguous or quality-sensitive; escalate reasoning explicitly"
+            .to_string(),
+    };
+    serde_json::json!({
+        "mode": mode,
+        "why": why,
+        "blockers": blockers
+    })
 }
 
 fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
@@ -413,6 +456,35 @@ fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
         format!("task_execution_next_action_kind: {kind}"),
         format!("task_execution_next_action_command: {command}"),
     ]
+}
+
+fn exec_gate_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
+    let value = exec_diag_value(latest_summary, wave_summary);
+    let gate = value
+        .get("reasoning_gate")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let mode = gate
+        .get("mode")
+        .and_then(Value::as_str)
+        .unwrap_or("cheap_diagnosis");
+    let why = gate
+        .get("why")
+        .and_then(Value::as_str)
+        .unwrap_or("reasoning gate unavailable");
+    let mut lines = vec![
+        format!("task_execution_reasoning_gate_mode: {mode}"),
+        format!("task_execution_reasoning_gate_why: {why}"),
+    ];
+    if let Some(blockers) = gate.get("blockers").and_then(Value::as_array) {
+        for (idx, blocker) in blockers.iter().filter_map(Value::as_str).enumerate() {
+            lines.push(format!(
+                "task_execution_reasoning_gate_blocker_{}: {blocker}",
+                idx + 1
+            ));
+        }
+    }
+    lines
 }
 
 fn exec_wave_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
@@ -739,6 +811,34 @@ pub(crate) fn exec_diag_value(
         .and_then(|summary| summary.get("run_all_backend_fallback_rows"))
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let next_action = next_action_value(&advice, &recommendations);
+    let mut blockers = Vec::new();
+    if latest_summary.is_none() {
+        blockers.push("missing_run_summary".to_string());
+    }
+    if halted_remaining > 0 {
+        blockers.push("halted_remaining".to_string());
+    }
+    if fallback_rows > 0 {
+        blockers.push("backend_fallback".to_string());
+    }
+    if wave_pressure
+        .get("kind")
+        .and_then(Value::as_str)
+        .is_some_and(|v| v != "none")
+    {
+        blockers.push("later_wave_queue".to_string());
+    }
+    let reasoning_gate = reasoning_gate_value(
+        next_action.get("command").and_then(Value::as_str),
+        next_action.get("cost_class").and_then(Value::as_str),
+        next_action
+            .get("reasoning_required")
+            .and_then(Value::as_str),
+        next_action.get("quality_risk").and_then(Value::as_str),
+        &blockers,
+        false,
+    );
     serde_json::json!({
         "last_mode": mode,
         "halted_remaining": halted_remaining,
@@ -749,7 +849,8 @@ pub(crate) fn exec_diag_value(
         "wave_pressure": wave_pressure,
         "advice": advice,
         "recommendations": recommendations,
-        "next_action": next_action_value(&advice, &recommendations)
+        "next_action": next_action,
+        "reasoning_gate": reasoning_gate
     })
 }
 
@@ -765,6 +866,9 @@ fn print_exec_advice() {
         println!("{line}");
     }
     for line in exec_next_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
+        println!("{line}");
+    }
+    for line in exec_gate_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
     for line in exec_reco_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
@@ -841,8 +945,8 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        exec_advice_lines, exec_diag_value, exec_next_lines, exec_reco_lines, exec_wave_lines,
-        readiness_summary_lines,
+        exec_advice_lines, exec_diag_value, exec_gate_lines, exec_next_lines, exec_reco_lines,
+        exec_wave_lines, readiness_summary_lines,
     };
     use serde_json::Value;
 
@@ -1032,6 +1136,26 @@ mod tests {
             next_lines.contains("task_execution_next_action_kind: inspect_scheduler"),
             "{next_lines}"
         );
+        let gate_lines = exec_gate_lines(
+            Some(&serde_json::json!({
+                "run_all_mode": "mixed",
+                "run_all_halted_remaining": 2,
+                "run_all_backend_fallback_rows": 1,
+                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_failed": 1,
+                "run_all_critical_errors": 1
+            })),
+            None,
+        )
+        .join("\n");
+        assert!(
+            gate_lines.contains("task_execution_reasoning_gate_mode: cheap_diagnosis"),
+            "{gate_lines}"
+        );
+        assert!(
+            gate_lines.contains("task_execution_reasoning_gate_blocker_1: halted_remaining"),
+            "{gate_lines}"
+        );
         let wave_lines = exec_wave_lines(
             Some(&serde_json::json!({
                 "run_all_wave_pressure_kind": "later_wave_queue",
@@ -1134,6 +1258,11 @@ mod tests {
             next_lines
                 .contains("task_execution_next_action_command: cx task run-all --dry-run --json"),
             "{next_lines}"
+        );
+        let gate_lines = exec_gate_lines(None, Some(&wave)).join("\n");
+        assert!(
+            gate_lines.contains("task_execution_reasoning_gate_mode: cheap_structured_action"),
+            "{gate_lines}"
         );
         let wave_lines = exec_wave_lines(None, Some(&wave)).join("\n");
         assert!(
