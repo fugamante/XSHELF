@@ -485,6 +485,14 @@ fn scheduler_json_matches_contract_fixture() {
         &task_execution_context_keys,
         "scheduler.task_execution.recent_context",
     );
+    let task_execution_bias_keys = fixture_keys(&fixture, "task_execution_phase7_bias_keys");
+    assert_has_keys(
+        task_execution
+            .get("phase7_bias")
+            .expect("task_execution.phase7_bias"),
+        &task_execution_bias_keys,
+        "scheduler.task_execution.phase7_bias",
+    );
     let task_execution_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         task_execution
