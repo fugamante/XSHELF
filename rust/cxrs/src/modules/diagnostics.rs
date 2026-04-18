@@ -10,7 +10,8 @@ use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
 use crate::doctor::{
-    exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum, phase7_metrics_value,
+    exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum, phase7_metric_lines,
+    phase7_metrics_value,
 };
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
 use crate::json_mode::resolve_json_mode;
@@ -1343,6 +1344,9 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             .and_then(Value::as_u64)
             .unwrap_or(0)
     );
+    for line in phase7_metric_lines(20) {
+        println!("{line}");
+    }
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
@@ -1591,6 +1595,9 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .and_then(Value::as_u64)
             .unwrap_or(0)
     );
+    for line in phase7_metric_lines(20) {
+        println!("{line}");
+    }
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {

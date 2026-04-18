@@ -67,6 +67,57 @@ fn diag_reports_scheduler_distribution_fields() {
 }
 
 #[test]
+fn diag_p7_metrics() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"pm1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":120,
+            "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":0,
+            "run_all_failure_pattern":"clean",
+            "run_all_recommended_resume_point":"cx task run-all --status pending"
+        }),
+        serde_json::json!({
+            "execution_id":"pm2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":140,
+            "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task check --json"
+        }),
+        serde_json::json!({
+            "execution_id":"pm3","timestamp":"2026-01-01T00:00:02Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":150,
+            "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task check --json"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["diag"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let stdout = stdout_str(&out);
+    assert!(stdout.contains("phase7_window_runs: 3"), "{stdout}");
+    assert!(
+        stdout.contains("phase7_actions_until_resolution: 2"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("phase7_repeat_diagnosis_rate: 0.500"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("phase7_resume_reuse_rate: 0.500"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn diag_json_reports_scheduler_object() {
     let repo = TempRepo::new("cxrs-it");
     let row = serde_json::json!({
