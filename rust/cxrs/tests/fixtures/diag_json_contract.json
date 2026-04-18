@@ -95,7 +95,15 @@
     "recommendations",
     "next_action",
     "recent_context",
+    "phase7_bias",
     "reasoning_gate"
+  ],
+  "task_execution_phase7_bias_keys": [
+    "applied",
+    "reason",
+    "repeat_diagnosis_rate",
+    "resume_reuse_rate",
+    "resume_point"
   ],
   "task_execution_recent_context_keys": [
     "last_successful_action",
