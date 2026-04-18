@@ -421,6 +421,14 @@ fn scheduler_json_matches_contract_fixture() {
         &task_execution_next_keys,
         "scheduler.task_execution.next_action",
     );
+    let task_execution_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
+    assert_has_keys(
+        task_execution
+            .get("reasoning_gate")
+            .expect("task_execution.reasoning_gate"),
+        &task_execution_gate_keys,
+        "scheduler.task_execution.reasoning_gate",
+    );
 
     let concurrency = payload.get("concurrency").expect("scheduler.concurrency");
     let defaults = concurrency
