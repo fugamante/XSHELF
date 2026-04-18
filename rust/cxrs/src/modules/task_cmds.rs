@@ -13,8 +13,8 @@ use crate::contract_versions::{
     TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
 };
 use crate::doctor::{
-    latest_wave_sum, next_cost_class, next_quality_risk, next_reasoning_required,
-    reasoning_gate_value,
+    exec_context_value, exec_recommendations_value, latest_wave_sum, next_cost_class,
+    next_quality_risk, next_reasoning_required, reasoning_gate_value,
 };
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
@@ -553,6 +553,44 @@ fn runall_failed_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
         })
         .take(limit)
         .collect()
+}
+
+fn runall_invocation_command(options: &RunAllOptions) -> String {
+    let mut parts = vec![
+        "cx task run-all".to_string(),
+        format!("--status {}", options.status_filter),
+        format!("--mode {}", options.run_mode),
+    ];
+    if options.strict_plan {
+        parts.push("--strict-plan".to_string());
+    }
+    parts.join(" ")
+}
+
+fn runall_failure_pattern(
+    summary: &RunAllSummary,
+    halted_remaining: usize,
+    backend_fallback_rows: u64,
+    wave_pressure: &RunAllWavePressure,
+    reason_counts: &HashMap<String, usize>,
+) -> &'static str {
+    if halted_remaining > 0 || summary.critical_errors > 0 {
+        "critical_halt"
+    } else if summary.blocked > 0 {
+        "blocked_tasks"
+    } else if reason_counts.contains_key("non_retryable_failure")
+        || summary.non_retryable_failed > 0
+    {
+        "non_retryable_failure"
+    } else if reason_counts.contains_key("retryable_failure") || summary.retryable_failed > 0 {
+        "retryable_failure"
+    } else if backend_fallback_rows > 0 {
+        "backend_fallback"
+    } else if wave_pressure.kind != "none" {
+        wave_pressure.kind
+    } else {
+        "clean"
+    }
 }
 
 fn runall_backend_fallbacks(summary: &RunAllSummary) -> HashMap<String, usize> {
@@ -1273,6 +1311,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         summary
     };
     let backend_fallbacks = runall_backend_fallbacks(&summary);
+    let reason_counts = runall_reason_counts(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
     let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
@@ -1306,7 +1345,6 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
         }
     } else {
-        let reason_counts = runall_reason_counts(&summary);
         if options.summary_format == "json" {
             let payload = serde_json::json!({
                 "contract_version": "task-run-all-summary.v1",
@@ -1375,6 +1413,34 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
     }
     let wave_pressure = runall_wave_pressure(&summary, &options.run_mode);
+    let backend_fallback_rows = backend_fallbacks.values().copied().sum::<usize>() as u64;
+    let invocation_command = runall_invocation_command(&options);
+    let current_summary = serde_json::json!({
+        "run_all_mode": options.run_mode,
+        "run_all_halted_remaining": halted_remaining as u64,
+        "run_all_backend_fallback_rows": backend_fallback_rows,
+        "run_all_failed": summary.failed as u64,
+        "run_all_critical_errors": summary.critical_errors as u64,
+        "run_all_blocked": summary.blocked as u64
+    });
+    let current_wave = serde_json::json!({
+        "latest_wave_index": wave_pressure.latest_wave_index,
+        "max_queue_wave_index": wave_pressure.max_queue_wave_index,
+        "max_queue_wave_ms": wave_pressure.max_queue_wave_ms
+    });
+    let resume_recommendations =
+        exec_recommendations_value(Some(&current_summary), Some(&current_wave));
+    let recommended_resume_point = resume_recommendations
+        .first()
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let failure_pattern = runall_failure_pattern(
+        &summary,
+        halted_remaining,
+        backend_fallback_rows,
+        &wave_pressure,
+        &reason_counts,
+    );
     let _ = crate::runlog::log_task_run_all_summary(crate::runlog::TaskRunAllSummaryLogInput {
         mode: &options.run_mode,
         halt_on_critical: options.halt_on_critical,
@@ -1386,7 +1452,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         non_retryable_failures: summary.non_retryable_failed as u64,
         critical_errors: summary.critical_errors as u64,
         halted_remaining: halted_remaining as u64,
-        backend_fallback_rows: backend_fallbacks.values().copied().sum::<usize>() as u64,
+        backend_fallback_rows,
         backend_fallbacks: if backend_fallbacks.is_empty() {
             None
         } else {
@@ -1397,6 +1463,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         latest_wave_index: wave_pressure.latest_wave_index,
         max_queue_wave_index: wave_pressure.max_queue_wave_index,
         max_queue_wave_ms: Some(wave_pressure.max_queue_wave_ms),
+        invocation_command: Some(&invocation_command),
+        failure_pattern: Some(failure_pattern),
+        recommended_resume_point: recommended_resume_point.as_deref(),
         duration_ms: started.elapsed().as_millis() as u64,
     });
     if summary.failed > 0 { 1 } else { 0 }
@@ -1499,6 +1568,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         .and_then(Value::as_u64)
         .unwrap_or(0);
     let latest_wave = latest_wave_sum();
+    let latest_summary = crate::doctor::latest_run_all_sum();
     let latest_wave_index = latest_wave
         .as_ref()
         .and_then(|w| w.get("latest_wave_index"))
@@ -1573,6 +1643,14 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         ];
     }
     let primary = recommendations.first().map(String::as_str);
+    let recent_context = exec_context_value(latest_summary.as_ref(), primary);
+    if recent_context
+        .get("repeated_failure_pattern")
+        .and_then(Value::as_str)
+        .is_some()
+    {
+        blockers.push("repeated_failure_pattern".to_string());
+    }
     let reasoning_gate = reasoning_gate_value(
         primary,
         primary.map(next_cost_class),
@@ -1592,6 +1670,7 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         "latest_wave_index": latest_wave_index,
         "max_queue_wave_index": max_queue_wave_index,
         "max_queue_wave_ms": max_queue_wave_ms,
+        "recent_context": recent_context,
         "reasoning_gate": reasoning_gate
     })
 }
@@ -1626,6 +1705,39 @@ fn print_preflight_text(preflight: &Value) {
                 );
             }
         }
+    }
+    if let Some(context) = preflight.get("recent_context") {
+        if let Some(value) = context
+            .get("last_successful_action")
+            .and_then(Value::as_str)
+        {
+            println!("run-all preflight_context_last_successful_action: {value}");
+        }
+        if let Some(value) = context.get("last_failed_action").and_then(Value::as_str) {
+            println!("run-all preflight_context_last_failed_action: {value}");
+        }
+        if let Some(value) = context.get("last_mode_used").and_then(Value::as_str) {
+            println!("run-all preflight_context_last_mode_used: {value}");
+        }
+        if let Some(value) = context
+            .get("repeated_failure_pattern")
+            .and_then(Value::as_str)
+        {
+            println!("run-all preflight_context_repeated_failure_pattern: {value}");
+        }
+        if let Some(value) = context
+            .get("recommended_resume_point")
+            .and_then(Value::as_str)
+        {
+            println!("run-all preflight_context_recommended_resume_point: {value}");
+        }
+        println!(
+            "run-all preflight_context_resume_reuses_prior_action: {}",
+            context
+                .get("resume_reuses_prior_action")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        );
     }
     if let Some(recs) = preflight.get("recommendations").and_then(Value::as_array) {
         for (idx, rec) in recs.iter().filter_map(Value::as_str).enumerate() {
