@@ -38,7 +38,16 @@
     "advice",
     "recommendations",
     "next_action",
+    "recent_context",
     "reasoning_gate"
+  ],
+  "task_execution_recent_context_keys": [
+    "last_successful_action",
+    "last_failed_action",
+    "last_mode_used",
+    "repeated_failure_pattern",
+    "recommended_resume_point",
+    "resume_reuses_prior_action"
   ],
   "task_execution_reasoning_gate_keys": [
     "mode",

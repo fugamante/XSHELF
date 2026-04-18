@@ -848,6 +848,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             .and_then(Value::as_str),
         Some("no_reasoning_needed")
     );
+    assert_eq!(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("recent_context"))
+            .and_then(|v| v.get("resume_reuses_prior_action"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
     let tasks = payload
         .get("tasks")
         .and_then(Value::as_array)
@@ -1024,6 +1032,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         &preflight_gate_keys,
         "task_run_all.preflight.reasoning_gate",
     );
+    let preflight_context_keys = fixture_keys(&fixture, "preflight_recent_context_keys");
+    assert_has_keys(
+        payload
+            .get("preflight")
+            .and_then(|v| v.get("recent_context"))
+            .expect("preflight.recent_context"),
+        &preflight_context_keys,
+        "task_run_all.preflight.recent_context",
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
@@ -1033,6 +1050,34 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     {
         assert_has_keys(task, &task_keys, "task_run_all.tasks.item");
     }
+
+    let runs = common::parse_jsonl(&repo.runs_log());
+    let summary_row = runs
+        .iter()
+        .rev()
+        .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
+        .expect("cxtask_runall summary row");
+    assert!(
+        summary_row
+            .get("run_all_invocation_command")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{summary_row}"
+    );
+    assert!(
+        summary_row
+            .get("run_all_failure_pattern")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{summary_row}"
+    );
+    assert!(
+        summary_row
+            .get("run_all_recommended_resume_point")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{summary_row}"
+    );
 }
 
 #[test]
@@ -1114,6 +1159,13 @@ fn run_wave_preflight() {
             .and_then(|v| v.get("mode"))
             .and_then(Value::as_str),
         Some("cheap_structured_action")
+    );
+    assert_eq!(
+        preflight
+            .get("recent_context")
+            .and_then(|v| v.get("resume_reuses_prior_action"))
+            .and_then(Value::as_bool),
+        Some(false)
     );
     let recs = preflight
         .get("recommendations")

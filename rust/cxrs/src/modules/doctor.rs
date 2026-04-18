@@ -213,6 +213,19 @@ pub(crate) fn latest_run_all_sum() -> Option<Value> {
         })
 }
 
+pub(crate) fn recent_run_all_sums(limit: usize) -> Vec<Value> {
+    resolve_log_file()
+        .and_then(|p| load_values(&p, 400).ok())
+        .map(|rows| {
+            rows.into_iter()
+                .rev()
+                .filter(|v| v.get("tool").and_then(Value::as_str) == Some("cxtask_runall"))
+                .take(limit)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 pub(crate) fn latest_wave_sum() -> Option<Value> {
     let rows = resolve_log_file().and_then(|p| load_values(&p, 200).ok())?;
     let mut latest_wave_index: Option<u64> = None;
@@ -342,6 +355,83 @@ fn next_escalates_if(command: &str) -> &'static str {
     }
 }
 
+fn summary_failed(summary: &Value) -> bool {
+    summary
+        .get("run_all_halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        > 0
+        || summary
+            .get("run_all_critical_errors")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+        || summary
+            .get("run_all_failed")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+        || summary
+            .get("run_all_blocked")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0
+}
+
+pub(crate) fn exec_context_value(
+    latest_summary: Option<&Value>,
+    current_resume: Option<&str>,
+) -> Value {
+    let recent = recent_run_all_sums(8);
+    let last_successful_action = recent
+        .iter()
+        .find(|summary| !summary_failed(summary))
+        .and_then(|summary| summary.get("run_all_invocation_command"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let last_failed_action = recent
+        .iter()
+        .find(|summary| summary_failed(summary))
+        .and_then(|summary| summary.get("run_all_invocation_command"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let last_mode_used = latest_summary
+        .and_then(|summary| summary.get("run_all_mode"))
+        .and_then(Value::as_str)
+        .map(ToString::to_string);
+    let repeated_failure_pattern = latest_summary
+        .filter(|summary| summary_failed(summary))
+        .and_then(|summary| {
+            let current = summary
+                .get("run_all_failure_pattern")
+                .and_then(Value::as_str)
+                .filter(|pattern| !pattern.is_empty() && *pattern != "clean")?;
+            if recent.iter().skip(1).any(|prior| {
+                summary_failed(prior)
+                    && prior.get("run_all_failure_pattern").and_then(Value::as_str) == Some(current)
+            }) {
+                Some(current.to_string())
+            } else {
+                None
+            }
+        });
+    let prior_resume = latest_summary
+        .and_then(|summary| summary.get("run_all_recommended_resume_point"))
+        .and_then(Value::as_str);
+    let recommended_resume_point = current_resume.or(prior_resume).map(ToString::to_string);
+    let resume_reuses_prior_action = current_resume.is_some()
+        && current_resume == prior_resume
+        && repeated_failure_pattern.is_none();
+    serde_json::json!({
+        "last_successful_action": last_successful_action,
+        "last_failed_action": last_failed_action,
+        "last_mode_used": last_mode_used,
+        "repeated_failure_pattern": repeated_failure_pattern,
+        "recommended_resume_point": recommended_resume_point,
+        "resume_reuses_prior_action": resume_reuses_prior_action
+    })
+}
+
 pub(crate) fn reasoning_gate_value(
     command: Option<&str>,
     cost_class: Option<&str>,
@@ -358,7 +448,12 @@ pub(crate) fn reasoning_gate_value(
         && quality_risk == Some("low")
     {
         "cheap_structured_action"
-    } else if reasoning_required == Some("deep") || quality_risk == Some("high") {
+    } else if blockers
+        .iter()
+        .any(|blocker| blocker == "repeated_failure_pattern")
+        || reasoning_required == Some("deep")
+        || quality_risk == Some("high")
+    {
         "expensive_reasoning_required"
     } else {
         "cheap_diagnosis"
@@ -487,6 +582,53 @@ fn exec_gate_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
     lines
 }
 
+fn exec_context_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
+    let value = exec_diag_value(latest_summary, wave_summary);
+    let context = value
+        .get("recent_context")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let mut lines = Vec::new();
+    if let Some(v) = context
+        .get("last_successful_action")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!(
+            "task_execution_context_last_successful_action: {v}"
+        ));
+    }
+    if let Some(v) = context.get("last_failed_action").and_then(Value::as_str) {
+        lines.push(format!("task_execution_context_last_failed_action: {v}"));
+    }
+    if let Some(v) = context.get("last_mode_used").and_then(Value::as_str) {
+        lines.push(format!("task_execution_context_last_mode_used: {v}"));
+    }
+    if let Some(v) = context
+        .get("repeated_failure_pattern")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!(
+            "task_execution_context_repeated_failure_pattern: {v}"
+        ));
+    }
+    if let Some(v) = context
+        .get("recommended_resume_point")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!(
+            "task_execution_context_recommended_resume_point: {v}"
+        ));
+    }
+    lines.push(format!(
+        "task_execution_context_resume_reuses_prior_action: {}",
+        context
+            .get("resume_reuses_prior_action")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    ));
+    lines
+}
+
 fn exec_wave_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
     let value = wave_pressure_value(latest_summary, wave_summary);
     let kind = value.get("kind").and_then(Value::as_str).unwrap_or("none");
@@ -554,7 +696,7 @@ fn wave_pressure_value(latest_summary: Option<&Value>, wave_summary: Option<&Val
     })
 }
 
-fn exec_recommendations_value(
+pub(crate) fn exec_recommendations_value(
     latest_summary: Option<&Value>,
     wave_summary: Option<&Value>,
 ) -> Vec<Value> {
@@ -829,6 +971,17 @@ pub(crate) fn exec_diag_value(
     {
         blockers.push("later_wave_queue".to_string());
     }
+    let recent_context = exec_context_value(
+        latest_summary,
+        next_action.get("command").and_then(Value::as_str),
+    );
+    if recent_context
+        .get("repeated_failure_pattern")
+        .and_then(Value::as_str)
+        .is_some()
+    {
+        blockers.push("repeated_failure_pattern".to_string());
+    }
     let reasoning_gate = reasoning_gate_value(
         next_action.get("command").and_then(Value::as_str),
         next_action.get("cost_class").and_then(Value::as_str),
@@ -850,6 +1003,7 @@ pub(crate) fn exec_diag_value(
         "advice": advice,
         "recommendations": recommendations,
         "next_action": next_action,
+        "recent_context": recent_context,
         "reasoning_gate": reasoning_gate
     })
 }
@@ -866,6 +1020,9 @@ fn print_exec_advice() {
         println!("{line}");
     }
     for line in exec_next_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
+        println!("{line}");
+    }
+    for line in exec_context_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
     for line in exec_gate_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
@@ -945,8 +1102,9 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{
-        exec_advice_lines, exec_diag_value, exec_gate_lines, exec_next_lines, exec_reco_lines,
-        exec_wave_lines, readiness_summary_lines,
+        exec_advice_lines, exec_context_lines, exec_context_value, exec_diag_value,
+        exec_gate_lines, exec_next_lines, exec_reco_lines, exec_wave_lines,
+        readiness_summary_lines,
     };
     use serde_json::Value;
 
@@ -1115,6 +1273,20 @@ mod tests {
         );
         assert_eq!(
             value
+                .get("recent_context")
+                .and_then(|v| v.get("last_mode_used"))
+                .and_then(Value::as_str),
+            Some("mixed")
+        );
+        assert_eq!(
+            value
+                .get("recent_context")
+                .and_then(|v| v.get("recommended_resume_point"))
+                .and_then(Value::as_str),
+            Some("cx scheduler --json --window 20")
+        );
+        assert_eq!(
+            value
                 .get("wave_pressure")
                 .and_then(|v| v.get("kind"))
                 .and_then(Value::as_str),
@@ -1155,6 +1327,28 @@ mod tests {
         assert!(
             gate_lines.contains("task_execution_reasoning_gate_blocker_1: halted_remaining"),
             "{gate_lines}"
+        );
+        let context_lines = exec_context_lines(
+            Some(&serde_json::json!({
+                "run_all_mode": "mixed",
+                "run_all_halted_remaining": 2,
+                "run_all_backend_fallback_rows": 1,
+                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_failed": 1,
+                "run_all_critical_errors": 1
+            })),
+            None,
+        )
+        .join("\n");
+        assert!(
+            context_lines.contains("task_execution_context_last_mode_used: mixed"),
+            "{context_lines}"
+        );
+        assert!(
+            context_lines.contains(
+                "task_execution_context_recommended_resume_point: cx scheduler --json --window 20"
+            ),
+            "{context_lines}"
         );
         let wave_lines = exec_wave_lines(
             Some(&serde_json::json!({
@@ -1211,6 +1405,13 @@ mod tests {
                 .and_then(Value::as_str),
             Some("cx task run-all --mode sequential --status pending")
         );
+        assert_eq!(
+            value
+                .get("recent_context")
+                .and_then(|v| v.get("recommended_resume_point"))
+                .and_then(Value::as_str),
+            Some("cx task run-all --mode sequential --status pending")
+        );
     }
 
     #[test]
@@ -1264,10 +1465,45 @@ mod tests {
             gate_lines.contains("task_execution_reasoning_gate_mode: cheap_structured_action"),
             "{gate_lines}"
         );
+        let context_lines = exec_context_lines(None, Some(&wave)).join("\n");
+        assert!(
+            context_lines.contains(
+                "task_execution_context_recommended_resume_point: cx task run-all --dry-run --json"
+            ),
+            "{context_lines}"
+        );
         let wave_lines = exec_wave_lines(None, Some(&wave)).join("\n");
         assert!(
             wave_lines.contains("task_execution_wave_pressure: later_wave_queue"),
             "{wave_lines}"
+        );
+    }
+
+    #[test]
+    fn exec_context_cov() {
+        let value = exec_context_value(
+            Some(&serde_json::json!({
+                "run_all_mode": "parallel",
+                "run_all_recommended_resume_point": "cx scheduler --json --window 20",
+                "run_all_failed": 1
+            })),
+            Some("cx scheduler --json --window 20"),
+        );
+        assert_eq!(
+            value.get("last_mode_used").and_then(Value::as_str),
+            Some("parallel")
+        );
+        assert_eq!(
+            value
+                .get("recommended_resume_point")
+                .and_then(Value::as_str),
+            Some("cx scheduler --json --window 20")
+        );
+        assert_eq!(
+            value
+                .get("resume_reuses_prior_action")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }
 }

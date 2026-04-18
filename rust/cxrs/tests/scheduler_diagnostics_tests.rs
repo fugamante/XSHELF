@@ -421,6 +421,14 @@ fn scheduler_json_matches_contract_fixture() {
         &task_execution_next_keys,
         "scheduler.task_execution.next_action",
     );
+    let task_execution_context_keys = fixture_keys(&fixture, "task_execution_recent_context_keys");
+    assert_has_keys(
+        task_execution
+            .get("recent_context")
+            .expect("task_execution.recent_context"),
+        &task_execution_context_keys,
+        "scheduler.task_execution.recent_context",
+    );
     let task_execution_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         task_execution
