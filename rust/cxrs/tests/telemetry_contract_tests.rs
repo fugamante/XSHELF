@@ -184,6 +184,15 @@ fn telemetry_json_matches_contract_fixture() {
         &recent_context_keys,
         "telemetry.task_execution.recent_context",
     );
+    let phase7_bias_keys = fixture_keys(&fixture, "task_execution_phase7_bias_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("phase7_bias"))
+            .expect("task_execution.phase7_bias"),
+        &phase7_bias_keys,
+        "telemetry.task_execution.phase7_bias",
+    );
     let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         payload
@@ -548,6 +557,14 @@ fn diag_json_matches_contract_fixture() {
             .expect("diag.task_execution.recent_context"),
         &recent_context_keys,
         "diag.task_execution.recent_context",
+    );
+    let phase7_bias_keys = fixture_keys(&fixture, "task_execution_phase7_bias_keys");
+    assert_has_keys(
+        task_execution
+            .get("phase7_bias")
+            .expect("diag.task_execution.phase7_bias"),
+        &phase7_bias_keys,
+        "diag.task_execution.phase7_bias",
     );
     let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(

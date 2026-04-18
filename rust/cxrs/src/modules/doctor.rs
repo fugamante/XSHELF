@@ -579,6 +579,37 @@ pub(crate) fn phase7_metric_lines(limit: usize) -> Vec<String> {
     ]
 }
 
+fn phase7_bias_value(latest_summary: Option<&Value>) -> Value {
+    let metrics = phase7_metrics_value(20);
+    let repeat_diagnosis_rate = metrics
+        .get("repeat_diagnosis_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let resume_reuse_rate = metrics
+        .get("resume_reuse_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let resume_point = latest_summary
+        .and_then(|summary| summary.get("run_all_recommended_resume_point"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string);
+    let applied =
+        repeat_diagnosis_rate >= 0.5 && resume_reuse_rate >= 0.5 && resume_point.is_some();
+    let reason = if applied {
+        "repeated diagnosis and repeated resume reuse indicate the known resume point should lead"
+    } else {
+        "no phase7 ranking bias applied"
+    };
+    serde_json::json!({
+        "applied": applied,
+        "reason": reason,
+        "repeat_diagnosis_rate": repeat_diagnosis_rate,
+        "resume_reuse_rate": resume_reuse_rate,
+        "resume_point": resume_point
+    })
+}
+
 pub(crate) fn reasoning_gate_value(
     command: Option<&str>,
     cost_class: Option<&str>,
@@ -776,6 +807,44 @@ fn exec_context_lines(latest_summary: Option<&Value>, wave_summary: Option<&Valu
     lines
 }
 
+fn exec_bias_lines(latest_summary: Option<&Value>) -> Vec<String> {
+    let value = phase7_bias_value(latest_summary);
+    let applied = value
+        .get("applied")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let reason = value
+        .get("reason")
+        .and_then(Value::as_str)
+        .unwrap_or("no phase7 ranking bias applied");
+    let repeat_diagnosis_rate = value
+        .get("repeat_diagnosis_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let resume_reuse_rate = value
+        .get("resume_reuse_rate")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let mut lines = vec![
+        format!("task_execution_phase7_bias_applied: {applied}"),
+        format!("task_execution_phase7_bias_reason: {reason}"),
+        format!(
+            "task_execution_phase7_bias_repeat_diagnosis_rate: {:.3}",
+            repeat_diagnosis_rate
+        ),
+        format!(
+            "task_execution_phase7_bias_resume_reuse_rate: {:.3}",
+            resume_reuse_rate
+        ),
+    ];
+    if let Some(resume_point) = value.get("resume_point").and_then(Value::as_str) {
+        lines.push(format!(
+            "task_execution_phase7_bias_resume_point: {resume_point}"
+        ));
+    }
+    lines
+}
+
 fn exec_wave_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
     let value = wave_pressure_value(latest_summary, wave_summary);
     let kind = value.get("kind").and_then(Value::as_str).unwrap_or("none");
@@ -920,7 +989,19 @@ pub(crate) fn exec_recommendations_value(
             "cx scheduler --json".to_string(),
         ]
     };
-    commands.into_iter().map(Value::String).collect()
+    let bias = phase7_bias_value(latest_summary);
+    let mut commands: Vec<Value> = commands.into_iter().map(Value::String).collect();
+    if bias.get("applied").and_then(Value::as_bool) == Some(true)
+        && let Some(resume_point) = bias.get("resume_point").and_then(Value::as_str)
+        && let Some(idx) = commands
+            .iter()
+            .position(|value| value.as_str() == Some(resume_point))
+        && idx > 0
+    {
+        let prioritized = commands.remove(idx);
+        commands.insert(0, prioritized);
+    }
+    commands
 }
 
 fn exec_advice_value(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Value {
@@ -1122,6 +1203,7 @@ pub(crate) fn exec_diag_value(
         latest_summary,
         next_action.get("command").and_then(Value::as_str),
     );
+    let phase7_bias = phase7_bias_value(latest_summary);
     if recent_context
         .get("repeated_failure_pattern")
         .and_then(Value::as_str)
@@ -1151,6 +1233,7 @@ pub(crate) fn exec_diag_value(
         "recommendations": recommendations,
         "next_action": next_action,
         "recent_context": recent_context,
+        "phase7_bias": phase7_bias,
         "reasoning_gate": reasoning_gate
     })
 }
@@ -1170,6 +1253,9 @@ fn print_exec_advice() {
         println!("{line}");
     }
     for line in exec_context_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
+        println!("{line}");
+    }
+    for line in exec_bias_lines(latest_summary.as_ref()) {
         println!("{line}");
     }
     for line in exec_gate_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
