@@ -291,6 +291,55 @@ fn next_action_kind(command: &str) -> &'static str {
     }
 }
 
+fn next_cost_class(command: &str) -> &'static str {
+    if command.starts_with("cx task run-all")
+        || command.starts_with("cx task check")
+        || command.starts_with("cx scheduler")
+    {
+        "cheap"
+    } else {
+        "moderate"
+    }
+}
+
+fn next_reasoning_required(command: &str) -> &'static str {
+    if command.starts_with("cx task run-all")
+        || command.starts_with("cx task check")
+        || command.starts_with("cx scheduler")
+    {
+        "none"
+    } else {
+        "light"
+    }
+}
+
+fn next_quality_risk(command: &str) -> &'static str {
+    if command.starts_with("cx task run-all")
+        || command.starts_with("cx task check")
+        || command.starts_with("cx scheduler")
+    {
+        "low"
+    } else {
+        "medium"
+    }
+}
+
+fn next_escalates_if(command: &str) -> &'static str {
+    if command.starts_with("cx task run-all") {
+        "rerun still fails, leaves work unscheduled, or state changes"
+    } else if command.starts_with("cx task check") {
+        "plan remains blocked or recommendation conflicts with latest scheduler state"
+    } else if command.starts_with("cx scheduler") {
+        "scheduler inspection does not explain the latest halt, fallback, or queue pressure"
+    } else if command.starts_with("cx diag") {
+        "diagnostic summary remains ambiguous or quality risk rises"
+    } else if command.starts_with("cx doctor") {
+        "doctor guidance conflicts with current task or scheduler evidence"
+    } else {
+        "current structured path does not resolve the issue"
+    }
+}
+
 fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
     let primary = recommendations
         .first()
@@ -299,7 +348,11 @@ fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
     serde_json::json!({
         "kind": next_action_kind(primary),
         "command": primary,
-        "reason": advice
+        "reason": advice,
+        "cost_class": next_cost_class(primary),
+        "reasoning_required": next_reasoning_required(primary),
+        "quality_risk": next_quality_risk(primary),
+        "escalates_if": next_escalates_if(primary)
     })
 }
 
@@ -926,6 +979,35 @@ mod tests {
                 .and_then(|v| v.get("kind"))
                 .and_then(Value::as_str),
             Some("inspect_scheduler")
+        );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("cost_class"))
+                .and_then(Value::as_str),
+            Some("cheap")
+        );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("reasoning_required"))
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("quality_risk"))
+                .and_then(Value::as_str),
+            Some("low")
+        );
+        assert!(
+            value
+                .get("next_action")
+                .and_then(|v| v.get("escalates_if"))
+                .and_then(Value::as_str)
+                .is_some_and(|v| v.contains("scheduler inspection")),
+            "{value}"
         );
         assert_eq!(
             value

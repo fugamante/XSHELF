@@ -49,7 +49,11 @@
   "task_execution_next_action_keys": [
     "kind",
     "command",
-    "reason"
+    "reason",
+    "cost_class",
+    "reasoning_required",
+    "quality_risk",
+    "escalates_if"
   ],
   "retry_keys": [
     "rows_with_retry_metadata",
