@@ -63,8 +63,10 @@
     - cost/quality metadata on `next_action`
   - Slice 2 merged:
     - explicit `reasoning_gate`
-  - Slice 3 active:
+  - Slice 3 merged:
     - compact recent-context carry-forward on execution and preflight surfaces
+  - Slice 4 active:
+    - measurable Phase VII efficiency and reuse metrics on telemetry/diagnostic surfaces
 - Capability lanes locked for Phase VII:
   - reasoning gate
   - cheap structured action router

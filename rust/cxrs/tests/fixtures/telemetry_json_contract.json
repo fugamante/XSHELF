@@ -6,6 +6,7 @@
     "required_fields",
     "severity",
     "strict_violations",
+    "phase7_metrics",
     "backend_capabilities",
     "task_execution",
     "fields",
@@ -26,6 +27,14 @@
     "cx_runtime_support",
     "selected_backend_role",
     "memory_metric_kind"
+  ],
+  "phase7_metrics_keys": [
+    "window_runs",
+    "actions_until_resolution",
+    "expensive_action_rate",
+    "repeat_diagnosis_rate",
+    "resume_reuse_rate",
+    "structured_action_success_rate"
   ],
   "task_execution_keys": [
     "last_mode",
