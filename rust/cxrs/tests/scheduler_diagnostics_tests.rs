@@ -373,6 +373,11 @@ fn scheduler_json_matches_contract_fixture() {
         &[
             ("scheduler", "scheduler_keys", "scheduler.scheduler"),
             (
+                "phase7_metrics",
+                "phase7_metrics_keys",
+                "scheduler.phase7_metrics",
+            ),
+            (
                 "task_readiness",
                 "task_readiness_keys",
                 "scheduler.task_readiness",

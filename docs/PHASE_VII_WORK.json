@@ -22,12 +22,12 @@
     },
     {
       "id": "p7_context",
-      "status": "active",
+      "status": "done",
       "goal": "persist and surface compact recent execution context so unchanged state does not trigger re-derivation"
     },
     {
       "id": "p7_metrics",
-      "status": "pending",
+      "status": "active",
       "goal": "add measurable efficiency and reuse metrics for budget-aware orchestration"
     }
   ],

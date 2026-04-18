@@ -21,6 +21,7 @@
     "scheduler",
     "task_readiness",
     "task_execution",
+    "phase7_metrics",
     "retry",
     "critical",
     "concurrency",
@@ -54,6 +55,14 @@
     "workers_seen",
     "worker_distribution",
     "backend_distribution"
+  ],
+  "phase7_metrics_keys": [
+    "window_runs",
+    "actions_until_resolution",
+    "expensive_action_rate",
+    "repeat_diagnosis_rate",
+    "resume_reuse_rate",
+    "structured_action_success_rate"
   ],
   "task_readiness_keys": [
     "status_filter",
