@@ -48,7 +48,7 @@
 - Cross-phase review completed:
   - `docs/POST_PHASE_VI_OVERVIEW.md`
 
-## Phase VII (active planning)
+## Phase VII (active implementation)
 
 - Planning spec: `docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md`
 - Work queue: `docs/PHASE_VII_WORK.json`
@@ -58,6 +58,13 @@
   - `next_action.reasoning_required`
   - `next_action.quality_risk`
   - `next_action.escalates_if`
+- Current implementation state:
+  - Slice 1 merged:
+    - cost/quality metadata on `next_action`
+  - Slice 2 merged:
+    - explicit `reasoning_gate`
+  - Slice 3 active:
+    - compact recent-context carry-forward on execution and preflight surfaces
 - Capability lanes locked for Phase VII:
   - reasoning gate
   - cheap structured action router

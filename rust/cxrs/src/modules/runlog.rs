@@ -57,6 +57,9 @@ pub struct TaskRunAllSummaryLogInput<'a> {
     pub latest_wave_index: Option<u64>,
     pub max_queue_wave_index: Option<u64>,
     pub max_queue_wave_ms: Option<u64>,
+    pub invocation_command: Option<&'a str>,
+    pub failure_pattern: Option<&'a str>,
+    pub recommended_resume_point: Option<&'a str>,
     pub duration_ms: u64,
 }
 
@@ -323,6 +326,9 @@ pub fn log_task_run_all_summary(input: TaskRunAllSummaryLogInput<'_>) -> Result<
     row.run_all_latest_wave_index = input.latest_wave_index;
     row.run_all_max_queue_wave_index = input.max_queue_wave_index;
     row.run_all_max_queue_wave_ms = input.max_queue_wave_ms;
+    row.run_all_invocation_command = input.invocation_command.map(|s| s.to_string());
+    row.run_all_failure_pattern = input.failure_pattern.map(|s| s.to_string());
+    row.run_all_recommended_resume_point = input.recommended_resume_point.map(|s| s.to_string());
     finalize_and_append_run(&run_log, row)
 }
 

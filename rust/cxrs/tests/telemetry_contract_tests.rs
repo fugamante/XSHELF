@@ -169,6 +169,15 @@ fn telemetry_json_matches_contract_fixture() {
         &next_action_keys,
         "telemetry.task_execution.next_action",
     );
+    let recent_context_keys = fixture_keys(&fixture, "task_execution_recent_context_keys");
+    assert_has_keys(
+        payload
+            .get("task_execution")
+            .and_then(|v| v.get("recent_context"))
+            .expect("task_execution.recent_context"),
+        &recent_context_keys,
+        "telemetry.task_execution.recent_context",
+    );
     let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         payload
@@ -520,6 +529,14 @@ fn diag_json_matches_contract_fixture() {
             .expect("diag.task_execution.next_action"),
         &next_action_keys,
         "diag.task_execution.next_action",
+    );
+    let recent_context_keys = fixture_keys(&fixture, "task_execution_recent_context_keys");
+    assert_has_keys(
+        task_execution
+            .get("recent_context")
+            .expect("diag.task_execution.recent_context"),
+        &recent_context_keys,
+        "diag.task_execution.recent_context",
     );
     let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(

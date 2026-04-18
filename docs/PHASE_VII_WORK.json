@@ -12,17 +12,17 @@
   "slices": [
     {
       "id": "p7_contract",
-      "status": "pending",
+      "status": "done",
       "goal": "add typed cost and quality metadata to next-action and action surfaces"
     },
     {
       "id": "p7_gate",
-      "status": "pending",
+      "status": "done",
       "goal": "introduce explicit reasoning-gate policy that chooses between structured action, cheap diagnosis, and deep reasoning"
     },
     {
       "id": "p7_context",
-      "status": "pending",
+      "status": "active",
       "goal": "persist and surface compact recent execution context so unchanged state does not trigger re-derivation"
     },
     {
