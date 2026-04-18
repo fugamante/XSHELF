@@ -154,6 +154,12 @@ fn telemetry_json_matches_contract_fixture() {
         &turboquant_keys,
         "telemetry.backend_capabilities.turboquant",
     );
+    let phase7_metrics_keys = fixture_keys(&fixture, "phase7_metrics_keys");
+    assert_has_keys(
+        payload.get("phase7_metrics").expect("phase7_metrics"),
+        &phase7_metrics_keys,
+        "telemetry.phase7_metrics",
+    );
     let task_execution_keys = fixture_keys(&fixture, "task_execution_keys");
     assert_has_keys(
         payload.get("task_execution").expect("task_execution"),
@@ -447,6 +453,11 @@ fn diag_json_matches_contract_fixture() {
             ),
             ("routing_trace", "routing_trace_keys", "diag.routing_trace"),
             ("scheduler", "scheduler_keys", "diag.scheduler"),
+            (
+                "phase7_metrics",
+                "phase7_metrics_keys",
+                "diag.phase7_metrics",
+            ),
             (
                 "task_readiness",
                 "task_readiness_keys",

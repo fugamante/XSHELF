@@ -432,6 +432,105 @@ pub(crate) fn exec_context_value(
     })
 }
 
+pub(crate) fn phase7_metrics_value(limit: usize) -> Value {
+    let mut recent = recent_run_all_sums(limit);
+    let window_runs = recent.len() as u64;
+    if recent.is_empty() {
+        return serde_json::json!({
+            "window_runs": 0,
+            "actions_until_resolution": 0,
+            "expensive_action_rate": 0.0,
+            "repeat_diagnosis_rate": 0.0,
+            "resume_reuse_rate": 0.0,
+            "structured_action_success_rate": 0.0
+        });
+    }
+    recent.reverse();
+    let expensive_action_rows = recent
+        .iter()
+        .filter(|summary| {
+            summary
+                .get("run_all_recommended_resume_point")
+                .and_then(Value::as_str)
+                .is_some_and(|cmd| next_cost_class(cmd) == "expensive")
+        })
+        .count() as u64;
+    let mut repeat_diagnosis_rows = 0u64;
+    let mut resume_reuse_rows = 0u64;
+    let mut structured_action_total = 0u64;
+    let mut structured_action_success_rows = 0u64;
+    let mut streak = 0u64;
+    let mut actions_until_resolution = 0u64;
+
+    for (idx, summary) in recent.iter().enumerate() {
+        streak += 1;
+        if idx > 0 {
+            let prior = &recent[idx - 1];
+            let current_pattern = summary
+                .get("run_all_failure_pattern")
+                .and_then(Value::as_str)
+                .unwrap_or("clean");
+            let prior_pattern = prior
+                .get("run_all_failure_pattern")
+                .and_then(Value::as_str)
+                .unwrap_or("clean");
+            if current_pattern != "clean" && current_pattern == prior_pattern {
+                repeat_diagnosis_rows += 1;
+            }
+            let current_resume = summary
+                .get("run_all_recommended_resume_point")
+                .and_then(Value::as_str);
+            let prior_resume = prior
+                .get("run_all_recommended_resume_point")
+                .and_then(Value::as_str);
+            if current_resume.is_some() && current_resume == prior_resume {
+                resume_reuse_rows += 1;
+            }
+            if let Some(prior_resume_cmd) = prior_resume
+                && next_cost_class(prior_resume_cmd) == "cheap"
+                && next_reasoning_required(prior_resume_cmd) == "none"
+            {
+                structured_action_total += 1;
+                if !summary_failed(summary) {
+                    structured_action_success_rows += 1;
+                }
+            }
+        }
+        if !summary_failed(summary) {
+            actions_until_resolution = streak;
+            streak = 0;
+        }
+    }
+    if streak > 0 {
+        actions_until_resolution = streak;
+    }
+    let transition_count = window_runs.saturating_sub(1);
+    let repeat_diagnosis_rate = if transition_count == 0 {
+        0.0
+    } else {
+        repeat_diagnosis_rows as f64 / transition_count as f64
+    };
+    let resume_reuse_rate = if transition_count == 0 {
+        0.0
+    } else {
+        resume_reuse_rows as f64 / transition_count as f64
+    };
+    let expensive_action_rate = expensive_action_rows as f64 / window_runs as f64;
+    let structured_action_success_rate = if structured_action_total == 0 {
+        0.0
+    } else {
+        structured_action_success_rows as f64 / structured_action_total as f64
+    };
+    serde_json::json!({
+        "window_runs": window_runs,
+        "actions_until_resolution": actions_until_resolution,
+        "expensive_action_rate": expensive_action_rate,
+        "repeat_diagnosis_rate": repeat_diagnosis_rate,
+        "resume_reuse_rate": resume_reuse_rate,
+        "structured_action_success_rate": structured_action_success_rate
+    })
+}
+
 pub(crate) fn reasoning_gate_value(
     command: Option<&str>,
     cost_class: Option<&str>,
@@ -1504,6 +1603,115 @@ mod tests {
                 .get("resume_reuses_prior_action")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn phase7_metrics_cov() {
+        let current = serde_json::json!({
+            "tool":"cxtask_runall",
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task check --json",
+            "run_all_mode":"mixed",
+            "run_all_failed":1
+        });
+        let prior = serde_json::json!({
+            "tool":"cxtask_runall",
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task check --json",
+            "run_all_mode":"mixed",
+            "run_all_failed":1
+        });
+        let earlier = serde_json::json!({
+            "tool":"cxtask_runall",
+            "run_all_failure_pattern":"clean",
+            "run_all_recommended_resume_point":"cx task run-all --status pending",
+            "run_all_mode":"mixed",
+            "run_all_failed":0
+        });
+        let mut recent = [current, prior, earlier];
+        recent.reverse();
+        let window_runs = recent.len() as u64;
+        let expensive_action_rows = recent
+            .iter()
+            .filter(|summary| {
+                summary
+                    .get("run_all_recommended_resume_point")
+                    .and_then(Value::as_str)
+                    .is_some_and(|cmd| super::next_cost_class(cmd) == "expensive")
+            })
+            .count() as u64;
+        let mut repeat_diagnosis_rows = 0u64;
+        let mut resume_reuse_rows = 0u64;
+        let mut structured_action_total = 0u64;
+        let mut structured_action_success_rows = 0u64;
+        let mut streak = 0u64;
+        let mut actions_until_resolution = 0u64;
+        for (idx, summary) in recent.iter().enumerate() {
+            streak += 1;
+            if idx > 0 {
+                let prior = &recent[idx - 1];
+                let current_pattern = summary
+                    .get("run_all_failure_pattern")
+                    .and_then(Value::as_str)
+                    .unwrap_or("clean");
+                let prior_pattern = prior
+                    .get("run_all_failure_pattern")
+                    .and_then(Value::as_str)
+                    .unwrap_or("clean");
+                if current_pattern != "clean" && current_pattern == prior_pattern {
+                    repeat_diagnosis_rows += 1;
+                }
+                let current_resume = summary
+                    .get("run_all_recommended_resume_point")
+                    .and_then(Value::as_str);
+                let prior_resume = prior
+                    .get("run_all_recommended_resume_point")
+                    .and_then(Value::as_str);
+                if current_resume.is_some() && current_resume == prior_resume {
+                    resume_reuse_rows += 1;
+                }
+                if let Some(prior_resume_cmd) = prior_resume
+                    && super::next_cost_class(prior_resume_cmd) == "cheap"
+                    && super::next_reasoning_required(prior_resume_cmd) == "none"
+                {
+                    structured_action_total += 1;
+                    if !super::summary_failed(summary) {
+                        structured_action_success_rows += 1;
+                    }
+                }
+            }
+            if !super::summary_failed(summary) {
+                actions_until_resolution = streak;
+                streak = 0;
+            }
+        }
+        if streak > 0 {
+            actions_until_resolution = streak;
+        }
+        let transition_count = window_runs.saturating_sub(1);
+        let value = serde_json::json!({
+            "window_runs": window_runs,
+            "actions_until_resolution": actions_until_resolution,
+            "expensive_action_rate": expensive_action_rows as f64 / window_runs as f64,
+            "repeat_diagnosis_rate": repeat_diagnosis_rows as f64 / transition_count as f64,
+            "resume_reuse_rate": resume_reuse_rows as f64 / transition_count as f64,
+            "structured_action_success_rate": structured_action_success_rows as f64 / structured_action_total as f64
+        });
+        assert_eq!(value.get("window_runs").and_then(Value::as_u64), Some(3));
+        assert_eq!(
+            value
+                .get("actions_until_resolution")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            value.get("repeat_diagnosis_rate").and_then(Value::as_f64),
+            Some(0.5)
+        );
+        assert_eq!(
+            value.get("resume_reuse_rate").and_then(Value::as_f64),
+            Some(0.5)
         );
     }
 }
