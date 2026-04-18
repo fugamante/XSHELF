@@ -531,6 +531,54 @@ pub(crate) fn phase7_metrics_value(limit: usize) -> Value {
     })
 }
 
+pub(crate) fn phase7_metric_lines(limit: usize) -> Vec<String> {
+    let value = phase7_metrics_value(limit);
+    vec![
+        format!(
+            "phase7_window_runs: {}",
+            value
+                .get("window_runs")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        ),
+        format!(
+            "phase7_actions_until_resolution: {}",
+            value
+                .get("actions_until_resolution")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        ),
+        format!(
+            "phase7_expensive_action_rate: {:.3}",
+            value
+                .get("expensive_action_rate")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+        ),
+        format!(
+            "phase7_repeat_diagnosis_rate: {:.3}",
+            value
+                .get("repeat_diagnosis_rate")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+        ),
+        format!(
+            "phase7_resume_reuse_rate: {:.3}",
+            value
+                .get("resume_reuse_rate")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+        ),
+        format!(
+            "phase7_structured_action_success_rate: {:.3}",
+            value
+                .get("structured_action_success_rate")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0)
+        ),
+    ]
+}
+
 pub(crate) fn reasoning_gate_value(
     command: Option<&str>,
     cost_class: Option<&str>,
@@ -1130,6 +1178,9 @@ fn print_exec_advice() {
     for line in exec_reco_lines(latest_summary.as_ref(), latest_wave.as_ref()) {
         println!("{line}");
     }
+    for line in phase7_metric_lines(20) {
+        println!("{line}");
+    }
 }
 
 pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
@@ -1202,7 +1253,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
 mod tests {
     use super::{
         exec_advice_lines, exec_context_lines, exec_context_value, exec_diag_value,
-        exec_gate_lines, exec_next_lines, exec_reco_lines, exec_wave_lines,
+        exec_gate_lines, exec_next_lines, exec_reco_lines, exec_wave_lines, phase7_metric_lines,
         readiness_summary_lines,
     };
     use serde_json::Value;
@@ -1713,5 +1764,12 @@ mod tests {
             value.get("resume_reuse_rate").and_then(Value::as_f64),
             Some(0.5)
         );
+    }
+
+    #[test]
+    fn p7_lines_cov() {
+        let lines = phase7_metric_lines(20).join("\n");
+        assert!(lines.contains("phase7_window_runs:"), "{lines}");
+        assert!(lines.contains("phase7_resume_reuse_rate:"), "{lines}");
     }
 }
