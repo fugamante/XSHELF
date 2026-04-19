@@ -746,6 +746,61 @@ fn diag_actions_next() {
 }
 
 #[test]
+fn diag_actions_bias() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"dbias1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":120,"schema_enforced":false,"schema_valid":true,
+            "run_all_mode":"mixed","halt_on_critical":false,
+            "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
+            "run_all_halted_remaining":0,
+            "run_all_backend_fallback_rows":0,
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task run-all --status pending"
+        }),
+        serde_json::json!({
+            "execution_id":"dbias2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
+            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":120,"schema_enforced":false,"schema_valid":true,
+            "run_all_mode":"mixed","halt_on_critical":false,
+            "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
+            "run_all_halted_remaining":0,
+            "run_all_backend_fallback_rows":0,
+            "run_all_failure_pattern":"retryable_failure",
+            "run_all_recommended_resume_point":"cx task run-all --status pending"
+        }),
+        serde_json::json!({
+            "execution_id":"dbias3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
+            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":20,"schema_enforced":false,"schema_valid":true,"queue_ms":2500,"worker_id":"w1"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["diag", "--json", "--actions", "--window", "4"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions array");
+    let first = actions.first().expect("first action");
+    assert_eq!(
+        first.get("command").and_then(Value::as_str),
+        Some("cx task run-all --status pending")
+    );
+    assert!(
+        first
+            .get("rationale")
+            .and_then(Value::as_str)
+            .is_some_and(|v| v.contains("Phase VII bias:")),
+        "{first}"
+    );
+}
+
+#[test]
 fn scheduler_actions_next() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![

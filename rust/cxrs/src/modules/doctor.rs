@@ -700,10 +700,27 @@ pub(crate) fn exec_action_value(task_execution: &Value) -> Option<Value> {
     } else {
         "warning"
     };
-    let rationale = if pressure_kind != "none" {
-        format!("{advice} Wave pressure: {pressure_kind}.")
+    let phase7_bias = task_execution
+        .get("phase7_bias")
+        .cloned()
+        .unwrap_or_else(|| serde_json::json!({}));
+    let bias_note = if phase7_bias
+        .get("applied")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        phase7_bias
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(|reason| format!(" Phase VII bias: {reason}."))
+            .unwrap_or_default()
     } else {
-        advice.to_string()
+        String::new()
+    };
+    let rationale = if pressure_kind != "none" {
+        format!("{advice} Wave pressure: {pressure_kind}.{bias_note}")
+    } else {
+        format!("{advice}{bias_note}")
     };
     Some(serde_json::json!({
         "id": format!("task_execution_{kind}"),
