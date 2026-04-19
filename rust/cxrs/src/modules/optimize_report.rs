@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 
 use crate::contract_versions::OPTIMIZE_JSON_CONTRACT_VERSION;
+use crate::diagnostics::sort_actions_by_phase7;
 use crate::doctor::{exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::load_runs;
@@ -637,6 +638,9 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "command": "cx promptlint 200"
         }));
     }
+    if actions.len() > 1 {
+        sort_actions_by_phase7(&mut actions[1..]);
+    }
     actions
 }
 
@@ -718,4 +722,49 @@ pub fn optimize_report(n: usize) -> Result<Value, String> {
         recommendations,
         &log_file,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_optimize_actions;
+    use serde_json::Value;
+    use serde_json::json;
+
+    #[test]
+    fn optimize_order_cov() {
+        let report = json!({
+            "scoreboard": {
+                "top_avg_duration_ms": [["cxo", 4200]],
+                "schema_failure_frequency": { "rate": 0.02 },
+                "timeout_frequency": { "rate": 0.06 },
+                "budget_clipping_frequency": { "rate": 0.0 },
+                "timing_attribution_coverage": { "min_coverage_rate": 1.0 },
+                "cache_hit_trend": { "delta": 0.0 }
+            }
+        });
+        let actions = build_optimize_actions(&report);
+        let diag_idx = actions
+            .iter()
+            .position(|action| {
+                action.get("command").and_then(Value::as_str)
+                    == Some("cx diag --json --strict --actions")
+            })
+            .expect("diag action");
+        let logs_idx = actions
+            .iter()
+            .position(|action| {
+                action.get("command").and_then(Value::as_str)
+                    == Some("cx logs stats 200 --json --strict")
+            })
+            .expect("logs action");
+        let optimize_idx = actions
+            .iter()
+            .position(|action| {
+                action.get("command").and_then(Value::as_str)
+                    == Some("cx optimize 200 --json --actions")
+            })
+            .expect("optimize action");
+        assert!(diag_idx < logs_idx, "{actions:?}");
+        assert!(diag_idx < optimize_idx, "{actions:?}");
+    }
 }
