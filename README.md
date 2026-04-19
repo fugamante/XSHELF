@@ -100,7 +100,9 @@ Repo role boundary:
 
 Cross-repo contract export:
 - `./bin/cx contracts export --profile eval-lab --json`
+- `./bin/cx contracts validate --profile eval-lab --json`
 - consumed by `cx-eval-lab` as a vendored contract manifest
+- validated in `cx` against a fixture-backed eval-lab bundle freeze before drift is pushed downstream
 
 ## Design Discipline
 
