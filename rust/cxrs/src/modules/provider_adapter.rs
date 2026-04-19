@@ -212,7 +212,7 @@ pub fn selected_provider_status_kind() -> ProviderStatus {
     provider_status_for_adapter(selected_adapter_name())
 }
 
-pub fn adapter_rollout_policy_value() -> Value {
+pub fn adapter_policy_value() -> Value {
     json!({
         "default_transport": "process",
         "http_transport_opt_in": true,
@@ -895,7 +895,7 @@ mod tests {
 
     #[test]
     fn rollout_policy_ok() {
-        let value = super::adapter_rollout_policy_value();
+        let value = super::adapter_policy_value();
         assert_eq!(
             value.get("default_transport").and_then(Value::as_str),
             Some("process")

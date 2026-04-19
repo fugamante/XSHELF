@@ -18,7 +18,7 @@ use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
-use crate::provider_adapter::{adapter_rollout_policy_value, selected_tq_caps};
+use crate::provider_adapter::{adapter_policy_value, selected_tq_caps};
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
 use crate::task_cmds::task_readiness_value;
@@ -1158,7 +1158,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let phase7_metrics = phase7_metrics_value(20);
-    let adapter_rollout_policy = adapter_rollout_policy_value();
+    let adapter_rollout_policy = adapter_policy_value();
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -1463,7 +1463,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let phase7_metrics = phase7_metrics_value(20);
-    let adapter_rollout_policy = adapter_rollout_policy_value();
+    let adapter_rollout_policy = adapter_policy_value();
     let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
