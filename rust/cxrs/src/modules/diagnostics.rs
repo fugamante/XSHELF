@@ -911,12 +911,23 @@ fn merge_exec_action(
         .get("command")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    let duplicate = actions.iter().any(|action| {
+    let exec_id = exec_action.get("id").and_then(Value::as_str);
+    let exec_rationale = exec_action
+        .get("rationale")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    if let Some(duplicate) = actions.iter_mut().find(|action| {
         action.get("command").and_then(Value::as_str) == Some(exec_command)
-            || action.get("id").and_then(Value::as_str)
-                == exec_action.get("id").and_then(Value::as_str)
-    });
-    if duplicate {
+            || action.get("id").and_then(Value::as_str) == exec_id
+    }) {
+        if exec_rationale.contains("Phase VII bias:")
+            && let Some(existing) = duplicate.get("rationale").and_then(Value::as_str)
+            && !existing.contains("Phase VII bias:")
+        {
+            duplicate["rationale"] =
+                serde_json::Value::String(format!("{existing} {exec_rationale}"));
+        }
         return actions;
     }
     actions.insert(0, exec_action);
