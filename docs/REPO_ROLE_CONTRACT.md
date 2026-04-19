@@ -57,7 +57,7 @@ The `eval-lab` export profile is fixture-backed in `cx` and must validate before
 - drift gate:
   - `cx contracts validate --profile eval-lab --json`
 - fixture owner:
-  - `rust/cxrs/tests/fixtures/contracts_eval_lab_bundle.json`
+  - `rust/cxrs/tests/fixtures/eval_lab_bundle.json`
 
 ## Immediate Operating Model
 

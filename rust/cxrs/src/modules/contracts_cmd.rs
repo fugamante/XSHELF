@@ -178,7 +178,7 @@ fn fixture_path(profile: &str) -> Option<PathBuf> {
             let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
             path.push("tests");
             path.push("fixtures");
-            path.push("contracts_eval_lab_bundle.json");
+            path.push("eval_lab_bundle.json");
             Some(path)
         }
         _ => None,
