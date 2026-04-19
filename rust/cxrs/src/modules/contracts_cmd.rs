@@ -420,14 +420,14 @@ mod tests {
     }
 
     #[test]
-    fn eval_manifest_fixture_ok() {
+    fn eval_fixture_ok() {
         let fixture = load_fixture_manifest("eval-lab").expect("eval-lab fixture");
         let manifest = manifest_value("eval-lab", &super::profile_specs("eval-lab").unwrap());
         assert_eq!(manifest, fixture);
     }
 
     #[test]
-    fn eval_manifest_validate_ok() {
+    fn eval_validate_ok() {
         let fixture = load_fixture_manifest("eval-lab").expect("eval-lab fixture");
         let result = validate_manifest(
             "eval-lab",
