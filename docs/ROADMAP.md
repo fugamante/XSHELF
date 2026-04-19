@@ -48,7 +48,7 @@
 - Cross-phase review completed:
   - `docs/POST_PHASE_VI_OVERVIEW.md`
 
-## Phase VII (active implementation)
+## Phase VII (milestone complete)
 
 - Planning spec: `docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md`
 - Work queue: `docs/PHASE_VII_WORK.json`
@@ -65,13 +65,20 @@
     - explicit `reasoning_gate`
   - Slice 3 merged:
     - compact recent-context carry-forward on execution and preflight surfaces
-  - Slice 4 active:
+  - Slice 4 merged:
     - measurable Phase VII efficiency and reuse metrics on telemetry/diagnostic surfaces
+  - Follow-on merged:
+    - explicit `phase7_bias` on `task_execution`
+    - higher-level action rationales preserve and explain that bias
+    - severity-preserving, cost-aware action ordering on diagnostics and optimize action surfaces
 - Capability lanes locked for Phase VII:
   - reasoning gate
   - cheap structured action router
   - low-cost defaults
   - context carry-forward
+- Phase VII milestone result:
+  - CX now makes budget-aware guidance explicit and typed without silently lowering quality bars
+  - the next decision is whether to stop here at a coherent milestone or continue into further policy tuning
 
 ## Guardrails
 

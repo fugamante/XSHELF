@@ -549,17 +549,22 @@ Completed cross-phase follow-up:
 
 ## Phase VII Budget-Aware Orchestration
 
-Phase VII planning is now open. Its goal is to make CX choose the cheapest sufficient path without allowing quality drift.
+Phase VII has now reached its first coherent milestone. Its goal remains to make CX choose the cheapest sufficient path without allowing quality drift.
 
 Planning spec:
 - `docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md`
 - `docs/PHASE_VII_WORK.json`
 
-First contract focus:
+Current Phase VII baseline:
 - `next_action.cost_class`
 - `next_action.reasoning_required`
 - `next_action.quality_risk`
 - `next_action.escalates_if`
+- explicit `reasoning_gate`
+- recent execution context carry-forward
+- Phase VII efficiency/reuse metrics
+- explicit `phase7_bias`
+- severity-preserving, cost-aware action ordering on higher-level action surfaces
 
 ## Validation
 
