@@ -11,10 +11,10 @@
 ## Next (1-2 months)
 
 - Add richer command-level JSON outputs for diagnostics tools.
-- Add CI-level artifact reports for reliability suite failures.
+- Landed CI-level artifact reports for reliability suite failures.
 - Broaden OS validation matrix (Linux-focused CI pass).
 - Add run-level concurrency telemetry refinement (`worker_id`, queue/start/finish timestamps, attempt) for SLO reporting.
-- Lock adapter rollout policy and keep HTTP transport opt-in through Phase VI early cycles.
+- Landed adapter rollout policy surface; HTTP transport remains explicit opt-in and diagnostics/telemetry now expose the rollout guard.
 - Expand provider adapter coverage beyond current HTTP/process parity.
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
 

@@ -10,15 +10,15 @@ use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
 use crate::doctor::{
-    exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum, phase7_metric_lines,
-    phase7_metrics_value,
+    adapter_policy_lines, exec_action_value, exec_diag_value, latest_run_all_sum, latest_wave_sum,
+    phase7_metric_lines, phase7_metrics_value,
 };
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
-use crate::provider_adapter::selected_tq_caps;
+use crate::provider_adapter::{adapter_rollout_policy_value, selected_tq_caps};
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
 use crate::task_cmds::task_readiness_value;
@@ -1158,6 +1158,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let phase7_metrics = phase7_metrics_value(20);
+    let adapter_rollout_policy = adapter_rollout_policy_value();
     let sample_cmd = "cxo git status";
     let rust_handles = route_handler_for("cxo");
     let bash_handles = bash_type_of_function(&repo, "cxo").is_some();
@@ -1204,6 +1205,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
                     "memory_metric_kind": experiment_caps.turboquant_metric_kind,
                 }
             },
+            "adapter_rollout_policy": adapter_rollout_policy,
             "capture_provider_config": provider,
             "capture_provider_resolved": resolved_provider(&cfg.capture_provider),
             "capture_external_dependencies": "none",
@@ -1395,6 +1397,9 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     for line in phase7_metric_lines(20) {
         println!("{line}");
     }
+    for line in adapter_policy_lines() {
+        println!("{line}");
+    }
     println!("scheduler_window_requested: {window}");
     println!("severity: {severity}");
     if !severity_reasons.is_empty() {
@@ -1458,6 +1463,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let phase7_metrics = phase7_metrics_value(20);
+    let adapter_rollout_policy = adapter_rollout_policy_value();
     let experiment_caps = selected_tq_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
@@ -1485,6 +1491,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
                     "memory_metric_kind": experiment_caps.turboquant_metric_kind,
                 }
             },
+            "adapter_rollout_policy": adapter_rollout_policy,
             "scheduler": scheduler,
             "task_readiness": task_readiness,
             "task_execution": task_execution,
@@ -1644,6 +1651,9 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .unwrap_or(0)
     );
     for line in phase7_metric_lines(20) {
+        println!("{line}");
+    }
+    for line in adapter_policy_lines() {
         println!("{line}");
     }
     println!("scheduler_window_requested: {window}");

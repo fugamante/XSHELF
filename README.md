@@ -299,6 +299,9 @@ Current rule:
 
 - provider adapters are the runtime abstraction
 - backend-specific inference experiments do not become core CX behavior until they prove value and preserve adapter boundaries
+- default transport remains `process`
+- HTTP transport remains opt-in through explicit adapter override only
+- any default-path proposal must clear the rollout guard captured in `adapter_rollout_policy`
 
 Current TurboQuant reading:
 
@@ -417,10 +420,16 @@ Retry-health JSON surfaces:
 - `optimize --json`: `scoreboard.timing_attribution_coverage`
 - `diag --json`: top-level `concurrency`
 - `scheduler --json`: top-level `concurrency`
+- `diag --json`: top-level `adapter_rollout_policy`
+- `scheduler --json`: top-level `adapter_rollout_policy`
+- `telemetry --json`: top-level `adapter_rollout_policy`
 - `diag --json`: `scheduler.rows_with_retry_attempt`, `scheduler.rows_with_queue_started_at`, `scheduler.rows_with_task_started_at`, `scheduler.rows_with_task_finished_at`
 - `scheduler --json`: same scheduler timing/attempt coverage keys as `diag --json`
 - contract markers: top-level `contract_version` on JSON diagnostics surfaces
 - actions markers: top-level `actions_contract_version` when `--actions` is used
+
+CI failure artifacts:
+- `cxrs-compat` uploads failure logs and a dedicated reliability-suite report when `reliability_integration` fails in CI
 
 Contract policy:
 - [`docs/CONTRACT_COMPATIBILITY.md`](docs/CONTRACT_COMPATIBILITY.md)

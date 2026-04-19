@@ -4,7 +4,7 @@ use crate::json_mode::resolve_json_mode;
 use crate::log_contract::REQUIRED_STRICT_FIELDS;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
-use crate::provider_adapter::selected_tq_caps;
+use crate::provider_adapter::{adapter_rollout_policy_value, selected_tq_caps};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -613,6 +613,7 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
     let latest_wave = latest_wave_sum();
     let task_execution = exec_diag_value(latest_run.as_ref(), latest_wave.as_ref());
     let phase7_metrics = phase7_metrics_value(20);
+    let adapter_rollout_policy = adapter_rollout_policy_value();
     let payload = json!({
         "contract_version": TELEMETRY_JSON_CONTRACT_VERSION,
         "log_file": log_file.display().to_string(),
@@ -627,6 +628,7 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
                 "memory_metric_kind": experiment_caps.turboquant_metric_kind,
             }
         },
+        "adapter_rollout_policy": adapter_rollout_policy,
         "task_execution": task_execution,
         "phase7_metrics": phase7_metrics,
         "fields": fields,

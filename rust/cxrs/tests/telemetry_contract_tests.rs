@@ -154,6 +154,14 @@ fn telemetry_json_matches_contract_fixture() {
         &turboquant_keys,
         "telemetry.backend_capabilities.turboquant",
     );
+    let adapter_policy_keys = fixture_keys(&fixture, "adapter_rollout_policy_keys");
+    assert_has_keys(
+        payload
+            .get("adapter_rollout_policy")
+            .expect("adapter_rollout_policy"),
+        &adapter_policy_keys,
+        "telemetry.adapter_rollout_policy",
+    );
     let phase7_metrics_keys = fixture_keys(&fixture, "phase7_metrics_keys");
     assert_has_keys(
         payload.get("phase7_metrics").expect("phase7_metrics"),
@@ -459,6 +467,11 @@ fn diag_json_matches_contract_fixture() {
                 "backend_capabilities",
                 "backend_capabilities_keys",
                 "diag.backend_capabilities",
+            ),
+            (
+                "adapter_rollout_policy",
+                "adapter_rollout_policy_keys",
+                "diag.adapter_rollout_policy",
             ),
             ("routing_trace", "routing_trace_keys", "diag.routing_trace"),
             ("scheduler", "scheduler_keys", "diag.scheduler"),

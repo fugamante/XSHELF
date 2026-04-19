@@ -7,6 +7,7 @@ use crate::llm::extract_agent_text;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
 use crate::process::run_command_output_with_timeout;
+use crate::provider_adapter::adapter_rollout_policy_value;
 use crate::runtime::{llm_backend, llm_bin_name};
 use crate::task_cmds::task_readiness_value;
 use crate::tasks::read_tasks;
@@ -575,6 +576,68 @@ pub(crate) fn phase7_metric_lines(limit: usize) -> Vec<String> {
                 .get("structured_action_success_rate")
                 .and_then(Value::as_f64)
                 .unwrap_or(0.0)
+        ),
+    ]
+}
+
+pub(crate) fn adapter_policy_lines() -> Vec<String> {
+    let value = adapter_rollout_policy_value();
+    vec![
+        format!(
+            "adapter_rollout_default_transport: {}",
+            value
+                .get("default_transport")
+                .and_then(Value::as_str)
+                .unwrap_or("process")
+        ),
+        format!(
+            "adapter_rollout_http_opt_in: {}",
+            value
+                .get("http_transport_opt_in")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+        ),
+        format!(
+            "adapter_rollout_http_override_required: {}",
+            value
+                .get("explicit_override_required_for_http")
+                .and_then(Value::as_bool)
+                .unwrap_or(true)
+        ),
+        format!(
+            "adapter_rollout_selected_adapter: {}",
+            value
+                .get("selected_adapter")
+                .and_then(Value::as_str)
+                .unwrap_or("codex-cli")
+        ),
+        format!(
+            "adapter_rollout_selected_transport: {}",
+            value
+                .get("selected_transport")
+                .and_then(Value::as_str)
+                .unwrap_or("process")
+        ),
+        format!(
+            "adapter_rollout_selected_status: {}",
+            value
+                .get("selected_status")
+                .and_then(Value::as_str)
+                .unwrap_or("stable")
+        ),
+        format!(
+            "adapter_rollout_explicit_override_set: {}",
+            value
+                .get("explicit_override_set")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        ),
+        format!(
+            "adapter_rollout_default_switch_guard: {}",
+            value
+                .get("default_switch_guard")
+                .and_then(Value::as_str)
+                .unwrap_or("two_green_ci_windows")
         ),
     ]
 }
@@ -1284,6 +1347,9 @@ fn print_exec_advice() {
     for line in phase7_metric_lines(20) {
         println!("{line}");
     }
+    for line in adapter_policy_lines() {
+        println!("{line}");
+    }
 }
 
 pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
@@ -1874,5 +1940,22 @@ mod tests {
         let lines = phase7_metric_lines(20).join("\n");
         assert!(lines.contains("phase7_window_runs:"), "{lines}");
         assert!(lines.contains("phase7_resume_reuse_rate:"), "{lines}");
+    }
+
+    #[test]
+    fn adapter_policy_cov() {
+        let lines = super::adapter_policy_lines().join("\n");
+        assert!(
+            lines.contains("adapter_rollout_default_transport: process"),
+            "{lines}"
+        );
+        assert!(
+            lines.contains("adapter_rollout_http_opt_in: true"),
+            "{lines}"
+        );
+        assert!(
+            lines.contains("adapter_rollout_default_switch_guard: two_green_ci_windows"),
+            "{lines}"
+        );
     }
 }

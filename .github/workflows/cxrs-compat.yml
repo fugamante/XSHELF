@@ -269,6 +269,61 @@ jobs:
             done
           } > "$summary"
 
+      - name: Extract reliability failure report
+        if: failure()
+        run: |
+          set -euo pipefail
+          dir="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
+          mkdir -p "$dir"
+          src="$dir/rust_check_${{ matrix.os }}.log"
+          out="$dir/reliability_${{ matrix.os }}.txt"
+          {
+            echo "reliability failure report"
+            echo "os: ${{ matrix.os }}"
+            echo "repo: $GITHUB_REPOSITORY"
+            echo "run_id: $GITHUB_RUN_ID"
+            echo "sha: $GITHUB_SHA"
+            echo
+            if [[ ! -f "$src" ]]; then
+              echo "rust check log unavailable"
+              exit 0
+            fi
+            python3 - "$src" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+lines = path.read_text(errors="replace").splitlines()
+start = None
+end = None
+for idx, line in enumerate(lines):
+    if "Running tests/reliability_integration.rs" in line:
+        start = idx
+    if start is not None and line.startswith("test result:"):
+        end = idx
+        break
+if start is None:
+    print("reliability suite section not found in rust_check log")
+    sys.exit(0)
+section = lines[start : (end + 1 if end is not None else len(lines))]
+interesting = [
+    line for line in section
+    if ("... FAILED" in line)
+    or ("panicked" in line)
+    or ("error:" in line.lower())
+    or ("assertion" in line.lower())
+]
+if interesting:
+    print("key failure lines:")
+    for line in interesting[-80:]:
+        print(line)
+    print()
+print("tail of reliability suite section:")
+for line in section[-160:]:
+    print(line)
+PY
+          } > "$out"
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4

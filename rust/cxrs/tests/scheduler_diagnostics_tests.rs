@@ -460,6 +460,14 @@ fn scheduler_json_matches_contract_fixture() {
         &turboquant_keys,
         "scheduler.backend_capabilities.turboquant",
     );
+    let adapter_policy_keys = fixture_keys(&fixture, "adapter_rollout_policy_keys");
+    assert_has_keys(
+        payload
+            .get("adapter_rollout_policy")
+            .expect("adapter_rollout_policy"),
+        &adapter_policy_keys,
+        "scheduler.adapter_rollout_policy",
+    );
     let task_execution = payload.get("task_execution").expect("task_execution");
     let task_execution_wave_keys = fixture_keys(&fixture, "task_execution_wave_pressure_keys");
     assert_has_keys(

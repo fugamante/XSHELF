@@ -3,6 +3,7 @@ use crate::llm::{
     run_codex_plain, run_ollama_plain, wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
+use serde_json::{Value, json};
 use std::env;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,6 +210,20 @@ pub fn selected_provider_status() -> Option<&'static str> {
 
 pub fn selected_provider_status_kind() -> ProviderStatus {
     provider_status_for_adapter(selected_adapter_name())
+}
+
+pub fn adapter_rollout_policy_value() -> Value {
+    json!({
+        "default_transport": "process",
+        "http_transport_opt_in": true,
+        "explicit_override_required_for_http": true,
+        "selected_adapter": selected_adapter_name(),
+        "selected_transport": selected_provider_transport(),
+        "selected_status": selected_provider_status_kind().as_str(),
+        "explicit_override_set": adapter_override().is_some(),
+        "default_switch_guard": "two_green_ci_windows",
+        "rollback_rule": "revert to process default in same release window on schema failures or transport errors"
+    })
 }
 
 pub fn normalize_provider_status(raw: Option<&str>) -> ProviderStatus {
@@ -876,5 +891,22 @@ mod tests {
         }
         validate_http_url("https://allowed.example/v1").expect("must allow configured host");
         unsafe { env::remove_var("CX_HTTP_ALLOWED_HOSTS") };
+    }
+
+    #[test]
+    fn rollout_policy_ok() {
+        let value = super::adapter_rollout_policy_value();
+        assert_eq!(
+            value.get("default_transport").and_then(Value::as_str),
+            Some("process")
+        );
+        assert_eq!(
+            value.get("http_transport_opt_in").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            value.get("default_switch_guard").and_then(Value::as_str),
+            Some("two_green_ci_windows")
+        );
     }
 }
