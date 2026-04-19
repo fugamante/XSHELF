@@ -7,7 +7,7 @@ use crate::llm::extract_agent_text;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
 use crate::process::run_command_output_with_timeout;
-use crate::provider_adapter::adapter_rollout_policy_value;
+use crate::provider_adapter::adapter_policy_value;
 use crate::runtime::{llm_backend, llm_bin_name};
 use crate::task_cmds::task_readiness_value;
 use crate::tasks::read_tasks;
@@ -581,7 +581,7 @@ pub(crate) fn phase7_metric_lines(limit: usize) -> Vec<String> {
 }
 
 pub(crate) fn adapter_policy_lines() -> Vec<String> {
-    let value = adapter_rollout_policy_value();
+    let value = adapter_policy_value();
     vec![
         format!(
             "adapter_rollout_default_transport: {}",
