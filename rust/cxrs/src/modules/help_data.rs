@@ -8,8 +8,8 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "contracts",
-        usage: "contracts export [--profile eval-lab|full] [--json]",
-        description: "Export stable machine-contract bundle metadata",
+        usage: "contracts <export|validate> [--profile eval-lab|full] [--json]",
+        description: "Export or validate stable machine-contract bundle metadata",
     },
     CommandHelp {
         name: "where",

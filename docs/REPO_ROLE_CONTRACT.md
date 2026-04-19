@@ -25,6 +25,7 @@ This document defines responsibility boundaries between:
 - `scheduler --json`
 - `optimize --json`
 - run-log field contracts
+- exported contract bundles consumed by `cx-ops` / `cx-eval-lab`
 
 ## Non-Responsibilities
 
@@ -48,6 +49,15 @@ When contract drift occurs, changes must be coordinated with:
 - fixture updates
 - compatibility tests
 - changelog notes in affected repos
+
+The `eval-lab` export profile is fixture-backed in `cx` and must validate before bundle changes are treated as intentional:
+
+- export path:
+  - `cx contracts export --profile eval-lab --json`
+- drift gate:
+  - `cx contracts validate --profile eval-lab --json`
+- fixture owner:
+  - `rust/cxrs/tests/fixtures/contracts_eval_lab_bundle.json`
 
 ## Immediate Operating Model
 

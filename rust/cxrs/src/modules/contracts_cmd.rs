@@ -1,8 +1,14 @@
 use serde_json::{Map, Value, json};
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::PathBuf;
 
 use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, OPTIMIZE_JSON_CONTRACT_VERSION,
-    SCHEDULER_JSON_CONTRACT_VERSION, TELEMETRY_JSON_CONTRACT_VERSION,
+    SCHEDULER_JSON_CONTRACT_VERSION, TASK_CHECK_JSON_CONTRACT_VERSION,
+    TASK_LIST_JSON_CONTRACT_VERSION, TASK_RUN_ALL_JSON_CONTRACT_VERSION,
+    TASK_RUN_JSON_CONTRACT_VERSION, TASK_SHOW_JSON_CONTRACT_VERSION,
+    TELEMETRY_JSON_CONTRACT_VERSION,
 };
 use crate::execmeta::utc_now_iso;
 
@@ -74,22 +80,22 @@ const FULL_SPECS: &[ContractSpec] = &[
     },
     ContractSpec {
         action: "cx.task.check",
-        contract_version: "task-check.v1",
+        contract_version: TASK_CHECK_JSON_CONTRACT_VERSION,
         required_keys: TASK_CHECK_REQUIRED_KEYS,
     },
     ContractSpec {
         action: "cx.task.run_all",
-        contract_version: "task-run-all.v1",
+        contract_version: TASK_RUN_ALL_JSON_CONTRACT_VERSION,
         required_keys: TASK_RUN_ALL_REQUIRED_KEYS,
     },
     ContractSpec {
         action: "cx.task.list",
-        contract_version: "task-list.v1",
+        contract_version: TASK_LIST_JSON_CONTRACT_VERSION,
         required_keys: TASK_LIST_REQUIRED_KEYS,
     },
     ContractSpec {
         action: "cx.task.show",
-        contract_version: "task-show.v1",
+        contract_version: TASK_SHOW_JSON_CONTRACT_VERSION,
         required_keys: TASK_SHOW_REQUIRED_KEYS,
     },
     ContractSpec {
@@ -99,7 +105,7 @@ const FULL_SPECS: &[ContractSpec] = &[
     },
     ContractSpec {
         action: "cx.task.run",
-        contract_version: "task-run.v1",
+        contract_version: TASK_RUN_JSON_CONTRACT_VERSION,
         required_keys: TASK_RUN_REQUIRED_KEYS,
     },
 ];
@@ -144,18 +150,139 @@ fn contracts_object(specs: &[ContractSpec]) -> Value {
     Value::Object(contracts)
 }
 
-fn bundle_value(app_version: &str, profile: &str, specs: &[ContractSpec]) -> Value {
+const BUNDLE_VERSION: &str = "cx-contract-bundle.v1";
+
+fn manifest_value(profile: &str, specs: &[ContractSpec]) -> Value {
     json!({
-        "bundle_version": "cx-contract-bundle.v1",
-        "source_version": app_version,
+        "bundle_version": BUNDLE_VERSION,
         "profile": profile,
-        "generated_at": utc_now_iso(),
         "contracts": contracts_object(specs)
     })
 }
 
+fn bundle_value(app_version: &str, profile: &str, specs: &[ContractSpec]) -> Value {
+    let mut bundle = manifest_value(profile, specs);
+    if let Some(obj) = bundle.as_object_mut() {
+        obj.insert(
+            "source_version".to_string(),
+            Value::String(app_version.to_string()),
+        );
+        obj.insert("generated_at".to_string(), Value::String(utc_now_iso()));
+    }
+    bundle
+}
+
+fn fixture_path(profile: &str) -> Option<PathBuf> {
+    match profile {
+        "eval-lab" => {
+            let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            path.push("tests");
+            path.push("fixtures");
+            path.push("contracts_eval_lab_bundle.json");
+            Some(path)
+        }
+        _ => None,
+    }
+}
+
+fn load_fixture_manifest(profile: &str) -> Result<Value, String> {
+    let Some(path) = fixture_path(profile) else {
+        return Err(format!(
+            "no fixture-backed contract bundle for profile '{profile}'"
+        ));
+    };
+    let content =
+        fs::read_to_string(&path).map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    serde_json::from_str(&content).map_err(|e| format!("failed to parse {}: {e}", path.display()))
+}
+
+fn diff_string_arrays(left: &[String], right: &[String]) -> Vec<String> {
+    let left_set: BTreeSet<&str> = left.iter().map(String::as_str).collect();
+    let right_set: BTreeSet<&str> = right.iter().map(String::as_str).collect();
+    left_set
+        .difference(&right_set)
+        .map(|item| item.to_string())
+        .collect()
+}
+
+fn string_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn validate_manifest(profile: &str, specs: &[ContractSpec], fixture: &Value) -> Value {
+    let manifest = manifest_value(profile, specs);
+    let current_contracts = manifest
+        .get("contracts")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let fixture_contracts = fixture
+        .get("contracts")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let current_actions: Vec<String> = current_contracts.keys().cloned().collect();
+    let fixture_actions: Vec<String> = fixture_contracts.keys().cloned().collect();
+
+    let missing_actions = diff_string_arrays(&fixture_actions, &current_actions);
+    let new_actions = diff_string_arrays(&current_actions, &fixture_actions);
+    let mut changed_contract_versions = Vec::new();
+    let mut changed_required_keys = Vec::new();
+
+    for action in current_actions
+        .iter()
+        .filter(|action| fixture_contracts.contains_key(*action))
+    {
+        let current = current_contracts
+            .get(action)
+            .cloned()
+            .unwrap_or(Value::Null);
+        let prior = fixture_contracts
+            .get(action)
+            .cloned()
+            .unwrap_or(Value::Null);
+        if current.get("contract_version").and_then(Value::as_str)
+            != prior.get("contract_version").and_then(Value::as_str)
+        {
+            changed_contract_versions.push(action.to_string());
+        }
+        let current_required = string_array(current.get("required_keys"));
+        let prior_required = string_array(prior.get("required_keys"));
+        if current_required != prior_required {
+            changed_required_keys.push(action.to_string());
+        }
+    }
+
+    let ok = missing_actions.is_empty()
+        && new_actions.is_empty()
+        && changed_contract_versions.is_empty()
+        && changed_required_keys.is_empty();
+
+    json!({
+        "ok": ok,
+        "bundle_version": BUNDLE_VERSION,
+        "profile": profile,
+        "drift": {
+            "missing_actions": missing_actions,
+            "new_actions": new_actions,
+            "changed_contract_versions": changed_contract_versions,
+            "changed_required_keys": changed_required_keys
+        }
+    })
+}
+
 pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 {
-    let usage = format!("Usage: {app_name} contracts export [--profile eval-lab|full] [--json]");
+    let usage =
+        format!("Usage: {app_name} contracts <export|validate> [--profile eval-lab|full] [--json]");
     let mut sub = "export";
     let mut profile = "full";
     let mut json_out = false;
@@ -166,7 +293,7 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
         sub = v;
         i = 1;
     }
-    if sub != "export" {
+    if !matches!(sub, "export" | "validate") {
         crate::cx_eprintln!("{usage}");
         return 2;
     }
@@ -197,6 +324,47 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
         crate::cx_eprintln!("{usage}");
         return 2;
     };
+
+    if sub == "validate" {
+        let fixture = match load_fixture_manifest(profile) {
+            Ok(value) => value,
+            Err(err) => {
+                crate::cx_eprintln!("cxrs contracts: {err}");
+                return 2;
+            }
+        };
+        let result = validate_manifest(profile, &specs, &fixture);
+        if json_out {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
+            );
+        } else {
+            let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            println!("bundle_version: {BUNDLE_VERSION}");
+            println!("profile: {profile}");
+            println!("ok: {ok}");
+            let drift = result.get("drift").cloned().unwrap_or_else(|| json!({}));
+            for key in [
+                "missing_actions",
+                "new_actions",
+                "changed_contract_versions",
+                "changed_required_keys",
+            ] {
+                let items = string_array(drift.get(key));
+                println!("{key}: {}", items.len());
+                for item in items {
+                    println!("- {item}");
+                }
+            }
+        }
+        return if result.get("ok").and_then(Value::as_bool) == Some(true) {
+            0
+        } else {
+            1
+        };
+    }
+
     let bundle = bundle_value(app_version, profile, &specs);
     if json_out {
         println!(
@@ -211,7 +379,7 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    println!("bundle_version: cx-contract-bundle.v1");
+    println!("bundle_version: {BUNDLE_VERSION}");
     println!("source_version: {app_version}");
     println!("profile: {profile}");
     println!("contract_count: {}", contracts.len());
@@ -227,7 +395,8 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
 
 #[cfg(test)]
 mod tests {
-    use super::bundle_value;
+    use super::{bundle_value, load_fixture_manifest, manifest_value, validate_manifest};
+    use crate::contract_versions::TASK_RUN_JSON_CONTRACT_VERSION;
 
     #[test]
     fn eval_bundle_ok() {
@@ -246,7 +415,36 @@ mod tests {
         assert!(contracts.contains_key("cx.task.run"));
         assert_eq!(
             contracts["cx.task.run"]["contract_version"].as_str(),
-            Some("task-run.v1")
+            Some(TASK_RUN_JSON_CONTRACT_VERSION)
+        );
+    }
+
+    #[test]
+    fn eval_manifest_fixture_ok() {
+        let fixture = load_fixture_manifest("eval-lab").expect("eval-lab fixture");
+        let manifest = manifest_value("eval-lab", &super::profile_specs("eval-lab").unwrap());
+        assert_eq!(manifest, fixture);
+    }
+
+    #[test]
+    fn eval_manifest_validate_ok() {
+        let fixture = load_fixture_manifest("eval-lab").expect("eval-lab fixture");
+        let result = validate_manifest(
+            "eval-lab",
+            &super::profile_specs("eval-lab").unwrap(),
+            &fixture,
+        );
+        assert_eq!(
+            result.get("ok").and_then(serde_json::Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            result
+                .get("drift")
+                .and_then(|v| v.get("missing_actions"))
+                .and_then(serde_json::Value::as_array)
+                .map(Vec::len),
+            Some(0)
         );
     }
 }
