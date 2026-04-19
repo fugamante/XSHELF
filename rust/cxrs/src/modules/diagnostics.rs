@@ -770,6 +770,42 @@ fn severity_rank(level: &str) -> i32 {
     }
 }
 
+pub(crate) fn action_cost_rank(command: &str) -> u8 {
+    if command.starts_with("cx task run-all --status pending")
+        || command.starts_with("cx task run-all --mode ")
+        || command.starts_with("cx task check")
+    {
+        0
+    } else if command.starts_with("cx scheduler")
+        || command.starts_with("cx diag")
+        || command.starts_with("cx doctor")
+        || command.starts_with("cx task run-plan")
+    {
+        1
+    } else {
+        2
+    }
+}
+
+pub(crate) fn sort_actions_by_phase7(actions: &mut [serde_json::Value]) {
+    actions.sort_by(|a, b| {
+        let a_sev = a.get("severity").and_then(Value::as_str).unwrap_or("ok");
+        let b_sev = b.get("severity").and_then(Value::as_str).unwrap_or("ok");
+        severity_rank(b_sev)
+            .cmp(&severity_rank(a_sev))
+            .then_with(|| {
+                let a_cmd = a.get("command").and_then(Value::as_str).unwrap_or_default();
+                let b_cmd = b.get("command").and_then(Value::as_str).unwrap_or_default();
+                action_cost_rank(a_cmd).cmp(&action_cost_rank(b_cmd))
+            })
+            .then_with(|| {
+                let a_cmd = a.get("command").and_then(Value::as_str).unwrap_or_default();
+                let b_cmd = b.get("command").and_then(Value::as_str).unwrap_or_default();
+                a_cmd.cmp(b_cmd)
+            })
+    });
+}
+
 fn parse_diag_args(args: &[String]) -> Result<(bool, usize, bool, bool, Option<String>), String> {
     let mut as_json: Option<bool> = None;
     let mut window = 200usize;
@@ -897,6 +933,7 @@ fn build_actions_from_reasons(
             "command": command
         }));
     }
+    sort_actions_by_phase7(&mut actions);
     actions
 }
 
@@ -1673,7 +1710,9 @@ pub fn has_required_log_fields(v: &Value) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_actions_from_reasons, has_required_log_fields, scheduler_severity};
+    use super::{
+        action_cost_rank, build_actions_from_reasons, has_required_log_fields, scheduler_severity,
+    };
     use serde_json::json;
 
     #[test]
@@ -1717,6 +1756,37 @@ mod tests {
             actions[0].get("id").and_then(serde_json::Value::as_str),
             Some("timing_coverage_low")
         );
+    }
+
+    #[test]
+    fn action_order_cov() {
+        let actions = build_actions_from_reasons(
+            &[
+                "retry_pressure_high:7".to_string(),
+                "queue_p95_high:2500".to_string(),
+                "critical_halts_detected:1".to_string(),
+            ],
+            200,
+            "cx task run-all --status pending",
+        );
+        assert_eq!(actions.len(), 3);
+        assert_eq!(
+            actions[0].get("id").and_then(serde_json::Value::as_str),
+            Some("critical_halts_detected")
+        );
+        assert_eq!(
+            actions[1].get("id").and_then(serde_json::Value::as_str),
+            Some("queue_p95_high")
+        );
+        let first_warning = actions[1]
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let second_warning = actions[2]
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        assert!(action_cost_rank(first_warning) <= action_cost_rank(second_warning));
     }
 
     #[test]
