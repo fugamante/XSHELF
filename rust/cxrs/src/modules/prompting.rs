@@ -222,9 +222,9 @@ fn collect_promptlint_maps(runs: &[crate::types::RunEntry]) -> (ToolTokenMap, To
 fn top_effective_rows(tool_eff: &ToolTokenMap) -> Vec<(String, u64)> {
     let mut rows: Vec<(String, u64)> = tool_eff
         .iter()
-        .map(|(tool, (sum, count))| (tool.clone(), if *count == 0 { 0 } else { sum / count }))
+        .map(|(tool, (sum, count))| (tool.clone(), sum.checked_div(*count).unwrap_or(0)))
         .collect();
-    rows.sort_by(|a, b| b.1.cmp(&a.1));
+    rows.sort_by_key(|row| std::cmp::Reverse(row.1));
     rows.truncate(5);
     rows
 }
@@ -248,7 +248,7 @@ fn prompt_drift_rows(
             drift_rows.push((tool, s_avg as i64 - f_avg as i64, f_avg, s_avg));
         }
     }
-    drift_rows.sort_by(|a, b| b.1.cmp(&a.1));
+    drift_rows.sort_by_key(|row| std::cmp::Reverse(row.1));
     drift_rows.truncate(5);
     drift_rows
 }
@@ -279,7 +279,7 @@ fn poor_cache_rows(tool_cache: &ToolTokenMap) -> Vec<(String, u64)> {
             }
         })
         .collect();
-    rows.sort_by(|a, b| a.1.cmp(&b.1));
+    rows.sort_by_key(|row| row.1);
     rows.truncate(5);
     rows
 }

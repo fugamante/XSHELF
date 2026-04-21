@@ -28,7 +28,7 @@ fn top_slowest(runs: &[RunEntry]) -> Vec<(u64, String, String)> {
             })
         })
         .collect();
-    slowest.sort_by(|a, b| b.0.cmp(&a.0));
+    slowest.sort_by_key(|row| std::cmp::Reverse(row.0));
     slowest.truncate(5);
     slowest
 }
@@ -57,7 +57,7 @@ fn top_heaviest(runs: &[RunEntry]) -> Vec<(u64, String, String)> {
             })
         })
         .collect();
-    heaviest.sort_by(|a, b| b.0.cmp(&a.0));
+    heaviest.sort_by_key(|row| std::cmp::Reverse(row.0));
     heaviest.truncate(5);
     heaviest
 }
