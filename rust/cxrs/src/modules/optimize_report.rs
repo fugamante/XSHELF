@@ -245,9 +245,9 @@ impl Agg {
 fn top_avg(map: HashMap<String, (u64, u64)>) -> Vec<(String, u64)> {
     let mut rows: Vec<(String, u64)> = map
         .into_iter()
-        .map(|(tool, (sum, count))| (tool, if count == 0 { 0 } else { sum / count }))
+        .map(|(tool, (sum, count))| (tool, sum.checked_div(count).unwrap_or(0)))
         .collect();
-    rows.sort_by(|a, b| b.1.cmp(&a.1));
+    rows.sort_by_key(|row| std::cmp::Reverse(row.1));
     rows.truncate(5);
     rows
 }
@@ -378,7 +378,7 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
     let top_dur = top_avg(agg.tool_dur.clone());
     let mut top_timeout_labels: Vec<(String, u64)> =
         agg.timeout_labels.clone().into_iter().collect();
-    top_timeout_labels.sort_by(|a, b| b.1.cmp(&a.1));
+    top_timeout_labels.sort_by_key(|row| std::cmp::Reverse(row.1));
     top_timeout_labels.truncate(5);
     let cache_all = (agg.sum_in > 0).then_some(agg.sum_cached as f64 / agg.sum_in as f64);
     let (first_cache, second_cache) = cache_halves(runs);
@@ -405,7 +405,7 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
         .then_some(retry_tasks_recovered as f64 / retry_tasks_with_timeout as f64);
     let mut retry_attempt_histogram: Vec<(u64, u64)> =
         agg.retry_attempt_histogram.clone().into_iter().collect();
-    retry_attempt_histogram.sort_by(|a, b| a.0.cmp(&b.0));
+    retry_attempt_histogram.sort_by_key(|row| row.0);
     let timing_retry_attempt_rate = (agg.timing_task_rows > 0)
         .then_some(agg.timing_with_retry_attempt as f64 / agg.timing_task_rows as f64);
     let timing_queue_started_at_rate = (agg.timing_task_rows > 0)

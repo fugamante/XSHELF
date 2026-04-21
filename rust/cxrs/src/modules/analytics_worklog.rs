@@ -26,12 +26,12 @@ fn grouped_rows(runs: &[RunEntry]) -> Vec<(String, u64, u64, u64)> {
     let mut grouped: Vec<(String, u64, u64, u64)> = by_tool
         .into_iter()
         .map(|(tool, (count, sum_dur, sum_eff))| {
-            let avg_dur = if count == 0 { 0 } else { sum_dur / count };
-            let avg_eff = if count == 0 { 0 } else { sum_eff / count };
+            let avg_dur = sum_dur.checked_div(count).unwrap_or(0);
+            let avg_eff = sum_eff.checked_div(count).unwrap_or(0);
             (tool, count, avg_dur, avg_eff)
         })
         .collect();
-    grouped.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2)));
+    grouped.sort_by_key(|row| (std::cmp::Reverse(row.1), std::cmp::Reverse(row.2)));
     grouped
 }
 
