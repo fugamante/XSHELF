@@ -144,6 +144,7 @@ Telemetry and policy:
 ./bin/xshelf optimize 200 --json | jq .
 ./bin/xshelf policy show --json | jq .
 ./bin/xshelf quota probe 30 --json | jq .
+./bin/xshelf broker show --json | jq .
 ```
 
 ## Configuration Essentials

@@ -134,6 +134,10 @@ fn broker_set_accepts_quota_saver_policy() {
     assert!(show.status.success(), "stderr={}", stderr_str(&show));
     let payload: Value = serde_json::from_str(&stdout_str(&show)).expect("broker show json");
     assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("broker-show.v1")
+    );
+    assert_eq!(
         payload.get("broker_policy").and_then(Value::as_str),
         Some("quota_saver")
     );
