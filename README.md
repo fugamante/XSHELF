@@ -15,6 +15,7 @@ Naming note:
 Canonical runtime:
 - engine: `rust/cxrs`
 - primary entrypoint: `bin/xshelf`
+- short alias: `bin/xs`
 - compatibility alias: `bin/cx`
 - compatibility shell shim: `lib/cx.sh`
 
@@ -71,11 +72,14 @@ Install shell functions and man pages:
 
 ```bash
 ./bin/xshelf-install
+./bin/xs-install
+man xs
 man xshelf
 man cx
 ```
 
 Compatibility note:
+- `./bin/xs ...` is a supported short alias for `xshelf`.
 - `./bin/cx ...` remains fully supported during migration.
 
 ## Runtime Model
@@ -251,6 +255,7 @@ git push
 
 Repository layout:
 - `bin/xshelf` - canonical runtime entrypoint
+- `bin/xs` - short runtime alias
 - `bin/cx` - compatibility runtime alias
 - `rust/cxrs/src/main.rs` - Rust binary entry
 - `rust/cxrs/src/app/mod.rs` - routing/orchestration

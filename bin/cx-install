@@ -62,7 +62,8 @@ install_manpage() {
 
   cp "$src" "$target/cx.1"
   cp "$src" "$target/xshelf.1"
-  echo "Installed man pages: $target/cx.1 and $target/xshelf.1"
+  cp "$src" "$target/xs.1"
+  echo "Installed man pages: $target/cx.1, $target/xshelf.1, and $target/xs.1"
 }
 
 install_manpage

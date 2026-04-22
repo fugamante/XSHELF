@@ -114,28 +114,34 @@ Exit criteria:
 Goal:
 
 - make `xshelf` the recommended CLI spelling
+- allow `xs` as an intentional short alias
 - keep `cx` as a compatibility alias
 
 Do in this phase:
 
 - document `bin/xshelf` first in install and quick-start material
+- allow `bin/xs` as the compact shorthand where it improves ergonomics
 - keep `bin/cx` examples where compatibility matters
 - add explicit docs for:
   - canonical command: `xshelf`
+  - short alias: `xs`
   - compatibility alias: `cx`
 - update wrappers/installers so both names are supported intentionally
 
 Current status:
 
 - top-level README now leads with `bin/xshelf`
+- `bin/xs` is now available as a short runtime alias
 - install flow now supports `bin/xshelf-install`
-- man-page install now publishes both `xshelf.1` and `cx.1`
+- install flow now supports `bin/xs-install`
+- man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
 - `cx` remains fully supported as the compatibility path
 
 Exit criteria:
 
 - new users can start with `xshelf`
+- power users can use `xs` when a shorter command is preferable
 - existing users can continue with `cx` without breakage
 - docs distinguish canonical vs compatibility command names clearly
 
@@ -170,6 +176,7 @@ A deep rename should require:
 These rules apply unless a later approved phase explicitly changes them.
 
 - `bin/cx` remains supported
+- `bin/xs` remains a short alias, not the canonical product name
 - `CX_*` environment variables remain supported
 - `.codex/` remains the runtime state location
 - machine-readable JSON contracts are not renamed purely for branding

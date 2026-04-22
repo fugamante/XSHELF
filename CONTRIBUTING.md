@@ -10,6 +10,7 @@
 
 - Project branding is `XSHELF (formerly CX)`.
 - Canonical user-facing command spelling is `xshelf`.
+- `xs` is an allowed short alias where brevity helps and ambiguity stays low.
 - `cx` remains a supported compatibility alias during migration.
 - Preserve `CX_*` environment variable compatibility by default.
 - Keep `cx` examples where compatibility context matters.

@@ -1,8 +1,11 @@
 .TH XSHELF 1 "April 2026" "XSHELF" "User Commands"
 .SH NAME
-xshelf, cx \- deterministic Rust-first runtime for repo-aware LLM workflows
+xshelf, xs, cx \- deterministic Rust-first runtime for repo-aware LLM workflows
 .SH SYNOPSIS
 .B xshelf
+\fICOMMAND\fR [\fIARGS\fR...]
+.br
+.B xs
 \fICOMMAND\fR [\fIARGS\fR...]
 .br
 .B cx
@@ -11,12 +14,17 @@ xshelf, cx \- deterministic Rust-first runtime for repo-aware LLM workflows
 .B ./bin/xshelf
 \fICOMMAND\fR [\fIARGS\fR...]
 .br
+.B ./bin/xs
+\fICOMMAND\fR [\fIARGS\fR...]
+.br
 .B ./bin/cx
 \fICOMMAND\fR [\fIARGS\fR...]
 .SH DESCRIPTION
 .B xshelf
 is a repository-local AI runtime and orchestration CLI.
 It is Rust-first and deterministic for structured operations.
+.PP
+\fBxs\fR is a supported short alias for \fBxshelf\fR.
 .PP
 \fBcx\fR remains a supported compatibility alias during the rename transition.
 .PP
@@ -205,6 +213,7 @@ xshelf schema list --json | jq .
 xshelf logs validate --strict
 xshelf optimize 200 --json | jq .
 man xshelf
+man xs
 man cx
 .fi
 .SH SEE ALSO
