@@ -17,9 +17,20 @@
     "halted_on_critical",
     "halted_remaining",
     "backend_fallbacks",
+    "invariants",
     "concurrency_summary",
     "duration_ms",
     "tasks"
+  ],
+  "invariants_keys": [
+    "ok",
+    "status",
+    "issues",
+    "outcome_accounting_ok",
+    "failure_accounting_ok",
+    "critical_halt_ok",
+    "worker_summary_ok",
+    "timing_window_ok"
   ],
   "task_readiness_keys": [
     "status_filter",

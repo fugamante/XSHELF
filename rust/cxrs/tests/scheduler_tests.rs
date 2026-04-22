@@ -1049,6 +1049,19 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         &concurrency_keys,
         "task_run_all.concurrency_summary",
     );
+    let invariant_keys = fixture_keys(&fixture, "invariants_keys");
+    assert_has_keys(
+        payload.get("invariants").expect("invariants"),
+        &invariant_keys,
+        "task_run_all.invariants",
+    );
+    assert_eq!(
+        payload
+            .get("invariants")
+            .and_then(|v| v.get("status"))
+            .and_then(Value::as_str),
+        Some("clean")
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
