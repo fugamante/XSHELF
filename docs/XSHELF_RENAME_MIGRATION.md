@@ -16,14 +16,15 @@ This is a staged compatibility migration, not a flag-day rename.
 What is already true:
 
 - project branding has started moving to `XSHELF (formerly CX)`
-- `bin/xshelf` already exists as an alias entrypoint
-- `bin/cx` is still the active canonical command surface
+- `bin/xshelf` is now the canonical command surface
+- `bin/xs` is available as the short alias
+- `bin/cx` remains the supported compatibility command surface
 - `CX_*` env vars remain the stable runtime configuration contract
 - `.codex/` remains the runtime state directory
 
 What that means:
 
-- identity is partially renamed
+- identity is renamed at the product and primary CLI layer
 - runtime compatibility is intentionally still `cx`-shaped
 - the repo needs an explicit migration policy so future edits do not drift
 
