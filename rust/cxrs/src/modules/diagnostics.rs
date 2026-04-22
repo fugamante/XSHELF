@@ -1251,7 +1251,10 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs diag: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} diag: failed to render json: {e}",
+                    crate::config::cli_app_name()
+                );
                 return 1;
             }
         }
@@ -1520,7 +1523,10 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs scheduler: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} scheduler: failed to render json: {e}",
+                    crate::config::cli_app_name()
+                );
                 return 1;
             }
         }

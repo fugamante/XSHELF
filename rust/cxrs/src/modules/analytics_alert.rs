@@ -1,11 +1,12 @@
 use std::path::Path;
 
+use crate::config::cli_app_name;
 use crate::types::RunEntry;
 
 use super::analytics_shared::{env_u64, load_runs_for};
 
 fn print_alert_empty(n: usize, log_file: &Path) {
-    println!("== cxrs alert (last {n} runs) ==");
+    println!("== {} alert (last {n} runs) ==", cli_app_name());
     println!("Runs: 0");
     println!("Slow threshold violations: 0");
     println!("Token threshold violations: 0");
@@ -74,7 +75,7 @@ struct AlertHeaderStats {
 }
 
 fn print_alert_header(s: &AlertHeaderStats) {
-    println!("== cxrs alert (last {} runs) ==", s.n);
+    println!("== {} alert (last {} runs) ==", cli_app_name(), s.n);
     println!("Runs: {}", s.runs_len);
     println!("Thresholds: max_ms={}, max_eff_in={}", s.max_ms, s.max_eff);
     println!("Slow threshold violations: {}", s.slow_violations);

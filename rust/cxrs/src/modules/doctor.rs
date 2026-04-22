@@ -3,7 +3,7 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
-use crate::config::{command_matches_cli, command_with_cli};
+use crate::config::{cli_app_name, command_matches_cli, command_with_cli};
 use crate::llm::extract_agent_text;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
@@ -1355,10 +1355,13 @@ fn print_exec_advice() {
 pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
     let backend = llm_backend();
     let llm_bin = llm_bin_name();
-    println!("== cxrs doctor ==");
+    println!("== {} doctor ==", cli_app_name());
     let missing_required = check_required_bins(&backend, llm_bin);
     if missing_required > 0 {
-        println!("FAIL: install required binaries before using cxrs.");
+        println!(
+            "FAIL: install required binaries before using {}.",
+            cli_app_name()
+        );
         return 1;
     }
     if let Err(code) = probe_json_pipeline(&backend, run_llm_jsonl) {
@@ -1385,7 +1388,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
     match run_command_output_with_timeout(version_cmd, &format!("{llm_bin} --version")) {
         Ok(out) => print!("{}", String::from_utf8_lossy(&out.stdout)),
         Err(e) => {
-            crate::cx_eprintln!("cxrs health: {backend} --version failed: {e}");
+            crate::cx_eprintln!("{} health: {backend} --version failed: {e}", cli_app_name());
             return 1;
         }
     }
@@ -1394,7 +1397,7 @@ pub fn cmd_health(run_llm_jsonl: JsonlRunner, run_cxo: CxoRunner) -> i32 {
     let jsonl = match run_llm_jsonl("ping") {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!("cxrs health: {backend} json failed: {e}");
+            crate::cx_eprintln!("{} health: {backend} json failed: {e}", cli_app_name());
             return 1;
         }
     };

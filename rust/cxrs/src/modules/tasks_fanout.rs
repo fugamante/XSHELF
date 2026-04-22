@@ -249,7 +249,7 @@ pub fn cmd_task_fanout(app_name: &str, objective: &str, from: Option<&str>) -> i
     );
 
     if let Err(e) = write_tasks(&tasks) {
-        crate::cx_eprintln!("cxrs task fanout: {e}");
+        crate::cx_eprintln!("{} task fanout: {e}", cli_app_name());
         return 1;
     }
     print_fanout_table(&parent_id, created);

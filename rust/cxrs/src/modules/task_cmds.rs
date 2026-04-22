@@ -56,7 +56,7 @@ struct TaskRunOverrides {
 
 pub fn cmd_task_set_status(id: &str, new_status: &str) -> i32 {
     if let Err(e) = set_task_status(id, new_status) {
-        crate::cx_eprintln!("cxrs task: {e}");
+        crate::cx_eprintln!("{} task: {e}", cli_app_name());
         return 1;
     }
     if new_status == "in_progress" {
@@ -85,7 +85,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     return 2;
                 };
                 if !matches!(v, "pending" | "in_progress" | "complete" | "failed") {
-                    crate::cx_eprintln!("cxrs task list: invalid status '{v}'");
+                    crate::cx_eprintln!("{} task list: invalid status '{v}'", cli_app_name());
                     return 2;
                 }
                 status_filter = Some(v);
@@ -100,7 +100,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 i += 1;
             }
             other => {
-                crate::cx_eprintln!("cxrs task list: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task list: unknown flag '{other}'", cli_app_name());
                 return 2;
             }
         }
@@ -143,7 +143,7 @@ fn handle_list(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs task list: failed to render json: {e}");
+                crate::cx_eprintln!("{} task list: failed to render json: {e}", cli_app_name());
                 return 1;
             }
         }
@@ -226,7 +226,7 @@ fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOv
                 i += 1;
             }
             other => {
-                crate::cx_eprintln!("cxrs task run: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task run: unknown flag '{other}'", cli_app_name());
                 return Err(2);
             }
         }
@@ -315,7 +315,10 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 match serde_json::to_string_pretty(&payload) {
                     Ok(s) => println!("{s}"),
                     Err(e) => {
-                        crate::cx_eprintln!("cxrs task run: failed to render json: {e}");
+                        crate::cx_eprintln!(
+                            "{} task run: failed to render json: {e}",
+                            cli_app_name()
+                        );
                         return 1;
                     }
                 }
@@ -344,7 +347,10 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 match serde_json::to_string_pretty(&payload) {
                     Ok(s) => println!("{s}"),
                     Err(err) => {
-                        crate::cx_eprintln!("cxrs task run: failed to render json: {err}");
+                        crate::cx_eprintln!(
+                            "{} task run: failed to render json: {err}",
+                            cli_app_name()
+                        );
                     }
                 }
                 return 1;
@@ -961,7 +967,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     .collect();
                 return dry_run_out(&options, &ids, &task_index, plan.blocked.len(), false);
             }
-            crate::cx_eprintln!("cxrs task run-all: strict-plan failed ({reason})");
+            crate::cx_eprintln!(
+                "{} task run-all: strict-plan failed ({reason})",
+                cli_app_name()
+            );
             crate::cx_eprintln!(
                 "preflight: recommended_mode={} can_run_mixed={} can_run_parallel={} waves={} parallel_waves={} largest_parallel_wave={}",
                 readiness
@@ -1002,7 +1011,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             return 1;
         }
         if !plan.blocked.is_empty() {
-            crate::cx_eprintln!("cxrs task run-all: blocked tasks prevent full schedule:");
+            crate::cx_eprintln!(
+                "{} task run-all: blocked tasks prevent full schedule:",
+                cli_app_name()
+            );
             for b in &plan.blocked {
                 crate::cx_eprintln!(" - {}: {}", b.id, b.reason);
             }
@@ -1099,7 +1111,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         match run_schedule_parallel(&schedule, &task_index, &options, &wave_meta_map) {
             Ok(v) => v,
             Err(e) => {
-                crate::cx_eprintln!("cxrs task run-all: {e}");
+                crate::cx_eprintln!("{} task run-all: {e}", cli_app_name());
                 return 1;
             }
         }
@@ -1173,7 +1185,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         continue;
                     }
                     Err(e) => {
-                        crate::cx_eprintln!("cxrs task run-all: critical error for {id}: {e}");
+                        crate::cx_eprintln!(
+                            "{} task run-all: critical error for {id}: {e}",
+                            cli_app_name()
+                        );
                         summary.record_critical_error();
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
@@ -1246,7 +1261,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             continue;
                         }
                         summary.record_failure(failure.class);
-                        crate::cx_eprintln!("cxrs task run-all: task failed: {id}");
+                        crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
                             backend: backend_selected
@@ -1265,7 +1280,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         break;
                     }
                     Err(e) => {
-                        crate::cx_eprintln!("cxrs task run-all: critical error for {id}: {e}");
+                        crate::cx_eprintln!(
+                            "{} task run-all: critical error for {id}: {e}",
+                            cli_app_name()
+                        );
                         summary.record_critical_error();
                         summary.add_task_run(TaskRunEvent {
                             id: id.clone(),
@@ -1292,7 +1310,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             }
             if !finished {
                 summary.record_failure(FailureClass::NonRetryable);
-                crate::cx_eprintln!("cxrs task run-all: task failed: {id}");
+                crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
                 summary.add_task_run(TaskRunEvent {
                     id: id.clone(),
                     backend: backend_selected
@@ -1341,7 +1359,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs task run-all: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} task run-all: failed to render json: {e}",
+                    cli_app_name()
+                );
                 return 1;
             }
         }
@@ -1370,7 +1391,10 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             match serde_json::to_string_pretty(&payload) {
                 Ok(s) => println!("{s}"),
                 Err(e) => {
-                    crate::cx_eprintln!("cxrs task run-all: failed to render summary json: {e}");
+                    crate::cx_eprintln!(
+                        "{} task run-all: failed to render summary json: {e}",
+                        cli_app_name()
+                    );
                     return 1;
                 }
             }
@@ -1811,7 +1835,10 @@ fn dry_run_out(
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs task run-all: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} task run-all: failed to render json: {e}",
+                    cli_app_name()
+                );
                 return 1;
             }
         }
@@ -1859,7 +1886,10 @@ fn parse_backend_pool(raw: &str) -> Result<Vec<String>, String> {
     out.sort();
     out.dedup();
     if out.is_empty() {
-        return Err("cxrs task run-all: --backend-pool requires codex and/or ollama".to_string());
+        return Err(format!(
+            "{} task run-all: --backend-pool requires codex and/or ollama",
+            cli_app_name()
+        ));
     }
     Ok(out)
 }
@@ -1867,23 +1897,34 @@ fn parse_backend_pool(raw: &str) -> Result<Vec<String>, String> {
 fn parse_backend_cap(raw: &str) -> Result<(String, usize), String> {
     let mut parts = raw.splitn(2, '=');
     let Some(name_raw) = parts.next() else {
-        return Err("cxrs task run-all: invalid --backend-cap".to_string());
+        return Err(format!(
+            "{} task run-all: invalid --backend-cap",
+            cli_app_name()
+        ));
     };
     let Some(limit_raw) = parts.next() else {
-        return Err("cxrs task run-all: --backend-cap must use backend=limit".to_string());
+        return Err(format!(
+            "{} task run-all: --backend-cap must use backend=limit",
+            cli_app_name()
+        ));
     };
     let Some(name) = normalize_backend(name_raw) else {
         return Err(format!(
-            "cxrs task run-all: invalid backend in cap '{name_raw}'"
+            "{} task run-all: invalid backend in cap '{name_raw}'",
+            cli_app_name()
         ));
     };
     let Ok(limit) = limit_raw.parse::<usize>() else {
         return Err(format!(
-            "cxrs task run-all: invalid cap limit '{limit_raw}'"
+            "{} task run-all: invalid cap limit '{limit_raw}'",
+            cli_app_name()
         ));
     };
     if limit == 0 {
-        return Err("cxrs task run-all: backend cap must be >= 1".to_string());
+        return Err(format!(
+            "{} task run-all: backend cap must be >= 1",
+            cli_app_name()
+        ));
     }
     Ok((name, limit))
 }
@@ -1961,7 +2002,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                     return Err(2);
                 };
                 if !matches!(v, "pending" | "in_progress" | "complete" | "failed") {
-                    crate::cx_eprintln!("cxrs task run-all: invalid status '{v}'");
+                    crate::cx_eprintln!("{} task run-all: invalid status '{v}'", cli_app_name());
                     return Err(2);
                 }
                 status_filter = v.to_string();
@@ -1973,7 +2014,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                     return Err(2);
                 };
                 if !matches!(v, "sequential" | "mixed" | "parallel") {
-                    crate::cx_eprintln!("cxrs task run-all: invalid mode '{v}'");
+                    crate::cx_eprintln!("{} task run-all: invalid mode '{v}'", cli_app_name());
                     return Err(2);
                 }
                 run_mode = v.to_string();
@@ -2015,11 +2056,17 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                     return Err(2);
                 };
                 let Ok(n) = v.parse::<usize>() else {
-                    crate::cx_eprintln!("cxrs task run-all: --max-workers must be an integer");
+                    crate::cx_eprintln!(
+                        "{} task run-all: --max-workers must be an integer",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 if n == 0 {
-                    crate::cx_eprintln!("cxrs task run-all: --max-workers must be >= 1");
+                    crate::cx_eprintln!(
+                        "{} task run-all: --max-workers must be >= 1",
+                        cli_app_name()
+                    );
                     return Err(2);
                 }
                 max_workers = n;
@@ -2032,7 +2079,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 };
                 let fv = v.trim().to_lowercase();
                 if !matches!(fv.as_str(), "round_robin" | "least_loaded") {
-                    crate::cx_eprintln!("cxrs task run-all: invalid fairness '{fv}'");
+                    crate::cx_eprintln!("{} task run-all: invalid fairness '{fv}'", cli_app_name());
                     return Err(2);
                 }
                 fairness = fv;
@@ -2053,7 +2100,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 };
                 let sv = v.trim().to_lowercase();
                 if !matches!(sv.as_str(), "text" | "json") {
-                    crate::cx_eprintln!("cxrs task run-all: --summary must be text|json");
+                    crate::cx_eprintln!(
+                        "{} task run-all: --summary must be text|json",
+                        cli_app_name()
+                    );
                     return Err(2);
                 }
                 summary_format = sv;
@@ -2080,7 +2130,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 i += 1;
             }
             other => {
-                crate::cx_eprintln!("cxrs task run-all: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task run-all: unknown flag '{other}'", cli_app_name());
                 return Err(2);
             }
         }
@@ -2340,7 +2390,11 @@ fn run_schedule_parallel(
                         let failure = classify_failure_for_execution(execution_id.as_deref());
                         summary.record_failure(failure.class);
                         let _ = set_task_status_quiet(&done.id, "failed");
-                        crate::cx_eprintln!("cxrs task run-all: task failed: {}", done.id);
+                        crate::cx_eprintln!(
+                            "{} task run-all: task failed: {}",
+                            cli_app_name(),
+                            done.id
+                        );
                         summary.add_task_run(TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
@@ -2358,7 +2412,11 @@ fn run_schedule_parallel(
                 Err(e) => {
                     summary.record_critical_error();
                     let _ = set_task_status_quiet(&done.id, "failed");
-                    crate::cx_eprintln!("cxrs task run-all: critical error for {}: {e}", done.id);
+                    crate::cx_eprintln!(
+                        "{} task run-all: critical error for {}: {e}",
+                        cli_app_name(),
+                        done.id
+                    );
                     summary.add_task_run(TaskRunEvent {
                         id: done.id,
                         backend: done.backend,
@@ -2398,7 +2456,7 @@ fn handle_run_plan(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     return 2;
                 };
                 if !matches!(v, "pending" | "in_progress" | "complete" | "failed") {
-                    crate::cx_eprintln!("cxrs task run-plan: invalid status '{v}'");
+                    crate::cx_eprintln!("{} task run-plan: invalid status '{v}'", cli_app_name());
                     return 2;
                 }
                 status_filter = v.to_string();
@@ -2409,7 +2467,7 @@ fn handle_run_plan(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 i += 1;
             }
             other => {
-                crate::cx_eprintln!("cxrs task run-plan: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task run-plan: unknown flag '{other}'", cli_app_name());
                 return 2;
             }
         }
@@ -2428,7 +2486,10 @@ fn handle_run_plan(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         match serde_json::to_string_pretty(&plan) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs task run-plan: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} task run-plan: failed to render json: {e}",
+                    cli_app_name()
+                );
                 return 1;
             }
         }
@@ -2603,7 +2664,7 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
                     return 2;
                 };
                 if !matches!(v, "pending" | "in_progress" | "complete" | "failed") {
-                    crate::cx_eprintln!("cxrs task check: invalid status '{v}'");
+                    crate::cx_eprintln!("{} task check: invalid status '{v}'", cli_app_name());
                     return 2;
                 }
                 status_filter = v.to_string();
@@ -2622,7 +2683,7 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
                 i += 1;
             }
             other => {
-                crate::cx_eprintln!("cxrs task check: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task check: unknown flag '{other}'", cli_app_name());
                 return 2;
             }
         }
@@ -2671,7 +2732,7 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs task check: failed to render json: {e}");
+                crate::cx_eprintln!("{} task check: failed to render json: {e}", cli_app_name());
                 return 1;
             }
         }

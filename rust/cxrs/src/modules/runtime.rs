@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::io::{self, IsTerminal, Write};
 use std::process::Command;
 
-use crate::config::app_config;
+use crate::config::{app_config, cli_app_name};
 use crate::process::run_command_output_with_timeout;
 use crate::state::{read_state_value, set_state_path, value_at_path};
 
@@ -72,14 +72,15 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
         return Ok(model);
     }
     if !is_interactive_tty() {
-        return Err(
-            "ollama model is unset; set CX_OLLAMA_MODEL or run 'cxrs llm set-model <model>'"
-                .to_string(),
-        );
+        return Err(format!(
+            "ollama model is unset; set CX_OLLAMA_MODEL or run '{} llm set-model <model>'",
+            cli_app_name()
+        )
+        .to_string());
     }
 
     let models = ollama_list_models();
-    crate::cx_eprintln!("cxrs: no default Ollama model configured.");
+    crate::cx_eprintln!("{}: no default Ollama model configured.", cli_app_name());
     if models.is_empty() {
         crate::cx_eprintln!("No local models found from 'ollama list'.");
         crate::cx_eprintln!("Pull one first (example: ollama pull llama3.1) then set it.");
@@ -108,7 +109,11 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
         selected_raw.to_string()
     };
     set_state_path("preferences.ollama_model", Value::String(selected.clone()))?;
-    crate::cx_eprintln!("cxrs: default Ollama model set to '{}'.", selected);
+    crate::cx_eprintln!(
+        "{}: default Ollama model set to '{}'.",
+        cli_app_name(),
+        selected
+    );
     Ok(selected)
 }
 
