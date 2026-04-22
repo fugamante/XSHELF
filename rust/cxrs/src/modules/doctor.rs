@@ -941,6 +941,49 @@ fn exec_wave_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
     ]
 }
 
+fn exec_concurrency_value(latest_summary: Option<&Value>) -> Value {
+    let worker_count = latest_summary
+        .and_then(|summary| summary.get("run_all_worker_count"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let workers = latest_summary
+        .and_then(|summary| summary.get("run_all_workers"))
+        .and_then(Value::as_str)
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_default();
+    let max_retry_attempt = latest_summary
+        .and_then(|summary| summary.get("run_all_max_retry_attempt"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let first_queue_started_at = latest_summary
+        .and_then(|summary| summary.get("run_all_first_queue_started_at"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let first_task_started_at = latest_summary
+        .and_then(|summary| summary.get("run_all_first_task_started_at"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let last_task_finished_at = latest_summary
+        .and_then(|summary| summary.get("run_all_last_task_finished_at"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    serde_json::json!({
+        "worker_count": worker_count,
+        "workers": workers,
+        "max_retry_attempt": max_retry_attempt,
+        "first_queue_started_at": first_queue_started_at,
+        "first_task_started_at": first_task_started_at,
+        "last_task_finished_at": last_task_finished_at
+    })
+}
+
 fn wave_pressure_value(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Value {
     let latest_wave_index = latest_summary
         .and_then(|s| s.get("run_all_latest_wave_index"))
@@ -1162,6 +1205,8 @@ pub(crate) fn exec_advice_lines(
             format!("task_execution_latest_wave_index: {latest_wave_index}"),
             format!("task_execution_max_queue_wave_index: {max_queue_wave_index}"),
             format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
+            "task_execution_worker_count: 0".to_string(),
+            "task_execution_max_retry_attempt: 0".to_string(),
         ];
         let advice_value = exec_advice_value(None, wave_summary);
         let advice = advice_value
@@ -1195,6 +1240,15 @@ pub(crate) fn exec_advice_lines(
         .get("max_queue_wave_ms")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let concurrency = exec_concurrency_value(Some(summary));
+    let worker_count = concurrency
+        .get("worker_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let max_retry_attempt = concurrency
+        .get("max_retry_attempt")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
 
     let mut lines = vec![
         format!("task_execution_last_mode: {mode}"),
@@ -1203,7 +1257,37 @@ pub(crate) fn exec_advice_lines(
         format!("task_execution_latest_wave_index: {latest_wave_index}"),
         format!("task_execution_max_queue_wave_index: {max_queue_wave_index}"),
         format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
+        format!("task_execution_worker_count: {worker_count}"),
+        format!("task_execution_max_retry_attempt: {max_retry_attempt}"),
     ];
+    if let Some(workers) = concurrency.get("workers").and_then(Value::as_array)
+        && !workers.is_empty()
+    {
+        let workers = workers
+            .iter()
+            .filter_map(Value::as_str)
+            .collect::<Vec<&str>>()
+            .join(",");
+        lines.push(format!("task_execution_workers: {workers}"));
+    }
+    if let Some(v) = concurrency
+        .get("first_queue_started_at")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!("task_execution_first_queue_started_at: {v}"));
+    }
+    if let Some(v) = concurrency
+        .get("first_task_started_at")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!("task_execution_first_task_started_at: {v}"));
+    }
+    if let Some(v) = concurrency
+        .get("last_task_finished_at")
+        .and_then(Value::as_str)
+    {
+        lines.push(format!("task_execution_last_task_finished_at: {v}"));
+    }
 
     let advice_value = exec_advice_value(Some(summary), wave_summary);
     let advice = advice_value
@@ -1261,6 +1345,7 @@ pub(crate) fn exec_diag_value(
         .and_then(|summary| summary.get("run_all_backend_fallback_rows"))
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let concurrency = exec_concurrency_value(latest_summary);
     let next_action = next_action_value(&advice, &recommendations);
     let mut blockers = Vec::new();
     if latest_summary.is_none() {
@@ -1308,6 +1393,7 @@ pub(crate) fn exec_diag_value(
         "latest_wave_index": latest_wave_index,
         "max_queue_wave_index": max_queue_wave_index,
         "max_queue_wave_ms": max_queue_wave_ms,
+        "concurrency": concurrency,
         "wave_pressure": wave_pressure,
         "advice": advice,
         "recommendations": recommendations,

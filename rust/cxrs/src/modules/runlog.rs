@@ -57,6 +57,12 @@ pub struct TaskRunAllSummaryLogInput<'a> {
     pub latest_wave_index: Option<u64>,
     pub max_queue_wave_index: Option<u64>,
     pub max_queue_wave_ms: Option<u64>,
+    pub worker_count: Option<u64>,
+    pub workers: Option<&'a str>,
+    pub max_retry_attempt: Option<u32>,
+    pub first_queue_started_at: Option<&'a str>,
+    pub first_task_started_at: Option<&'a str>,
+    pub last_task_finished_at: Option<&'a str>,
     pub invocation_command: Option<&'a str>,
     pub failure_pattern: Option<&'a str>,
     pub recommended_resume_point: Option<&'a str>,
@@ -326,6 +332,12 @@ pub fn log_task_run_all_summary(input: TaskRunAllSummaryLogInput<'_>) -> Result<
     row.run_all_latest_wave_index = input.latest_wave_index;
     row.run_all_max_queue_wave_index = input.max_queue_wave_index;
     row.run_all_max_queue_wave_ms = input.max_queue_wave_ms;
+    row.run_all_worker_count = input.worker_count;
+    row.run_all_workers = input.workers.map(|s| s.to_string());
+    row.run_all_max_retry_attempt = input.max_retry_attempt;
+    row.run_all_first_queue_started_at = input.first_queue_started_at.map(|s| s.to_string());
+    row.run_all_first_task_started_at = input.first_task_started_at.map(|s| s.to_string());
+    row.run_all_last_task_finished_at = input.last_task_finished_at.map(|s| s.to_string());
     row.run_all_invocation_command = input.invocation_command.map(|s| s.to_string());
     row.run_all_failure_pattern = input.failure_pattern.map(|s| s.to_string());
     row.run_all_recommended_resume_point = input.recommended_resume_point.map(|s| s.to_string());
