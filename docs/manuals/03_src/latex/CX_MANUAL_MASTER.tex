@@ -1,7 +1,7 @@
 \documentclass[11pt]{article}
 \input{docs/manuals/03_src/latex/_preamble.tex}
 
-\title{CX Manual (Master)}
+\title{XSHELF Manual (Master)}
 \author{}
 \date{Last updated: 2026-02-26}
 
@@ -10,7 +10,7 @@
 \vspace{-0.6em}
 
 \section*{Intent}
-cx is built for one outcome: \textbf{predictable LLM-assisted work under load}.
+XSHELF is built for one outcome: \textbf{predictable LLM-assisted work under load}.
 That means bounded context, schema-validated structured outputs, strict telemetry, and safe
 automation boundaries.
 
@@ -24,7 +24,7 @@ This master manual synthesizes three viewpoints:
 \section*{Architecture Overview}
 \begin{itemize}
   \item Canonical engine: \texttt{cxrs} (Rust). Bash is fallback only.
-  \item Authoritative entrypoint: \texttt{bin/cx} routes Rust-first with explicit fallback.
+  \item Canonical entrypoint: \texttt{bin/xshelf}. \texttt{bin/cx} remains the compatibility alias.
   \item Capture pipeline applies to \emph{system output} only (internal native reduction, then budgets).
   \item Structured commands are schema-enforced (JSON-only, validated, replayable).
   \item Schema failures are quarantined (\texttt{.codex/quarantine/}) and logged with \texttt{quarantine\_id}.
@@ -46,23 +46,23 @@ This master manual synthesizes three viewpoints:
 \section*{Quickstart (3 Commands)}
 \begin{lstlisting}[style=cx]
 cd <repo-root>
-./bin/cx version
-./bin/cx budget
-./bin/cx diffsum-staged | jq .
+./bin/xshelf version
+./bin/xshelf budget
+./bin/xshelf diffsum-staged | jq .
 \end{lstlisting}
 
 \section*{Common Workflows (Copy/Paste)}
 \begin{lstlisting}[style=cx]
 # Structured outputs:
-./bin/cx diffsum-staged | jq .
-./bin/cx commitjson | jq .
+./bin/xshelf diffsum-staged | jq .
+./bin/xshelf commitjson | jq .
 
 # Task graph:
-./bin/cx task fanout "Objective..." --from staged-diff
-./bin/cx task run-all --status pending
+./bin/xshelf task fanout "Objective..." --from staged-diff
+./bin/xshelf task run-all --status pending
 
 # Optimization:
-./bin/cx optimize 200
+./bin/xshelf optimize 200
 \end{lstlisting}
 
 \section*{Installation / Prereqs}
@@ -75,18 +75,18 @@ cd <repo-root>
 \end{itemize}
 
 \begin{lstlisting}[style=cx]
-./bin/cx doctor
-./bin/cx capture-status
+./bin/xshelf doctor
+./bin/xshelf capture-status
 \end{lstlisting}
 Optional: \texttt{ollama} (local backend).
 
 \section*{Troubleshooting (Fast)}
 \begin{itemize}
-  \item Unexpected fallback: \texttt{./bin/cx where <cmd>} and confirm \texttt{execution\_path} via \texttt{./bin/cx version}.
-  \item Schema command fails: inspect \texttt{./bin/cx quarantine list}, then \texttt{./bin/cx replay <id>}.
-  \item Budget clipping surprises: check \texttt{./bin/cx budget} and \texttt{./bin/cx trace}; reduce capture scope or adjust budgets intentionally.
+  \item Unexpected fallback: \texttt{./bin/xshelf where <cmd>} and confirm \texttt{execution\_path} via \texttt{./bin/xshelf version}.
+  \item Schema command fails: inspect \texttt{./bin/xshelf quarantine list}, then \texttt{./bin/xshelf replay <id>}.
+  \item Budget clipping surprises: check \texttt{./bin/xshelf budget} and \texttt{./bin/xshelf trace}; reduce capture scope or adjust budgets intentionally.
   \item Strict log validation fails: legacy rows may predate the current telemetry contract; new runs should conform.
-  \item Backend confusion: run \texttt{./bin/cx llm show} and verify the selected model when using ollama.
+  \item Backend confusion: run \texttt{./bin/xshelf llm show} and verify the selected model when using ollama.
 \end{itemize}
 
 \tableofcontents
@@ -96,14 +96,14 @@ Optional: \texttt{ollama} (local backend).
 \subsection*{Fast path (30 seconds)}
 \begin{lstlisting}[style=cx]
 cd <repo-root>
-./bin/cx version
-./bin/cx diag
-./bin/cx where version diffsum-staged task optimize
+./bin/xshelf version
+./bin/xshelf diag
+./bin/xshelf where version diffsum-staged task optimize
 \end{lstlisting}
 
 If \texttt{execution\_path} is not Rust, you are on fallback. Expect reduced guarantees.
 
-\section{The Pipeline (What cx Does With Your Reality)}
+\section{The Pipeline (What XSHELF Does With Your Reality)}
 \subsection{Capture and Budgeting}
 The core reliability move is this: \textbf{system output is constrained before it becomes prompt text}.
 
@@ -124,8 +124,8 @@ Budgets (defaults):
 
 Inspect current budgets + last-run clip stats:
 \begin{lstlisting}[style=cx]
-./bin/cx budget
-./bin/cx trace
+./bin/xshelf budget
+./bin/xshelf trace
 \end{lstlisting}
 
 \subsection{Modes}
@@ -148,24 +148,24 @@ Schemas live under \texttt{.codex/schemas/}:
 \end{itemize}
 
 \begin{lstlisting}[style=cx]
-./bin/cx schema list
-./bin/cx schema list --json | jq .
+./bin/xshelf schema list
+./bin/xshelf schema list --json | jq .
 \end{lstlisting}
 
 \subsection{Schema Commands}
 \begin{lstlisting}[style=cx]
-./bin/cx commitjson | jq .
-./bin/cx diffsum-staged | jq .
-./bin/cx next git status | jq .
+./bin/xshelf commitjson | jq .
+./bin/xshelf diffsum-staged | jq .
+./bin/xshelf next git status | jq .
 \end{lstlisting}
 
 \subsection{Failure Procedure}
-If validation fails, cx writes the raw response + metadata to quarantine and returns non-zero.
+If validation fails, XSHELF writes the raw response + metadata to quarantine and returns non-zero.
 
 \begin{lstlisting}[style=cx]
-./bin/cx quarantine list
-./bin/cx quarantine show <id>
-./bin/cx replay <id>
+./bin/xshelf quarantine list
+./bin/xshelf quarantine show <id>
+./bin/xshelf replay <id>
 \end{lstlisting}
 
 \section{Safety Sandbox (Policy Engine)}
@@ -179,8 +179,8 @@ Blocked by default (minimum):
 \end{itemize}
 
 \begin{lstlisting}[style=cx]
-./bin/cx policy show
-./bin/cx policy check "rm -rf ."
+./bin/xshelf policy show
+./bin/xshelf policy check "rm -rf ."
 \end{lstlisting}
 
 \section{Task Graph (Fan-out, Run, Run-all)}
@@ -188,14 +188,14 @@ Blocked by default (minimum):
 Tasks are the unit of migration to parallel work: small, role-tagged, log-linked, and replayable.
 
 \begin{lstlisting}[style=cx]
-./bin/cx task fanout "Ship release notes improvements" --from staged-diff
-./bin/cx task list --status pending
+./bin/xshelf task fanout "Ship release notes improvements" --from staged-diff
+./bin/xshelf task list --status pending
 \end{lstlisting}
 
 \subsection{Run tasks}
 \begin{lstlisting}[style=cx]
-./bin/cx task run task_001 --mode deterministic --backend codex
-./bin/cx task run-all --status pending
+./bin/xshelf task run task_001 --mode deterministic --backend codex
+./bin/xshelf task run-all --status pending
 \end{lstlisting}
 
 \section{Telemetry (Contract, Validation, Interpretation)}
@@ -207,7 +207,7 @@ Tasks are the unit of migration to parallel work: small, role-tagged, log-linked
 
 \subsection{Validate}
 \begin{lstlisting}[style=cx]
-./bin/cx logs validate --fix=false
+./bin/xshelf logs validate --fix=false
 \end{lstlisting}
 Note: strict validation will flag older historical rows that predate the current contract.
 
@@ -221,29 +221,29 @@ Note: strict validation will flag older historical rows that predate the current
 
 \section{Self-Optimization (Pure Analysis)}
 \begin{lstlisting}[style=cx]
-./bin/cx optimize 200
-./bin/cx optimize 200 --json | jq .
+./bin/xshelf optimize 200
+./bin/xshelf optimize 200 --json | jq .
 \end{lstlisting}
 
 \section{Operator Procedures (Copy/Paste)}
 \subsection*{Budget stress test}
 \begin{lstlisting}[style=cx]
-CX_CONTEXT_BUDGET_CHARS=2000 CX_CONTEXT_BUDGET_LINES=40 ./bin/cx cxo git status
-./bin/cx budget
-./bin/cx trace
+CX_CONTEXT_BUDGET_CHARS=2000 CX_CONTEXT_BUDGET_LINES=40 ./bin/xshelf cxo git status
+./bin/xshelf budget
+./bin/xshelf trace
 \end{lstlisting}
 
 \subsection*{Schema integrity check}
 \begin{lstlisting}[style=cx]
-./bin/cx commitjson | jq .
-./bin/cx diffsum-staged | jq .
+./bin/xshelf commitjson | jq .
+./bin/xshelf diffsum-staged | jq .
 \end{lstlisting}
 
 \subsection*{Task loop}
 \begin{lstlisting}[style=cx]
-./bin/cx task fanout "Objective: tighten schema errors" --from log
-./bin/cx task run-all --status pending
-./bin/cx optimize 200
+./bin/xshelf task fanout "Objective: tighten schema errors" --from log
+./bin/xshelf task run-all --status pending
+./bin/xshelf optimize 200
 \end{lstlisting}
 
 \end{document}
