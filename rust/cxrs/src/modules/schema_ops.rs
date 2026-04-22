@@ -264,7 +264,7 @@ pub fn cmd_ci(app_name: &str, args: &[String]) -> i32 {
     };
 
     let Some(root) = repo_root() else {
-        crate::cx_eprintln!("cxrs ci validate: not inside a git repository");
+        crate::cx_eprintln!("{app_name} ci validate: not inside a git repository");
         return 2;
     };
 
