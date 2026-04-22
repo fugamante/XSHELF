@@ -4,7 +4,7 @@ use common::*;
 use serde_json::Value;
 
 #[test]
-fn broker_show_json_matches_contract_fixture() {
+fn broker_show_contract() {
     let repo = TempRepo::new("cxrs-it");
     let out = repo.run(&["broker", "show", "--json"]);
     assert!(out.status.success(), "stderr={}", stderr_str(&out));
