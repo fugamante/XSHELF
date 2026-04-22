@@ -298,7 +298,7 @@ fn dispatch_runtime_commands(
 }
 
 pub fn handler(ctx: &CmdCtx, args: &[String], deps: &CompatDeps) -> i32 {
-    let app_name = ctx.app_name;
+    let app_name = &ctx.app_name;
     if args.is_empty() {
         return print_usage_error("cx", &format!("{app_name} cx <command> [args...]"));
     }

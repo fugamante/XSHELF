@@ -266,7 +266,7 @@ fn dispatch_structured_commands(
 }
 
 pub fn handler(ctx: &CmdCtx, args: &[String], deps: &NativeDeps) -> i32 {
-    let app_name = ctx.app_name;
+    let app_name = &ctx.app_name;
     if args.len() < 2 {
         (deps.print_help)();
         return EXIT_USAGE;

@@ -16,7 +16,7 @@ use crate::command_names::{is_compat_name, is_native_name};
 use crate::compat_cmd;
 use crate::config::{
     APP_DESC, APP_NAME, APP_VERSION, DEFAULT_QUARANTINE_LIST, DEFAULT_RUN_WINDOW, app_config,
-    init_app_config,
+    cli_app_name, init_app_config,
 };
 use crate::contracts_cmd::cmd_contracts;
 use crate::diagnostics::{cmd_diag, cmd_scheduler};
@@ -50,10 +50,11 @@ use crate::tasks::{
 use crate::types::{ExecutionResult, TaskSpec};
 
 fn print_help() {
+    let app_name = cli_app_name();
     print!(
         "{}",
         render_help(
-            APP_NAME,
+            &app_name,
             APP_DESC,
             DEFAULT_RUN_WINDOW,
             DEFAULT_QUARANTINE_LIST
@@ -62,7 +63,7 @@ fn print_help() {
 }
 
 fn print_task_help() {
-    print!("{}", render_task_help());
+    print!("{}", render_task_help(&cli_app_name()));
 }
 
 // path resolution moved to `paths.rs`
@@ -106,7 +107,7 @@ fn task_cmd_deps() -> task_cmds::TaskCmdDeps {
 
 fn cmd_ctx() -> CmdCtx {
     CmdCtx {
-        app_name: APP_NAME,
+        app_name: cli_app_name(),
         app_version: APP_VERSION,
         execute_task,
         run_llm_jsonl: crate::execution::run_llm_jsonl,
@@ -124,7 +125,7 @@ fn execute_task(spec: TaskSpec) -> Result<ExecutionResult, String> {
 }
 
 fn cmd_bench(runs: usize, command: &[String]) -> i32 {
-    bench_parity::cmd_bench(APP_NAME, runs, command)
+    bench_parity::cmd_bench(&cli_app_name(), runs, command)
 }
 
 fn cmd_cx(command: &[String]) -> i32 {
@@ -179,7 +180,7 @@ fn cmd_next(command: &[String]) -> i32 {
 }
 
 fn cmd_fix_run(command: &[String]) -> i32 {
-    structured_cmds::cmd_fix_run(APP_NAME, command, execute_task)
+    structured_cmds::cmd_fix_run(&cli_app_name(), command, execute_task)
 }
 
 fn cmd_diffsum(staged: bool) -> i32 {
@@ -219,27 +220,27 @@ fn compat_cmd_core(args: &[String]) -> i32 {
 }
 
 fn compat_cmd_mode(args: &[String]) -> i32 {
-    cmd_mode(APP_NAME, args)
+    cmd_mode(&cli_app_name(), args)
 }
 
 fn compat_cmd_contracts(args: &[String]) -> i32 {
-    cmd_contracts(APP_NAME, APP_VERSION, args)
+    cmd_contracts(&cli_app_name(), APP_VERSION, args)
 }
 
 fn compat_cmd_logs(args: &[String]) -> i32 {
-    cmd_logs(APP_NAME, args)
+    cmd_logs(&cli_app_name(), args)
 }
 
 fn compat_cmd_policy(args: &[String]) -> i32 {
-    cmd_policy(args, APP_NAME)
+    cmd_policy(args, &cli_app_name())
 }
 
 fn compat_cmd_broker(args: &[String]) -> i32 {
-    broker_cmd(APP_NAME, args)
+    broker_cmd(&cli_app_name(), args)
 }
 
 fn compat_cmd_llm(args: &[String]) -> i32 {
-    cmd_llm(APP_NAME, args)
+    cmd_llm(&cli_app_name(), args)
 }
 
 fn compat_cmd_doctor() -> i32 {
@@ -259,15 +260,15 @@ fn native_print_version(args: &[String]) {
 }
 
 fn native_cmd_schema(args: &[String]) -> i32 {
-    cmd_schema(APP_NAME, args)
+    cmd_schema(&cli_app_name(), args)
 }
 
 fn native_cmd_logs(args: &[String]) -> i32 {
-    cmd_logs(APP_NAME, args)
+    cmd_logs(&cli_app_name(), args)
 }
 
 fn native_cmd_ci(args: &[String]) -> i32 {
-    cmd_ci(APP_NAME, args)
+    cmd_ci(&cli_app_name(), args)
 }
 
 fn native_cmd_where(args: &[String]) -> i32 {
@@ -287,23 +288,23 @@ fn native_cmd_core(args: &[String]) -> i32 {
 }
 
 fn native_cmd_mode(args: &[String]) -> i32 {
-    cmd_mode(APP_NAME, args)
+    cmd_mode(&cli_app_name(), args)
 }
 
 fn native_cmd_contracts(args: &[String]) -> i32 {
-    cmd_contracts(APP_NAME, APP_VERSION, args)
+    cmd_contracts(&cli_app_name(), APP_VERSION, args)
 }
 
 fn native_cmd_llm(args: &[String]) -> i32 {
-    cmd_llm(APP_NAME, args)
+    cmd_llm(&cli_app_name(), args)
 }
 
 fn native_cmd_policy(args: &[String]) -> i32 {
-    cmd_policy(args, APP_NAME)
+    cmd_policy(args, &cli_app_name())
 }
 
 fn native_cmd_broker(args: &[String]) -> i32 {
-    broker_cmd(APP_NAME, args)
+    broker_cmd(&cli_app_name(), args)
 }
 
 fn native_cmd_doctor() -> i32 {

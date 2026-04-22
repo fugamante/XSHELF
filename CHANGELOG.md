@@ -20,6 +20,7 @@ Notes:
   - added `bin/xshelf-install` and `bin/xshelf-uninstall` wrappers.
   - install flow now publishes both `xshelf.1` and `cx.1` man-page entries.
   - added `docs/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
+  - top-level help/task-help/usage error text now follows the invoked command name (`xshelf` vs `cx`).
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
   - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).

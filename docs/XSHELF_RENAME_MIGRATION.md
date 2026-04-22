@@ -130,6 +130,7 @@ Current status:
 - top-level README now leads with `bin/xshelf`
 - install flow now supports `bin/xshelf-install`
 - man-page install now publishes both `xshelf.1` and `cx.1`
+- top-level help and usage errors now follow the invoked command name
 - `cx` remains fully supported as the compatibility path
 
 Exit criteria:
