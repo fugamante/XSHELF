@@ -2,10 +2,11 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLI_NAME="${CX_CLI_NAME:-$(basename "$0")}"
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: cx <subcommand> [args...]" >&2
-  echo "Example: cx cxversion" >&2
+  echo "Usage: $CLI_NAME <subcommand> [args...]" >&2
+  echo "Example: $CLI_NAME cxversion" >&2
   exit 2
 fi
 
@@ -57,7 +58,7 @@ _cx_run_rust() {
     return 127
   fi
 
-  CX_REPO_ROOT="$REPO_ROOT" CX_BIN_CX="$REPO_ROOT/bin/cx" CX_SOURCE_LOCATION="repo:$REPO_ROOT/cx.sh" CX_EXECUTION_PATH="rust:bin/cx" \
+  CX_REPO_ROOT="$REPO_ROOT" CX_BIN_CX="$REPO_ROOT/bin/cx" CX_CLI_NAME="$CLI_NAME" CX_SOURCE_LOCATION="repo:$REPO_ROOT/cx.sh" CX_EXECUTION_PATH="rust:bin/cx" \
     "$cxrs_bin" "$@"
 }
 
@@ -69,6 +70,6 @@ if _cx_run_rust supports "$subcommand" >/dev/null 2>&1; then
   fi
   exit $?
 fi
-echo "cx: unsupported command '$subcommand' (rust-only runtime; no bash fallback)" >&2
-echo "Run 'cx help' to list supported commands." >&2
+echo "$CLI_NAME: unsupported command '$subcommand' (rust-only runtime; no bash fallback)" >&2
+echo "Run '$CLI_NAME help' to list supported commands." >&2
 exit 2

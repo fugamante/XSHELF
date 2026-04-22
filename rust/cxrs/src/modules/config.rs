@@ -6,7 +6,7 @@ use crate::state::{read_state_value, value_at_path};
 
 /// Canonical application identity (used by routing/help/version surfaces).
 pub const APP_NAME: &str = "cxrs";
-pub const APP_DESC: &str = "Rust runtime for the cx toolchain";
+pub const APP_DESC: &str = "Rust runtime for the XSHELF/CX toolchain";
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Canonical runtime defaults.
@@ -16,6 +16,14 @@ pub const DEFAULT_RUN_WINDOW: usize = 50;
 pub const DEFAULT_OPTIMIZE_WINDOW: usize = 200;
 pub const DEFAULT_QUARANTINE_LIST: usize = 20;
 pub const DEFAULT_CMD_TIMEOUT_SECS: usize = 120;
+
+pub fn cli_app_name() -> String {
+    env::var("CX_CLI_NAME")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "cx".to_string())
+}
 
 /// Process-level configuration snapshot.
 ///

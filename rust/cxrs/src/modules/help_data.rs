@@ -159,7 +159,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "health",
         usage: "health",
-        description: "Run end-to-end selected-LLM/cx smoke checks",
+        description: "Run end-to-end selected-LLM XSHELF/CX smoke checks",
     },
     CommandHelp {
         name: "capture-status",
@@ -169,12 +169,12 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "log-on",
         usage: "log-on",
-        description: "Enable cx logging (process-local)",
+        description: "Enable XSHELF/CX logging (process-local)",
     },
     CommandHelp {
         name: "log-off",
         usage: "log-off",
-        description: "Disable cx logging in this process",
+        description: "Disable XSHELF/CX logging in this process",
     },
     CommandHelp {
         name: "alert-show",
@@ -239,7 +239,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "profile",
         usage: "profile [N]",
-        description: "Summarize last N runs from resolved cx log (default {RUN_WINDOW})",
+        description: "Summarize last N runs from resolved runtime log (default {RUN_WINDOW})",
     },
     CommandHelp {
         name: "alert",
@@ -259,7 +259,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "trace",
         usage: "trace [N]",
-        description: "Show Nth most-recent run from resolved cx log (default 1)",
+        description: "Show Nth most-recent run from resolved runtime log (default 1)",
     },
     CommandHelp {
         name: "next",
@@ -316,57 +316,57 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
 pub const TASK_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "task add",
-        usage: "cx task add \"<objective>\" [--role <architect|implementer|reviewer|tester|doc>] [--backend <auto|codex|ollama>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>]",
+        usage: "{APP} task add \"<objective>\" [--role <architect|implementer|reviewer|tester|doc>] [--backend <auto|codex|ollama>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>]",
         description: "Create a task with role, routing, and orchestration metadata",
     },
     CommandHelp {
         name: "task list",
-        usage: "cx task list [--status pending|in_progress|complete|failed] [--json|--text]",
+        usage: "{APP} task list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "List tasks with optional status filter",
     },
     CommandHelp {
         name: "task claim",
-        usage: "cx task claim <id>",
+        usage: "{APP} task claim <id>",
         description: "Mark task as in_progress",
     },
     CommandHelp {
         name: "task complete",
-        usage: "cx task complete <id>",
+        usage: "{APP} task complete <id>",
         description: "Mark task as complete",
     },
     CommandHelp {
         name: "task fail",
-        usage: "cx task fail <id>",
+        usage: "{APP} task fail <id>",
         description: "Mark task as failed",
     },
     CommandHelp {
         name: "task show",
-        usage: "cx task show <id> | cx task show list [--status pending|in_progress|complete|failed] [--json|--text]",
+        usage: "{APP} task show <id> | {APP} task show list [--status pending|in_progress|complete|failed] [--json|--text]",
         description: "Show one task record or route to list view",
     },
     CommandHelp {
         name: "task fanout",
-        usage: "cx task fanout \"<objective>\" [--from staged-diff|worktree|log|file:PATH]",
+        usage: "{APP} task fanout \"<objective>\" [--from staged-diff|worktree|log|file:PATH]",
         description: "Generate role-tagged subtasks",
     },
     CommandHelp {
         name: "task check",
-        usage: "cx task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]",
+        usage: "{APP} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]",
         description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
     },
     CommandHelp {
         name: "task run-plan",
-        usage: "cx task run-plan [--status pending|in_progress|complete|failed] [--json]",
+        usage: "{APP} task run-plan [--status pending|in_progress|complete|failed] [--json]",
         description: "Preview deterministic execution waves before run-all",
     },
     CommandHelp {
         name: "task run",
-        usage: "cx task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]",
+        usage: "{APP} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]",
         description: "Run one task objective",
     },
     CommandHelp {
         name: "task run-all",
-        usage: "cx task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]",
+        usage: "{APP} task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]",
         description: "Run tasks by status (sequential default; mixed uses run-plan waves and broker-aware backend routing)",
     },
 ];
