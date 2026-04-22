@@ -1173,7 +1173,7 @@ fn run_wave_preflight() {
         .expect("recommendations");
     assert!(
         recs.iter()
-            .any(|v| v.as_str() == Some("cx task run-all --status pending --mode sequential")),
+            .any(|v| v.as_str() == Some("xshelf task run-all --status pending --mode sequential")),
         "{payload}"
     );
 }

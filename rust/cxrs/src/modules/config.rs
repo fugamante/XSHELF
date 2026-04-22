@@ -16,13 +16,24 @@ pub const DEFAULT_RUN_WINDOW: usize = 50;
 pub const DEFAULT_OPTIMIZE_WINDOW: usize = 200;
 pub const DEFAULT_QUARANTINE_LIST: usize = 20;
 pub const DEFAULT_CMD_TIMEOUT_SECS: usize = 120;
+pub const CLI_ALIASES: &[&str] = &["xshelf", "xs", "cx"];
 
 pub fn cli_app_name() -> String {
     env::var("CX_CLI_NAME")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "cx".to_string())
+        .unwrap_or_else(|| "xshelf".to_string())
+}
+
+pub fn command_with_cli(tail: &str) -> String {
+    format!("{} {tail}", cli_app_name())
+}
+
+pub fn command_matches_cli(command: &str, tail: &str) -> bool {
+    CLI_ALIASES
+        .iter()
+        .any(|name| command.starts_with(&format!("{name} {tail}")))
 }
 
 /// Process-level configuration snapshot.

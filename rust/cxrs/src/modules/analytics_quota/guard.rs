@@ -2,6 +2,7 @@ use serde_json::{Value, json};
 
 use super::resolution::quota_probe_payload;
 use super::shared::read_window_rows;
+use crate::config::cli_app_name;
 use crate::state::{read_state_value, set_state_path, value_at_path};
 
 #[derive(Debug, Clone)]
@@ -130,12 +131,13 @@ fn evaluate_quota_guard(
         }
     }
 
+    let cli = cli_app_name();
     let options = json!([
         { "id":"continue", "description":"Continue with current settings." },
-        { "id":"quota_saver", "description":"Set broker policy to quota_saver.", "command":"cx broker set --policy quota_saver" },
-        { "id":"lean_mode", "description":"Run sensitive tasks with lean mode.", "command":"CX_MODE=lean cx <command>" },
-        { "id":"tight_budgets", "description":"Lower context budgets for next run.", "command":"CX_CONTEXT_BUDGET_CHARS=8000 CX_CONTEXT_BUDGET_LINES=200 cx <command>" },
-        { "id":"strict_gate", "description":"Fail fast when warning/critical remains.", "command":"cx quota guard check 30 --strict" }
+        { "id":"quota_saver", "description":"Set broker policy to quota_saver.", "command": format!("{cli} broker set --policy quota_saver") },
+        { "id":"lean_mode", "description":"Run sensitive tasks with lean mode.", "command": format!("CX_MODE=lean {cli} <command>") },
+        { "id":"tight_budgets", "description":"Lower context budgets for next run.", "command": format!("CX_CONTEXT_BUDGET_CHARS=8000 CX_CONTEXT_BUDGET_LINES=200 {cli} <command>") },
+        { "id":"strict_gate", "description":"Fail fast when warning/critical remains.", "command": format!("{cli} quota guard check 30 --strict") }
     ]);
 
     let payload = json!({

@@ -134,7 +134,7 @@ fn optimize_actions_next() {
     let first = actions.first().expect("first action");
     assert_eq!(
         first.get("command").and_then(Value::as_str),
-        Some("cx task run-all --mode mixed --status pending")
+        Some("xshelf task run-all --mode mixed --status pending")
     );
     assert_eq!(
         first.get("id").and_then(Value::as_str),
@@ -155,7 +155,7 @@ fn optimize_actions_bias() {
             "run_all_halted_remaining":0,
             "run_all_backend_fallback_rows":0,
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task run-all --status pending"
+            "run_all_recommended_resume_point":"xshelf task run-all --status pending"
         }),
         serde_json::json!({
             "execution_id":"obias2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
@@ -166,7 +166,7 @@ fn optimize_actions_bias() {
             "run_all_halted_remaining":0,
             "run_all_backend_fallback_rows":0,
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task run-all --status pending"
+            "run_all_recommended_resume_point":"xshelf task run-all --status pending"
         }),
         serde_json::json!({
             "execution_id":"obias3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
@@ -187,7 +187,7 @@ fn optimize_actions_bias() {
     let first = actions.first().expect("first action");
     assert_eq!(
         first.get("command").and_then(Value::as_str),
-        Some("cx task run-all --status pending")
+        Some("xshelf task run-all --status pending")
     );
     assert!(
         first

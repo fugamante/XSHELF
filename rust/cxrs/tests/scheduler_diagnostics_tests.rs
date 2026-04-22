@@ -75,21 +75,21 @@ fn diag_p7_metrics() {
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":120,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":0,
             "run_all_failure_pattern":"clean",
-            "run_all_recommended_resume_point":"cx task run-all --status pending"
+            "run_all_recommended_resume_point":"xshelf task run-all --status pending"
         }),
         serde_json::json!({
             "execution_id":"pm2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":140,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task check --json"
+            "run_all_recommended_resume_point":"xshelf task check --json"
         }),
         serde_json::json!({
             "execution_id":"pm3","timestamp":"2026-01-01T00:00:02Z","command":"cxtask_runall","tool":"cxtask_runall",
             "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":150,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task check --json"
+            "run_all_recommended_resume_point":"xshelf task check --json"
         }),
     ];
     write_runs_log_rows(&repo, &rows);
