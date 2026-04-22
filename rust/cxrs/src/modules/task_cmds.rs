@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::process::Command;
@@ -18,6 +18,7 @@ use crate::doctor::{
 };
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
+use crate::logs::load_values;
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, set_state_path};
@@ -447,6 +448,16 @@ struct RunAllWavePressure {
     max_queue_wave_ms: u64,
 }
 
+#[derive(Debug, Clone, Default)]
+struct RunAllConcurrencySummary {
+    worker_count: u64,
+    workers: Vec<String>,
+    max_retry_attempt: u32,
+    first_queue_started_at: Option<String>,
+    first_task_started_at: Option<String>,
+    last_task_finished_at: Option<String>,
+}
+
 impl RunAllSummary {
     fn record_success(&mut self) {
         self.ok += 1;
@@ -571,6 +582,99 @@ fn runall_invocation_command(options: &RunAllOptions) -> String {
         parts.push("--strict-plan".to_string());
     }
     parts.join(" ")
+}
+
+fn min_ts_slot(slot: &mut Option<String>, candidate: Option<&str>) {
+    let Some(candidate) = candidate.map(str::trim).filter(|v| !v.is_empty()) else {
+        return;
+    };
+    match slot {
+        Some(current) if current.as_str() <= candidate => {}
+        _ => *slot = Some(candidate.to_string()),
+    }
+}
+
+fn max_ts_slot(slot: &mut Option<String>, candidate: Option<&str>) {
+    let Some(candidate) = candidate.map(str::trim).filter(|v| !v.is_empty()) else {
+        return;
+    };
+    match slot {
+        Some(current) if current.as_str() >= candidate => {}
+        _ => *slot = Some(candidate.to_string()),
+    }
+}
+
+fn runall_concurrency_summary(summary: &RunAllSummary) -> RunAllConcurrencySummary {
+    let execution_ids: HashSet<String> = summary
+        .task_runs
+        .iter()
+        .filter_map(|task| {
+            task.get("execution_id")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(ToString::to_string)
+        })
+        .collect();
+    if execution_ids.is_empty() {
+        return RunAllConcurrencySummary::default();
+    }
+    let Some(log_file) = resolve_log_file() else {
+        return RunAllConcurrencySummary::default();
+    };
+    let row_limit = execution_ids.len().saturating_mul(8).max(200);
+    let rows = load_values(&log_file, row_limit).unwrap_or_default();
+    let mut workers: BTreeSet<String> = BTreeSet::new();
+    let mut max_retry_attempt = 0u32;
+    let mut first_queue_started_at: Option<String> = None;
+    let mut first_task_started_at: Option<String> = None;
+    let mut last_task_finished_at: Option<String> = None;
+
+    for row in rows {
+        let execution_id = row
+            .get("execution_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|v| !v.is_empty());
+        if !execution_id.is_some_and(|v| execution_ids.contains(v)) {
+            continue;
+        }
+        if let Some(worker_id) = row
+            .get("worker_id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+        {
+            workers.insert(worker_id.to_string());
+        }
+        let retry_attempt = row
+            .get("retry_attempt")
+            .and_then(Value::as_u64)
+            .unwrap_or(1)
+            .min(u32::MAX as u64) as u32;
+        max_retry_attempt = max_retry_attempt.max(retry_attempt);
+        min_ts_slot(
+            &mut first_queue_started_at,
+            row.get("queue_started_at").and_then(Value::as_str),
+        );
+        min_ts_slot(
+            &mut first_task_started_at,
+            row.get("task_started_at").and_then(Value::as_str),
+        );
+        max_ts_slot(
+            &mut last_task_finished_at,
+            row.get("task_finished_at").and_then(Value::as_str),
+        );
+    }
+
+    RunAllConcurrencySummary {
+        worker_count: workers.len() as u64,
+        workers: workers.into_iter().collect(),
+        max_retry_attempt,
+        first_queue_started_at,
+        first_task_started_at,
+        last_task_finished_at,
+    }
 }
 
 fn runall_failure_pattern(
@@ -1332,6 +1436,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let backend_fallbacks = runall_backend_fallbacks(&summary);
     let reason_counts = runall_reason_counts(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
+    let concurrency_summary = runall_concurrency_summary(&summary);
     let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
         let payload = serde_json::json!({
@@ -1353,6 +1458,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "halted_on_critical": summary.halted_on_critical,
             "halted_remaining": halted_remaining,
             "backend_fallbacks": backend_fallbacks,
+            "concurrency_summary": {
+                "worker_count": concurrency_summary.worker_count,
+                "workers": concurrency_summary.workers,
+                "max_retry_attempt": concurrency_summary.max_retry_attempt,
+                "first_queue_started_at": concurrency_summary.first_queue_started_at,
+                "first_task_started_at": concurrency_summary.first_task_started_at,
+                "last_task_finished_at": concurrency_summary.last_task_finished_at
+            },
             "duration_ms": started.elapsed().as_millis() as u64,
             "tasks": summary.task_runs
         });
@@ -1384,6 +1497,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "halted_on_critical": summary.halted_on_critical,
                 "halted_remaining": halted_remaining,
                 "backend_fallbacks": backend_fallbacks,
+                "concurrency_summary": {
+                    "worker_count": concurrency_summary.worker_count,
+                    "workers": concurrency_summary.workers,
+                    "max_retry_attempt": concurrency_summary.max_retry_attempt,
+                    "first_queue_started_at": concurrency_summary.first_queue_started_at,
+                    "first_task_started_at": concurrency_summary.first_task_started_at,
+                    "last_task_finished_at": concurrency_summary.last_task_finished_at
+                },
                 "duration_ms": started.elapsed().as_millis() as u64,
                 "failure_reasons": reason_counts,
                 "failed_task_ids": runall_failed_ids(&summary, 25)
@@ -1435,18 +1556,48 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     println!("run-all failed_task_ids: {}", failed_ids.join(","));
                 }
             }
+            if concurrency_summary.worker_count > 0 {
+                println!("run-all worker_count: {}", concurrency_summary.worker_count);
+                if !concurrency_summary.workers.is_empty() {
+                    println!("run-all workers: {}", concurrency_summary.workers.join(","));
+                }
+                println!(
+                    "run-all max_retry_attempt: {}",
+                    concurrency_summary.max_retry_attempt
+                );
+                if let Some(v) = &concurrency_summary.first_queue_started_at {
+                    println!("run-all first_queue_started_at: {v}");
+                }
+                if let Some(v) = &concurrency_summary.first_task_started_at {
+                    println!("run-all first_task_started_at: {v}");
+                }
+                if let Some(v) = &concurrency_summary.last_task_finished_at {
+                    println!("run-all last_task_finished_at: {v}");
+                }
+            }
         }
     }
     let wave_pressure = runall_wave_pressure(&summary, &options.run_mode);
     let backend_fallback_rows = backend_fallbacks.values().copied().sum::<usize>() as u64;
     let invocation_command = runall_invocation_command(&options);
+    let run_all_workers = if concurrency_summary.workers.is_empty() {
+        None
+    } else {
+        Some(concurrency_summary.workers.join(","))
+    };
     let current_summary = serde_json::json!({
         "run_all_mode": options.run_mode,
         "run_all_halted_remaining": halted_remaining as u64,
         "run_all_backend_fallback_rows": backend_fallback_rows,
         "run_all_failed": summary.failed as u64,
         "run_all_critical_errors": summary.critical_errors as u64,
-        "run_all_blocked": summary.blocked as u64
+        "run_all_blocked": summary.blocked as u64,
+        "run_all_worker_count": concurrency_summary.worker_count,
+        "run_all_workers": run_all_workers,
+        "run_all_max_retry_attempt": concurrency_summary.max_retry_attempt,
+        "run_all_first_queue_started_at": concurrency_summary.first_queue_started_at.clone(),
+        "run_all_first_task_started_at": concurrency_summary.first_task_started_at.clone(),
+        "run_all_last_task_finished_at": concurrency_summary.last_task_finished_at.clone()
     });
     let current_wave = serde_json::json!({
         "latest_wave_index": wave_pressure.latest_wave_index,
@@ -1488,6 +1639,12 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         latest_wave_index: wave_pressure.latest_wave_index,
         max_queue_wave_index: wave_pressure.max_queue_wave_index,
         max_queue_wave_ms: Some(wave_pressure.max_queue_wave_ms),
+        worker_count: Some(concurrency_summary.worker_count),
+        workers: run_all_workers.as_deref(),
+        max_retry_attempt: Some(concurrency_summary.max_retry_attempt),
+        first_queue_started_at: concurrency_summary.first_queue_started_at.as_deref(),
+        first_task_started_at: concurrency_summary.first_task_started_at.as_deref(),
+        last_task_finished_at: concurrency_summary.last_task_finished_at.as_deref(),
         invocation_command: Some(&invocation_command),
         failure_pattern: Some(failure_pattern),
         recommended_resume_point: recommended_resume_point.as_deref(),

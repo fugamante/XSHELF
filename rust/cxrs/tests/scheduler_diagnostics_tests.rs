@@ -501,6 +501,14 @@ fn scheduler_json_matches_contract_fixture() {
         &task_execution_bias_keys,
         "scheduler.task_execution.phase7_bias",
     );
+    let task_execution_concurrency_keys = fixture_keys(&fixture, "task_execution_concurrency_keys");
+    assert_has_keys(
+        task_execution
+            .get("concurrency")
+            .expect("task_execution.concurrency"),
+        &task_execution_concurrency_keys,
+        "scheduler.task_execution.concurrency",
+    );
     let task_execution_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         task_execution
@@ -540,6 +548,12 @@ fn scheduler_json_matches_contract_fixture() {
         "latest_halted_remaining",
         "backend_fallback_rows",
         "latest_backend_fallbacks",
+        "latest_worker_count",
+        "latest_workers",
+        "latest_max_retry_attempt",
+        "latest_first_queue_started_at",
+        "latest_first_task_started_at",
+        "latest_last_task_finished_at",
         "wave_task_rows",
         "latest_wave_index",
         "latest_wave_mode",

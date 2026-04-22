@@ -62,6 +62,7 @@
     "latest_wave_index",
     "max_queue_wave_index",
     "max_queue_wave_ms",
+    "concurrency",
     "wave_pressure",
     "advice",
     "recommendations",
@@ -76,6 +77,14 @@
     "repeat_diagnosis_rate",
     "resume_reuse_rate",
     "resume_point"
+  ],
+  "task_execution_concurrency_keys": [
+    "worker_count",
+    "workers",
+    "max_retry_attempt",
+    "first_queue_started_at",
+    "first_task_started_at",
+    "last_task_finished_at"
   ],
   "task_execution_recent_context_keys": [
     "last_successful_action",

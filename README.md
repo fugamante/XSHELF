@@ -36,6 +36,7 @@ Core runtime capabilities:
   - `task run`
   - `task run-all`
 - append-only telemetry, diagnostics, and policy visibility
+- run-all concurrency summaries on task, diagnostics, and telemetry surfaces
 - backend adapters with explicit rollout policy and opt-in HTTP transport
 
 Default backend model:
