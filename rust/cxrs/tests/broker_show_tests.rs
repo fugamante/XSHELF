@@ -9,7 +9,7 @@ fn broker_show_contract() {
     let out = repo.run(&["broker", "show", "--json"]);
     assert!(out.status.success(), "stderr={}", stderr_str(&out));
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("broker show json");
-    let fixture = load_fixture_json("broker_show_json_contract.json");
+    let fixture = load_fixture_json("broker_show_contract.json");
 
     let top_keys = fixture_keys(&fixture, "top_level_keys");
     assert_has_keys(&payload, &top_keys, "broker.show");
