@@ -7,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::config::cli_app_name;
 use crate::logs::file_len;
 use crate::paths::resolve_log_file;
 use crate::runlog::{RunLogInput, log_codex_run};
@@ -172,7 +173,8 @@ fn run_objective_subprocess(
     if objective_words.is_empty() {
         return Ok(2);
     }
-    let exe = env::current_exe().map_err(|e| format!("cxrs task run: current_exe failed: {e}"))?;
+    let exe = env::current_exe()
+        .map_err(|e| format!("{} task run: current_exe failed: {e}", cli_app_name()))?;
     let mut cmd = Command::new(exe);
     cmd.args(objective_words);
     if let Some(mode) = mode_override {
@@ -657,10 +659,12 @@ fn finalize_task_status(
     status_code: i32,
 ) -> Result<(), TaskRunError> {
     let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
-    let idx = tasks
-        .iter()
-        .position(|t| t.id == id)
-        .ok_or_else(|| TaskRunError::Critical(format!("cxrs task run: task disappeared: {id}")))?;
+    let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
+        TaskRunError::Critical(format!(
+            "{} task run: task disappeared: {id}",
+            cli_app_name()
+        ))
+    })?;
     tasks[idx].status = if status_code == 0 {
         "complete".to_string()
     } else {
@@ -683,10 +687,9 @@ pub fn run_task_by_id(
     emit_output: bool,
 ) -> Result<(i32, Option<String>), TaskRunError> {
     let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
-    let idx = tasks
-        .iter()
-        .position(|t| t.id == id)
-        .ok_or_else(|| TaskRunError::Critical(format!("cxrs task run: task not found: {id}")))?;
+    let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
+        TaskRunError::Critical(format!("{} task run: task not found: {id}", cli_app_name()))
+    })?;
     if tasks[idx].status == "complete" {
         return Ok((0, None));
     }
@@ -723,7 +726,8 @@ pub fn run_task_by_id(
     let replica_count = effective_replica_count(&tasks[idx], &converge_mode);
     if tasks[idx].converge == "none" && tasks[idx].replicas > 1 {
         crate::cx_eprintln!(
-            "cxrs task run: task {} replicas={} ignored because converge=none",
+            "{} task run: task {} replicas={} ignored because converge=none",
+            cli_app_name(),
             id,
             tasks[idx].replicas
         );
@@ -801,7 +805,10 @@ pub fn run_task_by_id(
         finalize_task_status(runner, id, status_code)?;
     }
     if let Some(e) = objective_err {
-        crate::cx_eprintln!("cxrs task run: objective failed for {id}: {e}");
+        crate::cx_eprintln!(
+            "{} task run: objective failed for {id}: {e}",
+            cli_app_name()
+        );
     }
     Ok((status_code, execution_id))
 }

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use crate::config::command_with_cli;
+use crate::config::{cli_app_name, command_with_cli};
 use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
 use crate::paths::{resolve_log_file, resolve_tasks_file};
@@ -91,7 +91,7 @@ fn parse_objective_prefix(app_name: &str, args: &[String]) -> Result<(String, us
     }
     let objective = obj_parts.join(" ").trim().to_string();
     if objective.is_empty() {
-        crate::cx_eprintln!("cxrs task add: objective cannot be empty");
+        crate::cx_eprintln!("{} task add: objective cannot be empty", cli_app_name());
         return Err(2);
     }
     Ok((objective, i))
@@ -141,7 +141,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
         match args[i].as_str() {
             "--role" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --role requires a value");
+                    crate::cx_eprintln!("{} task add: --role requires a value", cli_app_name());
                     return Err(2);
                 };
                 role = v.to_lowercase();
@@ -149,7 +149,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--parent" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --parent requires a value");
+                    crate::cx_eprintln!("{} task add: --parent requires a value", cli_app_name());
                     return Err(2);
                 };
                 parent_id = Some(v.to_string());
@@ -157,7 +157,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--context" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --context requires a value");
+                    crate::cx_eprintln!("{} task add: --context requires a value", cli_app_name());
                     return Err(2);
                 };
                 context_ref = v.to_string();
@@ -165,12 +165,12 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--backend" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --backend requires a value");
+                    crate::cx_eprintln!("{} task add: --backend requires a value", cli_app_name());
                     return Err(2);
                 };
                 let b = v.trim().to_lowercase();
                 if !matches!(b.as_str(), "auto" | "codex" | "ollama") {
-                    crate::cx_eprintln!("cxrs task add: invalid --backend '{b}'");
+                    crate::cx_eprintln!("{} task add: invalid --backend '{b}'", cli_app_name());
                     return Err(2);
                 }
                 backend = b;
@@ -178,7 +178,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--model" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --model requires a value");
+                    crate::cx_eprintln!("{} task add: --model requires a value", cli_app_name());
                     return Err(2);
                 };
                 let trimmed = v.trim();
@@ -191,7 +191,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--profile" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --profile requires a value");
+                    crate::cx_eprintln!("{} task add: --profile requires a value", cli_app_name());
                     return Err(2);
                 };
                 let p = v.trim().to_lowercase();
@@ -199,7 +199,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
                     p.as_str(),
                     "fast" | "balanced" | "quality" | "schema_strict"
                 ) {
-                    crate::cx_eprintln!("cxrs task add: invalid --profile '{p}'");
+                    crate::cx_eprintln!("{} task add: invalid --profile '{p}'", cli_app_name());
                     return Err(2);
                 }
                 profile = p;
@@ -207,7 +207,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--converge" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --converge requires a value");
+                    crate::cx_eprintln!("{} task add: --converge requires a value", cli_app_name());
                     return Err(2);
                 };
                 let c = v.trim().to_lowercase();
@@ -215,7 +215,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
                     c.as_str(),
                     "none" | "first_valid" | "majority" | "judge" | "score"
                 ) {
-                    crate::cx_eprintln!("cxrs task add: invalid --converge '{c}'");
+                    crate::cx_eprintln!("{} task add: invalid --converge '{c}'", cli_app_name());
                     return Err(2);
                 }
                 converge = c;
@@ -223,15 +223,18 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--replicas" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --replicas requires a value");
+                    crate::cx_eprintln!("{} task add: --replicas requires a value", cli_app_name());
                     return Err(2);
                 };
                 let Ok(n) = v.parse::<u32>() else {
-                    crate::cx_eprintln!("cxrs task add: --replicas must be an integer");
+                    crate::cx_eprintln!(
+                        "{} task add: --replicas must be an integer",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 if n == 0 {
-                    crate::cx_eprintln!("cxrs task add: --replicas must be >= 1");
+                    crate::cx_eprintln!("{} task add: --replicas must be >= 1", cli_app_name());
                     return Err(2);
                 }
                 replicas = n;
@@ -239,15 +242,24 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--max-concurrency" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --max-concurrency requires a value");
+                    crate::cx_eprintln!(
+                        "{} task add: --max-concurrency requires a value",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 let Ok(n) = v.parse::<u32>() else {
-                    crate::cx_eprintln!("cxrs task add: --max-concurrency must be an integer");
+                    crate::cx_eprintln!(
+                        "{} task add: --max-concurrency must be an integer",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 if n == 0 {
-                    crate::cx_eprintln!("cxrs task add: --max-concurrency must be >= 1");
+                    crate::cx_eprintln!(
+                        "{} task add: --max-concurrency must be >= 1",
+                        cli_app_name()
+                    );
                     return Err(2);
                 }
                 max_concurrency = Some(n);
@@ -255,11 +267,11 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--mode" => {
                 let Some(v) = args.get(i + 1).map(|s| s.as_str()) else {
-                    crate::cx_eprintln!("cxrs task add: --mode requires a value");
+                    crate::cx_eprintln!("{} task add: --mode requires a value", cli_app_name());
                     return Err(2);
                 };
                 if !matches!(v, "sequential" | "parallel") {
-                    crate::cx_eprintln!("cxrs task add: invalid --mode '{v}'");
+                    crate::cx_eprintln!("{} task add: invalid --mode '{v}'", cli_app_name());
                     return Err(2);
                 }
                 run_mode = v.to_string();
@@ -267,7 +279,10 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--depends-on" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --depends-on requires a value");
+                    crate::cx_eprintln!(
+                        "{} task add: --depends-on requires a value",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 depends_on.extend(parse_csv_list(v));
@@ -275,7 +290,7 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--resource" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --resource requires a value");
+                    crate::cx_eprintln!("{} task add: --resource requires a value", cli_app_name());
                     return Err(2);
                 };
                 if !v.trim().is_empty() {
@@ -285,7 +300,10 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--resource-keys" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --resource-keys requires a value");
+                    crate::cx_eprintln!(
+                        "{} task add: --resource-keys requires a value",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 resource_keys.extend(parse_csv_list(v));
@@ -293,11 +311,17 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--max-retries" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --max-retries requires a value");
+                    crate::cx_eprintln!(
+                        "{} task add: --max-retries requires a value",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 let Ok(n) = v.parse::<u32>() else {
-                    crate::cx_eprintln!("cxrs task add: --max-retries must be an integer");
+                    crate::cx_eprintln!(
+                        "{} task add: --max-retries must be an integer",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 max_retries = Some(n);
@@ -305,18 +329,24 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
             }
             "--timeout-secs" => {
                 let Some(v) = args.get(i + 1) else {
-                    crate::cx_eprintln!("cxrs task add: --timeout-secs requires a value");
+                    crate::cx_eprintln!(
+                        "{} task add: --timeout-secs requires a value",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 let Ok(n) = v.parse::<u64>() else {
-                    crate::cx_eprintln!("cxrs task add: --timeout-secs must be an integer");
+                    crate::cx_eprintln!(
+                        "{} task add: --timeout-secs must be an integer",
+                        cli_app_name()
+                    );
                     return Err(2);
                 };
                 timeout_secs = Some(n);
                 i += 2;
             }
             other => {
-                crate::cx_eprintln!("cxrs task add: unknown flag '{other}'");
+                crate::cx_eprintln!("{} task add: unknown flag '{other}'", cli_app_name());
                 return Err(2);
             }
         }
@@ -362,7 +392,7 @@ fn parse_task_add_args(app_name: &str, args: &[String]) -> Result<AddArgs, i32> 
         timeout_secs,
     ) = parse_add_flags(args, i)?;
     if !task_role_valid(&role) {
-        crate::cx_eprintln!("cxrs task add: invalid role '{role}'");
+        crate::cx_eprintln!("{} task add: invalid role '{role}'", cli_app_name());
         return Err(2);
     }
     Ok(AddArgs {
@@ -421,7 +451,7 @@ pub fn cmd_task_add(app_name: &str, args: &[String]) -> i32 {
         updated_at: now,
     });
     if let Err(e) = write_tasks(&tasks) {
-        crate::cx_eprintln!("cxrs task add: {e}");
+        crate::cx_eprintln!("{} task add: {e}", cli_app_name());
         return 1;
     }
     println!("{id}");
@@ -504,14 +534,14 @@ pub fn cmd_task_show(id: &str) -> i32 {
         }
     };
     let Some(task) = tasks.iter().find(|t| t.id == id).cloned() else {
-        crate::cx_eprintln!("cxrs task show: task not found: {id}");
+        crate::cx_eprintln!("{} task show: task not found: {id}", cli_app_name());
         return 1;
     };
     let plan = build_task_run_plan(&tasks, "pending");
     let mut out = match serde_json::to_value(&task) {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!("cxrs task show: render failed: {e}");
+            crate::cx_eprintln!("{} task show: render failed: {e}", cli_app_name());
             return 1;
         }
     };
@@ -532,7 +562,7 @@ pub fn cmd_task_show(id: &str) -> i32 {
             0
         }
         Err(e) => {
-            crate::cx_eprintln!("cxrs task show: render failed: {e}");
+            crate::cx_eprintln!("{} task show: render failed: {e}", cli_app_name());
             1
         }
     }
@@ -683,7 +713,7 @@ fn task_run_latest(id: &str) -> Value {
 pub fn set_task_status(id: &str, new_status: &str) -> Result<(), String> {
     let mut tasks = read_tasks()?;
     let Some(task) = tasks.iter_mut().find(|t| t.id == id) else {
-        return Err(format!("cxrs task: task not found: {id}"));
+        return Err(format!("{} task: task not found: {id}", cli_app_name()));
     };
     task.status = new_status.to_string();
     task.updated_at = utc_now_iso();

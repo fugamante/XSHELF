@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use crate::config::cli_app_name;
 use crate::logs::load_runs;
 use crate::paths::resolve_log_file;
 use crate::types::RunEntry;
 
 fn print_worklog_empty(n: usize, log_file: &std::path::Path) {
-    println!("# cxrs Worklog");
+    println!("# {} Worklog", cli_app_name());
     println!();
     println!("Window: last {n} runs");
     println!();
@@ -61,7 +62,7 @@ fn print_runs(runs: &[RunEntry]) {
 
 pub fn print_worklog(n: usize) -> i32 {
     let Some(log_file) = resolve_log_file() else {
-        crate::cx_eprintln!("cxrs: unable to resolve log file");
+        crate::cx_eprintln!("{}: unable to resolve log file", cli_app_name());
         return 1;
     };
     if !log_file.exists() {
@@ -71,12 +72,12 @@ pub fn print_worklog(n: usize) -> i32 {
     let runs = match load_runs(&log_file, n) {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!("cxrs worklog: {e}");
+            crate::cx_eprintln!("{} worklog: {e}", cli_app_name());
             return 1;
         }
     };
 
-    println!("# cxrs Worklog");
+    println!("# {} Worklog", cli_app_name());
     println!();
     println!("Window: last {n} runs");
     println!();
