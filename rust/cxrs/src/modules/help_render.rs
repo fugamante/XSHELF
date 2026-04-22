@@ -6,7 +6,7 @@ fn replace_tokens(input: &str, run_window: usize, quarantine_list: usize) -> Str
         .replace("{QUARANTINE_LIST}", &quarantine_list.to_string())
 }
 
-fn replace_tokens_with_app(
+fn replace_tokens_app(
     input: &str,
     app_name: &str,
     run_window: usize,
@@ -33,8 +33,8 @@ pub fn render_help(
         .unwrap_or(24)
         + 2;
     for c in MAIN_COMMANDS {
-        let usage = replace_tokens_with_app(c.usage, app_name, run_window, quarantine_list);
-        let desc = replace_tokens_with_app(c.description, app_name, run_window, quarantine_list);
+        let usage = replace_tokens_app(c.usage, app_name, run_window, quarantine_list);
+        let desc = replace_tokens_app(c.description, app_name, run_window, quarantine_list);
         out.push_str(&format!("  {usage:<width$}{desc}\n"));
     }
     out
@@ -51,7 +51,7 @@ pub fn render_task_help(app_name: &str) -> String {
         .unwrap_or(24)
         + 2;
     for c in TASK_COMMANDS {
-        let usage = replace_tokens_with_app(c.usage, app_name, 0, 0);
+        let usage = replace_tokens_app(c.usage, app_name, 0, 0);
         out.push_str(&format!("  {usage:<width$}{}\n", c.description));
     }
     out.push_str("\nExamples:\n");
