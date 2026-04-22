@@ -3,9 +3,12 @@ use std::process::Command;
 use serde_json::{Value, json};
 
 use crate::config::{app_config, cli_app_name};
-use crate::contract_versions::BROKER_BENCHMARK_JSON_CONTRACT_VERSION;
+use crate::contract_versions::{
+    BROKER_BENCHMARK_JSON_CONTRACT_VERSION, BROKER_SHOW_JSON_CONTRACT_VERSION,
+};
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
+use crate::provider_adapter::adapter_policy_value;
 use crate::runtime::{llm_backend, llm_model};
 use crate::state::set_state_path;
 
@@ -427,26 +430,32 @@ fn cmd_broker_benchmark(app_name: &str, args: &[String]) -> i32 {
     0
 }
 
+fn broker_show_value() -> Value {
+    let active_backend = llm_backend();
+    let active_model = llm_model();
+    let policy = app_config().broker_policy.clone();
+    let codex_ok = backend_available("codex");
+    let ollama_ok = backend_available("ollama");
+    let adapter_rollout_policy = adapter_policy_value();
+    json!({
+        "contract_version": BROKER_SHOW_JSON_CONTRACT_VERSION,
+        "broker_policy": policy,
+        "active_backend": active_backend,
+        "active_model": if active_model.is_empty() { Value::Null } else { json!(active_model) },
+        "availability": {
+            "codex": codex_ok,
+            "ollama": ollama_ok
+        },
+        "adapter_rollout_policy": adapter_rollout_policy
+    })
+}
+
 pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
     let sub = args.first().map(String::as_str).unwrap_or("show");
     match sub {
         "show" => {
-            let active_backend = llm_backend();
-            let active_model = llm_model();
-            let policy = app_config().broker_policy.clone();
-            let codex_ok = backend_available("codex");
-            let ollama_ok = backend_available("ollama");
-
             if args.iter().any(|a| a == "--json") {
-                let out = json!({
-                    "broker_policy": policy,
-                    "active_backend": active_backend,
-                    "active_model": if active_model.is_empty() { Value::Null } else { json!(active_model) },
-                    "availability": {
-                        "codex": codex_ok,
-                        "ollama": ollama_ok
-                    }
-                });
+                let out = broker_show_value();
                 match serde_json::to_string_pretty(&out) {
                     Ok(s) => println!("{s}"),
                     Err(e) => {
@@ -456,6 +465,11 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
                 }
                 return 0;
             }
+            let active_backend = llm_backend();
+            let active_model = llm_model();
+            let policy = app_config().broker_policy.clone();
+            let codex_ok = backend_available("codex");
+            let ollama_ok = backend_available("ollama");
 
             println!("== cx broker ==");
             println!("policy: {policy}");
