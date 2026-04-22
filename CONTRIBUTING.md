@@ -12,6 +12,7 @@
 - Canonical command surface remains `cx` unless an explicit migration phase is approved.
 - Preserve `CX_*` environment variable compatibility by default.
 - Do not replace existing `cx` examples in user-facing docs without a scoped migration plan.
+- Rename policy is defined in `docs/XSHELF_RENAME_MIGRATION.md`.
 
 ## Start Here
 

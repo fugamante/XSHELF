@@ -182,6 +182,7 @@ Use the README as the front door. Use the docs below for deeper material.
 Product and repo boundary:
 - [docs/REPO_ROLE_CONTRACT.md](docs/REPO_ROLE_CONTRACT.md)
 - [docs/REPO_SYNC_PLAN.md](docs/REPO_SYNC_PLAN.md)
+- [docs/XSHELF_RENAME_MIGRATION.md](docs/XSHELF_RENAME_MIGRATION.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/RELEASE_CADENCE.md](docs/RELEASE_CADENCE.md)
 
