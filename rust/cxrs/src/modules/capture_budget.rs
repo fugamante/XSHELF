@@ -70,13 +70,8 @@ pub fn clip_text_with_config(input: &str, cfg: &BudgetConfig) -> (String, Captur
     let clipped = kept_chars < original_chars || kept_lines < original_lines;
     let final_text = if clipped && cfg.clip_footer {
         format!(
-            "{char_limited}\n[{}] output clipped: original={}/{}, kept={}/{}, mode={}",
-            crate::config::cli_app_name(),
-            original_chars,
-            original_lines,
-            kept_chars,
-            kept_lines,
-            mode_used
+            "{char_limited}\n[XSHELF] output clipped: original={}/{}, kept={}/{}, mode={}",
+            original_chars, original_lines, kept_chars, kept_lines, mode_used
         )
     } else {
         char_limited

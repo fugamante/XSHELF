@@ -66,7 +66,7 @@ pub fn cmd_prompt(mode: &str, request: &str) -> i32 {
         "ops" => "Perform operational changes safely, with rollback and observability guidance.",
         _ => "",
     };
-    println!("You are working on the \"cx\" toolchain.");
+    println!("You are working on the XSHELF toolchain.");
     println!();
     println!("Context:");
     println!("- Repo canonical implementation is the source of truth.");
