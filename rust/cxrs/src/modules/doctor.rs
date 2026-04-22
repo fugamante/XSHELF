@@ -2067,7 +2067,7 @@ mod tests {
     }
 
     #[test]
-    fn exec_invariants_violation_cov() {
+    fn exec_invariants_cov() {
         let value = exec_diag_value(
             Some(&serde_json::json!({
                 "run_all_mode": "mixed",
