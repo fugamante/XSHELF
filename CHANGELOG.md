@@ -17,10 +17,12 @@ Notes:
 ### Added
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
+  - added `bin/xs` as a supported short alias for `xshelf`.
+  - added `bin/xs-install` and `bin/xs-uninstall` wrappers.
   - added `bin/xshelf-install` and `bin/xshelf-uninstall` wrappers.
-  - install flow now publishes both `xshelf.1` and `cx.1` man-page entries.
+  - install flow now publishes `xshelf.1`, `xs.1`, and `cx.1` man-page entries.
   - added `docs/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
-  - top-level help/task-help/usage error text now follows the invoked command name (`xshelf` vs `cx`).
+  - top-level help/task-help/usage error text now follows the invoked command name (`xshelf`, `xs`, or `cx`).
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
   - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).
