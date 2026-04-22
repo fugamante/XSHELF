@@ -125,6 +125,13 @@ Do in this phase:
   - compatibility alias: `cx`
 - update wrappers/installers so both names are supported intentionally
 
+Current status:
+
+- top-level README now leads with `bin/xshelf`
+- install flow now supports `bin/xshelf-install`
+- man-page install now publishes both `xshelf.1` and `cx.1`
+- `cx` remains fully supported as the compatibility path
+
 Exit criteria:
 
 - new users can start with `xshelf`

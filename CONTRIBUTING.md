@@ -9,9 +9,10 @@
 ## Branding and Command Stability
 
 - Project branding is `XSHELF (formerly CX)`.
-- Canonical command surface remains `cx` unless an explicit migration phase is approved.
+- Canonical user-facing command spelling is `xshelf`.
+- `cx` remains a supported compatibility alias during migration.
 - Preserve `CX_*` environment variable compatibility by default.
-- Do not replace existing `cx` examples in user-facing docs without a scoped migration plan.
+- Keep `cx` examples where compatibility context matters.
 - Rename policy is defined in `docs/XSHELF_RENAME_MIGRATION.md`.
 
 ## Start Here

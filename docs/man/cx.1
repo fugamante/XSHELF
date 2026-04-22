@@ -1,16 +1,24 @@
-.TH CX 1 "March 2026" "CX" "User Commands"
+.TH XSHELF 1 "April 2026" "XSHELF" "User Commands"
 .SH NAME
-cx \- deterministic Rust-first runtime for repo-aware LLM workflows
+xshelf, cx \- deterministic Rust-first runtime for repo-aware LLM workflows
 .SH SYNOPSIS
+.B xshelf
+\fICOMMAND\fR [\fIARGS\fR...]
+.br
 .B cx
+\fICOMMAND\fR [\fIARGS\fR...]
+.br
+.B ./bin/xshelf
 \fICOMMAND\fR [\fIARGS\fR...]
 .br
 .B ./bin/cx
 \fICOMMAND\fR [\fIARGS\fR...]
 .SH DESCRIPTION
-.B cx
+.B xshelf
 is a repository-local AI runtime and orchestration CLI.
 It is Rust-first and deterministic for structured operations.
+.PP
+\fBcx\fR remains a supported compatibility alias during the rename transition.
 .PP
 Core capabilities include:
 .IP \(bu 2
@@ -25,11 +33,11 @@ task graph orchestration and controlled execution lanes,
 diagnostics, validation, and optimization tooling.
 .SH QUICK START
 .nf
-./bin/cx version
-./bin/cx core
-./bin/cx doctor
-./bin/cx health
-./bin/cx cxo git status
+./bin/xshelf version
+./bin/xshelf core
+./bin/xshelf doctor
+./bin/xshelf health
+./bin/xshelf cxo git status
 .fi
 .SH COMMON COMMANDS
 .TP
@@ -58,8 +66,11 @@ Environment/runtime checks.
 End-to-end smoke checks.
 .SH LLM EXECUTION
 .TP
-.B cx <cmd...>
+.B xshelf <cmd...>
 Run captured command output through LLM text mode.
+.TP
+.B cx <cmd...>
+Compatibility alias for \fBxshelf\fR text mode.
 .TP
 .B cxj <cmd...>
 Run through LLM JSONL mode.
@@ -187,12 +198,13 @@ Runtime/processing error.
 Usage/argument error.
 .SH EXAMPLES
 .nf
-cx version
-cx llm show
-cx cxo git status
-cx schema list --json | jq .
-cx logs validate --strict
-cx optimize 200 --json | jq .
+xshelf version
+xshelf llm show
+xshelf cxo git status
+xshelf schema list --json | jq .
+xshelf logs validate --strict
+xshelf optimize 200 --json | jq .
+man xshelf
 man cx
 .fi
 .SH SEE ALSO

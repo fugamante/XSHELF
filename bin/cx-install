@@ -18,14 +18,14 @@ if [[ ! -f "$SHELL_RC" ]]; then
 fi
 
 if grep -Fq "$LINE" "$SHELL_RC"; then
-  echo "cx already installed in $SHELL_RC"
+  echo "XSHELF/CX shell utilities already installed in $SHELL_RC"
 else
   {
     echo
-    echo "# cx utilities"
+    echo "# XSHELF/CX utilities"
     echo "$LINE"
   } >> "$SHELL_RC"
-  echo "Installed cx utilities into $SHELL_RC"
+  echo "Installed XSHELF/CX shell utilities into $SHELL_RC"
 fi
 
 install_manpage() {
@@ -56,12 +56,13 @@ install_manpage() {
     fi
   done
   if [[ -z "$target" ]]; then
-    echo "cx-install: warning: could not install cx.1 into a writable manpath target" >&2
+    echo "cx-install: warning: could not install XSHELF/CX man pages into a writable manpath target" >&2
     return 0
   fi
 
   cp "$src" "$target/cx.1"
-  echo "Installed man page: $target/cx.1"
+  cp "$src" "$target/xshelf.1"
+  echo "Installed man pages: $target/cx.1 and $target/xshelf.1"
 }
 
 install_manpage
