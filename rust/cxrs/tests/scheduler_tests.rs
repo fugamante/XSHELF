@@ -1041,6 +1041,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         &preflight_context_keys,
         "task_run_all.preflight.recent_context",
     );
+    let concurrency_keys = fixture_keys(&fixture, "concurrency_summary_keys");
+    assert_has_keys(
+        payload
+            .get("concurrency_summary")
+            .expect("concurrency_summary"),
+        &concurrency_keys,
+        "task_run_all.concurrency_summary",
+    );
 
     let task_keys = fixture_keys(&fixture, "task_keys");
     for task in payload
@@ -1075,6 +1083,20 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         summary_row
             .get("run_all_recommended_resume_point")
             .and_then(Value::as_str)
+            .is_some(),
+        "{summary_row}"
+    );
+    assert!(
+        summary_row
+            .get("run_all_worker_count")
+            .and_then(Value::as_u64)
+            .is_some(),
+        "{summary_row}"
+    );
+    assert!(
+        summary_row
+            .get("run_all_max_retry_attempt")
+            .and_then(Value::as_u64)
             .is_some(),
         "{summary_row}"
     );

@@ -647,6 +647,12 @@ fn concurrency_diag_value(
                 "latest_halted_remaining": 0,
                 "backend_fallback_rows": 0,
                 "latest_backend_fallbacks": Value::Null,
+                "latest_worker_count": 0,
+                "latest_workers": Value::Null,
+                "latest_max_retry_attempt": 0,
+                "latest_first_queue_started_at": Value::Null,
+                "latest_first_task_started_at": Value::Null,
+                "latest_last_task_finished_at": Value::Null,
                 "wave_task_rows": 0,
                 "latest_wave_index": Value::Null,
                 "latest_wave_mode": Value::Null,
@@ -668,6 +674,12 @@ fn concurrency_diag_value(
     let mut latest_halted_remaining = 0u64;
     let mut backend_fallback_rows = 0u64;
     let mut latest_backend_fallbacks: Option<String> = None;
+    let mut latest_worker_count = 0u64;
+    let mut latest_workers: Option<String> = None;
+    let mut latest_max_retry_attempt = 0u64;
+    let mut latest_first_queue_started_at: Option<String> = None;
+    let mut latest_first_task_started_at: Option<String> = None;
+    let mut latest_last_task_finished_at: Option<String> = None;
     let mut wave_task_rows = 0u64;
     let mut latest_wave_index: Option<u64> = None;
     let mut latest_wave_mode: Option<String> = None;
@@ -724,6 +736,30 @@ fn concurrency_diag_value(
             .and_then(Value::as_u64)
             .unwrap_or(0);
         backend_fallback_rows += fallback_rows;
+        latest_worker_count = v
+            .get("run_all_worker_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        latest_workers = v
+            .get("run_all_workers")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        latest_max_retry_attempt = v
+            .get("run_all_max_retry_attempt")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        latest_first_queue_started_at = v
+            .get("run_all_first_queue_started_at")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        latest_first_task_started_at = v
+            .get("run_all_first_task_started_at")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        latest_last_task_finished_at = v
+            .get("run_all_last_task_finished_at")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
         latest_backend_fallbacks = v
             .get("run_all_backend_fallbacks")
             .and_then(Value::as_str)
@@ -742,6 +778,12 @@ fn concurrency_diag_value(
             "latest_halted_remaining": latest_halted_remaining,
             "backend_fallback_rows": backend_fallback_rows,
             "latest_backend_fallbacks": latest_backend_fallbacks,
+            "latest_worker_count": latest_worker_count,
+            "latest_workers": latest_workers,
+            "latest_max_retry_attempt": latest_max_retry_attempt,
+            "latest_first_queue_started_at": latest_first_queue_started_at,
+            "latest_first_task_started_at": latest_first_task_started_at,
+            "latest_last_task_finished_at": latest_last_task_finished_at,
             "wave_task_rows": wave_task_rows,
             "latest_wave_index": latest_wave_index,
             "latest_wave_mode": latest_wave_mode,
@@ -1349,6 +1391,48 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             .unwrap_or("none")
     );
     println!(
+        "concurrency_observed_latest_worker_count: {}",
+        observed
+            .get("latest_worker_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_workers: {}",
+        observed
+            .get("latest_workers")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_latest_max_retry_attempt: {}",
+        observed
+            .get("latest_max_retry_attempt")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_first_queue_started_at: {}",
+        observed
+            .get("latest_first_queue_started_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_first_task_started_at: {}",
+        observed
+            .get("latest_first_task_started_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_last_task_finished_at: {}",
+        observed
+            .get("latest_last_task_finished_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
         "concurrency_observed_wave_task_rows: {}",
         observed
             .get("wave_task_rows")
@@ -1606,6 +1690,48 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             .get("latest_backend_fallbacks")
             .and_then(Value::as_str)
             .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_latest_worker_count: {}",
+        observed
+            .get("latest_worker_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_workers: {}",
+        observed
+            .get("latest_workers")
+            .and_then(Value::as_str)
+            .unwrap_or("none")
+    );
+    println!(
+        "concurrency_observed_latest_max_retry_attempt: {}",
+        observed
+            .get("latest_max_retry_attempt")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "concurrency_observed_latest_first_queue_started_at: {}",
+        observed
+            .get("latest_first_queue_started_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_first_task_started_at: {}",
+        observed
+            .get("latest_first_task_started_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+    println!(
+        "concurrency_observed_latest_last_task_finished_at: {}",
+        observed
+            .get("latest_last_task_finished_at")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
     );
     println!(
         "concurrency_observed_wave_task_rows: {}",

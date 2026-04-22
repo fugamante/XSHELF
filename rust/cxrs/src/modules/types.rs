@@ -124,6 +124,18 @@ pub struct RunEntry {
     #[serde(default)]
     pub run_all_max_queue_wave_ms: Option<u64>,
     #[serde(default)]
+    pub run_all_worker_count: Option<u64>,
+    #[serde(default)]
+    pub run_all_workers: Option<String>,
+    #[serde(default)]
+    pub run_all_max_retry_attempt: Option<u32>,
+    #[serde(default)]
+    pub run_all_first_queue_started_at: Option<String>,
+    #[serde(default)]
+    pub run_all_first_task_started_at: Option<String>,
+    #[serde(default)]
+    pub run_all_last_task_finished_at: Option<String>,
+    #[serde(default)]
     pub run_all_invocation_command: Option<String>,
     #[serde(default)]
     pub run_all_failure_pattern: Option<String>,
@@ -364,6 +376,12 @@ pub struct ExecutionLog {
     pub run_all_latest_wave_index: Option<u64>,
     pub run_all_max_queue_wave_index: Option<u64>,
     pub run_all_max_queue_wave_ms: Option<u64>,
+    pub run_all_worker_count: Option<u64>,
+    pub run_all_workers: Option<String>,
+    pub run_all_max_retry_attempt: Option<u32>,
+    pub run_all_first_queue_started_at: Option<String>,
+    pub run_all_first_task_started_at: Option<String>,
+    pub run_all_last_task_finished_at: Option<String>,
     pub run_all_invocation_command: Option<String>,
     pub run_all_failure_pattern: Option<String>,
     pub run_all_recommended_resume_point: Option<String>,

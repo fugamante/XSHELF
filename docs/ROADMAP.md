@@ -15,7 +15,7 @@
 - Add richer command-level JSON outputs for diagnostics tools.
 - Landed CI-level artifact reports for reliability suite failures.
 - Broaden OS validation matrix (Linux-focused CI pass).
-- Add run-level concurrency telemetry refinement (`worker_id`, queue/start/finish timestamps, attempt) for SLO reporting.
+- Landed run-level concurrency telemetry refinement (`worker_count`, workers, queue/start/finish timestamps, max retry attempt) across `task run-all`, diagnostics, and telemetry surfaces.
 - Landed adapter rollout policy surface; HTTP transport remains explicit opt-in and diagnostics/telemetry now expose the rollout guard.
 - Expand provider adapter coverage beyond current HTTP/process parity.
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
