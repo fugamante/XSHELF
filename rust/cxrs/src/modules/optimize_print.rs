@@ -1,5 +1,6 @@
 use serde_json::{Value, json};
 
+use crate::config::cli_app_name;
 use crate::contract_versions::ACTIONS_JSON_CONTRACT_VERSION;
 use crate::optimize_report::{
     OptimizeArgs, build_optimize_actions, optimize_report, should_fail_strict,
@@ -232,7 +233,7 @@ pub fn print_optimize(args: OptimizeArgs) -> i32 {
     let report = match optimize_report(n) {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!("cxrs optimize: {e}");
+            crate::cx_eprintln!("{} optimize: {e}", cli_app_name());
             return 1;
         }
     };
@@ -256,7 +257,7 @@ pub fn print_optimize(args: OptimizeArgs) -> i32 {
         };
     }
 
-    println!("== cxrs optimize (last {n} runs) ==");
+    println!("== {} optimize (last {n} runs) ==", cli_app_name());
     let sb = report
         .get("scoreboard")
         .cloned()

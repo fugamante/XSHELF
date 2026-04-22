@@ -34,7 +34,7 @@ pub fn cmd_mode(app_name: &str, args: &[String]) -> i32 {
                     return 2;
                 };
                 let Some(parsed) = parse_bool_word(v) else {
-                    crate::cx_eprintln!("cxrs mode: invalid --cli '{v}' (use json|text)");
+                    crate::cx_eprintln!("{app_name} mode: invalid --cli '{v}' (use json|text)");
                     return 2;
                 };
                 cli_override = Some(parsed);
@@ -49,7 +49,7 @@ pub fn cmd_mode(app_name: &str, args: &[String]) -> i32 {
                 };
                 let Some(parsed) = parse_bool_word(v) else {
                     crate::cx_eprintln!(
-                        "cxrs mode: invalid --command-default '{v}' (use json|text)"
+                        "{app_name} mode: invalid --command-default '{v}' (use json|text)"
                     );
                     return 2;
                 };
@@ -57,7 +57,7 @@ pub fn cmd_mode(app_name: &str, args: &[String]) -> i32 {
                 i += 2;
             }
             other => {
-                crate::cx_eprintln!("cxrs mode: unknown argument '{other}'");
+                crate::cx_eprintln!("{app_name} mode: unknown argument '{other}'");
                 crate::cx_eprintln!(
                     "Usage: {app_name} mode [show|explain] [--json] [--cli json|text] [--command-default json|text]"
                 );
