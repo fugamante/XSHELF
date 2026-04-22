@@ -11,6 +11,7 @@
 ## Next (1-2 months)
 
 - Stage the `XSHELF` rename as a compatibility migration, not a breaking command/env/state rename.
+- Land dual-surface command docs/install defaults so `xshelf` is documented first while `cx` stays fully supported.
 - Add richer command-level JSON outputs for diagnostics tools.
 - Landed CI-level artifact reports for reliability suite failures.
 - Broaden OS validation matrix (Linux-focused CI pass).

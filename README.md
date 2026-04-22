@@ -14,7 +14,8 @@ Naming note:
 
 Canonical runtime:
 - engine: `rust/cxrs`
-- primary entrypoint: `bin/cx`
+- primary entrypoint: `bin/xshelf`
+- compatibility alias: `bin/cx`
 - compatibility shell shim: `lib/cx.sh`
 
 ## What It Does
@@ -46,32 +47,36 @@ Basic runtime checks:
 
 ```bash
 cd <repo-root>
-./bin/cx version
-./bin/cx core
-./bin/cx doctor
-./bin/cx health
+./bin/xshelf version
+./bin/xshelf core
+./bin/xshelf doctor
+./bin/xshelf health
 ```
 
 Run a normal command through the runtime:
 
 ```bash
-./bin/cx cxo git status
+./bin/xshelf cxo git status
 ```
 
 Inspect runtime status in JSON:
 
 ```bash
-./bin/cx core --json
-./bin/cx diag --json --window 50
-./bin/cx scheduler --json --window 50
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 50
+./bin/xshelf scheduler --json --window 50
 ```
 
-Install the man page and wrapper locally:
+Install shell functions and man pages:
 
 ```bash
-./bin/cx-install
+./bin/xshelf-install
+man xshelf
 man cx
 ```
+
+Compatibility note:
+- `./bin/cx ...` remains fully supported during migration.
 
 ## Runtime Model
 
@@ -100,40 +105,40 @@ Runtime vs development:
 Backend selection:
 
 ```bash
-./bin/cx llm show
-./bin/cx llm use codex
-./bin/cx llm use ollama llama3.1
-./bin/cx llm unset model
+./bin/xshelf llm show
+./bin/xshelf llm use codex
+./bin/xshelf llm use ollama llama3.1
+./bin/xshelf llm unset model
 ```
 
 Structured command and schema inspection:
 
 ```bash
-./bin/cx schema list
-./bin/cx schema list --json | jq .
-./bin/cx next git status
+./bin/xshelf schema list
+./bin/xshelf schema list --json | jq .
+./bin/xshelf next git status
 ```
 
 Task graph:
 
 ```bash
-./bin/cx task add "Implement parser hardening" --role implementer
-./bin/cx task list --status pending
-./bin/cx task list --json | jq .
-./bin/cx task fanout "Ship release notes improvements" --from staged-diff
-./bin/cx task check --json | jq .
-./bin/cx task run-all --status pending --mode mixed
-./bin/cx task run-all --status pending --mode parallel --max-workers 2
+./bin/xshelf task add "Implement parser hardening" --role implementer
+./bin/xshelf task list --status pending
+./bin/xshelf task list --json | jq .
+./bin/xshelf task fanout "Ship release notes improvements" --from staged-diff
+./bin/xshelf task check --json | jq .
+./bin/xshelf task run-all --status pending --mode mixed
+./bin/xshelf task run-all --status pending --mode parallel --max-workers 2
 ```
 
 Telemetry and policy:
 
 ```bash
-./bin/cx telemetry 50 --json | jq .
-./bin/cx logs stats 200 --json | jq .
-./bin/cx optimize 200 --json | jq .
-./bin/cx policy show --json | jq .
-./bin/cx quota probe 30 --json | jq .
+./bin/xshelf telemetry 50 --json | jq .
+./bin/xshelf logs stats 200 --json | jq .
+./bin/xshelf optimize 200 --json | jq .
+./bin/xshelf policy show --json | jq .
+./bin/xshelf quota probe 30 --json | jq .
 ```
 
 ## Configuration Essentials
@@ -168,11 +173,11 @@ Important runtime knobs:
 Useful state/config commands:
 
 ```bash
-./bin/cx mode
-./bin/cx mode --json | jq .
-./bin/cx broker show --json | jq .
-./bin/cx quota guard show
-./bin/cx quota catalog show --json | jq .
+./bin/xshelf mode
+./bin/xshelf mode --json | jq .
+./bin/xshelf broker show --json | jq .
+./bin/xshelf quota guard show
+./bin/xshelf quota catalog show --json | jq .
 ```
 
 ## Docs Map
@@ -211,9 +216,9 @@ TurboQuant research archive:
 Runtime-facing validation:
 
 ```bash
-./bin/cx doctor
-./bin/cx health
-./bin/cx logs validate --fix=false
+./bin/xshelf doctor
+./bin/xshelf health
+./bin/xshelf logs validate --fix=false
 ```
 
 Maintainer validation:
@@ -245,7 +250,8 @@ git push
 ## Development Notes
 
 Repository layout:
-- `bin/cx` - runtime entrypoint
+- `bin/xshelf` - canonical runtime entrypoint
+- `bin/cx` - compatibility runtime alias
 - `rust/cxrs/src/main.rs` - Rust binary entry
 - `rust/cxrs/src/app/mod.rs` - routing/orchestration
 - `rust/cxrs/src/modules/*.rs` - runtime modules

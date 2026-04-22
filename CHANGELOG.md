@@ -15,6 +15,11 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- XSHELF command migration:
+  - README quick-start and common command examples now lead with `bin/xshelf`.
+  - added `bin/xshelf-install` and `bin/xshelf-uninstall` wrappers.
+  - install flow now publishes both `xshelf.1` and `cx.1` man-page entries.
+  - added `docs/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
   - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).
