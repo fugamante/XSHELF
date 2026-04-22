@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::config::cli_app_name;
+
 use crate::config::app_config;
 use crate::paths::repo_root;
 
@@ -231,7 +233,7 @@ fn policy_rules() -> Vec<&'static str> {
 
 fn show_policy_text() {
     let cfg = app_config();
-    println!("== cxrs policy show ==");
+    println!("== {} policy show ==", cli_app_name());
     println!("Active safety rules:");
     for rule in policy_rules() {
         println!("- {rule}");
@@ -264,14 +266,14 @@ fn show_policy_json() -> i32 {
             0
         }
         Err(e) => {
-            crate::cx_eprintln!("cxrs policy show: failed to render json: {e}");
+            crate::cx_eprintln!("{} policy show: failed to render json: {e}", cli_app_name());
             1
         }
     }
 }
 
 fn print_policy_help(app_name: &str) {
-    println!("== cxrs policy ==");
+    println!("== {} policy ==", cli_app_name());
     println!("Dangerous command patterns blocked by default in fix-run:");
     println!("- sudo (any)");
     println!("- rm -rf / rm -fr forms");

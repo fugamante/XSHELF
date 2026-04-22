@@ -2,7 +2,7 @@ use std::fs;
 use std::process::Command;
 
 use crate::capture::chunk_text_by_budget;
-use crate::config::app_config;
+use crate::config::{app_config, cli_app_name};
 use crate::execmeta::utc_now_iso;
 use crate::process::run_command_output_with_timeout;
 use crate::types::TaskRecord;
@@ -31,7 +31,10 @@ fn collect_source_text(source: &str) -> Result<String, i32> {
             return Ok(fs::read_to_string(p).unwrap_or_default());
         }
         _ => {
-            crate::cx_eprintln!("cxrs task fanout: unsupported --from source '{source}'");
+            crate::cx_eprintln!(
+                "{} task fanout: unsupported --from source '{source}'",
+                cli_app_name()
+            );
             return Err(2);
         }
     };

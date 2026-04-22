@@ -2,7 +2,7 @@ use std::process::Command;
 
 use serde_json::{Value, json};
 
-use crate::config::app_config;
+use crate::config::{app_config, cli_app_name};
 use crate::contract_versions::BROKER_BENCHMARK_JSON_CONTRACT_VERSION;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
@@ -16,6 +16,10 @@ fn valid_policy(s: &str) -> bool {
     )
 }
 
+fn broker_error(action: &str, detail: &str) -> String {
+    format!("{} broker {action}: {detail}", cli_app_name())
+}
+
 fn parse_set_policy(args: &[String]) -> Result<String, String> {
     let mut i = 0usize;
     let mut policy: Option<String> = None;
@@ -23,21 +27,21 @@ fn parse_set_policy(args: &[String]) -> Result<String, String> {
         match args[i].as_str() {
             "--policy" => {
                 let Some(v) = args.get(i + 1) else {
-                    return Err("cxrs broker set: --policy requires a value".to_string());
+                    return Err(broker_error("set", "--policy requires a value"));
                 };
                 policy = Some(v.trim().to_lowercase());
                 i += 2;
             }
             other => {
-                return Err(format!("cxrs broker set: unknown flag '{other}'"));
+                return Err(broker_error("set", &format!("unknown flag '{other}'")));
             }
         }
     }
     let Some(v) = policy else {
-        return Err("cxrs broker set: missing --policy".to_string());
+        return Err(broker_error("set", "missing --policy"));
     };
     if !valid_policy(&v) {
-        return Err(format!("cxrs broker set: invalid policy '{v}'"));
+        return Err(broker_error("set", &format!("invalid policy '{v}'")));
     }
     Ok(v)
 }
@@ -93,11 +97,11 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
         match args[i].as_str() {
             "--backend" => {
                 let Some(v) = args.get(i + 1) else {
-                    return Err("cxrs broker benchmark: --backend requires a value".to_string());
+                    return Err(broker_error("benchmark", "--backend requires a value"));
                 };
                 let b = v.trim().to_lowercase();
                 if !matches!(b.as_str(), "codex" | "ollama") {
-                    return Err(format!("cxrs broker benchmark: invalid backend '{b}'"));
+                    return Err(broker_error("benchmark", &format!("invalid backend '{b}'")));
                 }
                 if !backends.iter().any(|x| x == &b) {
                     backends.push(b);
@@ -109,13 +113,13 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
                     return Err("cxrs broker benchmark: --window requires a value".to_string());
                 };
                 window = v.parse::<usize>().map_err(|_| {
-                    format!(
-                        "cxrs broker benchmark: --window expects a positive integer, got '{}'",
-                        v
+                    broker_error(
+                        "benchmark",
+                        &format!("--window expects a positive integer, got '{}'", v),
                     )
                 })?;
                 if window == 0 {
-                    return Err("cxrs broker benchmark: --window must be >= 1".to_string());
+                    return Err(broker_error("benchmark", "--window must be >= 1"));
                 }
                 i += 2;
             }
@@ -129,22 +133,22 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
             }
             "--min-runs" => {
                 let Some(v) = args.get(i + 1) else {
-                    return Err("cxrs broker benchmark: --min-runs requires a value".to_string());
+                    return Err(broker_error("benchmark", "--min-runs requires a value"));
                 };
                 min_runs = v.parse::<usize>().map_err(|_| {
-                    format!(
-                        "cxrs broker benchmark: --min-runs expects a positive integer, got '{}'",
-                        v
+                    broker_error(
+                        "benchmark",
+                        &format!("--min-runs expects a positive integer, got '{}'", v),
                     )
                 })?;
                 if min_runs == 0 {
-                    return Err("cxrs broker benchmark: --min-runs must be >= 1".to_string());
+                    return Err(broker_error("benchmark", "--min-runs must be >= 1"));
                 }
                 i += 2;
             }
             "--severity" => {
                 let Some(v) = args.get(i + 1) else {
-                    return Err("cxrs broker benchmark: --severity requires a value".to_string());
+                    return Err(broker_error("benchmark", "--severity requires a value"));
                 };
                 let parsed = v.trim().to_lowercase();
                 let normalized = match parsed.as_str() {
@@ -153,16 +157,19 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
                     _ => "",
                 };
                 if normalized.is_empty() {
-                    return Err(format!(
-                        "cxrs broker benchmark: --severity expects warn|warning|critical, got '{}'",
-                        v
+                    return Err(broker_error(
+                        "benchmark",
+                        &format!("--severity expects warn|warning|critical, got '{}'", v),
                     ));
                 }
                 severity = normalized.to_string();
                 i += 2;
             }
             other => {
-                return Err(format!("cxrs broker benchmark: unknown flag '{other}'"));
+                return Err(broker_error(
+                    "benchmark",
+                    &format!("unknown flag '{other}'"),
+                ));
             }
         }
     }

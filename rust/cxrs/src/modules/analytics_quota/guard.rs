@@ -1,8 +1,9 @@
 use serde_json::{Value, json};
 
+use crate::config::cli_app_name;
+
 use super::resolution::quota_probe_payload;
 use super::shared::read_window_rows;
-use crate::config::cli_app_name;
 use crate::state::{read_state_value, set_state_path, value_at_path};
 
 #[derive(Debug, Clone)]
@@ -185,7 +186,7 @@ fn cmd_quota_guard_check(args: &[String]) -> i32 {
     let (log_file, rows) = match read_window_rows(days) {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!("cxrs {e}");
+            crate::cx_eprintln!("{} {e}", cli_app_name());
             return 1;
         }
     };
@@ -196,14 +197,20 @@ fn cmd_quota_guard_check(args: &[String]) -> i32 {
         match serde_json::to_string_pretty(&payload) {
             Ok(s) => println!("{s}"),
             Err(e) => {
-                crate::cx_eprintln!("cxrs quota guard check: failed to render json: {e}");
+                crate::cx_eprintln!(
+                    "{} quota guard check: failed to render json: {e}",
+                    cli_app_name()
+                );
                 return 1;
             }
         }
         return code;
     }
 
-    println!("== cx quota guard check (last {days} days) ==");
+    println!(
+        "== {} quota guard check (last {days} days) ==",
+        cli_app_name()
+    );
     println!(
         "status: {}",
         payload
@@ -288,7 +295,7 @@ pub(super) fn cmd_quota_guard(args: &[String]) -> i32 {
     match sub {
         "show" => {
             let cfg = guard_config_from_state();
-            println!("== cx quota guard ==");
+            println!("== {} quota guard ==", cli_app_name());
             println!("enabled: {}", if cfg.enabled { "true" } else { "false" });
             println!("warn_pct: {}%", (cfg.warn_pct * 100.0).round() as i64);
             println!(
