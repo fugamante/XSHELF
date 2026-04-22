@@ -4,11 +4,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::contract_versions::{
-    ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, OPTIMIZE_JSON_CONTRACT_VERSION,
-    SCHEDULER_JSON_CONTRACT_VERSION, TASK_CHECK_JSON_CONTRACT_VERSION,
-    TASK_LIST_JSON_CONTRACT_VERSION, TASK_RUN_ALL_JSON_CONTRACT_VERSION,
-    TASK_RUN_JSON_CONTRACT_VERSION, TASK_SHOW_JSON_CONTRACT_VERSION,
-    TELEMETRY_JSON_CONTRACT_VERSION,
+    ACTIONS_JSON_CONTRACT_VERSION, BROKER_SHOW_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION,
+    OPTIMIZE_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
+    TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
+    TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
+    TASK_SHOW_JSON_CONTRACT_VERSION, TELEMETRY_JSON_CONTRACT_VERSION,
 };
 use crate::execmeta::utc_now_iso;
 
@@ -23,6 +23,14 @@ const DIAG_REQUIRED_KEYS: &[&str] = &["contract_version", "retry", "concurrency"
 const SCHED_REQUIRED_KEYS: &[&str] = &["contract_version", "retry", "concurrency"];
 const OPT_REQUIRED_KEYS: &[&str] = &["contract_version", "scoreboard"];
 const TELE_REQUIRED_KEYS: &[&str] = &["contract_version", "fields", "contract_drift"];
+const BROKER_SHOW_REQUIRED_KEYS: &[&str] = &[
+    "contract_version",
+    "broker_policy",
+    "active_backend",
+    "active_model",
+    "availability",
+    "adapter_rollout_policy",
+];
 const TASK_CHECK_REQUIRED_KEYS: &[&str] = &[
     "contract_version",
     "status_filter",
@@ -77,6 +85,11 @@ const FULL_SPECS: &[ContractSpec] = &[
         action: "cx.logs.stats",
         contract_version: TELEMETRY_JSON_CONTRACT_VERSION,
         required_keys: TELE_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.broker.show",
+        contract_version: BROKER_SHOW_JSON_CONTRACT_VERSION,
+        required_keys: BROKER_SHOW_REQUIRED_KEYS,
     },
     ContractSpec {
         action: "cx.task.check",
