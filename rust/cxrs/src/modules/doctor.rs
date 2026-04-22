@@ -3,6 +3,7 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
+use crate::config::{command_matches_cli, command_with_cli};
 use crate::llm::extract_agent_text;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
@@ -290,15 +291,15 @@ fn wave_pressure_note(mode: &str, wave: &Value) -> Option<String> {
 }
 
 fn next_action_kind(command: &str) -> &'static str {
-    if command.starts_with("cx task run-all") {
+    if command_matches_cli(command, "task run-all") {
         "rerun"
-    } else if command.starts_with("cx scheduler") {
+    } else if command_matches_cli(command, "scheduler") {
         "inspect_scheduler"
-    } else if command.starts_with("cx task check") {
+    } else if command_matches_cli(command, "task check") {
         "inspect_tasks"
-    } else if command.starts_with("cx diag") {
+    } else if command_matches_cli(command, "diag") {
         "inspect_diag"
-    } else if command.starts_with("cx doctor") {
+    } else if command_matches_cli(command, "doctor") {
         "inspect_doctor"
     } else {
         "inspect"
@@ -306,9 +307,9 @@ fn next_action_kind(command: &str) -> &'static str {
 }
 
 pub(crate) fn next_cost_class(command: &str) -> &'static str {
-    if command.starts_with("cx task run-all")
-        || command.starts_with("cx task check")
-        || command.starts_with("cx scheduler")
+    if command_matches_cli(command, "task run-all")
+        || command_matches_cli(command, "task check")
+        || command_matches_cli(command, "scheduler")
     {
         "cheap"
     } else {
@@ -317,12 +318,12 @@ pub(crate) fn next_cost_class(command: &str) -> &'static str {
 }
 
 pub(crate) fn next_reasoning_required(command: &str) -> &'static str {
-    if command.starts_with("cx task run-all")
-        || command.starts_with("cx task check")
-        || command.starts_with("cx scheduler")
+    if command_matches_cli(command, "task run-all")
+        || command_matches_cli(command, "task check")
+        || command_matches_cli(command, "scheduler")
     {
         "none"
-    } else if command.starts_with("cx doctor") {
+    } else if command_matches_cli(command, "doctor") {
         "deep"
     } else {
         "light"
@@ -330,9 +331,9 @@ pub(crate) fn next_reasoning_required(command: &str) -> &'static str {
 }
 
 pub(crate) fn next_quality_risk(command: &str) -> &'static str {
-    if command.starts_with("cx task run-all")
-        || command.starts_with("cx task check")
-        || command.starts_with("cx scheduler")
+    if command_matches_cli(command, "task run-all")
+        || command_matches_cli(command, "task check")
+        || command_matches_cli(command, "scheduler")
     {
         "low"
     } else {
@@ -341,15 +342,15 @@ pub(crate) fn next_quality_risk(command: &str) -> &'static str {
 }
 
 fn next_escalates_if(command: &str) -> &'static str {
-    if command.starts_with("cx task run-all") {
+    if command_matches_cli(command, "task run-all") {
         "rerun still fails, leaves work unscheduled, or state changes"
-    } else if command.starts_with("cx task check") {
+    } else if command_matches_cli(command, "task check") {
         "plan remains blocked or recommendation conflicts with latest scheduler state"
-    } else if command.starts_with("cx scheduler") {
+    } else if command_matches_cli(command, "scheduler") {
         "scheduler inspection does not explain the latest halt, fallback, or queue pressure"
-    } else if command.starts_with("cx diag") {
+    } else if command_matches_cli(command, "diag") {
         "diagnostic summary remains ambiguous or quality risk rises"
-    } else if command.starts_with("cx doctor") {
+    } else if command_matches_cli(command, "doctor") {
         "doctor guidance conflicts with current task or scheduler evidence"
     } else {
         "current structured path does not resolve the issue"
@@ -683,7 +684,7 @@ pub(crate) fn reasoning_gate_value(
 ) -> Value {
     let mode = if allow_no_reasoning {
         "no_reasoning_needed"
-    } else if command.is_some_and(|cmd| cmd.starts_with("cx task run-all"))
+    } else if command.is_some_and(|cmd| command_matches_cli(cmd, "task run-all"))
         && cost_class == Some("cheap")
         && reasoning_required == Some("none")
         && quality_risk == Some("low")
@@ -720,10 +721,11 @@ pub(crate) fn reasoning_gate_value(
 }
 
 fn next_action_value(advice: &str, recommendations: &[Value]) -> Value {
+    let default_command = command_with_cli("diag --json");
     let primary = recommendations
         .first()
         .and_then(Value::as_str)
-        .unwrap_or("cx diag --json");
+        .unwrap_or(default_command.as_str());
     serde_json::json!({
         "kind": next_action_kind(primary),
         "command": primary,
@@ -795,6 +797,7 @@ pub(crate) fn exec_action_value(task_execution: &Value) -> Option<Value> {
 
 fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Vec<String> {
     let value = exec_diag_value(latest_summary, wave_summary);
+    let default_command = command_with_cli("diag --json");
     let kind = value
         .get("next_action")
         .and_then(|v| v.get("kind"))
@@ -804,7 +807,7 @@ fn exec_next_lines(latest_summary: Option<&Value>, wave_summary: Option<&Value>)
         .get("next_action")
         .and_then(|v| v.get("command"))
         .and_then(Value::as_str)
-        .unwrap_or("cx diag --json");
+        .unwrap_or(default_command.as_str());
     vec![
         format!("task_execution_next_action_kind: {kind}"),
         format!("task_execution_next_action_command: {command}"),
@@ -1000,16 +1003,16 @@ pub(crate) fn exec_recommendations_value(
         let wave = wave_pressure_value(None, wave_summary);
         let commands = if wave_pressure_note("unknown", &wave).is_some() {
             vec![
-                "cx task run-all --dry-run --json",
-                "cx scheduler --json --window 20",
+                command_with_cli("task run-all --dry-run --json"),
+                command_with_cli("scheduler --json --window 20"),
             ]
         } else {
-            vec!["cx task check --json", "cx scheduler --json"]
+            vec![
+                command_with_cli("task check --json"),
+                command_with_cli("scheduler --json"),
+            ]
         };
-        return commands
-            .into_iter()
-            .map(|cmd| Value::String(cmd.to_string()))
-            .collect();
+        return commands.into_iter().map(Value::String).collect();
     };
     let halted_remaining = summary
         .get("run_all_halted_remaining")
@@ -1035,38 +1038,35 @@ pub(crate) fn exec_recommendations_value(
 
     let commands = if halted_remaining > 0 {
         vec![
-            "cx scheduler --json --window 20".to_string(),
-            "cx task run-all --status pending".to_string(),
+            command_with_cli("scheduler --json --window 20"),
+            command_with_cli("task run-all --status pending"),
         ]
     } else if critical > 0 {
         vec![
-            "cx scheduler --json --window 20".to_string(),
-            "cx task check --json".to_string(),
+            command_with_cli("scheduler --json --window 20"),
+            command_with_cli("task check --json"),
         ]
     } else if fallback_rows > 0 {
         vec![
-            "cx scheduler --json --window 20".to_string(),
-            "cx doctor".to_string(),
+            command_with_cli("scheduler --json --window 20"),
+            command_with_cli("doctor"),
         ]
     } else if failed > 0 {
         vec![
-            "cx task check --json".to_string(),
-            "cx task run-all --status pending".to_string(),
+            command_with_cli("task check --json"),
+            command_with_cli("task run-all --status pending"),
         ]
     } else if wave_pressure_note(mode, &wave).is_some() {
         let narrower = match mode {
-            "parallel" => "cx task run-all --mode mixed --status pending",
-            "mixed" => "cx task run-all --mode sequential --status pending",
-            _ => "cx scheduler --json --window 20",
+            "parallel" => command_with_cli("task run-all --mode mixed --status pending"),
+            "mixed" => command_with_cli("task run-all --mode sequential --status pending"),
+            _ => command_with_cli("scheduler --json --window 20"),
         };
-        vec![
-            narrower.to_string(),
-            "cx scheduler --json --window 20".to_string(),
-        ]
+        vec![narrower, command_with_cli("scheduler --json --window 20")]
     } else {
         vec![
-            "cx diag --json".to_string(),
-            "cx scheduler --json".to_string(),
+            command_with_cli("diag --json"),
+            command_with_cli("scheduler --json"),
         ]
     };
     let bias = phase7_bias_value(latest_summary);
@@ -1506,11 +1506,12 @@ mod tests {
         );
         let joined = lines.join("\n");
         assert!(
-            joined.contains("task_execution_recommendation_1: cx scheduler --json --window 20"),
+            joined.contains("task_execution_recommendation_1: xshelf scheduler --json --window 20"),
             "{joined}"
         );
         assert!(
-            joined.contains("task_execution_recommendation_2: cx task run-all --status pending"),
+            joined
+                .contains("task_execution_recommendation_2: xshelf task run-all --status pending"),
             "{joined}"
         );
     }
@@ -1551,7 +1552,7 @@ mod tests {
             .expect("recommendations");
         assert!(
             recs.iter()
-                .any(|v| v.as_str() == Some("cx scheduler --json --window 20")),
+                .any(|v| v.as_str() == Some("xshelf scheduler --json --window 20")),
             "{value}"
         );
         assert_eq!(
@@ -1602,7 +1603,7 @@ mod tests {
                 .get("recent_context")
                 .and_then(|v| v.get("recommended_resume_point"))
                 .and_then(Value::as_str),
-            Some("cx scheduler --json --window 20")
+            Some("xshelf scheduler --json --window 20")
         );
         assert_eq!(
             value
@@ -1665,7 +1666,7 @@ mod tests {
         );
         assert!(
             context_lines.contains(
-                "task_execution_context_recommended_resume_point: cx scheduler --json --window 20"
+                "task_execution_context_recommended_resume_point: xshelf scheduler --json --window 20"
             ),
             "{context_lines}"
         );
@@ -1709,7 +1710,7 @@ mod tests {
         );
         let recs = exec_reco_lines(Some(&summary), Some(&wave)).join("\n");
         assert!(
-            recs.contains("task_execution_recommendation_1: cx task run-all --mode sequential --status pending"),
+            recs.contains("task_execution_recommendation_1: xshelf task run-all --mode sequential --status pending"),
             "{recs}"
         );
         let value = exec_diag_value(Some(&summary), Some(&wave));
@@ -1722,14 +1723,14 @@ mod tests {
                 .get("next_action")
                 .and_then(|v| v.get("command"))
                 .and_then(Value::as_str),
-            Some("cx task run-all --mode sequential --status pending")
+            Some("xshelf task run-all --mode sequential --status pending")
         );
         assert_eq!(
             value
                 .get("recent_context")
                 .and_then(|v| v.get("recommended_resume_point"))
                 .and_then(Value::as_str),
-            Some("cx task run-all --mode sequential --status pending")
+            Some("xshelf task run-all --mode sequential --status pending")
         );
     }
 
@@ -1751,7 +1752,7 @@ mod tests {
         );
         let recs = exec_reco_lines(None, Some(&wave)).join("\n");
         assert!(
-            recs.contains("task_execution_recommendation_1: cx task run-all --dry-run --json"),
+            recs.contains("task_execution_recommendation_1: xshelf task run-all --dry-run --json"),
             "{recs}"
         );
         let value = exec_diag_value(None, Some(&wave));
@@ -1775,8 +1776,9 @@ mod tests {
         );
         let next_lines = exec_next_lines(None, Some(&wave)).join("\n");
         assert!(
-            next_lines
-                .contains("task_execution_next_action_command: cx task run-all --dry-run --json"),
+            next_lines.contains(
+                "task_execution_next_action_command: xshelf task run-all --dry-run --json"
+            ),
             "{next_lines}"
         );
         let gate_lines = exec_gate_lines(None, Some(&wave)).join("\n");
@@ -1787,7 +1789,7 @@ mod tests {
         let context_lines = exec_context_lines(None, Some(&wave)).join("\n");
         assert!(
             context_lines.contains(
-                "task_execution_context_recommended_resume_point: cx task run-all --dry-run --json"
+                "task_execution_context_recommended_resume_point: xshelf task run-all --dry-run --json"
             ),
             "{context_lines}"
         );
@@ -1803,10 +1805,10 @@ mod tests {
         let value = exec_context_value(
             Some(&serde_json::json!({
                 "run_all_mode": "parallel",
-                "run_all_recommended_resume_point": "cx scheduler --json --window 20",
+                "run_all_recommended_resume_point": "xshelf scheduler --json --window 20",
                 "run_all_failed": 1
             })),
-            Some("cx scheduler --json --window 20"),
+            Some("xshelf scheduler --json --window 20"),
         );
         assert_eq!(
             value.get("last_mode_used").and_then(Value::as_str),
@@ -1816,7 +1818,7 @@ mod tests {
             value
                 .get("recommended_resume_point")
                 .and_then(Value::as_str),
-            Some("cx scheduler --json --window 20")
+            Some("xshelf scheduler --json --window 20")
         );
         assert_eq!(
             value
@@ -1831,21 +1833,21 @@ mod tests {
         let current = serde_json::json!({
             "tool":"cxtask_runall",
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task check --json",
+            "run_all_recommended_resume_point":"xshelf task check --json",
             "run_all_mode":"mixed",
             "run_all_failed":1
         });
         let prior = serde_json::json!({
             "tool":"cxtask_runall",
             "run_all_failure_pattern":"retryable_failure",
-            "run_all_recommended_resume_point":"cx task check --json",
+            "run_all_recommended_resume_point":"xshelf task check --json",
             "run_all_mode":"mixed",
             "run_all_failed":1
         });
         let earlier = serde_json::json!({
             "tool":"cxtask_runall",
             "run_all_failure_pattern":"clean",
-            "run_all_recommended_resume_point":"cx task run-all --status pending",
+            "run_all_recommended_resume_point":"xshelf task run-all --status pending",
             "run_all_mode":"mixed",
             "run_all_failed":0
         });

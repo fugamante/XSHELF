@@ -1,4 +1,5 @@
 use crate::cmdctx::CmdCtx;
+use crate::config::cli_app_name;
 use crate::config::{DEFAULT_OPTIMIZE_WINDOW, DEFAULT_QUARANTINE_LIST, DEFAULT_RUN_WINDOW};
 use crate::error::{EXIT_OK, EXIT_RUNTIME, EXIT_USAGE, format_error, print_usage_error};
 
@@ -93,7 +94,8 @@ fn handle_prompt(app_name: &str, args: &[String], deps: &NativeDeps) -> i32 {
 
 fn handle_cx(args: &[String], deps: &NativeDeps) -> i32 {
     if args.len() < 3 {
-        return print_usage_error("cx", "cx <command> [args...]");
+        let app_name = cli_app_name();
+        return print_usage_error("cx", &format!("{app_name} <command> [args...]"));
     }
     if (deps.is_compat_name)(&args[2]) {
         (deps.cmd_cx_compat)(&args[2..])

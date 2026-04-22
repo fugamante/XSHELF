@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::config::app_config;
+use crate::config::{app_config, command_matches_cli};
 use crate::contract_versions::{
     ACTIONS_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
 };
@@ -771,15 +771,15 @@ fn severity_rank(level: &str) -> i32 {
 }
 
 pub(crate) fn action_cost_rank(command: &str) -> u8 {
-    if command.starts_with("cx task run-all --status pending")
-        || command.starts_with("cx task run-all --mode ")
-        || command.starts_with("cx task check")
+    if command_matches_cli(command, "task run-all --status pending")
+        || command_matches_cli(command, "task run-all --mode ")
+        || command_matches_cli(command, "task check")
     {
         0
-    } else if command.starts_with("cx scheduler")
-        || command.starts_with("cx diag")
-        || command.starts_with("cx doctor")
-        || command.starts_with("cx task run-plan")
+    } else if command_matches_cli(command, "scheduler")
+        || command_matches_cli(command, "diag")
+        || command_matches_cli(command, "doctor")
+        || command_matches_cli(command, "task run-plan")
     {
         1
     } else {
@@ -881,37 +881,47 @@ fn build_actions_from_reasons(
                 "queue_p95_high",
                 "warning",
                 "Scheduler queue p95 latency is elevated.",
-                format!("cx scheduler --json --window {window} --strict"),
+                format!(
+                    "{} --window {window} --strict",
+                    crate::config::command_with_cli("scheduler --json")
+                ),
             ),
             "backend_skew_high" => (
                 "backend_skew_high",
                 "warning",
                 "Runs are concentrated on one backend; rebalance or benchmark policy.",
-                format!("cx broker benchmark --window {window} --json"),
+                format!(
+                    "{} --window {window} --json",
+                    crate::config::command_with_cli("broker benchmark")
+                ),
             ),
             "worker_spread_low" => (
                 "worker_spread_low",
                 "warning",
                 "Worker distribution is narrow for current run volume.",
-                "cx task run-plan --status pending --json".to_string(),
+                crate::config::command_with_cli("task run-plan --status pending --json"),
             ),
             "retry_recovery_low" => (
                 "retry_recovery_low",
                 "critical",
                 "Retry recovery rate is below target.",
-                "cx logs stats 200 --json --strict --severity critical".to_string(),
+                crate::config::command_with_cli(
+                    "logs stats 200 --json --strict --severity critical",
+                ),
             ),
             "retry_pressure_high" => (
                 "retry_pressure_high",
                 "warning",
                 "Retry attempt volume is elevated.",
-                "cx optimize 200 --json --actions".to_string(),
+                crate::config::command_with_cli("optimize 200 --json --actions"),
             ),
             "timing_coverage_low" => (
                 "timing_coverage_low",
                 "warning",
                 "Task timing attribution coverage is degraded; queue/start/finish metadata is incomplete.",
-                "cx logs stats 200 --json --strict --severity warning".to_string(),
+                crate::config::command_with_cli(
+                    "logs stats 200 --json --strict --severity warning",
+                ),
             ),
             "critical_halts_detected" => (
                 "critical_halts_detected",
@@ -923,7 +933,7 @@ fn build_actions_from_reasons(
                 other,
                 "warning",
                 "Scheduler diagnostic anomaly detected.",
-                "cx diag --json --window 200 --actions".to_string(),
+                crate::config::command_with_cli("diag --json --window 200 --actions"),
             ),
         };
         actions.push(serde_json::json!({
@@ -1182,7 +1192,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             build_actions_from_reasons(
                 &severity_reasons,
                 window,
-                "cx task run-all --status pending",
+                &crate::config::command_with_cli("task run-all --status pending"),
             ),
             &task_execution,
         )
@@ -1471,7 +1481,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
             build_actions_from_reasons(
                 &severity_reasons,
                 window,
-                "cx task run-all --status pending",
+                &crate::config::command_with_cli("task run-all --status pending"),
             ),
             &task_execution,
         )
@@ -1759,7 +1769,7 @@ mod tests {
         let actions = build_actions_from_reasons(
             &["timing_coverage_low:55".to_string()],
             200,
-            "cx task run-all --status pending",
+            &crate::config::command_with_cli("task run-all --status pending"),
         );
         assert_eq!(actions.len(), 1);
         assert_eq!(
@@ -1777,7 +1787,7 @@ mod tests {
                 "critical_halts_detected:1".to_string(),
             ],
             200,
-            "cx task run-all --status pending",
+            &crate::config::command_with_cli("task run-all --status pending"),
         );
         assert_eq!(actions.len(), 3);
         assert_eq!(

@@ -201,7 +201,7 @@ fn show_ready_readiness() {
         readiness.get("runnable_now").and_then(Value::as_bool),
         Some(true)
     );
-    let run_cmd = format!("cx task run {id}");
+    let run_cmd = format!("xshelf task run {id}");
     assert_eq!(
         readiness.get("recommended_command").and_then(Value::as_str),
         Some(run_cmd.as_str())
@@ -251,7 +251,7 @@ fn show_blocked_readiness() {
     );
     assert_eq!(
         readiness.get("recommended_command").and_then(Value::as_str),
-        Some("cx task check --json")
+        Some("xshelf task check --json")
     );
 }
 
@@ -347,7 +347,7 @@ fn list_json_readiness() {
     );
     assert_eq!(
         readiness.get("recommended_command").and_then(Value::as_str),
-        Some("cx task check --json")
+        Some("xshelf task check --json")
     );
 }
 
@@ -481,7 +481,7 @@ fn run_preflight_blocked() {
     let reason = format!("task_run_preflight_reason: unresolved dependencies: {parent_id}");
     assert!(text.contains(&reason), "{text}");
     assert!(
-        text.contains("task_run_preflight_recommended: cx task check --json"),
+        text.contains("task_run_preflight_recommended: xshelf task check --json"),
         "{text}"
     );
 }

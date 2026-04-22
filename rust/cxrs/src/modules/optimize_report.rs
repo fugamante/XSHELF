@@ -569,7 +569,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
                 "id": "latency_hotspot",
                 "severity": "warning",
                 "rationale": format!("Highest average duration is concentrated on {tool} ({dur}ms)."),
-                "command": "cx optimize 200 --json --actions"
+                "command": crate::config::command_with_cli("optimize 200 --json --actions")
             }));
         }
     }
@@ -583,7 +583,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "id": "schema_failure_frequency",
             "severity": if schema_rate > 0.05 { "critical" } else { "warning" },
             "rationale": format!("Schema failure rate detected at {}%.", (schema_rate * 100.0).round() as i64),
-            "command": "cx diag --json --strict --actions"
+            "command": crate::config::command_with_cli("diag --json --strict --actions")
         }));
     }
     let timeout_rate = scoreboard
@@ -596,7 +596,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "id": "timeout_frequency",
             "severity": "warning",
             "rationale": format!("Timeout frequency is elevated at {}% of runs.", (timeout_rate * 100.0).round() as i64),
-            "command": "cx logs stats 200 --json --strict"
+            "command": crate::config::command_with_cli("logs stats 200 --json --strict")
         }));
     }
     let clip_rate = scoreboard
@@ -609,7 +609,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "id": "budget_clipping_frequency",
             "severity": "warning",
             "rationale": format!("Budget clipping occurs in {}% of captured runs.", (clip_rate * 100.0).round() as i64),
-            "command": "cx budget"
+            "command": crate::config::command_with_cli("budget")
         }));
     }
     let timing_cov = scoreboard
@@ -622,7 +622,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "id": "timing_attribution_coverage_low",
             "severity": "warning",
             "rationale": format!("Task timing attribution coverage is low at {}% minimum field population.", (timing_cov * 100.0).round() as i64),
-            "command": "cx scheduler --json --window 200"
+            "command": crate::config::command_with_cli("scheduler --json --window 200")
         }));
     }
     let cache_delta = scoreboard
@@ -635,7 +635,7 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "id": "cache_hit_degradation",
             "severity": "warning",
             "rationale": format!("Cache hit trend regressed by {} percentage points.", (cache_delta * 100.0).round() as i64),
-            "command": "cx promptlint 200"
+            "command": crate::config::command_with_cli("promptlint 200")
         }));
     }
     if actions.len() > 1 {
@@ -747,21 +747,27 @@ mod tests {
             .iter()
             .position(|action| {
                 action.get("command").and_then(Value::as_str)
-                    == Some("cx diag --json --strict --actions")
+                    == Some(
+                        crate::config::command_with_cli("diag --json --strict --actions").as_str(),
+                    )
             })
             .expect("diag action");
         let logs_idx = actions
             .iter()
             .position(|action| {
                 action.get("command").and_then(Value::as_str)
-                    == Some("cx logs stats 200 --json --strict")
+                    == Some(
+                        crate::config::command_with_cli("logs stats 200 --json --strict").as_str(),
+                    )
             })
             .expect("logs action");
         let optimize_idx = actions
             .iter()
             .position(|action| {
                 action.get("command").and_then(Value::as_str)
-                    == Some("cx optimize 200 --json --actions")
+                    == Some(
+                        crate::config::command_with_cli("optimize 200 --json --actions").as_str(),
+                    )
             })
             .expect("optimize action");
         assert!(diag_idx < logs_idx, "{actions:?}");

@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
+use crate::config::command_with_cli;
 use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
 use crate::paths::{resolve_log_file, resolve_tasks_file};
@@ -570,7 +571,7 @@ pub fn task_run_view(task: &TaskRecord, tasks: &[TaskRecord], plan: &TaskRunPlan
             "blocked_reason": format!("task status is {}", task.status),
             "dependencies": dependencies,
             "resource_keys": resource_keys,
-            "recommended_command": format!("cx task show {}", task.id),
+            "recommended_command": format!("{} {}", command_with_cli("task show"), task.id),
             "recommended_reason": "inspect_non_pending_task"
         });
     }
@@ -609,24 +610,24 @@ pub fn task_run_view(task: &TaskRecord, tasks: &[TaskRecord], plan: &TaskRunPlan
     let (recommended_command, recommended_reason) = if let Some(reason) = blocked_reason.as_ref() {
         let _ = reason;
         (
-            "cx task check --json".to_string(),
+            command_with_cli("task check --json"),
             "inspect_blockers".to_string(),
         )
     } else if let Some((wave_index, _)) = wave.as_ref() {
         if *wave_index == 1 {
             (
-                format!("cx task run {}", task.id),
+                format!("{} {}", command_with_cli("task run"), task.id),
                 "task_is_ready_now".to_string(),
             )
         } else {
             (
-                "cx task run-all --status pending --dry-run --json".to_string(),
+                command_with_cli("task run-all --status pending --dry-run --json"),
                 "task_is_scheduled_in_later_wave".to_string(),
             )
         }
     } else {
         (
-            "cx task check --json".to_string(),
+            command_with_cli("task check --json"),
             "inspect_schedule_gap".to_string(),
         )
     };

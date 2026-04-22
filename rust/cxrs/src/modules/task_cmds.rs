@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::cmdctx::CmdCtx;
-use crate::config::app_config;
+use crate::config::{app_config, cli_app_name, command_with_cli};
 use crate::contract_versions::{
     TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
     TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
@@ -557,7 +557,7 @@ fn runall_failed_ids(summary: &RunAllSummary, limit: usize) -> Vec<String> {
 
 fn runall_invocation_command(options: &RunAllOptions) -> String {
     let mut parts = vec![
-        "cx task run-all".to_string(),
+        command_with_cli("task run-all"),
         format!("--status {}", options.status_filter),
         format!("--mode {}", options.run_mode),
     ];
@@ -995,7 +995,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 }
             }
             crate::cx_eprintln!(
-                "hint: run 'cx task run-all --status {} --mode parallel --strict-plan --plan-json' for machine-readable diagnostics",
+                "hint: run '{} --status {} --mode parallel --strict-plan --plan-json' for machine-readable diagnostics",
+                command_with_cli("task run-all"),
                 options.status_filter
             );
             return 1;
@@ -1592,11 +1593,14 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         blockers.push("strict_plan_blocked".to_string());
         recommendations = vec![
             format!(
-                "cx task run-all --status {} --mode {}",
-                options.status_filter, recommended_mode
+                "{} --status {} --mode {}",
+                command_with_cli("task run-all"),
+                options.status_filter,
+                recommended_mode
             ),
             format!(
-                "cx task run-all --status {} --mode parallel --strict-plan --plan-json",
+                "{} --status {} --mode parallel --strict-plan --plan-json",
+                command_with_cli("task run-all"),
                 options.status_filter
             ),
         ];
@@ -1605,18 +1609,21 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         blockers.push("mode_mismatch".to_string());
         recommendations = vec![
             format!(
-                "cx task run-all --status {} --mode {}",
-                options.status_filter, recommended_mode
+                "{} --status {} --mode {}",
+                command_with_cli("task run-all"),
+                options.status_filter,
+                recommended_mode
             ),
-            "cx task check --json".to_string(),
+            command_with_cli("task check --json"),
         ];
     } else if blocked_total > 0 {
         advice = "blocked tasks remain in the selected set; inspect dependency and resource blockers before expecting a full schedule";
         blockers.push("blocked_tasks".to_string());
         recommendations = vec![
-            "cx task check --json".to_string(),
+            command_with_cli("task check --json"),
             format!(
-                "cx task run-all --status {} --dry-run --json",
+                "{} --status {} --dry-run --json",
+                command_with_cli("task run-all"),
                 options.status_filter
             ),
         ];
@@ -1630,16 +1637,22 @@ fn runall_preflight_value(options: &RunAllOptions, readiness: &Value, strict_ok:
         };
         recommendations = vec![
             format!(
-                "cx task run-all --status {} --mode {}",
-                options.status_filter, narrower
+                "{} --status {} --mode {}",
+                command_with_cli("task run-all"),
+                options.status_filter,
+                narrower
             ),
-            "cx scheduler --json --window 20".to_string(),
+            command_with_cli("scheduler --json --window 20"),
         ];
     } else {
         advice = "preflight is operationally clean";
         recommendations = vec![
-            "cx task check --json".to_string(),
-            format!("cx task run-all --status {}", options.status_filter),
+            command_with_cli("task check --json"),
+            format!(
+                "{} --status {}",
+                command_with_cli("task run-all"),
+                options.status_filter
+            ),
         ];
     }
     let primary = recommendations.first().map(String::as_str);
@@ -2422,7 +2435,7 @@ fn handle_run_plan(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         return if plan.blocked.is_empty() { 0 } else { 1 };
     }
 
-    println!("== cx task run-plan ==");
+    println!("== {} task run-plan ==", cli_app_name());
     println!("status_filter: {}", plan.status_filter);
     println!("selected: {}", plan.selected);
     println!("waves: {}", plan.waves.len());
@@ -2663,7 +2676,7 @@ fn handle_task_check(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32
             }
         }
     } else {
-        println!("== cx task check ==");
+        println!("== {} task check ==", cli_app_name());
         println!(
             "status_filter: {}",
             readiness
