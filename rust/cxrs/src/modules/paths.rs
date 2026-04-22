@@ -1,5 +1,7 @@
 use std::env;
 use std::path::{Path, PathBuf};
+
+use crate::config::cli_app_name;
 use std::process::Command;
 #[cfg(not(test))]
 use std::sync::OnceLock;
@@ -94,7 +96,8 @@ pub fn resolve_quota_catalog_file() -> Option<PathBuf> {
 }
 
 pub fn resolve_tasks_file() -> Result<PathBuf, String> {
-    let root = repo_root().ok_or_else(|| "cx task: not inside a git repository".to_string())?;
+    let root = repo_root()
+        .ok_or_else(|| format!("{} task: not inside a git repository", cli_app_name()))?;
     Ok(root.join(".codex").join("tasks.json"))
 }
 
