@@ -25,6 +25,10 @@
 - Landed custom CA bundle support on the same `http-curl` boundary:
   - `CX_HTTP_CA_BUNDLE` now maps to curl `--cacert`
   - `core` / `version` diagnostics expose whether a CA bundle is configured
+- Landed mTLS client-auth support on the same `http-curl` boundary:
+  - `CX_HTTP_CLIENT_CERT` now maps to curl `--cert`
+  - `CX_HTTP_CLIENT_KEY` now maps to curl `--key`
+  - `core` / `version` diagnostics expose whether client cert/key are configured
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy

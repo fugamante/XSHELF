@@ -8,6 +8,8 @@ use crate::types::UsageStats;
 pub struct HttpRequestOptions {
     pub tls_pinned_pubkey: Option<String>,
     pub tls_ca_bundle: Option<String>,
+    pub tls_client_cert: Option<String>,
+    pub tls_client_key: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -166,6 +168,22 @@ fn run_http_body(
         .filter(|v| !v.is_empty())
     {
         cmd.args(["--cacert", ca_bundle]);
+    }
+    if let Some(client_cert) = options
+        .tls_client_cert
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        cmd.args(["--cert", client_cert]);
+    }
+    if let Some(client_key) = options
+        .tls_client_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        cmd.args(["--key", client_key]);
     }
     let out = run_command_with_stdin_output_with_timeout_meta(cmd, body, "http provider curl")
         .map_err(LlmRunError::from_process)?;
