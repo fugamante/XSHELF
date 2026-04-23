@@ -701,6 +701,14 @@ impl HttpCurlAdapter {
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty());
+        let tls_client_cert = env::var("CX_HTTP_CLIENT_CERT")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+        let tls_client_key = env::var("CX_HTTP_CLIENT_KEY")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
         let format = Self::parse_format_from_env();
         let request_profile = Self::parse_http_profile();
         let model = Self::http_model_env();
@@ -713,6 +721,8 @@ impl HttpCurlAdapter {
             http_options: HttpRequestOptions {
                 tls_pinned_pubkey,
                 tls_ca_bundle,
+                tls_client_cert,
+                tls_client_key,
             },
         })
     }

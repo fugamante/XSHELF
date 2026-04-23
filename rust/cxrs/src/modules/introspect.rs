@@ -83,11 +83,27 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        let client_key = env::var("CX_HTTP_CLIENT_KEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         println!("http_allowed_hosts: {allowed_hosts}");
         println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
         println!(
             "http_tls_ca_bundle: {}",
             if ca_bundle { "set" } else { "off" }
+        );
+        println!(
+            "http_tls_client_cert: {}",
+            if client_cert { "set" } else { "off" }
+        );
+        println!(
+            "http_tls_client_key: {}",
+            if client_key { "set" } else { "off" }
         );
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
@@ -160,6 +176,14 @@ fn core_payload(app_version: &str) -> serde_json::Value {
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        let client_key = env::var("CX_HTTP_CLIENT_KEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(require_https);
@@ -167,6 +191,8 @@ fn core_payload(app_version: &str) -> serde_json::Value {
         provider["http_allowed_hosts"] = json!(allowed_hosts);
         provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
         provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
+        provider["http_tls_client_cert"] = json!(if client_cert { "set" } else { "off" });
+        provider["http_tls_client_key"] = json!(if client_key { "set" } else { "off" });
     }
 
     json!({
@@ -276,6 +302,14 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
+        let client_key = env::var("CX_HTTP_CLIENT_KEY")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(require_https);
@@ -283,6 +317,8 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
         provider["http_allowed_hosts"] = json!(allowed_hosts);
         provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
         provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
+        provider["http_tls_client_cert"] = json!(if client_cert { "set" } else { "off" });
+        provider["http_tls_client_key"] = json!(if client_key { "set" } else { "off" });
     }
 
     json!({

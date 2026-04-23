@@ -195,6 +195,8 @@ Important runtime knobs:
   - `CX_HTTP_ALLOW_LOCAL_HTTP`
   - `CX_HTTP_ALLOWED_HOSTS`
   - `CX_HTTP_CA_BUNDLE`
+  - `CX_HTTP_CLIENT_CERT`
+  - `CX_HTTP_CLIENT_KEY`
   - `CX_HTTP_TLS_PINNEDPUBKEY`
 
 Useful state/config commands:
