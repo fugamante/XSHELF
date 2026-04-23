@@ -79,8 +79,16 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         println!("http_allowed_hosts: {allowed_hosts}");
         println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
+        println!(
+            "http_tls_ca_bundle: {}",
+            if ca_bundle { "set" } else { "off" }
+        );
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);
@@ -148,12 +156,17 @@ fn core_payload(app_version: &str) -> serde_json::Value {
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(require_https);
         provider["http_allow_local_http"] = json!(allow_local_http);
         provider["http_allowed_hosts"] = json!(allowed_hosts);
         provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
+        provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
     }
 
     json!({
@@ -259,12 +272,17 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
             .ok()
             .map(|v| !v.trim().is_empty())
             .unwrap_or(false);
+        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
+            .ok()
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(require_https);
         provider["http_allow_local_http"] = json!(allow_local_http);
         provider["http_allowed_hosts"] = json!(allowed_hosts);
         provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
+        provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
     }
 
     json!({

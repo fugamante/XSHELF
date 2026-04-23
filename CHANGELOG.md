@@ -32,6 +32,9 @@ Notes:
   - added `CX_HTTP_PROVIDER_MODEL` for OpenAI-compatible JSON request bodies.
   - runtime logs now record `http_request_profile` alongside HTTP transport/parser fields.
   - added end-to-end reliability and telemetry coverage for the OpenAI-compatible HTTP JSON profile.
+- HTTP adapter TLS trust configuration:
+  - added `CX_HTTP_CA_BUNDLE` on the existing `http-curl` boundary.
+  - runtime diagnostics now expose whether a custom CA bundle is configured.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.

@@ -7,6 +7,7 @@ use crate::types::UsageStats;
 #[derive(Clone, Debug, Default)]
 pub struct HttpRequestOptions {
     pub tls_pinned_pubkey: Option<String>,
+    pub tls_ca_bundle: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -157,6 +158,14 @@ fn run_http_body(
         .filter(|v| !v.is_empty())
     {
         cmd.args(["--pinnedpubkey", pinned]);
+    }
+    if let Some(ca_bundle) = options
+        .tls_ca_bundle
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        cmd.args(["--cacert", ca_bundle]);
     }
     let out = run_command_with_stdin_output_with_timeout_meta(cmd, body, "http provider curl")
         .map_err(LlmRunError::from_process)?;
