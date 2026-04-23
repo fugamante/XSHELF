@@ -844,3 +844,63 @@ printf '%s\n' '{fix_json}'
         "policy_reason missing rm -rf context: {last}"
     );
 }
+
+#[test]
+fn http_openai_cov() {
+    let repo = TempRepo::new("cxrs-rel");
+    let response = r#"{"choices":[{"message":{"content":"openai-profile-ok"}}]}"#;
+    repo.write_mock(
+        "curl",
+        &format!(
+            r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{response}'
+"#
+        ),
+    );
+
+    let out = repo.run_with_env(
+        &["cxo", "echo", "http-openai-profile"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_PROVIDER_URL", "http://127.0.0.1:9999/infer"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            ("CX_HTTP_PROVIDER_MODEL", "gpt-5.4-mini"),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert_eq!(stdout_str(&out).trim(), "openai-profile-ok");
+
+    let runs = parse_jsonl(&repo.runs_log());
+    let last = runs.last().expect("last run");
+    assert_required_run_fields(last);
+    assert_eq!(
+        last.get("adapter_type").and_then(Value::as_str),
+        Some("http-curl")
+    );
+    assert_eq!(
+        last.get("provider_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        last.get("provider_status").and_then(Value::as_str),
+        Some("experimental")
+    );
+    assert_eq!(
+        last.get("http_request_profile").and_then(Value::as_str),
+        Some("openai_json")
+    );
+    assert_eq!(
+        last.get("http_provider_format").and_then(Value::as_str),
+        Some("json")
+    );
+    assert_eq!(
+        last.get("http_parser_mode").and_then(Value::as_str),
+        Some("openai_chat_completion")
+    );
+}

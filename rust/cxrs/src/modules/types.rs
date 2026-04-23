@@ -94,6 +94,8 @@ pub struct RunEntry {
     #[serde(default)]
     pub provider_status: Option<String>,
     #[serde(default)]
+    pub http_request_profile: Option<String>,
+    #[serde(default)]
     pub http_provider_format: Option<String>,
     #[serde(default)]
     pub http_parser_mode: Option<String>,
@@ -294,6 +296,7 @@ pub struct ExecutionLog {
     pub adapter_type: Option<String>,
     pub provider_transport: Option<String>,
     pub provider_status: Option<String>,
+    pub http_request_profile: Option<String>,
     pub http_provider_format: Option<String>,
     pub http_parser_mode: Option<String>,
     pub backend_selected: Option<String>,
