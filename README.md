@@ -43,6 +43,20 @@ Default backend model:
 - `codex` by default
 - `ollama` optional
 
+## Requirements
+
+Minimum local requirements:
+- `bash`
+- `git`
+- Rust toolchain for development and local validation:
+  - `cargo`
+  - `rustfmt`
+  - `clippy`
+
+Optional but commonly used:
+- `jq` for JSON inspection in examples
+- `ollama` if you want the optional local backend path
+
 ## Quick Start
 
 Basic runtime checks:
