@@ -2,6 +2,15 @@
 
 `cx` supports an optional HTTP adapter path (`CX_PROVIDER_ADAPTER=http-curl`).
 
+Auth profiles on the same boundary:
+- `CX_HTTP_AUTH_PROFILE=bearer` (default): uses `CX_HTTP_PROVIDER_TOKEN` as `Authorization: Bearer ...`
+- `CX_HTTP_AUTH_PROFILE=basic`: uses:
+  - `CX_HTTP_AUTH_USERNAME`
+  - `CX_HTTP_AUTH_PASSWORD`
+- `CX_HTTP_AUTH_PROFILE=header`: uses:
+  - `CX_HTTP_AUTH_HEADER`
+  - `CX_HTTP_AUTH_VALUE` (or falls back to `CX_HTTP_PROVIDER_TOKEN`)
+
 ## Runtime policy (in-process)
 
 - `CX_HTTP_REQUIRE_HTTPS=1` (default): blocks non-HTTPS provider URLs.

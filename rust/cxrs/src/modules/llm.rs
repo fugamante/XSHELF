@@ -6,6 +6,8 @@ use crate::types::UsageStats;
 
 #[derive(Clone, Debug, Default)]
 pub struct HttpRequestOptions {
+    pub auth_hdr: Option<String>,
+    pub auth_val: Option<String>,
     pub tls_pinned_pubkey: Option<String>,
     pub tls_ca_bundle: Option<String>,
     pub tls_client_cert: Option<String>,
@@ -137,7 +139,6 @@ pub fn run_ollama_plain(prompt: &str, model: &str) -> Result<String, LlmRunError
 fn run_http_body(
     body: &str,
     url: &str,
-    token: Option<&str>,
     content_type: &str,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
@@ -153,8 +154,20 @@ fn run_http_body(
         "--data-binary",
         "@-",
     ]);
-    if let Some(t) = token.filter(|v| !v.trim().is_empty()) {
-        cmd.args(["-H", &format!("Authorization: Bearer {t}")]);
+    if let Some((name, value)) = options
+        .auth_hdr
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .zip(
+            options
+                .auth_val
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty()),
+        )
+    {
+        cmd.args(["-H", &format!("{name}: {value}")]);
     }
     if let Some(pinned) = options
         .tls_pinned_pubkey
@@ -227,13 +240,11 @@ fn run_http_body(
 pub fn http_raw_opts(
     prompt: &str,
     url: &str,
-    token: Option<&str>,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
     run_http_body(
         prompt,
         url,
-        token,
         "Content-Type: text/plain; charset=utf-8",
         options,
     )
@@ -242,20 +253,18 @@ pub fn http_raw_opts(
 pub fn http_body_opts(
     body: &str,
     url: &str,
-    token: Option<&str>,
     content_type: &str,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
-    run_http_body(body, url, token, content_type, options)
+    run_http_body(body, url, content_type, options)
 }
 
 pub fn http_plain_opts(
     prompt: &str,
     url: &str,
-    token: Option<&str>,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
-    let body = http_raw_opts(prompt, url, token, options)?;
+    let body = http_raw_opts(prompt, url, options)?;
     Ok(parse_http_provider_body(&body))
 }
 
