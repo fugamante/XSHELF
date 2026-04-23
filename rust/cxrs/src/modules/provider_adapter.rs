@@ -697,6 +697,10 @@ impl HttpCurlAdapter {
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty());
+        let tls_ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
         let format = Self::parse_format_from_env();
         let request_profile = Self::parse_http_profile();
         let model = Self::http_model_env();
@@ -706,7 +710,10 @@ impl HttpCurlAdapter {
             format,
             request_profile,
             model,
-            http_options: HttpRequestOptions { tls_pinned_pubkey },
+            http_options: HttpRequestOptions {
+                tls_pinned_pubkey,
+                tls_ca_bundle,
+            },
         })
     }
 }

@@ -288,6 +288,47 @@ printf '%s\n' '{"text":"http adapter ok"}'
 }
 
 #[test]
+fn ca_bundle_cov() {
+    let _guard = suite_lock();
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "curl",
+        r#"#!/usr/bin/env bash
+seen=0
+while [ $# -gt 0 ]; do
+  if [ "$1" = "--cacert" ]; then
+    seen=1
+    shift 2
+    continue
+  fi
+  shift
+done
+cat >/dev/null
+if [ "$seen" != "1" ]; then
+  echo "missing --cacert" >&2
+  exit 2
+fi
+printf '%s\n' '{"text":"http ca ok"}'
+"#,
+    );
+    let out = repo.run_with_env(
+        &["cxo", "echo", "http-ca"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_PROVIDER_URL", "https://api.example.test/infer"),
+            ("CX_HTTP_CA_BUNDLE", "/tmp/test-ca.pem"),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert_eq!(stdout_str(&out).trim(), "http ca ok");
+}
+
+#[test]
 fn http_curl_hits_server_with_auth_prompt() {
     let _guard = suite_lock();
     if std::process::Command::new("curl")
