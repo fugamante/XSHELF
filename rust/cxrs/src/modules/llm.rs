@@ -128,10 +128,11 @@ pub fn run_ollama_plain(prompt: &str, model: &str) -> Result<String, LlmRunError
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-fn run_http_request(
-    prompt: &str,
+fn run_http_body(
+    body: &str,
     url: &str,
     token: Option<&str>,
+    content_type: &str,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
     let mut cmd = Command::new("curl");
@@ -142,7 +143,7 @@ fn run_http_request(
         "POST",
         url,
         "-H",
-        "Content-Type: text/plain; charset=utf-8",
+        content_type,
         "--data-binary",
         "@-",
     ]);
@@ -157,7 +158,7 @@ fn run_http_request(
     {
         cmd.args(["--pinnedpubkey", pinned]);
     }
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "http provider curl")
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, body, "http provider curl")
         .map_err(LlmRunError::from_process)?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -180,7 +181,23 @@ pub fn http_raw_opts(
     token: Option<&str>,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
-    run_http_request(prompt, url, token, options)
+    run_http_body(
+        prompt,
+        url,
+        token,
+        "Content-Type: text/plain; charset=utf-8",
+        options,
+    )
+}
+
+pub fn http_body_opts(
+    body: &str,
+    url: &str,
+    token: Option<&str>,
+    content_type: &str,
+    options: &HttpRequestOptions,
+) -> Result<String, LlmRunError> {
+    run_http_body(body, url, token, content_type, options)
 }
 
 pub fn http_plain_opts(
@@ -189,7 +206,7 @@ pub fn http_plain_opts(
     token: Option<&str>,
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
-    let body = run_http_request(prompt, url, token, options)?;
+    let body = http_raw_opts(prompt, url, token, options)?;
     Ok(parse_http_provider_body(&body))
 }
 

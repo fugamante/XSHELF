@@ -1,6 +1,6 @@
 use crate::llm::{
-    HttpRequestOptions, LlmRunError, http_plain_opts, http_raw_opts, run_codex_jsonl,
-    run_codex_plain, run_ollama_plain, wrap_agent_text_as_jsonl,
+    HttpRequestOptions, LlmRunError, http_body_opts, http_plain_opts, http_raw_opts,
+    run_codex_jsonl, run_codex_plain, run_ollama_plain, wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
 use serde_json::{Value, json};
@@ -184,7 +184,10 @@ pub fn selected_http_provider_format() -> &'static str {
     {
         Some("jsonl") => "jsonl",
         Some("json") => "json",
-        _ => "text",
+        _ => match http_profile() {
+            "openai_json" => "json",
+            _ => "text",
+        },
     }
 }
 
@@ -199,8 +202,29 @@ pub fn selected_http_parser_mode_opt() -> Option<&'static str> {
     let format = selected_http_provider_format_opt()?;
     match format {
         "jsonl" => Some("jsonl_passthrough"),
-        "json" => Some("json_payload"),
+        "json" => match http_profile_opt() {
+            Some("openai_json") => Some("openai_chat_completion"),
+            _ => Some("json_payload"),
+        },
         _ => Some("envelope"),
+    }
+}
+
+pub fn http_profile_opt() -> Option<&'static str> {
+    if selected_provider_transport() != "http" {
+        return None;
+    }
+    Some(http_profile())
+}
+
+pub fn http_profile() -> &'static str {
+    match env::var("CX_HTTP_REQUEST_PROFILE")
+        .ok()
+        .map(|v| v.trim().to_lowercase())
+        .as_deref()
+    {
+        Some("openai") | Some("openai-json") | Some("openai_json") => "openai_json",
+        _ => "plain_text",
     }
 }
 
@@ -220,6 +244,7 @@ pub fn adapter_policy_value() -> Value {
         "selected_adapter": selected_adapter_name(),
         "selected_transport": selected_provider_transport(),
         "selected_status": selected_provider_status_kind().as_str(),
+        "http_request_profile": http_profile_opt(),
         "explicit_override_set": adapter_override().is_some(),
         "default_switch_guard": "two_green_ci_windows",
         "rollback_rule": "revert to process default in same release window on schema failures or transport errors"
@@ -443,6 +468,8 @@ pub struct HttpCurlAdapter {
     url: String,
     token: Option<String>,
     format: HttpProviderFormat,
+    request_profile: HttpRequestProfile,
+    model: Option<String>,
     http_options: HttpRequestOptions,
 }
 
@@ -453,17 +480,37 @@ enum HttpProviderFormat {
     Jsonl,
 }
 
+#[derive(Clone, Copy)]
+enum HttpRequestProfile {
+    PlainText,
+    OpenAiJson,
+}
+
 impl HttpCurlAdapter {
     fn parse_format_from_env() -> HttpProviderFormat {
-        let raw = env::var("CX_HTTP_PROVIDER_FORMAT")
-            .ok()
-            .map(|v| v.trim().to_lowercase())
-            .unwrap_or_else(|| "text".to_string());
-        match raw.as_str() {
+        match selected_http_provider_format() {
             "jsonl" => HttpProviderFormat::Jsonl,
             "json" => HttpProviderFormat::Json,
             _ => HttpProviderFormat::Text,
         }
+    }
+
+    fn parse_http_profile() -> HttpRequestProfile {
+        match http_profile() {
+            "openai_json" => HttpRequestProfile::OpenAiJson,
+            _ => HttpRequestProfile::PlainText,
+        }
+    }
+
+    fn http_model_env() -> Option<String> {
+        env::var("CX_HTTP_PROVIDER_MODEL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .or_else(|| {
+                let current = crate::runtime::llm_model();
+                (!current.trim().is_empty()).then_some(current)
+            })
     }
 
     fn extract_json_payload(raw: &str) -> Result<String, LlmRunError> {
@@ -482,6 +529,9 @@ impl HttpCurlAdapter {
         match parsed {
             serde_json::Value::String(s) => Ok(s),
             serde_json::Value::Object(obj) => {
+                if let Some(payload) = Self::extract_openai_text(&obj)? {
+                    return Ok(payload);
+                }
                 if let Some(s) = obj.get("text").and_then(serde_json::Value::as_str) {
                     return Ok(s.to_string());
                 }
@@ -527,6 +577,89 @@ impl HttpCurlAdapter {
         }
     }
 
+    fn extract_openai_text(
+        obj: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<Option<String>, LlmRunError> {
+        let Some(choices) = obj.get("choices").and_then(serde_json::Value::as_array) else {
+            return Ok(None);
+        };
+        let Some(message) = choices
+            .first()
+            .and_then(serde_json::Value::as_object)
+            .and_then(|choice| choice.get("message"))
+            .and_then(serde_json::Value::as_object)
+        else {
+            return Ok(None);
+        };
+        let Some(content) = message.get("content") else {
+            return Ok(None);
+        };
+        match content {
+            serde_json::Value::String(s) => Ok(Some(s.to_string())),
+            serde_json::Value::Array(items) => {
+                let mut joined = Vec::new();
+                for item in items {
+                    if let Some(text) = item
+                        .as_object()
+                        .and_then(|v| v.get("text"))
+                        .and_then(serde_json::Value::as_str)
+                    {
+                        joined.push(text.to_string());
+                        continue;
+                    }
+                    if let Some(text) = item.as_str() {
+                        joined.push(text.to_string());
+                        continue;
+                    }
+                    return Err(LlmRunError::message(
+                        "http-curl adapter [http_openai_content_invalid] unsupported OpenAI content item shape".to_string(),
+                    ));
+                }
+                if joined.is_empty() {
+                    return Err(LlmRunError::message(
+                        "http-curl adapter [http_openai_content_empty] OpenAI content array had no usable text".to_string(),
+                    ));
+                }
+                Ok(Some(joined.join("\n")))
+            }
+            _ => Err(LlmRunError::message(
+                "http-curl adapter [http_openai_content_type_unsupported] expected OpenAI message.content to be string or array".to_string(),
+            )),
+        }
+    }
+
+    fn run_raw(&self, prompt: &str) -> Result<String, LlmRunError> {
+        match self.request_profile {
+            HttpRequestProfile::PlainText => {
+                http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
+            }
+            HttpRequestProfile::OpenAiJson => {
+                let model = self
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "xshelf-http".to_string());
+                let body = json!({
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    "stream": false
+                })
+                .to_string();
+                http_body_opts(
+                    &body,
+                    &self.url,
+                    self.token.as_deref(),
+                    "Content-Type: application/json",
+                    &self.http_options,
+                )
+            }
+        }
+    }
+
     fn validate_jsonl_payload(raw: &str) -> Result<String, LlmRunError> {
         let mut saw_item = false;
         for line in raw.lines().filter(|l| !l.trim().is_empty()) {
@@ -565,10 +698,14 @@ impl HttpCurlAdapter {
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty());
         let format = Self::parse_format_from_env();
+        let request_profile = Self::parse_http_profile();
+        let model = Self::http_model_env();
         Ok(Self {
             url,
             token,
             format,
+            request_profile,
+            model,
             http_options: HttpRequestOptions { tls_pinned_pubkey },
         })
     }
@@ -576,7 +713,15 @@ impl HttpCurlAdapter {
 
 impl ProviderAdapter for HttpCurlAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
+        match self.request_profile {
+            HttpRequestProfile::PlainText => {
+                http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
+            }
+            HttpRequestProfile::OpenAiJson => {
+                let raw = self.run_raw(prompt)?;
+                Self::extract_json_payload(&raw)
+            }
+        }
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
@@ -586,14 +731,12 @@ impl ProviderAdapter for HttpCurlAdapter {
                 ollama_plain_to_jsonl(&text)
             }
             HttpProviderFormat::Json => {
-                let raw =
-                    http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)?;
+                let raw = self.run_raw(prompt)?;
                 let payload = Self::extract_json_payload(&raw)?;
                 ollama_plain_to_jsonl(&payload)
             }
             HttpProviderFormat::Jsonl => {
-                let jsonl =
-                    http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)?;
+                let jsonl = self.run_raw(prompt)?;
                 Self::validate_jsonl_payload(&jsonl)
             }
         }
@@ -630,7 +773,8 @@ pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunErro
 #[cfg(test)]
 mod tests {
     use super::{
-        ProviderAdapter, ProviderStatus, backend_tq_caps, is_local_url, normalize_provider_status,
+        HttpCurlAdapter, HttpProviderFormat, HttpRequestProfile, ProviderAdapter, ProviderStatus,
+        backend_tq_caps, http_profile, is_local_url, normalize_provider_status,
         normalized_backend_name, ollama_plain_to_jsonl, parse_http_hosts, url_host,
         validate_http_url,
     };
@@ -908,5 +1052,60 @@ mod tests {
             value.get("default_switch_guard").and_then(Value::as_str),
             Some("two_green_ci_windows")
         );
+    }
+
+    #[test]
+    fn http_profile_defaults() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::remove_var("CX_HTTP_REQUEST_PROFILE");
+        }
+        assert_eq!(http_profile(), "plain_text");
+    }
+
+    #[test]
+    fn http_profile_aliases() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::set_var("CX_HTTP_REQUEST_PROFILE", "openai");
+        }
+        assert_eq!(http_profile(), "openai_json");
+        unsafe {
+            env::set_var("CX_HTTP_REQUEST_PROFILE", "openai-json");
+        }
+        assert_eq!(http_profile(), "openai_json");
+        unsafe {
+            env::remove_var("CX_HTTP_REQUEST_PROFILE");
+        }
+    }
+
+    #[test]
+    fn openai_json_extracts() {
+        let raw = r#"{"choices":[{"message":{"content":"openai ok"}}]}"#;
+        assert_eq!(
+            HttpCurlAdapter::extract_json_payload(raw).expect("payload"),
+            "openai ok"
+        );
+    }
+
+    #[test]
+    fn openai_json_defaults() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::set_var("CX_HTTP_REQUEST_PROFILE", "openai_json");
+            env::remove_var("CX_HTTP_PROVIDER_FORMAT");
+        }
+        let adapter = HttpCurlAdapter {
+            url: "http://127.0.0.1:9999/infer".to_string(),
+            token: Some("token".to_string()),
+            format: HttpCurlAdapter::parse_format_from_env(),
+            request_profile: HttpRequestProfile::OpenAiJson,
+            model: Some("gpt-test".to_string()),
+            http_options: Default::default(),
+        };
+        assert!(matches!(adapter.format, HttpProviderFormat::Json));
+        unsafe {
+            env::remove_var("CX_HTTP_REQUEST_PROFILE");
+        }
     }
 }
