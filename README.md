@@ -4,7 +4,7 @@
 
 It is built for people who want:
 - structured command execution with schema-enforced JSON
-- repo-local state, logs, quarantine, and task orchestration under `.codex/`
+- repo-local state, logs, quarantine, and task orchestration
 - explicit policy boundaries and execution guidance instead of silent agent drift
 - machine-readable diagnostics that downstream tools can rely on
 
@@ -109,7 +109,10 @@ The Rust pipeline is intentionally strict:
 6. quarantine invalid results
 7. append telemetry
 
-Repo-local runtime state lives under `.codex/`:
+Current compatibility storage path:
+- repo-local runtime state currently lives under `.codex/`
+
+Current layout:
 - schemas: `.codex/schemas/`
 - logs: `.codex/cxlogs/`
 - quarantine: `.codex/quarantine/`
