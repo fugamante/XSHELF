@@ -726,3 +726,121 @@ fn fix_run_policy_block_logged_with_reason() {
         "policy_reason missing rm -rf context: {last}"
     );
 }
+
+#[test]
+fn http_curl_timeout_logs_transport_fields() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        "curl",
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+sleep 2
+exit 0
+"#,
+    );
+
+    let out = repo.run_with_env(
+        &["cxo", "echo", "http-timeout"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_PROVIDER_URL", "http://127.0.0.1:9999/infer"),
+            ("CX_CMD_TIMEOUT_SECS", "1"),
+        ],
+    );
+    assert!(
+        !out.status.success(),
+        "expected timeout failure; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let runs = parse_jsonl(&repo.runs_log());
+    let last = runs.last().expect("last run");
+    assert_required_run_fields(last);
+    assert_eq!(
+        last.get("adapter_type").and_then(Value::as_str),
+        Some("http-curl")
+    );
+    assert_eq!(
+        last.get("provider_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        last.get("provider_status").and_then(Value::as_str),
+        Some("experimental")
+    );
+    assert_eq!(
+        last.get("http_provider_format").and_then(Value::as_str),
+        Some("text")
+    );
+    assert_eq!(
+        last.get("http_parser_mode").and_then(Value::as_str),
+        Some("envelope")
+    );
+    assert_eq!(last.get("timed_out").and_then(Value::as_bool), Some(true));
+    assert_eq!(last.get("timeout_secs").and_then(Value::as_u64), Some(1));
+}
+
+#[test]
+fn http_curl_fix_run_policy_block_logs_transport() {
+    let repo = TempRepo::new("cxrs-rel");
+    let fix_json = r#"{"text":"{\"analysis\":\"dangerous path\",\"commands\":[\"rm -rf /tmp/cxrs-http-danger-test\"]}"}"#;
+    repo.write_mock(
+        "curl",
+        &format!(
+            r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{fix_json}'
+"#
+        ),
+    );
+
+    let out = repo.run_with_env(
+        &["fix-run", "echo", "hello"],
+        &[
+            ("CXFIX_RUN", "1"),
+            ("CXFIX_FORCE", "0"),
+            ("CX_UNSAFE", "0"),
+            ("CX_TIMEOUT_LLM_SECS", "20"),
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_PROVIDER_URL", "http://127.0.0.1:9999/infer"),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "fix-run should return wrapped command exit status; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("blocked dangerous command"),
+        "expected policy warning in stderr: {}",
+        stderr_str(&out)
+    );
+
+    let runs = parse_jsonl(&repo.runs_log());
+    let last = runs.last().expect("last run");
+    assert_required_run_fields(last);
+    assert_eq!(
+        last.get("adapter_type").and_then(Value::as_str),
+        Some("http-curl")
+    );
+    assert_eq!(
+        last.get("provider_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        last.get("provider_status").and_then(Value::as_str),
+        Some("experimental")
+    );
+    assert_eq!(
+        last.get("policy_blocked").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        last.get("policy_reason")
+            .and_then(Value::as_str)
+            .is_some_and(|s| s.contains("rm -rf")),
+        "policy_reason missing rm -rf context: {last}"
+    );
+}
