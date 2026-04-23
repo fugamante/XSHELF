@@ -198,6 +198,9 @@ Important runtime knobs:
   - `CX_HTTP_CLIENT_CERT`
   - `CX_HTTP_CLIENT_KEY`
   - `CX_HTTP_TLS_PINNEDPUBKEY`
+  - `CX_HTTP_TLS_MIN_VERSION`
+  - `CX_HTTP_FOLLOW_REDIRECTS`
+  - `CX_HTTP_MAX_REDIRECTS`
 
 Useful state/config commands:
 

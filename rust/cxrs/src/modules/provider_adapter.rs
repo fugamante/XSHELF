@@ -44,6 +44,21 @@ pub struct BackendExperimentCapabilities {
     pub turboquant_metric_kind: Option<&'static str>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HttpTlsPosture {
+    pub https_required: bool,
+    pub local_http_exception: bool,
+    pub allowlist_active: bool,
+    pub allowed_hosts: Vec<String>,
+    pub pinned_pubkey: bool,
+    pub ca_bundle: bool,
+    pub client_cert: bool,
+    pub client_key: bool,
+    pub min_tls_version: &'static str,
+    pub follow_redirects: bool,
+    pub max_redirects: u32,
+}
+
 fn normalized_backend_name(raw: &str) -> &'static str {
     if raw.eq_ignore_ascii_case("ollama") {
         "ollama"
@@ -65,6 +80,13 @@ fn env_bool(name: &str, default: bool) -> bool {
         .map(|v| v.trim().to_lowercase())
         .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(default)
+}
+
+fn env_nonempty(name: &str) -> Option<String> {
+    env::var(name)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
 }
 
 fn is_local_url(url: &str) -> bool {
@@ -228,6 +250,70 @@ pub fn http_profile() -> &'static str {
     }
 }
 
+pub fn http_tlsver() -> &'static str {
+    match env::var("CX_HTTP_TLS_MIN_VERSION")
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("1.3") | Some("tls1.3") | Some("tlsv1.3") => "1.3",
+        Some("default") | Some("system") | Some("system_default") => "default",
+        _ => "1.2",
+    }
+}
+
+pub fn http_follow_redirects() -> bool {
+    env_bool("CX_HTTP_FOLLOW_REDIRECTS", false)
+}
+
+pub fn http_max_redirects() -> u32 {
+    if !http_follow_redirects() {
+        return 0;
+    }
+    env::var("CX_HTTP_MAX_REDIRECTS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u32>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(3)
+}
+
+pub fn tls_posture_opt() -> Option<HttpTlsPosture> {
+    if selected_provider_transport() != "http" {
+        return None;
+    }
+    let allowed_hosts = parse_http_hosts().unwrap_or_default();
+    Some(HttpTlsPosture {
+        https_required: env_bool("CX_HTTP_REQUIRE_HTTPS", true),
+        local_http_exception: env_bool("CX_HTTP_ALLOW_LOCAL_HTTP", true),
+        allowlist_active: !allowed_hosts.is_empty(),
+        allowed_hosts,
+        pinned_pubkey: env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY").is_some(),
+        ca_bundle: env_nonempty("CX_HTTP_CA_BUNDLE").is_some(),
+        client_cert: env_nonempty("CX_HTTP_CLIENT_CERT").is_some(),
+        client_key: env_nonempty("CX_HTTP_CLIENT_KEY").is_some(),
+        min_tls_version: http_tlsver(),
+        follow_redirects: http_follow_redirects(),
+        max_redirects: http_max_redirects(),
+    })
+}
+
+pub fn tls_posture_json() -> Option<Value> {
+    let posture = tls_posture_opt()?;
+    Some(json!({
+        "https_required": posture.https_required,
+        "local_http_exception": posture.local_http_exception,
+        "allowlist_active": posture.allowlist_active,
+        "allowed_hosts": posture.allowed_hosts,
+        "pinned_pubkey": if posture.pinned_pubkey { "set" } else { "off" },
+        "ca_bundle": if posture.ca_bundle { "set" } else { "off" },
+        "client_cert": if posture.client_cert { "set" } else { "off" },
+        "client_key": if posture.client_key { "set" } else { "off" },
+        "min_tls_version": posture.min_tls_version,
+        "follow_redirects": posture.follow_redirects,
+        "max_redirects": posture.max_redirects,
+    }))
+}
+
 pub fn selected_provider_status() -> Option<&'static str> {
     selected_provider_status_kind().to_log_field()
 }
@@ -245,6 +331,7 @@ pub fn adapter_policy_value() -> Value {
         "selected_transport": selected_provider_transport(),
         "selected_status": selected_provider_status_kind().as_str(),
         "http_request_profile": http_profile_opt(),
+        "http_tls_posture": tls_posture_json(),
         "explicit_override_set": adapter_override().is_some(),
         "default_switch_guard": "two_green_ci_windows",
         "rollback_rule": "revert to process default in same release window on schema failures or transport errors"
@@ -693,22 +780,10 @@ impl HttpCurlAdapter {
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty());
-        let tls_pinned_pubkey = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
-        let tls_ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
-        let tls_client_cert = env::var("CX_HTTP_CLIENT_CERT")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
-        let tls_client_key = env::var("CX_HTTP_CLIENT_KEY")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
+        let tls_pinned_pubkey = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY");
+        let tls_ca_bundle = env_nonempty("CX_HTTP_CA_BUNDLE");
+        let tls_client_cert = env_nonempty("CX_HTTP_CLIENT_CERT");
+        let tls_client_key = env_nonempty("CX_HTTP_CLIENT_KEY");
         let format = Self::parse_format_from_env();
         let request_profile = Self::parse_http_profile();
         let model = Self::http_model_env();
@@ -723,6 +798,9 @@ impl HttpCurlAdapter {
                 tls_ca_bundle,
                 tls_client_cert,
                 tls_client_key,
+                tls_min_version: Some(http_tlsver().to_string()),
+                follow_redirects: http_follow_redirects(),
+                max_redirects: http_max_redirects(),
             },
         })
     }
@@ -1093,6 +1171,57 @@ mod tests {
         assert_eq!(http_profile(), "openai_json");
         unsafe {
             env::remove_var("CX_HTTP_REQUEST_PROFILE");
+        }
+    }
+
+    #[test]
+    fn tlsver_default_cov() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::remove_var("CX_HTTP_TLS_MIN_VERSION");
+        }
+        assert_eq!(super::http_tlsver(), "1.2");
+    }
+
+    #[test]
+    fn tlsver_alias_cov() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::set_var("CX_HTTP_TLS_MIN_VERSION", "tls1.3");
+        }
+        assert_eq!(super::http_tlsver(), "1.3");
+        unsafe {
+            env::set_var("CX_HTTP_TLS_MIN_VERSION", "default");
+        }
+        assert_eq!(super::http_tlsver(), "default");
+        unsafe {
+            env::remove_var("CX_HTTP_TLS_MIN_VERSION");
+        }
+    }
+
+    #[test]
+    fn http_redirect_defaults() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::remove_var("CX_HTTP_FOLLOW_REDIRECTS");
+            env::remove_var("CX_HTTP_MAX_REDIRECTS");
+        }
+        assert!(!super::http_follow_redirects());
+        assert_eq!(super::http_max_redirects(), 0);
+    }
+
+    #[test]
+    fn redirect_env_cov() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::set_var("CX_HTTP_FOLLOW_REDIRECTS", "1");
+            env::set_var("CX_HTTP_MAX_REDIRECTS", "5");
+        }
+        assert!(super::http_follow_redirects());
+        assert_eq!(super::http_max_redirects(), 5);
+        unsafe {
+            env::remove_var("CX_HTTP_FOLLOW_REDIRECTS");
+            env::remove_var("CX_HTTP_MAX_REDIRECTS");
         }
     }
 
