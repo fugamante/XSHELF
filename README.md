@@ -4,7 +4,7 @@
 
 It is built for people who want:
 - structured command execution with schema-enforced JSON
-- repo-local state, logs, quarantine, and task orchestration under `.codex/`
+- repo-scoped runtime state, logs, quarantine, and task orchestration
 - explicit policy boundaries and execution guidance instead of silent agent drift
 - machine-readable diagnostics that downstream tools can rely on
 
@@ -42,6 +42,20 @@ Core runtime capabilities:
 Default backend model:
 - `codex` by default
 - `ollama` optional
+
+## Requirements
+
+Minimum local requirements:
+- `bash`
+- `git`
+- Rust toolchain for development and local validation:
+  - `cargo`
+  - `rustfmt`
+  - `clippy`
+
+Optional but commonly used:
+- `jq` for JSON inspection in examples
+- `ollama` if you want the optional local backend path
 
 ## Quick Start
 
@@ -95,7 +109,10 @@ The Rust pipeline is intentionally strict:
 6. quarantine invalid results
 7. append telemetry
 
-Repo-local runtime state lives under `.codex/`:
+Current compatibility storage path:
+- repo-scoped runtime state currently lives under `.codex/`
+
+Current layout:
 - schemas: `.codex/schemas/`
 - logs: `.codex/cxlogs/`
 - quarantine: `.codex/quarantine/`
