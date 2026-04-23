@@ -29,6 +29,10 @@
   - `CX_HTTP_CLIENT_CERT` now maps to curl `--cert`
   - `CX_HTTP_CLIENT_KEY` now maps to curl `--key`
   - `core` / `version` diagnostics expose whether client cert/key are configured
+- Landed explicit HTTP TLS posture and transport hardening controls on the same `http-curl` boundary:
+  - `core` / `version` now expose a compact `http_tls_posture` object
+  - added `CX_HTTP_TLS_MIN_VERSION` for explicit TLS version floor control
+  - added `CX_HTTP_FOLLOW_REDIRECTS` and `CX_HTTP_MAX_REDIRECTS` for explicit redirect policy control
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy

@@ -10,6 +10,9 @@ pub struct HttpRequestOptions {
     pub tls_ca_bundle: Option<String>,
     pub tls_client_cert: Option<String>,
     pub tls_client_key: Option<String>,
+    pub tls_min_version: Option<String>,
+    pub follow_redirects: bool,
+    pub max_redirects: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -184,6 +187,25 @@ fn run_http_body(
         .filter(|v| !v.is_empty())
     {
         cmd.args(["--key", client_key]);
+    }
+    match options
+        .tls_min_version
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+    {
+        Some("1.3") => {
+            cmd.arg("--tlsv1.3");
+        }
+        Some("1.2") => {
+            cmd.arg("--tlsv1.2");
+        }
+        _ => {}
+    }
+    if options.follow_redirects {
+        cmd.arg("-L");
+        cmd.arg("--max-redirs");
+        cmd.arg(options.max_redirects.to_string());
     }
     let out = run_command_with_stdin_output_with_timeout_meta(cmd, body, "http provider curl")
         .map_err(LlmRunError::from_process)?;

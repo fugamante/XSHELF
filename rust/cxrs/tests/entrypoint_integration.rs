@@ -118,6 +118,69 @@ fn core_tq_json() {
 }
 
 #[test]
+fn core_tls_posture() {
+    let repo = repo_root();
+    let out = Command::new(repo.join("bin").join("cx"))
+        .args(["core", "--json"])
+        .env("CX_PROVIDER_ADAPTER", "http-curl")
+        .env("CX_HTTP_PROVIDER_URL", "https://api.example.test/infer")
+        .env("CX_HTTP_ALLOWED_HOSTS", "api.example.test")
+        .env("CX_HTTP_CA_BUNDLE", "/tmp/test-ca.pem")
+        .env("CX_HTTP_CLIENT_CERT", "/tmp/test-client.pem")
+        .env("CX_HTTP_CLIENT_KEY", "/tmp/test-client.key")
+        .env("CX_HTTP_TLS_MIN_VERSION", "1.3")
+        .env("CX_HTTP_FOLLOW_REDIRECTS", "1")
+        .env("CX_HTTP_MAX_REDIRECTS", "5")
+        .current_dir(&repo)
+        .output()
+        .expect("run bin/cx core --json with http tls");
+
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let payload: Value = serde_json::from_slice(&out.stdout).expect("parse core json");
+    let posture = payload
+        .get("provider")
+        .and_then(|v| v.get("http_tls_posture"))
+        .expect("http tls posture");
+    assert_eq!(
+        posture.get("https_required").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        posture.get("allowlist_active").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        posture.get("min_tls_version").and_then(Value::as_str),
+        Some("1.3")
+    );
+    assert_eq!(
+        posture.get("follow_redirects").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        posture.get("max_redirects").and_then(Value::as_u64),
+        Some(5)
+    );
+    assert_eq!(
+        posture.get("ca_bundle").and_then(Value::as_str),
+        Some("set")
+    );
+    assert_eq!(
+        posture.get("client_cert").and_then(Value::as_str),
+        Some("set")
+    );
+    assert_eq!(
+        posture.get("client_key").and_then(Value::as_str),
+        Some("set")
+    );
+}
+
+#[test]
 fn version_tq_json() {
     let repo = repo_root();
     let out = Command::new(repo.join("bin").join("cx"))
@@ -146,4 +209,42 @@ fn version_tq_json() {
         Some("none")
     );
     assert_eq!(payload.get("name").and_then(Value::as_str), Some("cxrs"));
+}
+
+#[test]
+fn version_tls_posture() {
+    let repo = repo_root();
+    let out = Command::new(repo.join("bin").join("cx"))
+        .args(["version", "--json"])
+        .env("CX_PROVIDER_ADAPTER", "http-curl")
+        .env("CX_HTTP_PROVIDER_URL", "https://api.example.test/infer")
+        .env("CX_HTTP_TLS_MIN_VERSION", "1.2")
+        .env("CX_HTTP_FOLLOW_REDIRECTS", "0")
+        .current_dir(&repo)
+        .output()
+        .expect("run bin/cx version --json with http tls");
+
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let payload: Value = serde_json::from_slice(&out.stdout).expect("parse version json");
+    let posture = payload
+        .get("provider")
+        .and_then(|v| v.get("http_tls_posture"))
+        .expect("http tls posture");
+    assert_eq!(
+        posture.get("min_tls_version").and_then(Value::as_str),
+        Some("1.2")
+    );
+    assert_eq!(
+        posture.get("follow_redirects").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        posture.get("max_redirects").and_then(Value::as_u64),
+        Some(0)
+    );
 }
