@@ -51,6 +51,11 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input
         "expected provider_status=null, row={row}"
     );
     assert!(
+        row.get("http_request_profile").is_some()
+            && row.get("http_request_profile").is_some_and(Value::is_null),
+        "expected http_request_profile=null, row={row}"
+    );
+    assert!(
         row.get("http_provider_format").is_some()
             && row.get("http_provider_format").is_some_and(Value::is_null),
         "expected http_provider_format=null, row={row}"
@@ -113,6 +118,11 @@ printf '%s\n' "ok"
         "expected provider_status=null, row={row}"
     );
     assert!(
+        row.get("http_request_profile").is_some()
+            && row.get("http_request_profile").is_some_and(Value::is_null),
+        "expected http_request_profile=null, row={row}"
+    );
+    assert!(
         row.get("http_provider_format").is_some()
             && row.get("http_provider_format").is_some_and(Value::is_null),
         "expected http_provider_format=null, row={row}"
@@ -162,6 +172,10 @@ fn http_stub_fails_fast_logs_transport() {
         Some("stub_unimplemented")
     );
     assert_eq!(
+        run_last.get("http_request_profile").and_then(Value::as_str),
+        Some("plain_text")
+    );
+    assert_eq!(
         run_last.get("http_provider_format").and_then(Value::as_str),
         Some("text")
     );
@@ -206,6 +220,10 @@ fn http_curl_requires_url_logs_experimental_status() {
     assert_eq!(
         run_last.get("provider_status").and_then(Value::as_str),
         Some("experimental")
+    );
+    assert_eq!(
+        run_last.get("http_request_profile").and_then(Value::as_str),
+        Some("plain_text")
     );
     assert_eq!(
         run_last.get("http_provider_format").and_then(Value::as_str),
@@ -256,6 +274,10 @@ printf '%s\n' '{"text":"http adapter ok"}'
         Some("http")
     );
     assert_eq!(
+        run_last.get("http_request_profile").and_then(Value::as_str),
+        Some("plain_text")
+    );
+    assert_eq!(
         run_last.get("http_provider_format").and_then(Value::as_str),
         Some("text")
     );
@@ -302,9 +324,95 @@ fn http_curl_hits_server_with_auth_prompt() {
     assert_eq!(req.method, "POST");
     assert_eq!(req.path, "/infer");
     assert_eq!(req.authorization.as_deref(), Some("Bearer token-123"));
+    assert_eq!(
+        req.content_type.as_deref(),
+        Some("text/plain; charset=utf-8")
+    );
     assert!(
         req.body.contains("http-live"),
         "expected prompt/body to include command output context, body={}",
         req.body
+    );
+}
+
+#[test]
+fn openai_live_cov() {
+    let _guard = suite_lock();
+    if std::process::Command::new("curl")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+    let repo = TempRepo::new("cxrs-it");
+    let response = r#"{"choices":[{"message":{"content":"fixture-openai-ok"}}]}"#;
+    let (url, captured, handle) = run_fixture_http_server_once(response);
+    let out = repo.run_with_env(
+        &["cxo", "echo", "http-openai"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_PROVIDER_URL", &url),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            ("CX_HTTP_PROVIDER_MODEL", "gpt-5.4-mini"),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert_eq!(stdout_str(&out).trim(), "fixture-openai-ok");
+    handle.join().expect("fixture join");
+
+    let req = captured
+        .lock()
+        .expect("fixture lock")
+        .clone()
+        .expect("captured request");
+    assert_eq!(req.method, "POST");
+    assert_eq!(req.path, "/infer");
+    assert_eq!(req.content_type.as_deref(), Some("application/json"));
+    let body: Value = serde_json::from_str(&req.body).expect("openai request body");
+    assert_eq!(
+        body.get("model").and_then(Value::as_str),
+        Some("gpt-5.4-mini")
+    );
+    assert_eq!(
+        body.get("messages")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_object)
+            .and_then(|msg| msg.get("role"))
+            .and_then(Value::as_str),
+        Some("user")
+    );
+    assert!(
+        body.get("messages")
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_object)
+            .and_then(|msg| msg.get("content"))
+            .and_then(Value::as_str)
+            .is_some_and(|content| content.contains("http-openai")),
+        "body={body}"
+    );
+
+    let run_last = common::parse_jsonl(&repo.runs_log())
+        .into_iter()
+        .last()
+        .expect("last run row");
+    assert_eq!(
+        run_last.get("http_request_profile").and_then(Value::as_str),
+        Some("openai_json")
+    );
+    assert_eq!(
+        run_last.get("http_provider_format").and_then(Value::as_str),
+        Some("json")
+    );
+    assert_eq!(
+        run_last.get("http_parser_mode").and_then(Value::as_str),
+        Some("openai_chat_completion")
     );
 }

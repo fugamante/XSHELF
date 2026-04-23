@@ -9,6 +9,7 @@ pub struct FixtureHttpRequest {
     pub method: String,
     pub path: String,
     pub authorization: Option<String>,
+    pub content_type: Option<String>,
     pub body: String,
 }
 
@@ -54,6 +55,7 @@ pub fn run_fixture_http_server_once(
         let path = req_parts.next().unwrap_or_default().to_string();
         let mut content_len = 0usize;
         let mut auth = None;
+        let mut content_type = None;
         for line in lines {
             let lower = line.to_ascii_lowercase();
             if lower.starts_with("content-length:")
@@ -65,6 +67,11 @@ pub fn run_fixture_http_server_once(
                 && let Some(v) = line.split(':').nth(1)
             {
                 auth = Some(v.trim().to_string());
+            }
+            if lower.starts_with("content-type:")
+                && let Some(v) = line.split(':').nth(1)
+            {
+                content_type = Some(v.trim().to_string());
             }
         }
         let mut body = req[headers_end..].to_vec();
@@ -81,6 +88,7 @@ pub fn run_fixture_http_server_once(
                 method,
                 path,
                 authorization: auth,
+                content_type,
                 body,
             });
         }

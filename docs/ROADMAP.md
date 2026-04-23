@@ -18,14 +18,14 @@
 - Land Linux-focused CI pass on PR/push while keeping full Linux+macOS compat on manual dispatch.
 - Landed run-level concurrency telemetry refinement (`worker_count`, workers, queue/start/finish timestamps, max retry attempt) across `task run-all`, diagnostics, and telemetry surfaces.
 - Landed adapter rollout policy surface; HTTP transport remains explicit opt-in and diagnostics/telemetry now expose the rollout guard.
-- Narrow next adapter expansion to one real HTTP provider profile beyond the current plain-text `http-curl` path.
+- Landed one contract-safe HTTP request-profile expansion on the existing `http-curl` boundary:
+  - OpenAI-compatible HTTP JSON request/response profile
+  - request profile remains behind explicit opt-in rollout policy
+  - telemetry and reliability coverage landed with the same bundle
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy
-  - add one contract-safe HTTP request profile with distinct envelope/auth assumptions
   - require telemetry + reliability coverage before any broader adapter matrix growth
-- Recommended target:
-  - OpenAI-compatible HTTP JSON request/response profile layered on the existing HTTP adapter boundary rather than a brand-new parallel adapter family
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
 
 ## Later (2+ months)

@@ -38,6 +38,7 @@ Core runtime capabilities:
 - append-only telemetry, diagnostics, and policy visibility
 - run-all concurrency summaries on task, diagnostics, and telemetry surfaces
 - backend adapters with explicit rollout policy and opt-in HTTP transport
+- one OpenAI-compatible HTTP JSON request profile on the existing `http-curl` adapter boundary
 
 Default backend model:
 - `codex` by default
@@ -187,6 +188,8 @@ Important runtime knobs:
 - HTTP adapter policy:
   - `CX_HTTP_PROVIDER_URL`
   - `CX_HTTP_PROVIDER_TOKEN`
+  - `CX_HTTP_REQUEST_PROFILE`
+  - `CX_HTTP_PROVIDER_MODEL`
   - `CX_HTTP_PROVIDER_FORMAT`
   - `CX_HTTP_REQUIRE_HTTPS`
   - `CX_HTTP_ALLOW_LOCAL_HTTP`

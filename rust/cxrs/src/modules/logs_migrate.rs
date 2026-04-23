@@ -115,6 +115,7 @@ fn fill_optional_fields(obj: &serde_json::Map<String, Value>, row: &mut Executio
     row.provider_status = normalize_provider_status(get_opt_str(obj, "provider_status").as_deref())
         .to_log_field()
         .map(str::to_string);
+    row.http_request_profile = get_opt_str(obj, "http_request_profile");
     row.http_provider_format = get_opt_str(obj, "http_provider_format");
     row.http_parser_mode = get_opt_str(obj, "http_parser_mode");
     row.capture_provider = get_opt_str(obj, "capture_provider");

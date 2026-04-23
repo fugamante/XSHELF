@@ -27,6 +27,11 @@ Notes:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
   - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).
   - `cx version` / `cx core` now expose `http_allowed_hosts` and `http_tls_pinning`.
+- HTTP adapter request-profile expansion:
+  - added `CX_HTTP_REQUEST_PROFILE=openai_json` on the existing `http-curl` adapter boundary.
+  - added `CX_HTTP_PROVIDER_MODEL` for OpenAI-compatible JSON request bodies.
+  - runtime logs now record `http_request_profile` alongside HTTP transport/parser fields.
+  - added end-to-end reliability and telemetry coverage for the OpenAI-compatible HTTP JSON profile.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.
