@@ -6,6 +6,9 @@ use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
 use base64::Engine;
 use serde_json::{Value, json};
 use std::env;
+use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProviderStatus {
@@ -60,6 +63,21 @@ pub struct HttpTlsPosture {
     pub max_redirects: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HttpSecretSource {
+    Env,
+    File,
+}
+
+impl HttpSecretSource {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Env => "env",
+            Self::File => "file",
+        }
+    }
+}
+
 fn normalized_backend_name(raw: &str) -> &'static str {
     if raw.eq_ignore_ascii_case("ollama") {
         "ollama"
@@ -88,6 +106,63 @@ fn env_nonempty(name: &str) -> Option<String> {
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
+}
+
+fn secret_perm_ok(path: &std::path::Path) -> Result<(), LlmRunError> {
+    #[cfg(unix)]
+    {
+        let mode = fs::metadata(path)
+            .map_err(|e| {
+                LlmRunError::message(format!(
+                    "http-curl adapter could not stat secret file {}: {e}",
+                    path.display()
+                ))
+            })?
+            .permissions()
+            .mode()
+            & 0o777;
+        if mode & 0o077 != 0 {
+            return Err(LlmRunError::message(format!(
+                "http-curl adapter secret file {} must not be group/world readable or writable",
+                path.display()
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn read_secret_src(name: &str) -> Result<Option<(String, HttpSecretSource)>, LlmRunError> {
+    let env_name = name.to_string();
+    let file_name = format!("{name}_FILE");
+    let direct = env_nonempty(&env_name);
+    let file = env_nonempty(&file_name);
+    if direct.is_some() && file.is_some() {
+        return Err(LlmRunError::message(format!(
+            "http-curl adapter secret source is ambiguous; set only one of {env_name} or {file_name}"
+        )));
+    }
+    if let Some(value) = direct {
+        return Ok(Some((value, HttpSecretSource::Env)));
+    }
+    let Some(path) = file else {
+        return Ok(None);
+    };
+    let path_ref = std::path::Path::new(&path);
+    secret_perm_ok(path_ref)?;
+    let value = fs::read_to_string(path_ref).map_err(|e| {
+        LlmRunError::message(format!(
+            "http-curl adapter could not read secret file {}: {e}",
+            path_ref.display()
+        ))
+    })?;
+    let value = value.trim().to_string();
+    if value.is_empty() {
+        return Err(LlmRunError::message(format!(
+            "http-curl adapter secret file {} was empty",
+            path_ref.display()
+        )));
+    }
+    Ok(Some((value, HttpSecretSource::File)))
 }
 
 fn is_local_url(url: &str) -> bool {
@@ -270,6 +345,28 @@ pub fn http_auth_head() -> Option<String> {
     env_nonempty("CX_HTTP_AUTH_HEADER")
 }
 
+pub fn http_auth_src() -> Option<&'static str> {
+    auth_secret_src().map(HttpSecretSource::as_str)
+}
+
+fn auth_secret_src() -> Option<HttpSecretSource> {
+    match http_auth_mode() {
+        "basic" => read_secret_src("CX_HTTP_AUTH_PASSWORD")
+            .ok()
+            .flatten()
+            .map(|(_, source)| source),
+        "header" => read_secret_src("CX_HTTP_AUTH_VALUE")
+            .ok()
+            .flatten()
+            .or_else(|| read_secret_src("CX_HTTP_PROVIDER_TOKEN").ok().flatten())
+            .map(|(_, source)| source),
+        _ => read_secret_src("CX_HTTP_PROVIDER_TOKEN")
+            .ok()
+            .flatten()
+            .map(|(_, source)| source),
+    }
+}
+
 fn http_auth_pair() -> Result<Option<(String, String)>, LlmRunError> {
     match http_auth_mode() {
         "basic" => {
@@ -279,7 +376,9 @@ fn http_auth_pair() -> Result<Option<(String, String)>, LlmRunError> {
                         .to_string(),
                 )
             })?;
-            let pass = env_nonempty("CX_HTTP_AUTH_PASSWORD").ok_or_else(|| {
+            let pass = read_secret_src("CX_HTTP_AUTH_PASSWORD")?
+                .map(|(value, _)| value)
+                .ok_or_else(|| {
                 LlmRunError::message(
                     "http-curl adapter requires CX_HTTP_AUTH_PASSWORD when CX_HTTP_AUTH_PROFILE=basic"
                         .to_string(),
@@ -296,8 +395,9 @@ fn http_auth_pair() -> Result<Option<(String, String)>, LlmRunError> {
                         .to_string(),
                 )
             })?;
-            let value = env_nonempty("CX_HTTP_AUTH_VALUE")
-                .or_else(|| env_nonempty("CX_HTTP_PROVIDER_TOKEN"))
+            let value = read_secret_src("CX_HTTP_AUTH_VALUE")?
+                .or_else(|| read_secret_src("CX_HTTP_PROVIDER_TOKEN").ok().flatten())
+                .map(|(value, _)| value)
                 .ok_or_else(|| {
                     LlmRunError::message(
                         "http-curl adapter requires CX_HTTP_AUTH_VALUE or CX_HTTP_PROVIDER_TOKEN when CX_HTTP_AUTH_PROFILE=header"
@@ -306,8 +406,8 @@ fn http_auth_pair() -> Result<Option<(String, String)>, LlmRunError> {
                 })?;
             Ok(Some((name, value)))
         }
-        _ => Ok(env_nonempty("CX_HTTP_PROVIDER_TOKEN")
-            .map(|token| ("Authorization".to_string(), format!("Bearer {token}")))),
+        _ => Ok(read_secret_src("CX_HTTP_PROVIDER_TOKEN")?
+            .map(|(token, _)| ("Authorization".to_string(), format!("Bearer {token}")))),
     }
 }
 
@@ -394,6 +494,7 @@ pub fn adapter_policy_value() -> Value {
         "http_request_profile": http_profile_opt(),
         "http_auth_mode": if selected_provider_transport() == "http" { Some(http_auth_mode()) } else { None },
         "http_auth_header": http_auth_head(),
+        "http_auth_secret_source": if selected_provider_transport() == "http" { http_auth_src() } else { None },
         "http_tls_posture": tls_posture_json(),
         "explicit_override_set": adapter_override().is_some(),
         "default_switch_guard": "two_green_ci_windows",
