@@ -33,6 +33,11 @@
   - `core` / `version` now expose a compact `http_tls_posture` object
   - added `CX_HTTP_TLS_MIN_VERSION` for explicit TLS version floor control
   - added `CX_HTTP_FOLLOW_REDIRECTS` and `CX_HTTP_MAX_REDIRECTS` for explicit redirect policy control
+- Landed explicit HTTP auth profiles on the same `http-curl` boundary:
+  - `bearer` remains the default profile
+  - added `basic` auth profile
+  - added explicit custom-header auth profile
+  - `core` / `version` now expose auth mode and header name without exposing secret values
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy

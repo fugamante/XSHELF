@@ -3,6 +3,7 @@ use crate::llm::{
     run_codex_jsonl, run_codex_plain, run_ollama_plain, wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{llm_backend, resolve_ollama_model_for_run};
+use base64::Engine;
 use serde_json::{Value, json};
 use std::env;
 
@@ -250,6 +251,66 @@ pub fn http_profile() -> &'static str {
     }
 }
 
+pub fn http_auth_mode() -> &'static str {
+    match env::var("CX_HTTP_AUTH_PROFILE")
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("basic") => "basic",
+        Some("header") | Some("custom_header") | Some("custom-header") => "header",
+        _ => "bearer",
+    }
+}
+
+pub fn http_auth_head() -> Option<String> {
+    if http_auth_mode() != "header" {
+        return None;
+    }
+    env_nonempty("CX_HTTP_AUTH_HEADER")
+}
+
+fn http_auth_pair() -> Result<Option<(String, String)>, LlmRunError> {
+    match http_auth_mode() {
+        "basic" => {
+            let user = env_nonempty("CX_HTTP_AUTH_USERNAME").ok_or_else(|| {
+                LlmRunError::message(
+                    "http-curl adapter requires CX_HTTP_AUTH_USERNAME when CX_HTTP_AUTH_PROFILE=basic"
+                        .to_string(),
+                )
+            })?;
+            let pass = env_nonempty("CX_HTTP_AUTH_PASSWORD").ok_or_else(|| {
+                LlmRunError::message(
+                    "http-curl adapter requires CX_HTTP_AUTH_PASSWORD when CX_HTTP_AUTH_PROFILE=basic"
+                        .to_string(),
+                )
+            })?;
+            let creds = format!("{user}:{pass}");
+            let enc = base64::engine::general_purpose::STANDARD.encode(creds);
+            Ok(Some(("Authorization".to_string(), format!("Basic {enc}"))))
+        }
+        "header" => {
+            let name = http_auth_head().ok_or_else(|| {
+                LlmRunError::message(
+                    "http-curl adapter requires CX_HTTP_AUTH_HEADER when CX_HTTP_AUTH_PROFILE=header"
+                        .to_string(),
+                )
+            })?;
+            let value = env_nonempty("CX_HTTP_AUTH_VALUE")
+                .or_else(|| env_nonempty("CX_HTTP_PROVIDER_TOKEN"))
+                .ok_or_else(|| {
+                    LlmRunError::message(
+                        "http-curl adapter requires CX_HTTP_AUTH_VALUE or CX_HTTP_PROVIDER_TOKEN when CX_HTTP_AUTH_PROFILE=header"
+                            .to_string(),
+                    )
+                })?;
+            Ok(Some((name, value)))
+        }
+        _ => Ok(env_nonempty("CX_HTTP_PROVIDER_TOKEN")
+            .map(|token| ("Authorization".to_string(), format!("Bearer {token}")))),
+    }
+}
+
 pub fn http_tlsver() -> &'static str {
     match env::var("CX_HTTP_TLS_MIN_VERSION")
         .ok()
@@ -331,6 +392,8 @@ pub fn adapter_policy_value() -> Value {
         "selected_transport": selected_provider_transport(),
         "selected_status": selected_provider_status_kind().as_str(),
         "http_request_profile": http_profile_opt(),
+        "http_auth_mode": if selected_provider_transport() == "http" { Some(http_auth_mode()) } else { None },
+        "http_auth_header": http_auth_head(),
         "http_tls_posture": tls_posture_json(),
         "explicit_override_set": adapter_override().is_some(),
         "default_switch_guard": "two_green_ci_windows",
@@ -553,7 +616,6 @@ impl ProviderAdapter for HttpStubAdapter {
 
 pub struct HttpCurlAdapter {
     url: String,
-    token: Option<String>,
     format: HttpProviderFormat,
     request_profile: HttpRequestProfile,
     model: Option<String>,
@@ -717,9 +779,7 @@ impl HttpCurlAdapter {
 
     fn run_raw(&self, prompt: &str) -> Result<String, LlmRunError> {
         match self.request_profile {
-            HttpRequestProfile::PlainText => {
-                http_raw_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
-            }
+            HttpRequestProfile::PlainText => http_raw_opts(prompt, &self.url, &self.http_options),
             HttpRequestProfile::OpenAiJson => {
                 let model = self
                     .model
@@ -739,7 +799,6 @@ impl HttpCurlAdapter {
                 http_body_opts(
                     &body,
                     &self.url,
-                    self.token.as_deref(),
                     "Content-Type: application/json",
                     &self.http_options,
                 )
@@ -776,10 +835,7 @@ impl HttpCurlAdapter {
                 )
             })?;
         validate_http_url(&url)?;
-        let token = env::var("CX_HTTP_PROVIDER_TOKEN")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
+        let auth = http_auth_pair()?;
         let tls_pinned_pubkey = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY");
         let tls_ca_bundle = env_nonempty("CX_HTTP_CA_BUNDLE");
         let tls_client_cert = env_nonempty("CX_HTTP_CLIENT_CERT");
@@ -789,11 +845,12 @@ impl HttpCurlAdapter {
         let model = Self::http_model_env();
         Ok(Self {
             url,
-            token,
             format,
             request_profile,
             model,
             http_options: HttpRequestOptions {
+                auth_hdr: auth.as_ref().map(|(name, _)| name.clone()),
+                auth_val: auth.as_ref().map(|(_, value)| value.clone()),
                 tls_pinned_pubkey,
                 tls_ca_bundle,
                 tls_client_cert,
@@ -809,9 +866,7 @@ impl HttpCurlAdapter {
 impl ProviderAdapter for HttpCurlAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
         match self.request_profile {
-            HttpRequestProfile::PlainText => {
-                http_plain_opts(prompt, &self.url, self.token.as_deref(), &self.http_options)
-            }
+            HttpRequestProfile::PlainText => http_plain_opts(prompt, &self.url, &self.http_options),
             HttpRequestProfile::OpenAiJson => {
                 let raw = self.run_raw(prompt)?;
                 Self::extract_json_payload(&raw)
@@ -1243,7 +1298,6 @@ mod tests {
         }
         let adapter = HttpCurlAdapter {
             url: "http://127.0.0.1:9999/infer".to_string(),
-            token: Some("token".to_string()),
             format: HttpCurlAdapter::parse_format_from_env(),
             request_profile: HttpRequestProfile::OpenAiJson,
             model: Some("gpt-test".to_string()),
