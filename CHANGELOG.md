@@ -42,6 +42,11 @@ Notes:
   - added a compact `http_tls_posture` diagnostics object on `core` / `version`.
   - added `CX_HTTP_TLS_MIN_VERSION` for explicit TLS version floor control.
   - added `CX_HTTP_FOLLOW_REDIRECTS` and `CX_HTTP_MAX_REDIRECTS` for explicit redirect policy control.
+- HTTP adapter auth profiles:
+  - `bearer` remains the default profile on the existing `http-curl` boundary.
+  - added `basic` auth profile via `CX_HTTP_AUTH_USERNAME` / `CX_HTTP_AUTH_PASSWORD`.
+  - added explicit custom-header auth profile via `CX_HTTP_AUTH_HEADER` and `CX_HTTP_AUTH_VALUE`.
+  - `core` / `version` now expose auth mode and header name without exposing secret values.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.
