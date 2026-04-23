@@ -728,7 +728,7 @@ fn fix_run_policy_block_logged_with_reason() {
 }
 
 #[test]
-fn http_curl_timeout_cov() {
+fn http_timeout_cov() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(
         "curl",
@@ -782,7 +782,7 @@ exit 0
 }
 
 #[test]
-fn http_fixrun_policy_cov() {
+fn http_policy_cov() {
     let repo = TempRepo::new("cxrs-rel");
     let fix_json = r#"{"text":"{\"analysis\":\"dangerous path\",\"commands\":[\"rm -rf /tmp/cxrs-http-danger-test\"]}"}"#;
     repo.write_mock(
