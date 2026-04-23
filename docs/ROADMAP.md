@@ -38,6 +38,10 @@
   - added `basic` auth profile
   - added explicit custom-header auth profile
   - `core` / `version` now expose auth mode and header name without exposing secret values
+- Landed HTTP auth secret-source handling on the same `http-curl` boundary:
+  - added file-backed secret inputs for bearer token, header value, and basic password
+  - `core` / `version` now expose auth secret source (`env|file|off`) without exposing secret values
+  - Unix secret files now require restrictive permissions
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy

@@ -11,6 +11,16 @@ Auth profiles on the same boundary:
   - `CX_HTTP_AUTH_HEADER`
   - `CX_HTTP_AUTH_VALUE` (or falls back to `CX_HTTP_PROVIDER_TOKEN`)
 
+Secret file sources on the same boundary:
+- `CX_HTTP_PROVIDER_TOKEN_FILE`
+- `CX_HTTP_AUTH_VALUE_FILE`
+- `CX_HTTP_AUTH_PASSWORD_FILE`
+
+Rules:
+- set only one of `FOO` or `FOO_FILE` for a given secret source
+- secret files must not be group/world readable or writable on Unix
+- file contents are trimmed before use
+
 ## Runtime policy (in-process)
 
 - `CX_HTTP_REQUIRE_HTTPS=1` (default): blocks non-HTTPS provider URLs.
