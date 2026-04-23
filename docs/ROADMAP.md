@@ -22,6 +22,9 @@
   - OpenAI-compatible HTTP JSON request/response profile
   - request profile remains behind explicit opt-in rollout policy
   - telemetry and reliability coverage landed with the same bundle
+- Landed custom CA bundle support on the same `http-curl` boundary:
+  - `CX_HTTP_CA_BUNDLE` now maps to curl `--cacert`
+  - `core` / `version` diagnostics expose whether a CA bundle is configured
 - Prefer request-profile expansion over broad adapter proliferation:
   - keep `codex-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy
