@@ -5,7 +5,7 @@
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
-- Guard mixed-mode orchestration invariants (fairness, retry, timeout, policy).
+- Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
 
 ## Next (1-2 months)

@@ -984,6 +984,126 @@ fn exec_concurrency_value(latest_summary: Option<&Value>) -> Value {
     })
 }
 
+fn exec_invariants_value(latest_summary: Option<&Value>) -> Value {
+    let Some(summary) = latest_summary else {
+        return serde_json::json!({
+            "ok": false,
+            "status": "unknown",
+            "issues": ["missing_run_summary"],
+            "outcome_accounting_ok": false,
+            "failure_accounting_ok": false,
+            "critical_halt_ok": false,
+            "worker_summary_ok": false,
+            "timing_window_ok": false
+        });
+    };
+
+    let scheduled = summary
+        .get("run_all_scheduled")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let complete = summary
+        .get("run_all_complete")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let failed = summary
+        .get("run_all_failed")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let blocked = summary
+        .get("run_all_blocked")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let retryable_failures = summary
+        .get("run_all_retryable_failures")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let non_retryable_failures = summary
+        .get("run_all_non_retryable_failures")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let critical_errors = summary
+        .get("run_all_critical_errors")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let halted_remaining = summary
+        .get("run_all_halted_remaining")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let halt_on_critical = summary
+        .get("halt_on_critical")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let worker_count = summary
+        .get("run_all_worker_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let workers = summary
+        .get("run_all_workers")
+        .and_then(Value::as_str)
+        .map(|value| {
+            value
+                .split(',')
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .count() as u64
+        })
+        .unwrap_or(0);
+    let first_queue_started_at = summary
+        .get("run_all_first_queue_started_at")
+        .and_then(Value::as_str);
+    let first_task_started_at = summary
+        .get("run_all_first_task_started_at")
+        .and_then(Value::as_str);
+    let last_task_finished_at = summary
+        .get("run_all_last_task_finished_at")
+        .and_then(Value::as_str);
+
+    let outcome_accounting_ok = scheduled == complete + failed + halted_remaining;
+    let failure_accounting_ok = failed == blocked + retryable_failures + non_retryable_failures;
+    let critical_halt_ok =
+        critical_errors <= non_retryable_failures && (halted_remaining == 0 || halt_on_critical);
+    let worker_summary_ok =
+        worker_count == workers && !(complete + failed > 0 && worker_count == 0);
+    let timing_window_ok = match (
+        first_queue_started_at,
+        first_task_started_at,
+        last_task_finished_at,
+    ) {
+        (None, None, None) => true,
+        (Some(queue), Some(start), Some(finish)) => queue <= start && start <= finish,
+        _ => false,
+    };
+
+    let mut issues = Vec::new();
+    if !outcome_accounting_ok {
+        issues.push("outcome_accounting_mismatch");
+    }
+    if !failure_accounting_ok {
+        issues.push("failure_accounting_mismatch");
+    }
+    if !critical_halt_ok {
+        issues.push("critical_halt_mismatch");
+    }
+    if !worker_summary_ok {
+        issues.push("worker_summary_mismatch");
+    }
+    if !timing_window_ok {
+        issues.push("timing_window_mismatch");
+    }
+
+    serde_json::json!({
+        "ok": issues.is_empty(),
+        "status": if issues.is_empty() { "clean" } else { "violated" },
+        "issues": issues,
+        "outcome_accounting_ok": outcome_accounting_ok,
+        "failure_accounting_ok": failure_accounting_ok,
+        "critical_halt_ok": critical_halt_ok,
+        "worker_summary_ok": worker_summary_ok,
+        "timing_window_ok": timing_window_ok
+    })
+}
+
 fn wave_pressure_value(latest_summary: Option<&Value>, wave_summary: Option<&Value>) -> Value {
     let latest_wave_index = latest_summary
         .and_then(|s| s.get("run_all_latest_wave_index"))
@@ -1208,6 +1328,14 @@ pub(crate) fn exec_advice_lines(
             "task_execution_worker_count: 0".to_string(),
             "task_execution_max_retry_attempt: 0".to_string(),
         ];
+        let invariants = exec_invariants_value(None);
+        lines.push(format!(
+            "task_execution_invariants_status: {}",
+            invariants
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+        ));
         let advice_value = exec_advice_value(None, wave_summary);
         let advice = advice_value
             .as_str()
@@ -1249,6 +1377,7 @@ pub(crate) fn exec_advice_lines(
         .get("max_retry_attempt")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let invariants = exec_invariants_value(Some(summary));
 
     let mut lines = vec![
         format!("task_execution_last_mode: {mode}"),
@@ -1259,7 +1388,25 @@ pub(crate) fn exec_advice_lines(
         format!("task_execution_max_queue_wave_ms: {max_queue_wave_ms}"),
         format!("task_execution_worker_count: {worker_count}"),
         format!("task_execution_max_retry_attempt: {max_retry_attempt}"),
+        format!(
+            "task_execution_invariants_status: {}",
+            invariants
+                .get("status")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+        ),
     ];
+    if let Some(ok) = invariants.get("ok").and_then(Value::as_bool) {
+        lines.push(format!("task_execution_invariants_ok: {ok}"));
+    }
+    if let Some(issues) = invariants.get("issues").and_then(Value::as_array) {
+        for (idx, issue) in issues.iter().filter_map(Value::as_str).enumerate() {
+            lines.push(format!(
+                "task_execution_invariant_issue_{}: {issue}",
+                idx + 1
+            ));
+        }
+    }
     if let Some(workers) = concurrency.get("workers").and_then(Value::as_array)
         && !workers.is_empty()
     {
@@ -1346,6 +1493,7 @@ pub(crate) fn exec_diag_value(
         .and_then(Value::as_u64)
         .unwrap_or(0);
     let concurrency = exec_concurrency_value(latest_summary);
+    let invariants = exec_invariants_value(latest_summary);
     let next_action = next_action_value(&advice, &recommendations);
     let mut blockers = Vec::new();
     if latest_summary.is_none() {
@@ -1394,6 +1542,7 @@ pub(crate) fn exec_diag_value(
         "max_queue_wave_index": max_queue_wave_index,
         "max_queue_wave_ms": max_queue_wave_ms,
         "concurrency": concurrency,
+        "invariants": invariants,
         "wave_pressure": wave_pressure,
         "advice": advice,
         "recommendations": recommendations,
@@ -1914,6 +2063,63 @@ mod tests {
                 .get("resume_reuses_prior_action")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+    }
+
+    #[test]
+    fn exec_invariants_cov() {
+        let value = exec_diag_value(
+            Some(&serde_json::json!({
+                "run_all_mode": "mixed",
+                "run_all_scheduled": 4,
+                "run_all_complete": 1,
+                "run_all_failed": 1,
+                "run_all_blocked": 0,
+                "run_all_retryable_failures": 0,
+                "run_all_non_retryable_failures": 0,
+                "run_all_critical_errors": 0,
+                "run_all_halted_remaining": 0,
+                "run_all_worker_count": 2,
+                "run_all_workers": "worker-1",
+                "run_all_first_queue_started_at": "2026-04-22T17:00:10Z",
+                "run_all_first_task_started_at": "2026-04-22T17:00:05Z",
+                "run_all_last_task_finished_at": "2026-04-22T17:00:30Z",
+                "halt_on_critical": false
+            })),
+            None,
+        );
+        assert_eq!(
+            value
+                .get("invariants")
+                .and_then(|v| v.get("status"))
+                .and_then(Value::as_str),
+            Some("violated")
+        );
+        let issues = value
+            .get("invariants")
+            .and_then(|v| v.get("issues"))
+            .and_then(Value::as_array)
+            .expect("invariant issues");
+        assert!(
+            issues
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|v| v == "outcome_accounting_mismatch"),
+            "{value}"
+        );
+        assert!(
+            issues
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|v| v == "worker_summary_mismatch"),
+            "{value}"
+        );
+        assert!(
+            issues
+                .iter()
+                .filter_map(Value::as_str)
+                .any(|v| v == "timing_window_mismatch"),
+            "{value}"
         );
     }
 

@@ -92,6 +92,7 @@
     "max_queue_wave_index",
     "max_queue_wave_ms",
     "concurrency",
+    "invariants",
     "wave_pressure",
     "advice",
     "recommendations",
@@ -114,6 +115,16 @@
     "first_queue_started_at",
     "first_task_started_at",
     "last_task_finished_at"
+  ],
+  "task_execution_invariants_keys": [
+    "ok",
+    "status",
+    "issues",
+    "outcome_accounting_ok",
+    "failure_accounting_ok",
+    "critical_halt_ok",
+    "worker_summary_ok",
+    "timing_window_ok"
   ],
   "task_execution_recent_context_keys": [
     "last_successful_action",

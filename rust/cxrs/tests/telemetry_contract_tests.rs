@@ -593,6 +593,14 @@ fn diag_json_matches_contract_fixture() {
         &concurrency_keys,
         "diag.task_execution.concurrency",
     );
+    let invariants_keys = fixture_keys(&fixture, "task_execution_invariants_keys");
+    assert_has_keys(
+        task_execution
+            .get("invariants")
+            .expect("diag.task_execution.invariants"),
+        &invariants_keys,
+        "diag.task_execution.invariants",
+    );
     let reasoning_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         task_execution
