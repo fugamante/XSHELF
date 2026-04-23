@@ -38,6 +38,10 @@ Notes:
 - HTTP adapter mTLS configuration:
   - added `CX_HTTP_CLIENT_CERT` and `CX_HTTP_CLIENT_KEY` on the existing `http-curl` boundary.
   - runtime diagnostics now expose whether client cert and key are configured.
+- HTTP adapter TLS posture and redirect controls:
+  - added a compact `http_tls_posture` diagnostics object on `core` / `version`.
+  - added `CX_HTTP_TLS_MIN_VERSION` for explicit TLS version floor control.
+  - added `CX_HTTP_FOLLOW_REDIRECTS` and `CX_HTTP_MAX_REDIRECTS` for explicit redirect policy control.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.

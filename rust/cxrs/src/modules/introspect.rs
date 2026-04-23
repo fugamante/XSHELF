@@ -9,6 +9,7 @@ use crate::paths::{resolve_log_file, resolve_quarantine_dir, resolve_state_file}
 use crate::provider_adapter::{
     current_provider_capabilities, http_profile, selected_adapter_name,
     selected_http_provider_format, selected_provider_status_kind, selected_tq_caps,
+    tls_posture_json, tls_posture_opt,
 };
 use crate::runtime::{llm_backend, llm_model, logging_enabled};
 use crate::state::{read_state_value, value_at_path};
@@ -60,50 +61,46 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
     println!("provider_status: {provider_status}");
     if caps.transport == "http" {
         println!("http_provider_format: {}", selected_http_provider_format());
-        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
-            .ok()
-            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
-            .unwrap_or(true);
-        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
-            .ok()
-            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
-            .unwrap_or(true);
-        println!("http_require_https: {require_https}");
-        println!("http_allow_local_http: {allow_local_http}");
-        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "<any>".to_string());
-        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_key = env::var("CX_HTTP_CLIENT_KEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
+        let posture = tls_posture_opt().expect("http tls posture");
+        let allowed_hosts = if posture.allowlist_active {
+            posture.allowed_hosts.join(",")
+        } else {
+            "<any>".to_string()
+        };
+        println!("http_require_https: {}", posture.https_required);
+        println!("http_allow_local_http: {}", posture.local_http_exception);
         println!("http_allowed_hosts: {allowed_hosts}");
-        println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
+        println!(
+            "http_tls_pinning: {}",
+            if posture.pinned_pubkey { "set" } else { "off" }
+        );
         println!(
             "http_tls_ca_bundle: {}",
-            if ca_bundle { "set" } else { "off" }
+            if posture.ca_bundle { "set" } else { "off" }
         );
         println!(
             "http_tls_client_cert: {}",
-            if client_cert { "set" } else { "off" }
+            if posture.client_cert { "set" } else { "off" }
         );
         println!(
             "http_tls_client_key: {}",
-            if client_key { "set" } else { "off" }
+            if posture.client_key { "set" } else { "off" }
+        );
+        println!("http_tls_min_version: {}", posture.min_tls_version);
+        println!("http_follow_redirects: {}", posture.follow_redirects);
+        println!("http_max_redirects: {}", posture.max_redirects);
+        println!(
+            "http_tls_posture: https_required={} local_http_exception={} allowlist_active={} min_tls_version={} pinned_pubkey={} ca_bundle={} client_cert={} client_key={} follow_redirects={} max_redirects={}",
+            posture.https_required,
+            posture.local_http_exception,
+            posture.allowlist_active,
+            posture.min_tls_version,
+            if posture.pinned_pubkey { "set" } else { "off" },
+            if posture.ca_bundle { "set" } else { "off" },
+            if posture.client_cert { "set" } else { "off" },
+            if posture.client_key { "set" } else { "off" },
+            posture.follow_redirects,
+            posture.max_redirects
         );
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
@@ -155,44 +152,25 @@ fn core_payload(app_version: &str) -> serde_json::Value {
         "schema_strict": caps.schema_strict,
     });
     if caps.transport == "http" {
-        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
-            .ok()
-            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
-            .unwrap_or(true);
-        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
-            .ok()
-            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
-            .unwrap_or(true);
-        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "<any>".to_string());
-        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_key = env::var("CX_HTTP_CLIENT_KEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
+        let posture = tls_posture_opt().expect("http tls posture");
+        let allowed_hosts = if posture.allowlist_active {
+            posture.allowed_hosts.join(",")
+        } else {
+            "<any>".to_string()
+        };
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
-        provider["http_require_https"] = json!(require_https);
-        provider["http_allow_local_http"] = json!(allow_local_http);
+        provider["http_require_https"] = json!(posture.https_required);
+        provider["http_allow_local_http"] = json!(posture.local_http_exception);
         provider["http_allowed_hosts"] = json!(allowed_hosts);
-        provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
-        provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
-        provider["http_tls_client_cert"] = json!(if client_cert { "set" } else { "off" });
-        provider["http_tls_client_key"] = json!(if client_key { "set" } else { "off" });
+        provider["http_tls_pinning"] = json!(if posture.pinned_pubkey { "set" } else { "off" });
+        provider["http_tls_ca_bundle"] = json!(if posture.ca_bundle { "set" } else { "off" });
+        provider["http_tls_client_cert"] = json!(if posture.client_cert { "set" } else { "off" });
+        provider["http_tls_client_key"] = json!(if posture.client_key { "set" } else { "off" });
+        provider["http_tls_min_version"] = json!(posture.min_tls_version);
+        provider["http_follow_redirects"] = json!(posture.follow_redirects);
+        provider["http_max_redirects"] = json!(posture.max_redirects);
+        provider["http_tls_posture"] = tls_posture_json().expect("http tls posture json");
     }
 
     json!({
@@ -281,44 +259,25 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
         "schema_strict": caps.schema_strict,
     });
     if caps.transport == "http" {
-        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
-            .ok()
-            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
-            .unwrap_or(true);
-        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
-            .ok()
-            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
-            .unwrap_or(true);
-        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "<any>".to_string());
-        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let ca_bundle = env::var("CX_HTTP_CA_BUNDLE")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_cert = env::var("CX_HTTP_CLIENT_CERT")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        let client_key = env::var("CX_HTTP_CLIENT_KEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
+        let posture = tls_posture_opt().expect("http tls posture");
+        let allowed_hosts = if posture.allowlist_active {
+            posture.allowed_hosts.join(",")
+        } else {
+            "<any>".to_string()
+        };
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_request_profile"] = json!(http_profile());
-        provider["http_require_https"] = json!(require_https);
-        provider["http_allow_local_http"] = json!(allow_local_http);
+        provider["http_require_https"] = json!(posture.https_required);
+        provider["http_allow_local_http"] = json!(posture.local_http_exception);
         provider["http_allowed_hosts"] = json!(allowed_hosts);
-        provider["http_tls_pinning"] = json!(if pinning { "set" } else { "off" });
-        provider["http_tls_ca_bundle"] = json!(if ca_bundle { "set" } else { "off" });
-        provider["http_tls_client_cert"] = json!(if client_cert { "set" } else { "off" });
-        provider["http_tls_client_key"] = json!(if client_key { "set" } else { "off" });
+        provider["http_tls_pinning"] = json!(if posture.pinned_pubkey { "set" } else { "off" });
+        provider["http_tls_ca_bundle"] = json!(if posture.ca_bundle { "set" } else { "off" });
+        provider["http_tls_client_cert"] = json!(if posture.client_cert { "set" } else { "off" });
+        provider["http_tls_client_key"] = json!(if posture.client_key { "set" } else { "off" });
+        provider["http_tls_min_version"] = json!(posture.min_tls_version);
+        provider["http_follow_redirects"] = json!(posture.follow_redirects);
+        provider["http_max_redirects"] = json!(posture.max_redirects);
+        provider["http_tls_posture"] = tls_posture_json().expect("http tls posture json");
     }
 
     json!({
@@ -474,27 +433,47 @@ pub fn cmd_core(app_version: &str, args: &[String]) -> i32 {
     if caps.transport == "http" {
         println!("http_provider_format: {}", selected_http_provider_format());
         println!("http_request_profile: {}", http_profile());
-        let require_https = env::var("CX_HTTP_REQUIRE_HTTPS")
-            .ok()
-            .map(|v| !matches!(v.trim(), "0" | "false" | "FALSE" | "False"))
-            .unwrap_or(true);
-        let allow_local_http = env::var("CX_HTTP_ALLOW_LOCAL_HTTP")
-            .ok()
-            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
-            .unwrap_or(true);
-        println!("http_require_https: {require_https}");
-        println!("http_allow_local_http: {allow_local_http}");
-        let allowed_hosts = env::var("CX_HTTP_ALLOWED_HOSTS")
-            .ok()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "<any>".to_string());
-        let pinning = env::var("CX_HTTP_TLS_PINNEDPUBKEY")
-            .ok()
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
+        let posture = tls_posture_opt().expect("http tls posture");
+        let allowed_hosts = if posture.allowlist_active {
+            posture.allowed_hosts.join(",")
+        } else {
+            "<any>".to_string()
+        };
+        println!("http_require_https: {}", posture.https_required);
+        println!("http_allow_local_http: {}", posture.local_http_exception);
         println!("http_allowed_hosts: {allowed_hosts}");
-        println!("http_tls_pinning: {}", if pinning { "set" } else { "off" });
+        println!(
+            "http_tls_pinning: {}",
+            if posture.pinned_pubkey { "set" } else { "off" }
+        );
+        println!(
+            "http_tls_ca_bundle: {}",
+            if posture.ca_bundle { "set" } else { "off" }
+        );
+        println!(
+            "http_tls_client_cert: {}",
+            if posture.client_cert { "set" } else { "off" }
+        );
+        println!(
+            "http_tls_client_key: {}",
+            if posture.client_key { "set" } else { "off" }
+        );
+        println!("http_tls_min_version: {}", posture.min_tls_version);
+        println!("http_follow_redirects: {}", posture.follow_redirects);
+        println!("http_max_redirects: {}", posture.max_redirects);
+        println!(
+            "http_tls_posture: https_required={} local_http_exception={} allowlist_active={} min_tls_version={} pinned_pubkey={} ca_bundle={} client_cert={} client_key={} follow_redirects={} max_redirects={}",
+            posture.https_required,
+            posture.local_http_exception,
+            posture.allowlist_active,
+            posture.min_tls_version,
+            if posture.pinned_pubkey { "set" } else { "off" },
+            if posture.ca_bundle { "set" } else { "off" },
+            if posture.client_cert { "set" } else { "off" },
+            if posture.client_key { "set" } else { "off" },
+            posture.follow_redirects,
+            posture.max_redirects
+        );
     }
     println!("provider_jsonl_native: {}", caps.jsonl_native);
     println!("provider_schema_strict: {}", caps.schema_strict);
