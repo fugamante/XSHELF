@@ -47,6 +47,10 @@ Notes:
   - added `basic` auth profile via `CX_HTTP_AUTH_USERNAME` / `CX_HTTP_AUTH_PASSWORD`.
   - added explicit custom-header auth profile via `CX_HTTP_AUTH_HEADER` and `CX_HTTP_AUTH_VALUE`.
   - `core` / `version` now expose auth mode and header name without exposing secret values.
+- HTTP adapter secret sources:
+  - added `CX_HTTP_PROVIDER_TOKEN_FILE`, `CX_HTTP_AUTH_VALUE_FILE`, and `CX_HTTP_AUTH_PASSWORD_FILE`.
+  - `core` / `version` now expose auth secret source without exposing secret values.
+  - Unix secret files are rejected when group/world readable or writable.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.

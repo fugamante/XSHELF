@@ -7,7 +7,7 @@ use crate::config::app_config;
 use crate::execmeta::toolchain_version_string;
 use crate::paths::{resolve_log_file, resolve_quarantine_dir, resolve_state_file};
 use crate::provider_adapter::{
-    current_provider_capabilities, http_auth_head, http_auth_mode, http_profile,
+    current_provider_capabilities, http_auth_head, http_auth_mode, http_auth_src, http_profile,
     selected_adapter_name, selected_http_provider_format, selected_provider_status_kind,
     selected_tq_caps, tls_posture_json, tls_posture_opt,
 };
@@ -65,6 +65,10 @@ fn print_version_runtime(mode: &str, backend: &str, active_model: &str, schema_r
         println!(
             "http_auth_header: {}",
             http_auth_head().unwrap_or_else(|| "n/a".to_string())
+        );
+        println!(
+            "http_auth_secret_source: {}",
+            http_auth_src().unwrap_or("off")
         );
         let posture = tls_posture_opt().expect("http tls posture");
         let allowed_hosts = if posture.allowlist_active {
@@ -166,6 +170,7 @@ fn core_payload(app_version: &str) -> serde_json::Value {
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_auth_mode"] = json!(http_auth_mode());
         provider["http_auth_header"] = json!(http_auth_head());
+        provider["http_auth_secret_source"] = json!(http_auth_src());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(posture.https_required);
         provider["http_allow_local_http"] = json!(posture.local_http_exception);
@@ -275,6 +280,7 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
         provider["http_provider_format"] = json!(selected_http_provider_format());
         provider["http_auth_mode"] = json!(http_auth_mode());
         provider["http_auth_header"] = json!(http_auth_head());
+        provider["http_auth_secret_source"] = json!(http_auth_src());
         provider["http_request_profile"] = json!(http_profile());
         provider["http_require_https"] = json!(posture.https_required);
         provider["http_allow_local_http"] = json!(posture.local_http_exception);
@@ -445,6 +451,10 @@ pub fn cmd_core(app_version: &str, args: &[String]) -> i32 {
         println!(
             "http_auth_header: {}",
             http_auth_head().unwrap_or_else(|| "n/a".to_string())
+        );
+        println!(
+            "http_auth_secret_source: {}",
+            http_auth_src().unwrap_or("off")
         );
         println!("http_request_profile: {}", http_profile());
         let posture = tls_posture_opt().expect("http tls posture");
