@@ -35,6 +35,9 @@ Notes:
 - HTTP adapter TLS trust configuration:
   - added `CX_HTTP_CA_BUNDLE` on the existing `http-curl` boundary.
   - runtime diagnostics now expose whether a custom CA bundle is configured.
+- HTTP adapter mTLS configuration:
+  - added `CX_HTTP_CLIENT_CERT` and `CX_HTTP_CLIENT_KEY` on the existing `http-curl` boundary.
+  - runtime diagnostics now expose whether client cert and key are configured.
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.
