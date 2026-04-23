@@ -14,7 +14,7 @@
 - Land dual-surface command docs/install defaults so `xshelf` is documented first while `cx` stays fully supported.
 - Landed richer command-level JSON outputs for diagnostics tools, including contract-backed `broker show --json`.
 - Landed CI-level artifact reports for reliability suite failures.
-- Broaden OS validation matrix (Linux-focused CI pass).
+- Land Linux-focused CI pass on PR/push while keeping full Linux+macOS compat on manual dispatch.
 - Landed run-level concurrency telemetry refinement (`worker_count`, workers, queue/start/finish timestamps, max retry attempt) across `task run-all`, diagnostics, and telemetry surfaces.
 - Landed adapter rollout policy surface; HTTP transport remains explicit opt-in and diagnostics/telemetry now expose the rollout guard.
 - Expand provider adapter coverage beyond current HTTP/process parity.
