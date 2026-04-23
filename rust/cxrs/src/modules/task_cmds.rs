@@ -458,6 +458,67 @@ struct RunAllConcurrencySummary {
     last_task_finished_at: Option<String>,
 }
 
+fn runall_invariants_value(
+    scheduled: u64,
+    summary: &RunAllSummary,
+    halted_remaining: usize,
+    halt_on_critical: bool,
+    concurrency: &RunAllConcurrencySummary,
+) -> Value {
+    let complete = summary.ok as u64;
+    let failed = summary.failed as u64;
+    let blocked = summary.blocked as u64;
+    let retryable_failures = summary.retryable_failed as u64;
+    let non_retryable_failures = summary.non_retryable_failed as u64;
+    let critical_errors = summary.critical_errors as u64;
+    let halted_remaining = halted_remaining as u64;
+
+    let outcome_accounting_ok = scheduled == complete + failed + halted_remaining;
+    let failure_accounting_ok = failed == blocked + retryable_failures + non_retryable_failures;
+    let critical_halt_ok =
+        critical_errors <= non_retryable_failures && (halted_remaining == 0 || halt_on_critical);
+    let worker_summary_ok = concurrency.worker_count == concurrency.workers.len() as u64
+        && !(complete + failed > 0 && concurrency.worker_count == 0);
+
+    let timing_window_ok = match (
+        concurrency.first_queue_started_at.as_deref(),
+        concurrency.first_task_started_at.as_deref(),
+        concurrency.last_task_finished_at.as_deref(),
+    ) {
+        (None, None, None) => true,
+        (Some(queue), Some(start), Some(finish)) => queue <= start && start <= finish,
+        _ => false,
+    };
+
+    let mut issues = Vec::new();
+    if !outcome_accounting_ok {
+        issues.push("outcome_accounting_mismatch");
+    }
+    if !failure_accounting_ok {
+        issues.push("failure_accounting_mismatch");
+    }
+    if !critical_halt_ok {
+        issues.push("critical_halt_mismatch");
+    }
+    if !worker_summary_ok {
+        issues.push("worker_summary_mismatch");
+    }
+    if !timing_window_ok {
+        issues.push("timing_window_mismatch");
+    }
+
+    serde_json::json!({
+        "ok": issues.is_empty(),
+        "status": if issues.is_empty() { "clean" } else { "violated" },
+        "issues": issues,
+        "outcome_accounting_ok": outcome_accounting_ok,
+        "failure_accounting_ok": failure_accounting_ok,
+        "critical_halt_ok": critical_halt_ok,
+        "worker_summary_ok": worker_summary_ok,
+        "timing_window_ok": timing_window_ok
+    })
+}
+
 impl RunAllSummary {
     fn record_success(&mut self) {
         self.ok += 1;
@@ -1000,6 +1061,8 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             return dry_run_out(&options, &empty_schedule, &empty_index, 0, true);
         }
         if options.as_json {
+            let empty_summary = RunAllSummary::default();
+            let empty_concurrency = RunAllConcurrencySummary::default();
             println!(
                 "{}",
                 serde_json::json!({
@@ -1018,6 +1081,13 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     "non_retryable_failures": 0,
                     "critical_errors": 0,
                     "halted_on_critical": false,
+                    "invariants": runall_invariants_value(
+                        0,
+                        &empty_summary,
+                        0,
+                        false,
+                        &empty_concurrency
+                    ),
                     "duration_ms": 0,
                     "tasks": []
                 })
@@ -1437,6 +1507,13 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let reason_counts = runall_reason_counts(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
     let concurrency_summary = runall_concurrency_summary(&summary);
+    let invariants = runall_invariants_value(
+        scheduled_count as u64,
+        &summary,
+        halted_remaining,
+        options.halt_on_critical,
+        &concurrency_summary,
+    );
     let preflight = runall_preflight_value(&options, &readiness, true);
     if options.as_json {
         let payload = serde_json::json!({
@@ -1458,6 +1535,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             "halted_on_critical": summary.halted_on_critical,
             "halted_remaining": halted_remaining,
             "backend_fallbacks": backend_fallbacks,
+            "invariants": invariants.clone(),
             "concurrency_summary": {
                 "worker_count": concurrency_summary.worker_count,
                 "workers": concurrency_summary.workers,
@@ -1497,6 +1575,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 "halted_on_critical": summary.halted_on_critical,
                 "halted_remaining": halted_remaining,
                 "backend_fallbacks": backend_fallbacks,
+                "invariants": invariants.clone(),
                 "concurrency_summary": {
                     "worker_count": concurrency_summary.worker_count,
                     "workers": concurrency_summary.workers,
@@ -1538,6 +1617,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             if summary.halted_on_critical {
                 println!("run-all halted_on_critical: true");
                 println!("run-all halted_remaining: {halted_remaining}");
+            }
+            if let Some(status) = invariants.get("status").and_then(Value::as_str) {
+                println!("run-all invariants_status: {status}");
+            }
+            if let Some(issues) = invariants.get("issues").and_then(Value::as_array) {
+                for (idx, issue) in issues.iter().filter_map(Value::as_str).enumerate() {
+                    println!("run-all invariant_issue_{}: {issue}", idx + 1);
+                }
             }
             print_preflight_text(&preflight);
             if !backend_fallbacks.is_empty() {
@@ -1950,6 +2037,8 @@ fn dry_run_out(
     let tasks: Vec<TaskRecord> = task_index.values().cloned().collect();
     let readiness = task_readiness_value(&tasks, &options.status_filter);
     let preflight = runall_preflight_value(options, &readiness, strict_ok);
+    let dry_run_summary = RunAllSummary::default();
+    let dry_run_concurrency = RunAllConcurrencySummary::default();
     let available = available_pool(&options.backend_pool);
     let mut task_runs: Vec<Value> = Vec::with_capacity(schedule.len());
     for (idx, id) in schedule.iter().enumerate() {
@@ -1985,6 +2074,13 @@ fn dry_run_out(
         "halted_on_critical": false,
         "halted_remaining": 0,
         "backend_fallbacks": serde_json::json!({}),
+        "invariants": runall_invariants_value(
+            schedule.len() as u64,
+            &dry_run_summary,
+            0,
+            false,
+            &dry_run_concurrency
+        ),
         "duration_ms": 0,
         "tasks": task_runs
     });

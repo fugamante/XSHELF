@@ -509,6 +509,14 @@ fn scheduler_json_matches_contract_fixture() {
         &task_execution_concurrency_keys,
         "scheduler.task_execution.concurrency",
     );
+    let task_execution_invariants_keys = fixture_keys(&fixture, "task_execution_invariants_keys");
+    assert_has_keys(
+        task_execution
+            .get("invariants")
+            .expect("task_execution.invariants"),
+        &task_execution_invariants_keys,
+        "scheduler.task_execution.invariants",
+    );
     let task_execution_gate_keys = fixture_keys(&fixture, "task_execution_reasoning_gate_keys");
     assert_has_keys(
         task_execution
