@@ -21,7 +21,7 @@ Notes:
   - added `bin/xs-install` and `bin/xs-uninstall` wrappers.
   - added `bin/xshelf-install` and `bin/xshelf-uninstall` wrappers.
   - install flow now publishes `xshelf.1`, `xs.1`, and `cx.1` man-page entries.
-  - added `docs/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
+  - added `docs/project/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
   - top-level help/task-help/usage error text now follows the invoked command name (`xshelf`, `xs`, or `cx`).
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
@@ -62,7 +62,7 @@ Notes:
     - `CX_HTTP_REQUIRE_HTTPS` (default `1`)
     - `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`, loopback-only HTTP exception)
   - `cx version` / `cx core` now print HTTP TLS policy toggles when `provider_transport=http`.
-  - added operator runbook: `docs/HTTP_PROVIDER_TLS.md`.
+  - added operator runbook: `docs/providers/HTTP_PROVIDER_TLS.md`.
 - Phase VI telemetry refinement:
   - `diag --json` / `scheduler --json` now expose scheduler timing-attribution coverage keys:
     - `rows_with_retry_attempt`
@@ -109,8 +109,8 @@ Notes:
 - Planning/docs updates:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
   - added Phase VI kickoff guidance in roadmap.
-  - added `docs/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
-  - added `docs/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.
+  - added `docs/project/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
+  - added `docs/project/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.
   - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
   - documented `diag/scheduler` top-level `concurrency` JSON fields (defaults + observed) and added examples in README telemetry section.
   - added README `jq` one-liners to extract `diag/scheduler` `concurrency.defaults` and `concurrency.observed` for CI/operator checks.
@@ -240,7 +240,7 @@ Notes:
     - `telemetry.v1`
     - `broker-benchmark.v1`
   - `--actions` payloads now include `actions_contract_version=actions.v1`.
-  - added compatibility policy doc: `docs/CONTRACT_COMPATIBILITY.md`.
+  - added compatibility policy doc: `docs/providers/CONTRACT_COMPATIBILITY.md`.
 - Broker strictness hardening:
   - `broker benchmark --severity` now accepts `warning` as alias to `warn`.
   - usage/help text updated to `warn|warning|critical`.
@@ -298,12 +298,12 @@ Notes:
   - aligned runtime introspection status output with typed provider status mapping.
   - expanded provider adapter tests for status normalization and mapping determinism.
 - Phase V kickoff docs:
-  - added `docs/PHASE_V_PROVIDER_AGNOSTIC_ORCHESTRATION.md` (execution spec).
-  - added `docs/PHASE_V_IMPLEMENTATION_BACKLOG.md` (ticketized backlog and validation checklist).
-  - linked Phase V docs from `docs/ROADMAP.md`.
+  - added `docs/orchestration/PHASE_V_PROVIDER_AGNOSTIC_ORCHESTRATION.md` (execution spec).
+  - added `docs/orchestration/PHASE_V_IMPLEMENTATION_BACKLOG.md` (ticketized backlog and validation checklist).
+  - linked Phase V docs from `docs/project/ROADMAP.md`.
 - Phase IV milestone status alignment:
-  - updated `docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md` to mark Milestones A-D as completed.
-  - refreshed `docs/ROADMAP.md` to reflect post-Phase-IV priorities and Phase V preparation.
+  - updated `docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md` to mark Milestones A-D as completed.
+  - refreshed `docs/project/ROADMAP.md` to reflect post-Phase-IV priorities and Phase V preparation.
 - Branding Phase 1 (non-breaking):
   - introduced `bin/xshelf` alias entrypoint delegating to canonical `bin/cx`.
   - updated top-level docs to `XSHELF (formerly CX)` while preserving all `cx` commands and `CX_*` environment compatibility.

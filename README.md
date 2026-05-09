@@ -43,6 +43,8 @@ Core runtime capabilities:
 Default backend model:
 - `codex` by default
 - `ollama` optional
+- `llamacpp` optional for local GGUF models through llama.cpp `llama-cli`
+- `mlx` optional for Apple-local MLX models through `mlx-lm`
 
 ## Requirements
 
@@ -57,6 +59,8 @@ Minimum local requirements:
 Optional but commonly used:
 - `jq` for JSON inspection in examples
 - `ollama` if you want the optional local backend path
+- `llama-cli` from llama.cpp if you want the optional `llamacpp` local backend
+- `mlx-lm` in a Python environment if you want the optional macOS `mlx` backend
 
 ## Quick Start
 
@@ -131,7 +135,24 @@ Backend selection:
 ./bin/xshelf llm show
 ./bin/xshelf llm use codex
 ./bin/xshelf llm use ollama llama3.1
+./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
 ./bin/xshelf llm unset model
+```
+
+`llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
+specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a
+small Apache-2.0 GGUF model whose Q4_0 file is about 429 MB and whose model card
+documents direct `llama-cli -hf ggml-org/Qwen3-0.6B-GGUF:Q4_0` usage.
+
+```bash
+brew install llama.cpp
+./scripts/llamacpp_smoke.sh
+
+# Equivalent manual smoke:
+./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+CX_CMD_TIMEOUT_SECS=600 \
+CX_LLAMA_CPP_ARGS="-n 64 --temp 0 -c 2048 --simple-io" \
+  ./bin/xshelf cxo printf 'xshelf llamacpp smoke\n'
 ```
 
 Structured command and schema inspection:
@@ -178,6 +199,13 @@ Important runtime knobs:
 - backend/model:
   - `CX_LLM_BACKEND`
   - `CX_OLLAMA_MODEL`
+  - `CX_LLAMA_CPP_MODEL`
+  - `CX_LLAMA_CPP_BIN`
+  - `CX_LLAMA_CPP_ARGS`
+  - `CX_MLX_MODEL`
+  - `CX_MLX_PYTHON`
+  - `CX_MLX_ARGS`
+  - `CX_MLX_MAX_TOKENS`
   - `CX_MODEL`
 - output mode:
   - `CX_JSON_DEFAULT`
@@ -225,31 +253,31 @@ Useful state/config commands:
 Use the README as the front door. Use the docs below for deeper material.
 
 Product and repo boundary:
-- [docs/REPO_ROLE_CONTRACT.md](docs/REPO_ROLE_CONTRACT.md)
-- [docs/REPO_SYNC_PLAN.md](docs/REPO_SYNC_PLAN.md)
-- [docs/XSHELF_RENAME_MIGRATION.md](docs/XSHELF_RENAME_MIGRATION.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/RELEASE_CADENCE.md](docs/RELEASE_CADENCE.md)
+- [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
+- [docs/project/REPO_SYNC_PLAN.md](docs/project/REPO_SYNC_PLAN.md)
+- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
+- [docs/project/ROADMAP.md](docs/project/ROADMAP.md)
+- [docs/project/RELEASE_CADENCE.md](docs/project/RELEASE_CADENCE.md)
 
 Execution guidance and orchestration:
-- [docs/PHASE_VI_EXECUTION_GUIDANCE.md](docs/PHASE_VI_EXECUTION_GUIDANCE.md)
-- [docs/PHASE_VI_PARALLEL_SUBSTRATE.md](docs/PHASE_VI_PARALLEL_SUBSTRATE.md)
-- [docs/POST_PHASE_VI_OVERVIEW.md](docs/POST_PHASE_VI_OVERVIEW.md)
-- [docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md](docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md)
+- [docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md](docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md)
+- [docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md](docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md)
+- [docs/orchestration/POST_PHASE_VI_OVERVIEW.md](docs/orchestration/POST_PHASE_VI_OVERVIEW.md)
+- [docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md](docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md)
 
 Budget-aware orchestration:
-- [docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md](docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md)
-- [docs/PHASE_VII_WORK.json](docs/PHASE_VII_WORK.json)
+- [docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md](docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md)
+- [docs/orchestration/PHASE_VII_WORK.json](docs/orchestration/PHASE_VII_WORK.json)
 
 Contracts and adapters:
-- [docs/CONTRACT_COMPATIBILITY.md](docs/CONTRACT_COMPATIBILITY.md)
-- [docs/PROVIDER_ADAPTER_PLAN.md](docs/PROVIDER_ADAPTER_PLAN.md)
-- [docs/HTTP_PROVIDER_TLS.md](docs/HTTP_PROVIDER_TLS.md)
+- [docs/providers/CONTRACT_COMPATIBILITY.md](docs/providers/CONTRACT_COMPATIBILITY.md)
+- [docs/providers/PROVIDER_ADAPTER_PLAN.md](docs/providers/PROVIDER_ADAPTER_PLAN.md)
+- [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md)
 
 TurboQuant research archive:
-- [docs/TURBOQUANT_SPIKE.md](docs/TURBOQUANT_SPIKE.md)
-- [docs/TURBOQUANT_METRIC.md](docs/TURBOQUANT_METRIC.md)
-- [docs/TURBOQUANT_CAP_MLX.md](docs/TURBOQUANT_CAP_MLX.md)
+- [docs/turboquant/TURBOQUANT_SPIKE.md](docs/turboquant/TURBOQUANT_SPIKE.md)
+- [docs/turboquant/TURBOQUANT_METRIC.md](docs/turboquant/TURBOQUANT_METRIC.md)
+- [docs/turboquant/TURBOQUANT_CAP_MLX.md](docs/turboquant/TURBOQUANT_CAP_MLX.md)
 
 ## Validation
 
@@ -313,8 +341,8 @@ Versioning:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - [SECURITY.md](SECURITY.md)
-- [docs/GOOD_FIRST_ISSUES.md](docs/GOOD_FIRST_ISSUES.md)
-- [docs/CONTRIBUTOR_WALKTHROUGH.md](docs/CONTRIBUTOR_WALKTHROUGH.md)
+- [docs/contributing/GOOD_FIRST_ISSUES.md](docs/contributing/GOOD_FIRST_ISSUES.md)
+- [docs/contributing/CONTRIBUTOR_WALKTHROUGH.md](docs/contributing/CONTRIBUTOR_WALKTHROUGH.md)
 
 ## License
 

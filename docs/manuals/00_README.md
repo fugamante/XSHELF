@@ -1,4 +1,4 @@
-# cx manuals (browse layout)
+# XSHELF manuals (browse layout)
 
 This folder is organized for fast browsing (source vs outputs vs build artifacts).
 This repository documents the Rust-first runtime as the canonical technical direction.
@@ -33,7 +33,7 @@ cp -f docs/manuals/99_build/latexmk/CX_MANUAL_MASTER.pdf docs/manuals/01_pdf/CX_
 
 ## Scope guard
 
-- Rust (`cxrs`) is canonical runtime behavior.
+- Rust (`cxrs`) is canonical runtime behavior for XSHELF.
 - Bash is compatibility/bootstrap only.
 - Manual updates should reflect Rust command/module behavior first, then fallback notes.
 
@@ -42,5 +42,5 @@ cp -f docs/manuals/99_build/latexmk/CX_MANUAL_MASTER.pdf docs/manuals/01_pdf/CX_
 - Centralized runtime configuration via `rust/cxrs/src/modules/config.rs` (`AppConfig` startup snapshot).
 - Unified non-schema LLM command execution path via `rust/cxrs/src/modules/agentcmds.rs`:
   - `execute_llm_command(..., LlmMode)`
-  - thin wrappers for `cx`, `cxj`, `cxo`, `cxol`
+  - thin wrappers for `xshelf`/`cx` compatibility execution helpers (`cx`, `cxj`, `cxo`, `cxol`)
 - Structured schema commands remain isolated in dedicated handlers (`structured_cmds`) to preserve strict schema contracts.

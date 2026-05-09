@@ -14,14 +14,14 @@
 - `cx` remains a supported compatibility alias during migration.
 - Preserve `CX_*` environment variable compatibility by default.
 - Keep `cx` examples where compatibility context matters.
-- Rename policy is defined in `docs/XSHELF_RENAME_MIGRATION.md`.
+- Rename policy is defined in `docs/project/XSHELF_RENAME_MIGRATION.md`.
 
 ## Start Here
 
-- New contributor issue list: `docs/GOOD_FIRST_ISSUES.md`
-- Contributor walkthrough: `docs/CONTRIBUTOR_WALKTHROUGH.md`
-- Roadmap: `docs/ROADMAP.md`
-- Release cadence: `docs/RELEASE_CADENCE.md`
+- New contributor issue list: `docs/contributing/GOOD_FIRST_ISSUES.md`
+- Contributor walkthrough: `docs/contributing/CONTRIBUTOR_WALKTHROUGH.md`
+- Roadmap: `docs/project/ROADMAP.md`
+- Release cadence: `docs/project/RELEASE_CADENCE.md`
 
 ## Development Setup
 
