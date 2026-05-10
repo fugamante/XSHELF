@@ -57,13 +57,40 @@ fn backend_available(name: &str) -> bool {
         "ollama" => std::env::var("CX_DISABLE_OLLAMA")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),
+        "llamacpp" => std::env::var("CX_DISABLE_LLAMA_CPP")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
+        "mlx" => std::env::var("CX_DISABLE_MLX")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
         _ => false,
     };
     if disabled {
         return false;
     }
+    if name == "mlx" {
+        let python = std::env::var("CX_MLX_PYTHON")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "python3".to_string());
+        return Command::new(python)
+            .args(["-c", "import mlx_lm"])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+    }
+    let bin = if name == "llamacpp" {
+        std::env::var("CX_LLAMA_CPP_BIN")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "llama-cli".to_string())
+    } else {
+        name.to_string()
+    };
     Command::new("bash")
-        .args(["-lc", &format!("command -v {name} >/dev/null 2>&1")])
+        .args(["-lc", &format!("command -v {bin} >/dev/null 2>&1")])
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
@@ -102,8 +129,11 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
                 let Some(v) = args.get(i + 1) else {
                     return Err(broker_error("benchmark", "--backend requires a value"));
                 };
-                let b = v.trim().to_lowercase();
-                if !matches!(b.as_str(), "codex" | "ollama") {
+                let b = match v.trim().to_lowercase().as_str() {
+                    "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
+                    other => other.to_string(),
+                };
+                if !matches!(b.as_str(), "codex" | "ollama" | "llamacpp" | "mlx") {
                     return Err(broker_error("benchmark", &format!("invalid backend '{b}'")));
                 }
                 if !backends.iter().any(|x| x == &b) {
@@ -436,6 +466,8 @@ fn broker_show_value() -> Value {
     let policy = app_config().broker_policy.clone();
     let codex_ok = backend_available("codex");
     let ollama_ok = backend_available("ollama");
+    let llamacpp_ok = backend_available("llamacpp");
+    let mlx_ok = backend_available("mlx");
     let adapter_rollout_policy = adapter_policy_value();
     json!({
         "contract_version": BROKER_SHOW_JSON_CONTRACT_VERSION,
@@ -444,7 +476,9 @@ fn broker_show_value() -> Value {
         "active_model": if active_model.is_empty() { Value::Null } else { json!(active_model) },
         "availability": {
             "codex": codex_ok,
-            "ollama": ollama_ok
+            "ollama": ollama_ok,
+            "llamacpp": llamacpp_ok,
+            "mlx": mlx_ok
         },
         "adapter_rollout_policy": adapter_rollout_policy
     })
@@ -470,6 +504,8 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
             let policy = app_config().broker_policy.clone();
             let codex_ok = backend_available("codex");
             let ollama_ok = backend_available("ollama");
+            let llamacpp_ok = backend_available("llamacpp");
+            let mlx_ok = backend_available("mlx");
 
             println!("== cx broker ==");
             println!("policy: {policy}");
@@ -490,6 +526,11 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
                 "availability.ollama: {}",
                 if ollama_ok { "yes" } else { "no" }
             );
+            println!(
+                "availability.llamacpp: {}",
+                if llamacpp_ok { "yes" } else { "no" }
+            );
+            println!("availability.mlx: {}", if mlx_ok { "yes" } else { "no" });
             0
         }
         "set" => {

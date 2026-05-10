@@ -1,9 +1,9 @@
-# cxrs (Rust runtime for XSHELF/CX)
+# cxrs (Rust runtime for XSHELF)
 
-`cxrs` is the canonical Rust implementation for the `XSHELF/CX` toolchain.
+`cxrs` is the canonical Rust implementation for the `XSHELF` toolchain.
 
 Project naming note:
-- `XSHELF/CX/cxrs` is an independent open-source project and is not affiliated with or endorsed by OpenAI.
+- `XSHELF/cxrs` is an independent open-source project and is not affiliated with or endorsed by OpenAI.
 
 Current scope:
 - standalone binary scaffold
@@ -15,7 +15,7 @@ Current scope:
 - `bench` log correlation using appended-run windows + prompt-hash preference
 - `metrics` parity command for token/time aggregates
 - prompt engineering commands: `prompt`, `roles`, `fanout`, `promptlint`
-- execution helpers: `cx`, `cxj`, `cxo`, `cxol`, `cxcopy`, `fix`
+- execution helpers: `xshelf` canonical command surface plus compatibility helpers (`cx`, `cxj`, `cxo`, `cxol`, `cxcopy`, `fix`)
 - operational helpers: `budget`, `log-tail`, `health`
 - capture inspection helper: `capture-status`
 - process-local utility toggles: `log-off`, `alert-show`, `alert-off`
@@ -35,13 +35,13 @@ Current scope:
 - strict `commitjson` and `commitmsg` from staged diff
 - strict `diffsum` and `diffsum-staged` PR-summary generators
 - strict `fix-run` remediation suggestions with dangerous-command blocking
-- LLM backend routing: `codex` (default) or `ollama` (local alternative)
+- LLM backend routing: `codex` (default), `ollama` (local alternative), `llamacpp` (local GGUF via llama.cpp `llama-cli`), or `mlx` (Apple-local via `mlx-lm`)
 - quality gate currently clean (`file_violations=0`, `function_violations=0`)
 - naming guardrails enforce concise Rust symbols and test names in CI/local checks
 - test naming guardrail covers both `#[test]` and async forms like `#[tokio::test]`
 - readability discipline enforces max 3 segments (2 underscores) for new file/function names via grandfathered allowlists
 
-This crate is authoritative runtime behavior for `cx`.
+This crate is authoritative runtime behavior for XSHELF.
 Bash is reduced to a thin bootstrap shim and no longer provides command fallback.
 
 ## Configuration
@@ -53,7 +53,7 @@ Runtime configuration is centralized in `src/modules/config.rs`:
 
 Primary toggles:
 - `CX_MODE`, `CX_SCHEMA_RELAXED`
-- `CX_LLM_BACKEND`, `CX_OLLAMA_MODEL`, `CX_MODEL`
+- `CX_LLM_BACKEND`, `CX_OLLAMA_MODEL`, `CX_LLAMA_CPP_MODEL`, `CX_LLAMA_CPP_BIN`, `CX_LLAMA_CPP_ARGS`, `CX_MLX_MODEL`, `CX_MLX_PYTHON`, `CX_MLX_ARGS`, `CX_MLX_MAX_TOKENS`, `CX_MODEL`
 - `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`, `CX_HTTP_PROVIDER_FORMAT`
 - `CX_HTTP_REQUIRE_HTTPS` (default `1`), `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`)
 - `CX_HTTP_ALLOWED_HOSTS` (optional CSV allowlist), `CX_HTTP_TLS_PINNEDPUBKEY` (optional curl pinning hook)
@@ -74,8 +74,8 @@ Primary toggles:
 
 End users do not need the full test suite for normal product usage.
 
-- Normal runtime usage: `cx`, `cxrs`, `doctor`, `health`, schema commands, task commands
-- Lightweight runtime verification: `cx doctor`, `cx health`
+- Normal runtime usage: `xshelf`, `xs`, `cxrs`, `doctor`, `health`, schema commands, task commands
+- Lightweight runtime verification: `xshelf doctor`, `xshelf health`
 - Maintainer-only validation: `cargo test`, `compat-check`, `parity-check`, CI guardrails
 
 The shipped runtime does not run the full test suite during normal command execution.
@@ -182,7 +182,7 @@ Capture provider:
 
 Runtime users need only the runtime dependencies listed above plus either:
 - an installed `cxrs` binary, or
-- the repo checkout with `bin/cx`
+- the repo checkout with `bin/xshelf` (`bin/cx` remains the compatibility alias)
 
 Maintainers additionally need:
 - Rust toolchain
@@ -220,7 +220,10 @@ cargo run -- where
 cargo run -- doctor
 cargo run -- where
 cargo run -- llm show
+cargo run -- llm check
 cargo run -- llm use ollama llama3.1
+cargo run -- llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+cargo run -- llm smoke "Respond with OK only."
 cargo run -- llm unset model
 cargo run -- llm unset backend
 cargo run -- llm set-backend ollama
@@ -228,6 +231,7 @@ cargo run -- llm set-model llama3.1
 cargo run -- llm set-backend codex
 CX_LLM_BACKEND=ollama CX_OLLAMA_MODEL=llama3.1 cargo run -- doctor
 CX_LLM_BACKEND=ollama CX_OLLAMA_MODEL=llama3.1 cargo run -- cxo git status
+CX_LLM_BACKEND=llamacpp CX_LLAMA_CPP_MODEL=ggml-org/Qwen3-0.6B-GGUF:Q4_0 CX_CMD_TIMEOUT_SECS=600 CX_LLAMA_CPP_ARGS="-n 64 --temp 0 -c 2048 --simple-io" cargo run -- cxo printf 'xshelf llamacpp smoke\n'
 cargo run -- state show
 cargo run -- state set preferences.conventional_commits true
 cargo run -- state get preferences.conventional_commits

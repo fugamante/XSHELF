@@ -92,10 +92,10 @@ fn task_prompt(task: &TaskRecord) -> String {
 
 fn task_backend_override(task: &TaskRecord) -> Option<String> {
     let backend = task.backend.trim().to_lowercase();
-    if matches!(backend.as_str(), "codex" | "ollama") {
-        Some(backend)
-    } else {
-        None
+    match backend.as_str() {
+        "codex" | "ollama" | "llamacpp" | "mlx" => Some(backend),
+        "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
+        _ => None,
     }
 }
 
@@ -134,6 +134,8 @@ fn run_task_prompt(
     let prev_mode = env::var("CX_MODE").ok();
     let prev_backend = env::var("CX_LLM_BACKEND").ok();
     let prev_ollama_model = env::var("CX_OLLAMA_MODEL").ok();
+    let prev_llama_cpp_model = env::var("CX_LLAMA_CPP_MODEL").ok();
+    let prev_mlx_model = env::var("CX_MLX_MODEL").ok();
     if let Some(mode) = mode_override {
         // scoped overrides for prompt-based task execution.
         unsafe { env::set_var("CX_MODE", mode) };
@@ -142,7 +144,13 @@ fn run_task_prompt(
         unsafe { env::set_var("CX_LLM_BACKEND", backend) };
     }
     if let Some(model) = model_override {
-        unsafe { env::set_var("CX_OLLAMA_MODEL", model) };
+        if backend_override == Some("llamacpp") {
+            unsafe { env::set_var("CX_LLAMA_CPP_MODEL", model) };
+        } else if backend_override == Some("mlx") {
+            unsafe { env::set_var("CX_MLX_MODEL", model) };
+        } else {
+            unsafe { env::set_var("CX_OLLAMA_MODEL", model) };
+        }
     }
     let exec_result = (runner.execute_task)(TaskSpec {
         command_name: "cxtask_run".to_string(),
@@ -156,6 +164,8 @@ fn run_task_prompt(
     set_optional_env("CX_MODE", prev_mode);
     set_optional_env("CX_LLM_BACKEND", prev_backend);
     set_optional_env("CX_OLLAMA_MODEL", prev_ollama_model);
+    set_optional_env("CX_LLAMA_CPP_MODEL", prev_llama_cpp_model);
+    set_optional_env("CX_MLX_MODEL", prev_mlx_model);
     let res = exec_result?;
     if emit_output {
         println!("{}", res.stdout);
@@ -184,7 +194,13 @@ fn run_objective_subprocess(
         cmd.env("CX_LLM_BACKEND", backend);
     }
     if let Some(model) = model_override {
-        cmd.env("CX_OLLAMA_MODEL", model);
+        if backend_override == Some("llamacpp") {
+            cmd.env("CX_LLAMA_CPP_MODEL", model);
+        } else if backend_override == Some("mlx") {
+            cmd.env("CX_MLX_MODEL", model);
+        } else {
+            cmd.env("CX_OLLAMA_MODEL", model);
+        }
     }
     if emit_output {
         let status = crate::process::run_command_status_with_timeout(cmd, "cxtask_run subprocess")?;

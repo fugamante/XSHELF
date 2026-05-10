@@ -79,7 +79,7 @@ struct AddArgs {
 fn parse_objective_prefix(app_name: &str, args: &[String]) -> Result<(String, usize), i32> {
     if args.is_empty() {
         crate::cx_eprintln!(
-            "Usage: {app_name} task add <objective> [--role <role>] [--parent <id>] [--context <ref>] [--backend <auto|codex|ollama>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>] [--resource-keys <k1,k2>] [--max-retries <n>] [--timeout-secs <n>]"
+            "Usage: {app_name} task add <objective> [--role <role>] [--parent <id>] [--context <ref>] [--backend <auto|codex|ollama|llamacpp|mlx>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>] [--resource-keys <k1,k2>] [--max-retries <n>] [--timeout-secs <n>]"
         );
         return Err(2);
     }
@@ -168,8 +168,11 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
                     crate::cx_eprintln!("{} task add: --backend requires a value", cli_app_name());
                     return Err(2);
                 };
-                let b = v.trim().to_lowercase();
-                if !matches!(b.as_str(), "auto" | "codex" | "ollama") {
+                let b = match v.trim().to_lowercase().as_str() {
+                    "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
+                    other => other.to_string(),
+                };
+                if !matches!(b.as_str(), "auto" | "codex" | "ollama" | "llamacpp" | "mlx") {
                     crate::cx_eprintln!("{} task add: invalid --backend '{b}'", cli_app_name());
                     return Err(2);
                 }

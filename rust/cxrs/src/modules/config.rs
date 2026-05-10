@@ -48,6 +48,8 @@ pub struct AppConfig {
     pub clip_footer: bool,
     pub llm_backend: String,
     pub ollama_model: String,
+    pub llama_cpp_model: String,
+    pub mlx_model: String,
     pub codex_model: String,
     pub cxbench_log: bool,
     pub cxbench_passthru: bool,
@@ -96,10 +98,11 @@ fn resolve_backend(state: &Option<Value>) -> String {
         .filter(|s| !s.is_empty())
         .or_else(|| state_pref_str(state, "preferences.llm_backend"))
         .unwrap_or_else(|| "codex".to_string());
-    if raw.eq_ignore_ascii_case("ollama") {
-        "ollama".to_string()
-    } else {
-        "codex".to_string()
+    match raw.to_ascii_lowercase().as_str() {
+        "ollama" => "ollama".to_string(),
+        "llamacpp" | "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
+        "mlx" => "mlx".to_string(),
+        _ => "codex".to_string(),
     }
 }
 
@@ -109,6 +112,24 @@ fn resolve_ollama_model(state: &Option<Value>) -> String {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .or_else(|| state_pref_str(state, "preferences.ollama_model"))
+        .unwrap_or_default()
+}
+
+fn resolve_llama_cpp_model(state: &Option<Value>) -> String {
+    env::var("CX_LLAMA_CPP_MODEL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| state_pref_str(state, "preferences.llama_cpp_model"))
+        .unwrap_or_default()
+}
+
+fn resolve_mlx_model(state: &Option<Value>) -> String {
+    env::var("CX_MLX_MODEL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| state_pref_str(state, "preferences.mlx_model"))
         .unwrap_or_default()
 }
 
@@ -135,6 +156,8 @@ impl AppConfig {
             clip_footer: env_bool("CX_CONTEXT_CLIP_FOOTER", true),
             llm_backend: resolve_backend(&state),
             ollama_model: resolve_ollama_model(&state),
+            llama_cpp_model: resolve_llama_cpp_model(&state),
+            mlx_model: resolve_mlx_model(&state),
             codex_model: env::var("CX_MODEL").unwrap_or_default(),
             cxbench_log: env_bool("CXBENCH_LOG", true),
             cxbench_passthru: env_bool("CXBENCH_PASSTHRU", false),

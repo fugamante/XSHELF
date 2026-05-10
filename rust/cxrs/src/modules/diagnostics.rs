@@ -619,7 +619,10 @@ fn concurrency_diag_value(
     cfg: &crate::config::AppConfig,
 ) -> Value {
     let default_backend = cfg.llm_backend.to_lowercase();
-    let default_backend_pool = if matches!(default_backend.as_str(), "codex" | "ollama") {
+    let default_backend_pool = if matches!(
+        default_backend.as_str(),
+        "codex" | "ollama" | "llamacpp" | "mlx"
+    ) {
         vec![default_backend]
     } else {
         vec!["codex".to_string()]

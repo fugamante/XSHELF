@@ -172,21 +172,22 @@ pub(super) fn quota_probe_payload(
         .sum();
 
     let mut resolved = configured_quota_total(&backend);
-    let (service_kind, total, remaining, remaining_pct) = if backend == "ollama" {
-        resolved.source = "service:local_unmetered".to_string();
-        resolved.limit_type = "unmetered".to_string();
-        ("local_unmetered", Value::Null, Value::Null, Value::Null)
-    } else if let Some(total_tokens) = resolved.total_tokens {
-        let rem = total_tokens.saturating_sub(used_effective);
-        let pct = if total_tokens == 0 {
-            Value::Null
+    let (service_kind, total, remaining, remaining_pct) =
+        if matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx") {
+            resolved.source = "service:local_unmetered".to_string();
+            resolved.limit_type = "unmetered".to_string();
+            ("local_unmetered", Value::Null, Value::Null, Value::Null)
+        } else if let Some(total_tokens) = resolved.total_tokens {
+            let rem = total_tokens.saturating_sub(used_effective);
+            let pct = if total_tokens == 0 {
+                Value::Null
+            } else {
+                json!(rem as f64 / total_tokens as f64)
+            };
+            ("remote_metered", json!(total_tokens), json!(rem), pct)
         } else {
-            json!(rem as f64 / total_tokens as f64)
+            ("remote_metered", Value::Null, Value::Null, Value::Null)
         };
-        ("remote_metered", json!(total_tokens), json!(rem), pct)
-    } else {
-        ("remote_metered", Value::Null, Value::Null, Value::Null)
-    };
 
     json!({
         "window_days": days,

@@ -133,9 +133,11 @@ Backend selection:
 
 ```bash
 ./bin/xshelf llm show
+./bin/xshelf llm check
 ./bin/xshelf llm use codex
 ./bin/xshelf llm use ollama llama3.1
 ./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```
 

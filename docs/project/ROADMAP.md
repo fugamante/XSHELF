@@ -65,6 +65,29 @@
   - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
+## Phase VIII (active implementation)
+
+- Planning spec: `docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md`
+- Work queue: `docs/orchestration/PHASE_VIII_WORK.json`
+- Goal: turn local model selection into a typed lifecycle substrate for MLX and other local backends.
+- Discovery basis:
+  - oMLX shows the value of treating Apple-local models as lifecycle objects rather than one-off model strings.
+  - XSHELF already supports `mlx` through `mlx-lm`, but model management is currently limited to a selected model string.
+- First contract focus:
+  - local model registry
+  - alias resolution
+  - cheap inspect/accounting
+  - typed runtime capabilities
+  - registry-aware smoke/benchmark profiles
+  - explicit resident-server opt-in through existing adapter boundaries
+- Current implementation state:
+  - Slice 1 landed:
+    - `.codex/local_models.json` registry
+    - `xshelf llm models list|add|inspect|remove`
+    - deterministic JSON/text outputs with focused integration coverage
+- Guardrail:
+  - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
+
 ## Phase VI (stabilized substrate)
 
 - Kickoff spec: `docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md`

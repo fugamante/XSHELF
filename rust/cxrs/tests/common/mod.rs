@@ -195,6 +195,10 @@ impl TempRepo {
     pub fn quota_catalog_file(&self) -> PathBuf {
         self.root.join(".codex").join("quota_catalog.json")
     }
+
+    pub fn local_models_file(&self) -> PathBuf {
+        self.root.join(".codex").join("local_models.json")
+    }
 }
 
 impl Drop for TempRepo {

@@ -2127,10 +2127,10 @@ fn dry_run_out(
 
 fn normalize_backend(v: &str) -> Option<String> {
     let b = v.trim().to_lowercase();
-    if matches!(b.as_str(), "codex" | "ollama") {
-        Some(b)
-    } else {
-        None
+    match b.as_str() {
+        "codex" | "ollama" | "llamacpp" | "mlx" => Some(b),
+        "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
+        _ => None,
     }
 }
 
@@ -2140,7 +2140,7 @@ fn parse_backend_pool(raw: &str) -> Result<Vec<String>, String> {
     out.dedup();
     if out.is_empty() {
         return Err(format!(
-            "{} task run-all: --backend-pool requires codex and/or ollama",
+            "{} task run-all: --backend-pool requires codex, ollama, llamacpp, and/or mlx",
             cli_app_name()
         ));
     }
@@ -2184,7 +2184,7 @@ fn parse_backend_cap(raw: &str) -> Result<(String, usize), String> {
 
 fn default_backend_pool() -> Vec<String> {
     let backend = app_config().llm_backend.to_lowercase();
-    if matches!(backend.as_str(), "codex" | "ollama") {
+    if matches!(backend.as_str(), "codex" | "ollama" | "llamacpp" | "mlx") {
         vec![backend]
     } else {
         vec!["codex".to_string()]
@@ -2199,13 +2199,40 @@ fn backend_available(name: &str) -> bool {
         "ollama" => std::env::var("CX_DISABLE_OLLAMA")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),
+        "llamacpp" => std::env::var("CX_DISABLE_LLAMA_CPP")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
+        "mlx" => std::env::var("CX_DISABLE_MLX")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
         _ => false,
     };
     if disabled {
         return false;
     }
+    if name == "mlx" {
+        let python = std::env::var("CX_MLX_PYTHON")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "python3".to_string());
+        let mut cmd = Command::new(python);
+        cmd.args(["-c", "import mlx_lm"]);
+        return run_command_status_with_timeout(cmd, "mlx import check")
+            .ok()
+            .is_some_and(|s| s.success());
+    }
+    let bin = if name == "llamacpp" {
+        std::env::var("CX_LLAMA_CPP_BIN")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "llama-cli".to_string())
+    } else {
+        name.to_string()
+    };
     let mut cmd = Command::new("bash");
-    cmd.args(["-lc", &format!("command -v {name} >/dev/null 2>&1")]);
+    cmd.args(["-lc", &format!("command -v {bin} >/dev/null 2>&1")]);
     run_command_status_with_timeout(cmd, "command -v")
         .ok()
         .is_some_and(|s| s.success())
@@ -2232,7 +2259,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
