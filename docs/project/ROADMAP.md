@@ -88,6 +88,25 @@
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
+## Phase X (active planning)
+
+- Planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`
+- Work queue: `docs/orchestration/PHASE_X_WORK.json`
+- Goal: reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence.
+- Discovery basis:
+  - the current capture reducer and budget clipper already reduce obvious prompt bloat
+  - the next gain is command-specific reduction metadata, recall gates, and priority-based prompt assembly
+  - generic byte compression does not reduce prompt tokens unless the model/runtime understands the compressed representation
+- First contract focus:
+  - internal reducer metadata
+  - critical-span retention contracts
+  - golden and adversarial fixture classes
+  - test-output reducer recall
+  - diff reducer recall
+  - budget-aware prompt assembly
+- Guardrail:
+  - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
+
 ## Phase VI (stabilized substrate)
 
 - Kickoff spec: `docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md`
