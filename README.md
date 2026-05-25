@@ -137,6 +137,9 @@ Backend selection:
 ./bin/xshelf llm use codex
 ./bin/xshelf llm use ollama llama3.1
 ./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+./bin/xshelf llm models list --json | jq .
+./bin/xshelf llm models add local_qwen --backend mlx --model mlx-community/Qwen2.5-1.5B-Instruct-4bit
+./bin/xshelf llm models inspect local_qwen --json | jq .
 ./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```
@@ -270,6 +273,14 @@ Execution guidance and orchestration:
 Budget-aware orchestration:
 - [docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md](docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md)
 - [docs/orchestration/PHASE_VII_WORK.json](docs/orchestration/PHASE_VII_WORK.json)
+
+Local model substrate (Phase VIII):
+- [docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md)
+- [docs/orchestration/PHASE_VIII_WORK.json](docs/orchestration/PHASE_VIII_WORK.json)
+
+Token compression planning (Phase X):
+- [docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md](docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md)
+- [docs/orchestration/PHASE_X_WORK.json](docs/orchestration/PHASE_X_WORK.json)
 
 Contracts and adapters:
 - [docs/providers/CONTRACT_COMPATIBILITY.md](docs/providers/CONTRACT_COMPATIBILITY.md)

@@ -15,6 +15,14 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Phase VIII local model substrate (Slice 1):
+  - added repo-scoped local model registry at `.codex/local_models.json`.
+  - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
+  - `llm use mlx <alias>` now resolves through the local model registry while preserving direct `CX_MLX_MODEL` compatibility.
+- Phase X token-compression planning corpus:
+  - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
+  - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
+  - roadmap now tracks Phase X as active planning with explicit non-goals for generic storage/assembly compression paths.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
