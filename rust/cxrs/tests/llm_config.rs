@@ -212,7 +212,7 @@ printf 'llama.cpp ok'
 }
 
 #[test]
-fn llamacpp_backend_uses_hf_repo_flag_for_repo_quant() {
+fn llamacpp_backend_uses_hf_repo_quant() {
     let repo = TempRepo::new("cxrs-llm");
     let args_file = repo.root.join("llama_args.txt");
     repo.write_mock(
@@ -515,7 +515,7 @@ OUT
 }
 
 #[test]
-fn llm_check_reports_mlx_runtime_and_model_status() {
+fn llm_check_reports_mlx_runtime_status() {
     let repo = TempRepo::new("cxrs-llm");
     repo.write_mock(
         "mlx-python",
