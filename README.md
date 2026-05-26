@@ -1,51 +1,47 @@
 # XSHELF (formerly CX)
 
-`XSHELF` is a deterministic, Rust-first runtime for LLM-assisted repository
-work.
+`XSHELF` is a deterministic Rust runtime for LLM-assisted repository work: it
+wraps repo commands with structured validation, inspectable runtime state, and
+explicit execution policy.
 
-It turns repository commands, model calls, task orchestration, diagnostics, and
-policy state into explicit runtime surfaces that operators and downstream tools
-can inspect.
-
-Use it when you want:
-- schema-enforced command results instead of loose agent text
-- repo-scoped logs, quarantine, replay, and task state
-- visible execution policy instead of silent backend or autonomy drift
-- machine-readable diagnostics for automation and CI
+Use it when free-form agent output is too loose for automation, CI, or operator
+workflows that need stable JSON contracts and replayable diagnostics.
 
 Trust and naming:
 - `XSHELF/CX` is an independent open-source project and is not affiliated with
   or endorsed by OpenAI.
 - `XSHELF` is the primary project name.
-- `CX` remains a compatibility name across the current command surface during
-  transition.
+- `CX` remains a supported compatibility command surface during migration
+  (`./bin/cx ...`).
 
 ## Try It
 
-From a clone of this repository:
+Start here in two minutes. These first commands are read-only inspection checks;
+they do not change repository configuration.
 
 ```bash
 ./bin/xshelf version
-./bin/xshelf core
-./bin/xshelf schema list
-```
-
-Check task orchestration readiness:
-
-```bash
 ./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20
 ```
 
-Inspect machine-readable runtime state:
+Expected results:
+- `version` prints the XSHELF runtime version.
+- `task check --json` reports task orchestration readiness.
+- `core --json` prints machine-readable runtime and backend state.
+- `diag --json` prints recent machine-readable diagnostics.
+
+Then check backend health:
 
 ```bash
-./bin/xshelf core --json
-./bin/xshelf diag --json --window 50
-./bin/xshelf scheduler --json --window 50
+./bin/xshelf llm check
+./bin/xshelf doctor
+./bin/xshelf health
 ```
 
-When the selected backend is configured and healthy, run normal repository
-commands through the LLM-backed command path:
+Run `cxo` only after readiness and backend checks are healthy. A safe first
+command is a read-only repository inspection:
 
 ```bash
 ./bin/xshelf cxo git status
@@ -54,37 +50,30 @@ commands through the LLM-backed command path:
 The short alias is available as `./bin/xs ...`; the compatibility alias remains
 available as `./bin/cx ...`.
 
+## Who It Is For
+
+XSHELF is for:
+- repo operators who need auditable command results instead of loose agent text
+- teams wiring LLM-assisted workflows into CI or local automation
+- developers testing hosted or local model backends behind explicit policy
+
 ## What You Get
 
-Deterministic command execution:
-- output capture, native reduction, budgeting, LLM execution, validation, and
-  logging run through the Rust pipeline
-- invalid structured results are quarantined for replay instead of silently
-  accepted
-- schema surfaces are inspectable with `schema list` and `next`
+- Deterministic command pipeline: capture, reduce, budget, execute, validate,
+  quarantine invalid structured output, and append telemetry.
+- Structured runtime visibility: JSON surfaces for `core`, `diag`, `scheduler`,
+  `telemetry`, `logs`, `optimize`, `policy`, `quota`, and `broker`.
+- Task orchestration: `task add`, `task fanout`, `task run`, and `task run-all`
+  with explicit readiness and concurrency summaries.
+- Backend policy: default `codex`, optional `ollama`, `llamacpp`, and `mlx`,
+  with HTTP transport behind explicit rollout policy.
 
-Structured diagnostics:
-- append-only telemetry, diagnostics, and policy visibility
-- JSON surfaces for `core`, `diag`, `scheduler`, `telemetry`, `logs`, `optimize`,
-  `policy`, `quota`, and `broker`
-- repo-scoped runtime state under `.codex/` during the current compatibility
-  period
-
-Task orchestration:
-- task graph commands: `task add`, `task fanout`, `task run`, and
-  `task run-all`
-- sequential, mixed, and parallel run modes with explicit readiness and
-  concurrency summaries
-- task, diagnostic, and telemetry views expose orchestration state
-
-Backend policy:
-- `codex` is the default backend
-- `ollama` is optional
-- `llamacpp` is optional for local GGUF models through llama.cpp `llama-cli`
-- `mlx` is optional for Apple-local MLX models through `mlx-lm`
-- HTTP transport stays behind explicit rollout policy, including one
-  OpenAI-compatible HTTP JSON request profile on the existing `http-curl`
-  adapter boundary
+Key terms:
+- deterministic: same inputs and settings produce inspectable runtime behavior
+- schema: the required JSON shape a structured command result must match
+- quarantine: invalid structured output is saved for inspection and replay
+- backend: the model runtime that handles LLM calls
+- policy: explicit rules for allowed execution paths and transports
 
 ## Entrypoints
 

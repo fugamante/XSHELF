@@ -3,9 +3,9 @@
 Purpose: coordinate README landing-page research before changing the CX/XSHELF
 root landing page.
 
-The board should use two research agents, then decide the smallest README update
-that improves orientation, trust, and first-run clarity without weakening the
-project's deterministic/runtime-first positioning.
+The board should use three complementary reviewers, then decide the smallest
+README update that improves orientation, trust, and first-run clarity without
+weakening the project's deterministic/runtime-first positioning.
 
 ## Scope
 
@@ -19,69 +19,82 @@ Current product frame:
 - Rust runtime, structured JSON contracts, quarantine/replay, policy visibility,
   and repo-scoped state remain the core differentiators.
 
-## Agent A: Developer Tool README Patterns
+## Reviewer A: Industrial Design And Aesthetic Fit
 
-Role: research popular developer-tool README landings.
-
-Reference set:
-- `astral-sh/uv`: https://github.com/astral-sh/uv
-- `vitejs/vite`: https://github.com/vitejs/vite
-- `cli/cli`: https://github.com/cli/cli
-- `BurntSushi/ripgrep`: https://github.com/BurntSushi/ripgrep
-- `fastapi/fastapi`: https://github.com/fastapi/fastapi
+Role: judge whether the landing page feels intentional, credible, and visually
+scannable for a developer tool without adding ornamental noise.
 
 Questions:
-- How quickly does the README state the user-facing promise?
-- Does the page show proof before a feature inventory?
-- How many commands are needed before the reader sees first output?
-- Which sections are above the fold: badges, visual proof, highlights,
-  installation, quickstart, docs link, benchmarks, examples?
-- How does the README separate beginner path from deep reference?
+- Does the first screen establish hierarchy: name, promise, proof, then path?
+- Are headings, bullets, code blocks, and notes visually balanced?
+- Is the top section compact enough to scan without feeling underexplained?
+- Do trust notes and compatibility notes feel deliberate rather than defensive?
+- Which visual or structural elements should be removed, condensed, or moved?
 
 Expected output:
-- five source notes with source URL, observed landing structure, and one
-  transferable pattern
-- three patterns to copy
-- three patterns to avoid for CX/XSHELF
-- one recommended top-of-README outline
+- aesthetic diagnosis of the current top section
+- recommended top-section structure and spacing rhythm
+- copy or layout elements to keep, cut, or move lower
+- risks where visual density could weaken trust or first-run clarity
 
-## Agent B: AI Agent And Runtime README Patterns
+## Reviewer B: Information Clarity And Message Utility
 
-Role: research popular AI-agent, LLM-runtime, and protocol README landings.
-
-Reference set:
-- `OpenHands/OpenHands`: https://github.com/OpenHands/OpenHands
-- `langchain-ai/langchain`: https://github.com/langchain-ai/langchain
-- `modelcontextprotocol/servers`: https://github.com/modelcontextprotocol/servers
-- `anthropics/claude-code-action`: https://github.com/anthropics/claude-code-action
+Role: condense constructs, clarify message utility, and ensure each term earns
+its place in the first-run path.
 
 Questions:
-- How does the README explain agent capability without overclaiming autonomy?
-- Does it segment use cases by user intent, component, or deployment mode?
-- Where does it introduce trust signals such as license, benchmarks, docs,
-  community, security posture, or execution boundary?
-- How does it describe provider/model flexibility?
-- How does it prevent configuration detail from crowding the landing promise?
+- What should a new reader know after 10 seconds, 60 seconds, and first run?
+- Which terms need definition before they are useful?
+- Which constructs can be collapsed into simpler user-facing outcomes?
+- Does the page distinguish promise, mechanism, proof, and reference?
+- Where does configuration detail crowd the landing promise?
 
 Expected output:
-- four source notes with source URL, observed landing structure, and one
-  transferable pattern
-- three trust-building patterns for CX/XSHELF
-- three phrasing risks to avoid
-- one recommended agent/runtime positioning paragraph
+- exact top-section copy proposal
+- glossary or term-definition recommendations
+- condensed feature grouping by user outcome
+- risks where phrasing overclaims, obscures boundaries, or dilutes naming
+
+## Reviewer C: Novice User Proxy
+
+Role: represent a first-time user with basic technical chops: comfortable with
+Git, shells, and JSON, but not already fluent in this project's runtime model.
+
+Questions:
+- Can the user explain what XSHELF is after one scan?
+- Can the user identify the safest first command without reading deep docs?
+- Which words, acronyms, or product names cause hesitation?
+- Does the README show what success looks like after the first command?
+- What is the next safe action if setup, policy, or backend choice is unclear?
+
+Expected output:
+- confusion log in reading order
+- safe first-run path with expected output shape
+- missing glossary terms or unclear aliases
+- section-order recommendations from novice orientation
+
+## Novice-Guided Refinement Loop
+
+Reviewer C should produce findings before final synthesis. Reviewers A and B
+must then update their recommendations in response:
+
+- Reviewer A revises layout and visual hierarchy to remove novice hesitation.
+- Reviewer B revises copy, term definitions, and condensation to answer novice
+  questions without expanding the top section unnecessarily.
+- The board synthesizes only after these revisions are complete.
 
 ## Board Intake
 
-The board should accept only source-backed observations. Each agent should
+The board should accept only evidence-backed observations. Each reviewer should
 produce notes in this shape:
 
 ```text
-Source:
-Landing order:
-First-run path:
-Trust signals:
-What CX/XSHELF should borrow:
-What CX/XSHELF should avoid:
+Reviewer:
+Observation:
+Evidence:
+First-run impact:
+Recommended change:
+Risk if ignored:
 ```
 
 ## Board Decision Rubric
@@ -120,9 +133,13 @@ Likely update direction:
 
 ## Board Output
 
-After reading both agent reports, the board should produce:
+After reading all reviewer reports and the novice-guided refinement pass, the
+board should produce:
 - recommended README outline
 - exact top-section copy draft
+- exact safe first-run path with expected output shape
+- glossary or term-definition list for unclear constructs
+- section-order recommendations
 - commands to keep above the fold
 - sections to move lower or split into docs
 - risks and validation checklist
