@@ -124,6 +124,7 @@ Notes:
   - added README `jq` one-liners to extract `diag/scheduler` `concurrency.defaults` and `concurrency.observed` for CI/operator checks.
   - `cxrs-compat` CI now includes a command-surface gate that fails when command entrypoints are changed without corresponding docs/changelog updates.
   - refined command-surface CI gate to require `CHANGELOG.md` whenever command entrypoint files change (README/docs updates remain optional but recommended).
+  - added workflow action pin guardrail in `cxrs-compat` to require third-party GitHub Actions to be pinned to full 40-character commit SHAs (`scripts/check_action_pins.sh`).
   - `cxrs-compat` now captures and uploads failure artifacts (`rust_check`, `compat_check`, `shell_regression` logs) per OS job to speed up CI triage.
   - `cxrs-compat` failure artifacts now include a compact `summary_<os>.txt` with error-pattern extracts and tail context for faster diagnosis.
 - Phase VI execution lane (explicit, non-default):
