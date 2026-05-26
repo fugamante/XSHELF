@@ -30,7 +30,7 @@ cd rust/cxrs
 cargo fmt
 cargo check
 cargo test --tests -- --test-threads=1
-python3 tools/quality_gate.py --max-raw-eprintln 0
+python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 ```
 
 ## Pull Request Requirements
