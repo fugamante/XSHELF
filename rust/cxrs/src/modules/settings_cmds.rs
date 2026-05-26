@@ -15,7 +15,7 @@ use crate::state::{
     value_at_path, write_json_atomic,
 };
 
-#[path = "settings_cmds_llm_models.rs"]
+#[path = "settings_models.rs"]
 mod llm_models;
 
 pub fn cmd_state_show() -> i32 {
