@@ -1,16 +1,92 @@
 # XSHELF (formerly CX)
 
-`XSHELF` is a deterministic, Rust-first LLM runtime for repository work.
+`XSHELF` is a deterministic, Rust-first runtime for LLM-assisted repository
+work.
 
-It is built for people who want:
-- structured command execution with schema-enforced JSON
-- repo-scoped runtime state, logs, quarantine, and task orchestration
-- explicit policy boundaries and execution guidance instead of silent agent drift
-- machine-readable diagnostics that downstream tools can rely on
+It turns repository commands, model calls, task orchestration, diagnostics, and
+policy state into explicit runtime surfaces that operators and downstream tools
+can inspect.
 
-Naming note:
-- `XSHELF/CX` is an independent open-source project and is not affiliated with or endorsed by OpenAI.
-- `CX` remains the compatibility name across the current command surface during transition.
+Use it when you want:
+- schema-enforced command results instead of loose agent text
+- repo-scoped logs, quarantine, replay, and task state
+- visible execution policy instead of silent backend or autonomy drift
+- machine-readable diagnostics for automation and CI
+
+Trust and naming:
+- `XSHELF/CX` is an independent open-source project and is not affiliated with
+  or endorsed by OpenAI.
+- `XSHELF` is the primary project name.
+- `CX` remains a compatibility name across the current command surface during
+  transition.
+
+## Try It
+
+From a clone of this repository:
+
+```bash
+./bin/xshelf version
+./bin/xshelf core
+./bin/xshelf schema list
+```
+
+Check task orchestration readiness:
+
+```bash
+./bin/xshelf task check --json
+```
+
+Inspect machine-readable runtime state:
+
+```bash
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 50
+./bin/xshelf scheduler --json --window 50
+```
+
+When the selected backend is configured and healthy, run normal repository
+commands through the LLM-backed command path:
+
+```bash
+./bin/xshelf cxo git status
+```
+
+The short alias is available as `./bin/xs ...`; the compatibility alias remains
+available as `./bin/cx ...`.
+
+## What You Get
+
+Deterministic command execution:
+- output capture, native reduction, budgeting, LLM execution, validation, and
+  logging run through the Rust pipeline
+- invalid structured results are quarantined for replay instead of silently
+  accepted
+- schema surfaces are inspectable with `schema list` and `next`
+
+Structured diagnostics:
+- append-only telemetry, diagnostics, and policy visibility
+- JSON surfaces for `core`, `diag`, `scheduler`, `telemetry`, `logs`, `optimize`,
+  `policy`, `quota`, and `broker`
+- repo-scoped runtime state under `.codex/` during the current compatibility
+  period
+
+Task orchestration:
+- task graph commands: `task add`, `task fanout`, `task run`, and
+  `task run-all`
+- sequential, mixed, and parallel run modes with explicit readiness and
+  concurrency summaries
+- task, diagnostic, and telemetry views expose orchestration state
+
+Backend policy:
+- `codex` is the default backend
+- `ollama` is optional
+- `llamacpp` is optional for local GGUF models through llama.cpp `llama-cli`
+- `mlx` is optional for Apple-local MLX models through `mlx-lm`
+- HTTP transport stays behind explicit rollout policy, including one
+  OpenAI-compatible HTTP JSON request profile on the existing `http-curl`
+  adapter boundary
+
+## Entrypoints
 
 Canonical runtime:
 - engine: `rust/cxrs`
@@ -18,33 +94,6 @@ Canonical runtime:
 - short alias: `bin/xs`
 - compatibility alias: `bin/cx`
 - compatibility shell shim: `lib/cx.sh`
-
-## What It Does
-
-Core runtime capabilities:
-- deterministic structured commands with quarantine/replay on validation failure
-- unified Rust execution pipeline:
-  - capture
-  - native reduction
-  - budgeting
-  - LLM execution
-  - validation
-  - logging
-- task graph and run orchestration:
-  - `task add`
-  - `task fanout`
-  - `task run`
-  - `task run-all`
-- append-only telemetry, diagnostics, and policy visibility
-- run-all concurrency summaries on task, diagnostics, and telemetry surfaces
-- backend adapters with explicit rollout policy and opt-in HTTP transport
-- one OpenAI-compatible HTTP JSON request profile on the existing `http-curl` adapter boundary
-
-Default backend model:
-- `codex` by default
-- `ollama` optional
-- `llamacpp` optional for local GGUF models through llama.cpp `llama-cli`
-- `mlx` optional for Apple-local MLX models through `mlx-lm`
 
 ## Requirements
 
@@ -62,31 +111,7 @@ Optional but commonly used:
 - `llama-cli` from llama.cpp if you want the optional `llamacpp` local backend
 - `mlx-lm` in a Python environment if you want the optional macOS `mlx` backend
 
-## Quick Start
-
-Basic runtime checks:
-
-```bash
-cd <repo-root>
-./bin/xshelf version
-./bin/xshelf core
-./bin/xshelf doctor
-./bin/xshelf health
-```
-
-Run a normal command through the runtime:
-
-```bash
-./bin/xshelf cxo git status
-```
-
-Inspect runtime status in JSON:
-
-```bash
-./bin/xshelf core --json
-./bin/xshelf diag --json --window 50
-./bin/xshelf scheduler --json --window 50
-```
+## Shell Setup
 
 Install shell functions and man pages:
 
