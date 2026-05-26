@@ -27,7 +27,7 @@ jobs:
       CXRS_ARTIFACT_DIR: .github/ci-artifacts
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -300,7 +300,7 @@ jobs:
 
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: cxrs-compat-artifacts-${{ matrix.os }}-${{ github.run_id }}
           path: ${{ env.CXRS_ARTIFACT_DIR }}
