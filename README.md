@@ -269,7 +269,7 @@ Useful state/config commands:
 
 ## Docs Map
 
-Use the README as the front door. Use the docs below for deeper material.
+Use the docs below for deeper material.
 
 Product and repo boundary:
 - [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
