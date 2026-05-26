@@ -10,12 +10,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: cxrs-compat-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   compat-check:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +32,7 @@ jobs:
       CXRS_ARTIFACT_DIR: .github/ci-artifacts
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
@@ -63,10 +68,10 @@ jobs:
           echo "command surface gate: PASS"
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
       - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: rust/cxrs
 
@@ -246,6 +251,22 @@ jobs:
           } 2>&1 | tee "$log"
           exit "${PIPESTATUS[0]}"
 
+      - name: Install Dependency Security Tools
+        run: |
+          cd rust/cxrs
+          cargo install --locked cargo-audit --version 0.22.1
+          cargo install --locked cargo-deny --version 0.19.6
+
+      - name: Cargo Audit Gate
+        run: |
+          cd rust/cxrs
+          cargo audit --deny warnings
+
+      - name: Cargo Deny Advisories Gate
+        run: |
+          cd rust/cxrs
+          cargo deny check --config deny.toml advisories
+
       - name: Build failure summary
         if: failure()
         run: |
@@ -300,8 +321,9 @@ jobs:
 
       - name: Upload failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cxrs-compat-artifacts-${{ matrix.os }}-${{ github.run_id }}
           path: ${{ env.CXRS_ARTIFACT_DIR }}
+          retention-days: 14
           if-no-files-found: ignore
