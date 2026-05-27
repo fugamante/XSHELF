@@ -3,7 +3,7 @@
 
 \title{XSHELF Manual (Master)}
 \author{}
-\date{Last updated: 2026-02-26}
+\date{Last updated: 2026-05-26}
 
 \begin{document}
 \maketitle
@@ -13,6 +13,14 @@
 XSHELF is built for one outcome: \textbf{predictable LLM-assisted work under load}.
 That means bounded context, schema-validated structured outputs, strict telemetry, and safe
 automation boundaries.
+
+If you only remember one thing: XSHELF is a runtime substrate, not a chat transcript.
+It captures relevant repository output, enforces budgets before that output reaches the model,
+makes structured results checkable, and records enough telemetry to explain what happened later.
+
+XSHELF is designed to fail differently from loose LLM tooling. When it cannot preserve a
+deterministic contract, it should stop, show the broken boundary, store replayable evidence,
+and keep stdout/stderr behavior predictable for automation.
 
 This master manual synthesizes three viewpoints:
 \begin{itemize}
@@ -32,23 +40,37 @@ This master manual synthesizes three viewpoints:
   \item Policy engine blocks destructive/out-of-repo writes by default.
 \end{itemize}
 
-\section*{Technical Expose (Rust Refactor Branch)}
+\section*{Runtime Architecture Notes}
 \begin{itemize}
-  \item Active branch focus: split monolithic command logic into cohesive Rust modules.
+  \item Runtime direction: split command logic into cohesive Rust modules.
   \item Orchestrator: \texttt{src/app/mod.rs} (routing + composition).
   \item Runtime config is centralized in \texttt{src/modules/config.rs} (\texttt{AppConfig} loaded once at startup).
-  \item Core extracted command modules: \texttt{introspect}, \texttt{runtime\_controls}, \texttt{agentcmds}, \texttt{logview}, \texttt{analytics}, \texttt{diagnostics}, \texttt{routing}, \texttt{prompting}, \texttt{optimize}, \texttt{doctor}, \texttt{schema\_ops}, \texttt{settings\_cmds}, \texttt{structured\_cmds}, \texttt{task\_cmds}.
-  \item Non-schema LLM commands share one execution path in \texttt{agentcmds} via \texttt{execute\_llm\_command(..., LlmMode)}.
+  \item Core extracted command modules are grouped by runtime concern:
+\end{itemize}
+\begin{lstlisting}[style=cx]
+introspect, runtime_controls, agentcmds, logview,
+analytics, diagnostics, routing, prompting,
+optimize, doctor, schema_ops, settings_cmds,
+structured_cmds, task_cmds
+\end{lstlisting}
+\begin{itemize}
+  \item Non-schema LLM commands share one execution path in \texttt{agentcmds}:
+\end{itemize}
+\begin{lstlisting}[style=cx]
+execute_llm_command(..., LlmMode)
+\end{lstlisting}
+\begin{itemize}
   \item Behavioral contract is unchanged: deterministic schemas, quarantine/replay, policy gating, budgeted capture, append-only logs.
   \item Quality gate per extraction slice: \texttt{cargo fmt} + \texttt{cargo test} must pass.
 \end{itemize}
 
-\section*{Quickstart (3 Commands)}
+\section*{Quickstart (Backend-Safe)}
 \begin{lstlisting}[style=cx]
 cd <repo-root>
 ./bin/xshelf version
-./bin/xshelf budget
-./bin/xshelf diffsum-staged | jq .
+./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20
 \end{lstlisting}
 
 \section*{Common Workflows (Copy/Paste)}
@@ -70,7 +92,7 @@ cd <repo-root>
   \item Required: \texttt{bash}
   \item Required: \texttt{git}
   \item Required: \texttt{jq}
-  \item Required: \texttt{codex} CLI (default backend)
+  \item Required for default backend: \texttt{codex} CLI
   \item Development: Rust toolchain (\texttt{cargo}, \texttt{rustc})
 \end{itemize}
 
@@ -82,9 +104,21 @@ Optional: \texttt{ollama} (local backend).
 
 \section*{Troubleshooting (Fast)}
 \begin{itemize}
-  \item Unexpected fallback: \texttt{./bin/xshelf where <cmd>} and confirm \texttt{execution\_path} via \texttt{./bin/xshelf version}.
-  \item Schema command fails: inspect \texttt{./bin/xshelf quarantine list}, then \texttt{./bin/xshelf replay <id>}.
-  \item Budget clipping surprises: check \texttt{./bin/xshelf budget} and \texttt{./bin/xshelf trace}; reduce capture scope or adjust budgets intentionally.
+  \item Unexpected fallback: inspect routing, then confirm \texttt{execution\_path}.
+\end{itemize}
+\begin{lstlisting}[style=cx]
+./bin/xshelf where <cmd>
+./bin/xshelf version
+\end{lstlisting}
+\begin{itemize}
+  \item Schema command fails: inspect quarantine, then replay the stored response.
+\end{itemize}
+\begin{lstlisting}[style=cx]
+./bin/xshelf quarantine list
+./bin/xshelf replay <id>
+\end{lstlisting}
+\begin{itemize}
+  \item Budget clipping surprises: check budget and trace data; reduce capture scope or adjust budgets intentionally.
   \item Strict log validation fails: legacy rows may predate the current telemetry contract; new runs should conform.
   \item Backend confusion: run \texttt{./bin/xshelf llm show} and verify the selected model when using ollama.
 \end{itemize}

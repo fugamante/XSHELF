@@ -267,44 +267,27 @@ Useful state/config commands:
 ./bin/xshelf quota catalog show --json | jq .
 ```
 
-## Docs Map
+## Where To Go Next
 
-Use the docs below for deeper material.
+Operator docs:
+- [docs/README.md](docs/README.md) - documentation index
+- [docs/manuals/00_README.md](docs/manuals/00_README.md) - manual entrypoint
+- [docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf](docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf) - generated master manual PDF
+- [docs/manuals/02_web/CX_MANUAL_MASTER.html](docs/manuals/02_web/CX_MANUAL_MASTER.html) - tracked HTML reader mirror
+- [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md) - HTTP/TLS operator guidance
 
-Product and repo boundary:
+Maintainer docs:
 - [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
-- [docs/project/REPO_SYNC_PLAN.md](docs/project/REPO_SYNC_PLAN.md)
-- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
 - [docs/project/ROADMAP.md](docs/project/ROADMAP.md)
 - [docs/project/RELEASE_CADENCE.md](docs/project/RELEASE_CADENCE.md)
+- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Execution guidance and orchestration:
-- [docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md](docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md)
-- [docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md](docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md)
-- [docs/orchestration/POST_PHASE_VI_OVERVIEW.md](docs/orchestration/POST_PHASE_VI_OVERVIEW.md)
-- [docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md](docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md)
-
-Budget-aware orchestration:
-- [docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md](docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md)
-- [docs/orchestration/PHASE_VII_WORK.json](docs/orchestration/PHASE_VII_WORK.json)
-
-Local model substrate (Phase VIII):
-- [docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md)
-- [docs/orchestration/PHASE_VIII_WORK.json](docs/orchestration/PHASE_VIII_WORK.json)
-
-Token compression planning (Phase X):
-- [docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md](docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md)
-- [docs/orchestration/PHASE_X_WORK.json](docs/orchestration/PHASE_X_WORK.json)
-
-Contracts and adapters:
-- [docs/providers/CONTRACT_COMPATIBILITY.md](docs/providers/CONTRACT_COMPATIBILITY.md)
-- [docs/providers/PROVIDER_ADAPTER_PLAN.md](docs/providers/PROVIDER_ADAPTER_PLAN.md)
-- [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md)
-
-TurboQuant research archive:
-- [docs/turboquant/TURBOQUANT_SPIKE.md](docs/turboquant/TURBOQUANT_SPIKE.md)
-- [docs/turboquant/TURBOQUANT_METRIC.md](docs/turboquant/TURBOQUANT_METRIC.md)
-- [docs/turboquant/TURBOQUANT_CAP_MLX.md](docs/turboquant/TURBOQUANT_CAP_MLX.md)
+Planning and history:
+- [docs/orchestration/](docs/orchestration/) - phase plans, work queues, and milestone notes
+- [docs/turboquant/](docs/turboquant/) - TurboQuant experiment archive
+- [docs/project/RUST_FIRST_MIGRATION.md](docs/project/RUST_FIRST_MIGRATION.md)
+- [docs/project/SECURITY_HISTORY_REWRITE.md](docs/project/SECURITY_HISTORY_REWRITE.md)
 
 ## Validation
 

@@ -11,11 +11,12 @@
       <header>
         <div class="k">XSHELF</div>
         <h1>Manual (Master)</h1>
-        <div class="meta">Last updated: 2026-02-26 · Focus: deterministic, observable, safe runtime</div>
+        <div class="meta">Last updated: 2026-05-26 · Focus: deterministic, observable, safe runtime</div>
       </header>
 
       <section class="callout">
         <p><strong>Intent.</strong> XSHELF is built for predictable LLM-assisted work under load: bounded context, schema-validated structured outputs, strict telemetry, and safe automation boundaries.</p>
+        <p>XSHELF is a runtime substrate, not a chat transcript. It captures relevant repository output, enforces budgets before that output reaches the model, makes structured results checkable, and records enough telemetry to explain what happened later.</p>
       </section>
 
       <section class="callout">
@@ -23,17 +24,18 @@
       </section>
 
       <section class="callout">
-        <p><strong>Technical expose (rust-refactor branch).</strong> Runtime behavior is Rust-canonical and actively modularized. <code>src/app/mod.rs</code> remains the orchestrator while command families have been extracted into focused modules (<code>introspect</code>, <code>runtime_controls</code>, <code>agentcmds</code>, <code>logview</code>, <code>analytics</code>, <code>diagnostics</code>, <code>routing</code>, <code>prompting</code>, <code>optimize</code>, <code>doctor</code>, <code>schema_ops</code>, <code>settings_cmds</code>, <code>structured_cmds</code>, <code>task_cmds</code>). Contract behavior remains deterministic and quarantine-backed.</p>
+        <p><strong>Runtime architecture notes.</strong> Runtime behavior is Rust-canonical and actively modularized. <code>src/app/mod.rs</code> remains the orchestrator while command families have been extracted into focused modules (<code>introspect</code>, <code>runtime_controls</code>, <code>agentcmds</code>, <code>logview</code>, <code>analytics</code>, <code>diagnostics</code>, <code>routing</code>, <code>prompting</code>, <code>optimize</code>, <code>doctor</code>, <code>schema_ops</code>, <code>settings_cmds</code>, <code>structured_cmds</code>, <code>task_cmds</code>). Contract behavior remains deterministic and quarantine-backed.</p>
       </section>
 
       <section class="grid" aria-label="Quickstart">
         <div class="card">
           <div class="k">Quickstart</div>
-          <p>Run these three commands to confirm routing, budgets, and log location.</p>
+          <p>Run these backend-safe commands to confirm routing, task readiness, and runtime state.</p>
           <pre><code>cd <repo-root>
 ./bin/xshelf version
-./bin/xshelf budget
-./bin/xshelf diffsum-staged | jq .</code></pre>
+./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20</code></pre>
           <p><strong>What to verify</strong></p>
           <ul>
             <li><code>execution_path</code> is Rust when available.</li>
@@ -50,7 +52,7 @@
             <li><strong>Required:</strong> <code>bash</code></li>
             <li><strong>Required:</strong> <code>git</code></li>
             <li><strong>Required:</strong> <code>jq</code></li>
-            <li><strong>Required:</strong> <code>codex</code> CLI (default backend)</li>
+            <li><strong>Required for default backend:</strong> <code>codex</code> CLI</li>
             <li><strong>Dev:</strong> <code>cargo</code>/<code>rustc</code> (build/run <code>cxrs</code>)</li>
           </ul>
           <pre><code>./bin/xshelf doctor

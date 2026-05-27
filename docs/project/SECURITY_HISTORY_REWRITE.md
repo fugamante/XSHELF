@@ -23,11 +23,10 @@ Before rewrite, local recovery bundles were created:
 
 ## Remote Impact
 
-Because commit SHAs changed, branches/tags were force-pushed:
+Because commit SHAs changed, active branches and tags were force-pushed:
 
 - `main`
-- `codex/rust-spike`
-- `codex/rust-refactor`
+- historical Rust migration branches
 - rewritten tag refs (including `v2026.02.21-20260225T151634Z`)
 
 ## Required Action for Collaborators
@@ -37,7 +36,7 @@ All collaborators must resync local clones to the rewritten history.
 Option A (recommended): fresh clone
 
 ```bash
-git clone https://github.com/fugamante/cxcodex.git
+git clone <repo-url>
 ```
 
 Option B: hard reset existing clone
@@ -46,9 +45,6 @@ Option B: hard reset existing clone
 git fetch --all --prune --tags
 git checkout main
 git reset --hard origin/main
-git branch -D codex/rust-spike codex/rust-refactor 2>/dev/null || true
-git checkout -b codex/rust-spike origin/codex/rust-spike
-git checkout -b codex/rust-refactor origin/codex/rust-refactor
 git reflog expire --expire=now --expire-unreachable=now --all
 git gc --prune=now --aggressive
 ```

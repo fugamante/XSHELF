@@ -15,20 +15,20 @@ Scope: entire `XSHELF` project
 ## 2) Branch strategy
 
 - `main`: stable operational branch for incremental Rust-first rollout.
-- `codex/*`: feature branches for scoped migration phases.
-- use short `codex/*` scope slugs for active work.
+- Use scoped feature branches for migration phases.
+- Use short neutral scope slugs for active work.
 
 Flow:
-1. Branch from `main` into a scoped `codex/*` feature branch.
+1. Branch from `main` into a scoped feature branch.
 2. Promote to `main` only after parity + smoke checks pass.
 3. Keep branch READMEs branch-specific.
 4. Prefer concise names that stay within `3` segments total.
 
 Examples:
-- good: `codex/contract-bundle`, `codex/task-guidance`
-- avoid: `codex/session-token-pairing-integration`
+- good: `orchestration/contracts`, `runtime/task-guidance`
+- avoid: `runtime/session-token-pairing-integration`
 
-Current branch focus:
+Historical branch focus:
 - define and stage Phase III orchestration contracts before enabling concurrency by default
 - preserve deterministic schema/policy/logging guarantees during scheduler changes
 - keep Rust tests/parity checks green on every iteration slice

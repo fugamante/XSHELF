@@ -1,7 +1,6 @@
 # Phase IV: Multi-Model Tandem Orchestration
 
-Last updated: 2026-03-01  
-Branch: `codex/orchestration-mode-phase`
+Last updated: 2026-03-01
 
 ## Objective
 

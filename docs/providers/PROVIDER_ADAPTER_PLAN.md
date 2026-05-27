@@ -1,6 +1,5 @@
 # Provider Adapter Plan (Experimental)
 
-Branch: `codex/provider-adapter-phase1`
 Status: active (Phase 1-5 complete, Phase 6 rollout criteria defined)
 Owner: XSHELF runtime
 
