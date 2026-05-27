@@ -43,14 +43,14 @@
   - `core` / `version` now expose auth secret source (`env|file|off`) without exposing secret values
   - Unix secret files now require restrictive permissions
 - Prefer request-profile expansion over broad adapter proliferation:
-  - keep `codex-cli` and `ollama-cli` as stable process defaults
+  - keep `primary-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy
   - require telemetry + reliability coverage before any broader adapter matrix growth
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
 
 ## Later (2+ months)
 
-- Pluggable backend adapters beyond Codex/Ollama.
+- Pluggable backend adapters beyond primary/Ollama.
 - Incremental CLI packaging/distribution improvements (Homebrew-ready metadata).
 - Optional distributed execution backends (multi-process/remote workers) while preserving current log/schema contracts.
 - Backend capability experiments for local inference optimization must stay isolated from core XSHELF until they prove value and preserve adapter boundaries.
@@ -82,7 +82,7 @@
   - explicit resident-server opt-in through existing adapter boundaries
 - Current implementation state:
   - Slice 1 landed:
-    - `.codex/local_models.json` registry
+    - `.cx/local_models.json` registry
     - `xshelf llm models list|add|inspect|remove`
     - deterministic JSON/text outputs with focused integration coverage
 - Guardrail:

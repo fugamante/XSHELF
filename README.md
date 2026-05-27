@@ -65,7 +65,7 @@ XSHELF is for:
   `telemetry`, `logs`, `optimize`, `policy`, `quota`, and `broker`.
 - Task orchestration: `task add`, `task fanout`, `task run`, and `task run-all`
   with explicit readiness and concurrency summaries.
-- Backend policy: default `codex`, optional `ollama`, `llamacpp`, and `mlx`,
+- Backend policy: default `primary`, optional `ollama`, `llamacpp`, and `mlx`,
   with HTTP transport behind explicit rollout policy.
 
 Key terms:
@@ -129,13 +129,13 @@ The Rust pipeline is intentionally strict:
 7. append telemetry
 
 Current compatibility storage path:
-- repo-scoped runtime state currently lives under `.codex/`
+- repo-scoped runtime state currently lives under `.cx/`
 
 Current layout:
-- schemas: `.codex/schemas/`
-- logs: `.codex/cxlogs/`
-- quarantine: `.codex/quarantine/`
-- state/tasks/runtime metadata: `.codex/`
+- schemas: `.cx/schemas/`
+- logs: `.cx/cxlogs/`
+- quarantine: `.cx/quarantine/`
+- state/tasks/runtime metadata: `.cx/`
 
 Runtime vs development:
 - end users should use `doctor`, `health`, and command JSON surfaces
@@ -148,7 +148,7 @@ Backend selection:
 ```bash
 ./bin/xshelf llm show
 ./bin/xshelf llm check
-./bin/xshelf llm use codex
+./bin/xshelf llm use primary
 ./bin/xshelf llm use ollama llama3.1
 ./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
 ./bin/xshelf llm models list --json | jq .
@@ -303,9 +303,9 @@ Maintainer validation:
 
 ```bash
 ./scripts/compat_local.sh --quick
-./scripts/compat_local.sh --full --out .codex/compat/latest.json
+./scripts/compat_local.sh --full --out .cx/compat/latest.json
 ./scripts/compat_all.sh --quick
-./scripts/compat_all.sh --full --out .codex/compat/all_latest.json
+./scripts/compat_all.sh --full --out .cx/compat/all_latest.json
 ./bin/cx-compat-local --quick
 ```
 

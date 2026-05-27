@@ -6,7 +6,7 @@ use serde_json::Value;
 fn repo_root() -> PathBuf {
     let mut cur = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for _ in 0..6 {
-        if cur.join(".codex").join("schemas").is_dir() && cur.join("bin").join("cx").is_file() {
+        if cur.join(".cx").join("schemas").is_dir() && cur.join("bin").join("cx").is_file() {
             return cur;
         }
         if !cur.pop() {

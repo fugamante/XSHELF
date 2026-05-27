@@ -39,7 +39,7 @@ Acceptance:
 
 Tasks:
 - define `ProviderAdapter` interface
-- implement `CodexCliAdapter`
+- implement `PrimaryProcessAdapter`
 - implement `OllamaCliAdapter`
 - add adapter resolver from backend config/state
 

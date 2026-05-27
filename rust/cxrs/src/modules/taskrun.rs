@@ -10,7 +10,7 @@ use std::process::Command;
 use crate::config::cli_app_name;
 use crate::logs::file_len;
 use crate::paths::resolve_log_file;
-use crate::runlog::{RunLogInput, log_codex_run};
+use crate::runlog::{RunLogInput, log_primary_run};
 use crate::types::{ExecutionResult, LlmOutputKind, TaskInput, TaskRecord, TaskSpec};
 
 #[derive(Debug, Clone)]
@@ -93,7 +93,8 @@ fn task_prompt(task: &TaskRecord) -> String {
 fn task_backend_override(task: &TaskRecord) -> Option<String> {
     let backend = task.backend.trim().to_lowercase();
     match backend.as_str() {
-        "codex" | "ollama" | "llamacpp" | "mlx" => Some(backend),
+        "primary" => Some("primary".to_string()),
+        "ollama" | "llamacpp" | "mlx" => Some(backend),
         "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
         _ => None,
     }
@@ -619,7 +620,7 @@ fn log_convergence_summary(
     set_optional_env("CX_TASK_CONVERGE_VOTES", Some(votes_json));
     let usage = crate::types::UsageStats::default();
     let capture = crate::types::CaptureStats::default();
-    let _ = log_codex_run(RunLogInput {
+    let _ = log_primary_run(RunLogInput {
         tool: "cxtask_converge",
         prompt: &task.objective,
         prompt_raw: None,

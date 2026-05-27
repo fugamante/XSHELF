@@ -270,7 +270,7 @@ pub fn cmd_parity() -> i32 {
             return 1;
         }
     };
-    let temp_log_file = temp_repo.join(".codex").join("cxlogs").join("runs.jsonl");
+    let temp_log_file = temp_repo.join(".cx").join("cxlogs").join("runs.jsonl");
     let mock_dir = match setup_parity_mocks(&repo, &temp_repo) {
         Ok(v) => v,
         Err(e) => return parity_error(&temp_repo, &e),

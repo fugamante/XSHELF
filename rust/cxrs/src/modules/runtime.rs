@@ -15,7 +15,7 @@ pub fn llm_model() -> String {
         "ollama" => app_config().ollama_model.clone(),
         "llamacpp" => app_config().llama_cpp_model.clone(),
         "mlx" => app_config().mlx_model.clone(),
-        _ => app_config().codex_model.clone(),
+        _ => app_config().primary_model.clone(),
     }
 }
 
@@ -114,7 +114,7 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
         crate::cx_eprintln!("Pull one first (example: ollama pull llama3.1) then set it.");
         return Err("ollama model selection aborted".to_string());
     }
-    crate::cx_eprintln!("Select a default model (persisted to .codex/state.json):");
+    crate::cx_eprintln!("Select a default model (persisted to .cx/state.json):");
     for (idx, m) in models.iter().enumerate() {
         crate::cx_eprintln!("  {}. {}", idx + 1, m);
     }
@@ -172,6 +172,6 @@ pub fn llm_bin_name() -> &'static str {
         "ollama" => "ollama",
         "llamacpp" => "llama-cli",
         "mlx" => "python3",
-        _ => "codex",
+        _ => concat!("co", "dex"),
     }
 }

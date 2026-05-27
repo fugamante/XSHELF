@@ -8,7 +8,7 @@ Project naming note:
 Current scope:
 - standalone binary scaffold
 - stable CLI surface for experimentation
-- non-interactive `doctor` checks (binaries + Codex JSON pipeline + text probe)
+- non-interactive `doctor` checks (binaries + primary JSON pipeline + text probe)
 - typed `state` command (`show/get/set`) with atomic JSON writes
 - `policy` command for dangerous-command classification rules
 - `bench` command for repeated runtime/token summaries
@@ -35,7 +35,7 @@ Current scope:
 - strict `commitjson` and `commitmsg` from staged diff
 - strict `diffsum` and `diffsum-staged` PR-summary generators
 - strict `fix-run` remediation suggestions with dangerous-command blocking
-- LLM backend routing: `codex` (default), `ollama` (local alternative), `llamacpp` (local GGUF via llama.cpp `llama-cli`), or `mlx` (Apple-local via `mlx-lm`)
+- LLM backend routing: `primary` (default), `ollama` (local alternative), `llamacpp` (local GGUF via llama.cpp `llama-cli`), or `mlx` (Apple-local via `mlx-lm`)
 - quality gate currently clean (`file_violations=0`, `function_violations=0`)
 - naming guardrails enforce concise Rust symbols and test names in CI/local checks
 - test naming guardrail covers both `#[test]` and async forms like `#[tokio::test]`
@@ -98,7 +98,7 @@ cargo build
 | `bash` | 5.0+ | 5.3.9 | Shell/bootstrap compatibility paths |
 | `git` | 2.30+ | 2.53.0 | Repo, diff, and task context capture |
 | `jq` | 1.6+ | 1.8.1 | JSON helpers/scripts |
-| `codex` CLI | 0.103.0+ | 0.103.0 | Default backend |
+| `primary` CLI | 0.103.0+ | 0.103.0 | Default backend |
 
 ### Runtime (optional)
 
@@ -196,12 +196,12 @@ Runtime users do not need:
 - CI guardrail scripts
 - contributor-only validation fixtures under `tests/`
 
-## Codex access and session modes
+## Primary backend access and session modes
 
 Current implementation:
-- `codex` remains the primary/default backend (`CX_LLM_BACKEND=codex`).
+- `primary` remains the primary/default backend (`CX_LLM_BACKEND=primary`).
 - `ollama` can be used as a local alternative (`CX_LLM_BACKEND=ollama` + `CX_OLLAMA_MODEL`).
-- If `CX_LLM_BACKEND=ollama` and no model is set, `cxrs` asks once (interactive TTY) and persists selection in `.codex/state.json` (`preferences.ollama_model`).
+- If `CX_LLM_BACKEND=ollama` and no model is set, `cxrs` asks once (interactive TTY) and persists selection in `.cx/state.json` (`preferences.ollama_model`).
 - No explicit "session mode" handshake exists yet before command execution.
 
 Planned implementation:
@@ -209,7 +209,7 @@ Planned implementation:
   - `subscription` (authenticated account tier)
   - `visitor` (non-login path when backend support exists)
 - Emit session metadata to logs so command behavior can be tied to access mode.
-- Enforce mode-aware limits/fallbacks before running Codex piping commands.
+- Enforce mode-aware limits/fallbacks before running primary backend commands.
 
 ## Run
 
@@ -228,7 +228,7 @@ cargo run -- llm unset model
 cargo run -- llm unset backend
 cargo run -- llm set-backend ollama
 cargo run -- llm set-model llama3.1
-cargo run -- llm set-backend codex
+cargo run -- llm set-backend primary
 CX_LLM_BACKEND=ollama CX_OLLAMA_MODEL=llama3.1 cargo run -- doctor
 CX_LLM_BACKEND=ollama CX_OLLAMA_MODEL=llama3.1 cargo run -- cxo git status
 CX_LLM_BACKEND=llamacpp CX_LLAMA_CPP_MODEL=ggml-org/Qwen3-0.6B-GGUF:Q4_0 CX_CMD_TIMEOUT_SECS=600 CX_LLAMA_CPP_ARGS="-n 64 --temp 0 -c 2048 --simple-io" cargo run -- cxo printf 'xshelf llamacpp smoke\n'

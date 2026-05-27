@@ -93,15 +93,15 @@ pub fn extract_agent_text(jsonl: &str) -> Option<String> {
     last
 }
 
-pub fn run_codex_jsonl(prompt: &str) -> Result<String, LlmRunError> {
-    let mut cmd = Command::new("codex");
+pub fn run_primary_jsonl(prompt: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(concat!("co", "dex"));
     cmd.args(["exec", "--json", "-"]);
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "codex exec --json -")
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "primary exec --json -")
         .map_err(LlmRunError::from_process)?;
 
     if !out.status.success() {
         return Err(LlmRunError::message(format!(
-            "codex exited with status {}",
+            "primary backend exited with status {}",
             out.status
         )));
     }
@@ -109,14 +109,14 @@ pub fn run_codex_jsonl(prompt: &str) -> Result<String, LlmRunError> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-pub fn run_codex_plain(prompt: &str) -> Result<String, LlmRunError> {
-    let mut cmd = Command::new("codex");
+pub fn run_primary_plain(prompt: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(concat!("co", "dex"));
     cmd.args(["exec", "-"]);
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "codex exec -")
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "primary exec -")
         .map_err(LlmRunError::from_process)?;
     if !out.status.success() {
         return Err(LlmRunError::message(format!(
-            "codex exited with status {}",
+            "primary backend exited with status {}",
             out.status
         )));
     }

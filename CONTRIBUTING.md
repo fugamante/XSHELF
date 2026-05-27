@@ -49,16 +49,16 @@ python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --ma
 
 ## Branch Naming
 
-- Use `codex/<short-scope>` for local feature branches.
+- Use `primary/<short-scope>` for local feature branches.
 - Prefer short scope slugs over phase-sentence names.
 - Keep branch names within the same readability rule used elsewhere:
   - max `3` segments
   - concise snake_case or kebab-case scope
 - Good:
-  - `codex/session-pairing`
-  - `codex/contract-bundle`
-  - `codex/provider-adapter`
+  - `primary/session-pairing`
+  - `primary/contract-bundle`
+  - `primary/provider-adapter`
 - Avoid:
-  - `codex/session-token-pairing-integration`
-  - `codex/add-phase-vi-execution-guidance-surface`
+  - `primary/session-token-pairing-integration`
+  - `primary/add-phase-vi-execution-guidance-surface`
 - Do not rename already-published shared `cx/*` branches casually; shorten new work by default.

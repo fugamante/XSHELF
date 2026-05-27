@@ -4,12 +4,29 @@ use super::catalog::maybe_auto_refresh_quota_catalog;
 use crate::runtime::{llm_backend, llm_model};
 use crate::state::{read_state_value, value_at_path};
 
+fn tier_envs(backend: &str) -> Vec<String> {
+    let mut envs = vec![format!("CX_QUOTA_{}_TIER", backend.to_uppercase())];
+    if backend == "primary" {
+        envs.push("CX_QUOTA_CODEX_TIER".to_string());
+    }
+    envs
+}
+
+fn total_envs(backend: &str) -> Vec<String> {
+    let mut envs = vec![format!("CX_QUOTA_{}_TOTAL_TOKENS", backend.to_uppercase())];
+    if backend == "primary" {
+        envs.push("CX_QUOTA_CODEX_TOTAL_TOKENS".to_string());
+    }
+    envs
+}
+
 fn quota_tier_for_backend(backend: &str) -> String {
-    let env_backend = format!("CX_QUOTA_{}_TIER", backend.to_uppercase());
-    if let Ok(v) = std::env::var(&env_backend) {
-        let tier = v.trim().to_lowercase();
-        if !tier.is_empty() {
-            return tier;
+    for env_name in tier_envs(backend) {
+        if let Ok(v) = std::env::var(env_name) {
+            let tier = v.trim().to_lowercase();
+            if !tier.is_empty() {
+                return tier;
+            }
         }
     }
     if let Ok(v) = std::env::var("CX_QUOTA_TIER") {
@@ -48,17 +65,18 @@ struct QuotaResolution {
 
 fn configured_quota_total(backend: &str) -> QuotaResolution {
     let tier = quota_tier_for_backend(backend);
-    let env_backend = format!("CX_QUOTA_{}_TOTAL_TOKENS", backend.to_uppercase());
-    if let Ok(v) = std::env::var(&env_backend)
-        && let Ok(parsed) = v.trim().parse::<u64>()
-    {
-        return QuotaResolution {
-            total_tokens: Some(parsed),
-            source: format!("env:{env_backend}"),
-            tier,
-            limit_type: "hard".to_string(),
-            source_url: None,
-        };
+    for env_name in total_envs(backend) {
+        if let Ok(v) = std::env::var(&env_name)
+            && let Ok(parsed) = v.trim().parse::<u64>()
+        {
+            return QuotaResolution {
+                total_tokens: Some(parsed),
+                source: format!("env:{env_name}"),
+                tier,
+                limit_type: "hard".to_string(),
+                source_url: None,
+            };
+        }
     }
     if let Ok(v) = std::env::var("CX_QUOTA_TOTAL_TOKENS")
         && let Ok(parsed) = v.trim().parse::<u64>()

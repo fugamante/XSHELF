@@ -51,7 +51,7 @@ fn parse_set_policy(args: &[String]) -> Result<String, String> {
 
 fn backend_available(name: &str) -> bool {
     let disabled = match name {
-        "codex" => std::env::var("CX_DISABLE_CODEX")
+        "primary" => std::env::var("CX_DISABLE_CODEX")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),
         "ollama" => std::env::var("CX_DISABLE_OLLAMA")
@@ -133,7 +133,7 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
                     "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
                     other => other.to_string(),
                 };
-                if !matches!(b.as_str(), "codex" | "ollama" | "llamacpp" | "mlx") {
+                if !matches!(b.as_str(), "primary" | "ollama" | "llamacpp" | "mlx") {
                     return Err(broker_error("benchmark", &format!("invalid backend '{b}'")));
                 }
                 if !backends.iter().any(|x| x == &b) {
@@ -207,7 +207,7 @@ fn parse_benchmark_args(args: &[String]) -> Result<BenchmarkArgs, String> {
         }
     }
     if backends.is_empty() {
-        backends = vec!["codex".to_string(), "ollama".to_string()];
+        backends = vec!["primary".to_string(), "ollama".to_string()];
     }
     Ok(BenchmarkArgs {
         backends,
@@ -310,7 +310,7 @@ fn cmd_broker_benchmark(app_name: &str, args: &[String]) -> i32 {
         Ok(v) => v,
         Err(e) => {
             crate::cx_eprintln!(
-                "{e}\nUsage: {app_name} broker benchmark [--backend codex|ollama]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]"
+                "{e}\nUsage: {app_name} broker benchmark [--backend primary|ollama]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]"
             );
             return 2;
         }
@@ -464,7 +464,7 @@ fn broker_show_value() -> Value {
     let active_backend = llm_backend();
     let active_model = llm_model();
     let policy = app_config().broker_policy.clone();
-    let codex_ok = backend_available("codex");
+    let codex_ok = backend_available("primary");
     let ollama_ok = backend_available("ollama");
     let llamacpp_ok = backend_available("llamacpp");
     let mlx_ok = backend_available("mlx");
@@ -475,7 +475,7 @@ fn broker_show_value() -> Value {
         "active_backend": active_backend,
         "active_model": if active_model.is_empty() { Value::Null } else { json!(active_model) },
         "availability": {
-            "codex": codex_ok,
+            "primary": codex_ok,
             "ollama": ollama_ok,
             "llamacpp": llamacpp_ok,
             "mlx": mlx_ok
@@ -502,7 +502,7 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
             let active_backend = llm_backend();
             let active_model = llm_model();
             let policy = app_config().broker_policy.clone();
-            let codex_ok = backend_available("codex");
+            let codex_ok = backend_available("primary");
             let ollama_ok = backend_available("ollama");
             let llamacpp_ok = backend_available("llamacpp");
             let mlx_ok = backend_available("mlx");
@@ -519,7 +519,7 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
                 }
             );
             println!(
-                "availability.codex: {}",
+                "availability.primary: {}",
                 if codex_ok { "yes" } else { "no" }
             );
             println!(
@@ -555,7 +555,7 @@ pub fn cmd_broker(app_name: &str, args: &[String]) -> i32 {
         "benchmark" => cmd_broker_benchmark(app_name, &args[1..]),
         other => {
             crate::cx_eprintln!(
-                "Usage: {app_name} broker <show [--json] | set --policy latency|quality|cost|balanced|quota_saver | benchmark [--backend codex|ollama]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]>"
+                "Usage: {app_name} broker <show [--json] | set --policy latency|quality|cost|balanced|quota_saver | benchmark [--backend primary|ollama]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]>"
             );
             crate::cx_eprintln!("cxrs broker: unknown subcommand '{other}'");
             2

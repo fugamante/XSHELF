@@ -52,7 +52,7 @@ fn llm_use_persists_backend_and_model() {
 #[test]
 fn llm_use_codex_triggers_quota_probe_notice() {
     let repo = TempRepo::new("cxrs-llm");
-    let out = repo.run(&["llm", "use", "codex"]);
+    let out = repo.run(&["llm", "use", "primary"]);
     assert!(
         out.status.success(),
         "stdout={} stderr={}",
@@ -60,7 +60,7 @@ fn llm_use_codex_triggers_quota_probe_notice() {
         stderr_str(&out)
     );
     assert!(
-        stderr_str(&out).contains("quota_probe: backend=codex"),
+        stderr_str(&out).contains("quota_probe: backend=primary"),
         "stderr={}",
         stderr_str(&out)
     );
@@ -97,7 +97,7 @@ fn llm_unset_clears_model_backend_all() {
     let show_after_backend = repo.run(&["llm", "show"]);
     let show_backend_text = stdout_str(&show_after_backend);
     assert!(
-        show_backend_text.contains("llm_backend: codex"),
+        show_backend_text.contains("llm_backend: primary"),
         "{show_backend_text}"
     );
 

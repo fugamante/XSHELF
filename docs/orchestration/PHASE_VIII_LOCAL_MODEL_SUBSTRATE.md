@@ -85,7 +85,7 @@ Introduce a typed registry that can feed existing backend model preferences.
 
 Candidate path:
 
-- `.codex/local_models.json`
+- `.cx/local_models.json`
 
 Initial commands:
 
@@ -293,7 +293,7 @@ Validation:
 
 ## Open Questions
 
-- Should `.codex/local_models.json` be repo-scoped only, or should XSHELF also support a user-level registry?
+- Should `.cx/local_models.json` be repo-scoped only, or should XSHELF also support a user-level registry?
 - Should `pull` be implemented through `huggingface_hub`, `mlx-lm`, or remain a documented external step at first?
 - Should resident-server support be modeled as `backend=mlx` with `adapter=http-curl`, or as a separate backend name such as `mlx-server`?
 - Should aliases be backend-scoped (`mlx:qwen-coder`) or global (`qwen-coder`) with collision checks?

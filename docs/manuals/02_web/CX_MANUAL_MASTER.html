@@ -39,7 +39,7 @@
           <p><strong>What to verify</strong></p>
           <ul>
             <li><code>execution_path</code> is Rust when available.</li>
-            <li><code>log_file</code> points to <code>.codex/cxlogs/runs.jsonl</code>.</li>
+            <li><code>log_file</code> points to <code>.cx/cxlogs/runs.jsonl</code>.</li>
             <li><code>budget_chars</code>/<code>budget_lines</code> are explicit.</li>
             <li><code>diffsum-staged</code> returns JSON that parses with <code>jq</code>.</li>
             <li>Clipping is visible via <code>./bin/xshelf trace</code> when it occurs.</li>
@@ -52,7 +52,7 @@
             <li><strong>Required:</strong> <code>bash</code></li>
             <li><strong>Required:</strong> <code>git</code></li>
             <li><strong>Required:</strong> <code>jq</code></li>
-            <li><strong>Required for default backend:</strong> <code>codex</code> CLI</li>
+            <li><strong>Required for default backend:</strong> <code>primary</code> CLI</li>
             <li><strong>Dev:</strong> <code>cargo</code>/<code>rustc</code> (build/run <code>cxrs</code>)</li>
           </ul>
           <pre><code>./bin/xshelf doctor

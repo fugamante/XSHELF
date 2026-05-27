@@ -50,7 +50,7 @@ pub struct AppConfig {
     pub ollama_model: String,
     pub llama_cpp_model: String,
     pub mlx_model: String,
-    pub codex_model: String,
+    pub primary_model: String,
     pub cxbench_log: bool,
     pub cxbench_passthru: bool,
     pub cxfix_run: bool,
@@ -97,12 +97,13 @@ fn resolve_backend(state: &Option<Value>) -> String {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .or_else(|| state_pref_str(state, "preferences.llm_backend"))
-        .unwrap_or_else(|| "codex".to_string());
+        .unwrap_or_else(|| "primary".to_string());
     match raw.to_ascii_lowercase().as_str() {
+        "primary" => "primary".to_string(),
         "ollama" => "ollama".to_string(),
         "llamacpp" | "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
         "mlx" => "mlx".to_string(),
-        _ => "codex".to_string(),
+        _ => "primary".to_string(),
     }
 }
 
@@ -158,7 +159,7 @@ impl AppConfig {
             ollama_model: resolve_ollama_model(&state),
             llama_cpp_model: resolve_llama_cpp_model(&state),
             mlx_model: resolve_mlx_model(&state),
-            codex_model: env::var("CX_MODEL").unwrap_or_default(),
+            primary_model: env::var("CX_MODEL").unwrap_or_default(),
             cxbench_log: env_bool("CXBENCH_LOG", true),
             cxbench_passthru: env_bool("CXBENCH_PASSTHRU", false),
             cxfix_run: env_bool("CXFIX_RUN", false),

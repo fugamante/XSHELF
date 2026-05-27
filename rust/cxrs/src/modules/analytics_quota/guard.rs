@@ -423,9 +423,9 @@ pub(super) fn cmd_quota_set(args: &[String]) -> i32 {
     let backend_norm = backend.trim().to_lowercase();
     if !matches!(
         backend_norm.as_str(),
-        "codex" | "ollama" | "llamacpp" | "mlx" | "default"
+        "primary" | "ollama" | "llamacpp" | "mlx" | "default"
     ) {
-        crate::cx_eprintln!("quota set: backend must be codex|ollama|llamacpp|mlx|default");
+        crate::cx_eprintln!("quota set: backend must be primary|ollama|llamacpp|mlx|default");
         return 2;
     }
     let total = match total_raw.trim().parse::<u64>() {
@@ -460,12 +460,12 @@ pub(super) fn cmd_quota_unset(args: &[String]) -> i32 {
     let backend_norm = backend.trim().to_lowercase();
     let mut keys: Vec<String> = Vec::new();
     match backend_norm.as_str() {
-        "codex" | "ollama" | "llamacpp" | "mlx" => {
+        "primary" | "ollama" | "llamacpp" | "mlx" => {
             keys.push(format!("preferences.quota.{}_total_tokens", backend_norm))
         }
         "default" => keys.push("preferences.quota.default_total_tokens".to_string()),
         "all" => {
-            keys.push("preferences.quota.codex_total_tokens".to_string());
+            keys.push("preferences.quota.primary_total_tokens".to_string());
             keys.push("preferences.quota.ollama_total_tokens".to_string());
             keys.push("preferences.quota.llamacpp_total_tokens".to_string());
             keys.push("preferences.quota.mlx_total_tokens".to_string());
@@ -473,7 +473,7 @@ pub(super) fn cmd_quota_unset(args: &[String]) -> i32 {
         }
         _ => {
             crate::cx_eprintln!(
-                "quota unset: backend must be codex|ollama|llamacpp|mlx|default|all"
+                "quota unset: backend must be primary|ollama|llamacpp|mlx|default|all"
             );
             return 2;
         }

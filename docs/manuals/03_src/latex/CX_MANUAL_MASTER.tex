@@ -35,8 +35,8 @@ This master manual synthesizes three viewpoints:
   \item Canonical entrypoint: \texttt{bin/xshelf}. \texttt{bin/cx} remains the compatibility alias.
   \item Capture pipeline applies to \emph{system output} only (internal native reduction, then budgets).
   \item Structured commands are schema-enforced (JSON-only, validated, replayable).
-  \item Schema failures are quarantined (\texttt{.codex/quarantine/}) and logged with \texttt{quarantine\_id}.
-  \item Run telemetry is append-only JSONL (\texttt{.codex/cxlogs/runs.jsonl}).
+  \item Schema failures are quarantined (\texttt{.cx/quarantine/}) and logged with \texttt{quarantine\_id}.
+  \item Run telemetry is append-only JSONL (\texttt{.cx/cxlogs/runs.jsonl}).
   \item Policy engine blocks destructive/out-of-repo writes by default.
 \end{itemize}
 
@@ -92,7 +92,7 @@ cd <repo-root>
   \item Required: \texttt{bash}
   \item Required: \texttt{git}
   \item Required: \texttt{jq}
-  \item Required for default backend: \texttt{codex} CLI
+  \item Required for default backend: \texttt{primary} CLI
   \item Development: Rust toolchain (\texttt{cargo}, \texttt{rustc})
 \end{itemize}
 
@@ -173,7 +173,7 @@ Schema commands always force deterministic mode by default. Override with \textt
 
 \section{Structured Outputs (Schemas, Quarantine, Replay)}
 \subsection{Schema Registry}
-Schemas live under \texttt{.codex/schemas/}:
+Schemas live under \texttt{.cx/schemas/}:
 \begin{itemize}
   \item \texttt{commitjson.schema.json}
   \item \texttt{diffsum.schema.json}
@@ -228,15 +228,15 @@ Tasks are the unit of migration to parallel work: small, role-tagged, log-linked
 
 \subsection{Run tasks}
 \begin{lstlisting}[style=cx]
-./bin/xshelf task run task_001 --mode deterministic --backend codex
+./bin/xshelf task run task_001 --mode deterministic --backend primary
 ./bin/xshelf task run-all --status pending
 \end{lstlisting}
 
 \section{Telemetry (Contract, Validation, Interpretation)}
 \subsection{Log locations}
 \begin{itemize}
-  \item runs: \texttt{.codex/cxlogs/runs.jsonl}
-  \item schema failures: \texttt{.codex/cxlogs/schema\_failures.jsonl}
+  \item runs: \texttt{.cx/cxlogs/runs.jsonl}
+  \item schema failures: \texttt{.cx/cxlogs/schema\_failures.jsonl}
 \end{itemize}
 
 \subsection{Validate}

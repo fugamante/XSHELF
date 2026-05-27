@@ -1,6 +1,6 @@
 use crate::llm::{
     HttpRequestOptions, LlmRunError, http_body_opts, http_plain_opts, http_raw_opts,
-    run_codex_jsonl, run_codex_plain, run_llama_cpp_plain, run_mlx_plain, run_ollama_plain,
+    run_llama_cpp_plain, run_mlx_plain, run_ollama_plain, run_primary_jsonl, run_primary_plain,
     wrap_agent_text_as_jsonl,
 };
 use crate::runtime::{
@@ -84,10 +84,11 @@ impl HttpSecretSource {
 
 fn normalized_backend_name(raw: &str) -> &'static str {
     match raw.to_ascii_lowercase().as_str() {
+        "primary" => "primary",
         "ollama" => "ollama",
         "llamacpp" | "llama.cpp" | "llama_cpp" => "llamacpp",
         "mlx" => "mlx",
-        _ => "codex",
+        _ => "primary",
     }
 }
 
@@ -272,7 +273,7 @@ pub fn selected_adapter_name() -> &'static str {
         "ollama" => "ollama-cli",
         "llamacpp" => "llama.cpp-cli",
         "mlx" => "mlx-python",
-        _ => "codex-cli",
+        _ => "primary-cli",
     }
 }
 
@@ -534,7 +535,7 @@ fn provider_status_for_adapter(adapter_name: &str) -> ProviderStatus {
 
 pub fn capabilities_for_adapter(adapter_name: &str) -> ProviderCapabilities {
     match adapter_name {
-        "codex-cli" => ProviderCapabilities {
+        "primary-cli" => ProviderCapabilities {
             jsonl_native: true,
             schema_strict: true,
             transport: "process",
@@ -620,19 +621,19 @@ pub trait ProviderAdapter {
     fn capabilities(&self) -> ProviderCapabilities;
 }
 
-pub struct CodexCliAdapter;
+pub struct PrimaryProcessAdapter;
 
-impl ProviderAdapter for CodexCliAdapter {
+impl ProviderAdapter for PrimaryProcessAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_codex_plain(prompt)
+        run_primary_plain(prompt)
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_codex_jsonl(prompt)
+        run_primary_jsonl(prompt)
     }
 
     fn capabilities(&self) -> ProviderCapabilities {
-        capabilities_for_adapter("codex-cli")
+        capabilities_for_adapter("primary-cli")
     }
 }
 
@@ -1096,7 +1097,7 @@ pub fn resolve_provider_adapter() -> Result<Box<dyn ProviderAdapter>, LlmRunErro
         "mlx" => return Ok(Box::new(MlxPythonAdapter::new()?)),
         _ => {}
     }
-    Ok(Box::new(CodexCliAdapter))
+    Ok(Box::new(PrimaryProcessAdapter))
 }
 
 pub fn run_jsonl_with_current_adapter(prompt: &str) -> Result<String, LlmRunError> {
@@ -1125,9 +1126,9 @@ mod tests {
 
     #[test]
     fn backend_normalization_defaults_to_codex() {
-        assert_eq!(normalized_backend_name("codex"), "codex");
-        assert_eq!(normalized_backend_name("CoDeX"), "codex");
-        assert_eq!(normalized_backend_name("unknown"), "codex");
+        assert_eq!(normalized_backend_name("primary"), "primary");
+        assert_eq!(normalized_backend_name("CoDeX"), "primary");
+        assert_eq!(normalized_backend_name("unknown"), "primary");
     }
 
     #[test]
@@ -1169,14 +1170,14 @@ mod tests {
     #[test]
     fn selected_adapter_name_follows_backend_normalization() {
         assert_eq!(normalized_backend_name("ollama"), "ollama");
-        assert_eq!(normalized_backend_name("codex"), "codex");
+        assert_eq!(normalized_backend_name("primary"), "primary");
     }
 
     #[test]
     fn provider_transport_mapping_covers_mock_and_process() {
         assert_eq!(super::provider_transport_for_adapter("mock"), "mock");
         assert_eq!(
-            super::provider_transport_for_adapter("codex-cli"),
+            super::provider_transport_for_adapter("primary-cli"),
             "process"
         );
         assert_eq!(
@@ -1187,10 +1188,10 @@ mod tests {
 
     #[test]
     fn capabilities_mapping_is_deterministic() {
-        let codex = super::capabilities_for_adapter("codex-cli");
-        assert!(codex.jsonl_native);
-        assert!(codex.schema_strict);
-        assert_eq!(codex.transport, "process");
+        let primary = super::capabilities_for_adapter("primary-cli");
+        assert!(primary.jsonl_native);
+        assert!(primary.schema_strict);
+        assert_eq!(primary.transport, "process");
 
         let ollama = super::capabilities_for_adapter("ollama-cli");
         assert!(!ollama.jsonl_native);
@@ -1215,7 +1216,7 @@ mod tests {
 
     #[test]
     fn tq_caps_typed() {
-        let standard = backend_tq_caps("codex");
+        let standard = backend_tq_caps("primary");
         assert_eq!(standard.turboquant_runtime_support, "none");
         assert_eq!(standard.turboquant_backend_role, "standard_provider");
         assert_eq!(standard.turboquant_metric_kind, None);
@@ -1233,8 +1234,8 @@ mod tests {
 
     #[test]
     fn adapter_trait_capabilities_match_mapping() {
-        let codex = super::CodexCliAdapter;
-        let caps = codex.capabilities();
+        let primary = super::PrimaryProcessAdapter;
+        let caps = primary.capabilities();
         assert!(caps.jsonl_native);
         assert_eq!(caps.transport, "process");
     }
@@ -1252,7 +1253,7 @@ mod tests {
             ProviderStatus::Experimental
         );
         assert_eq!(
-            super::provider_status_for_adapter("codex-cli"),
+            super::provider_status_for_adapter("primary-cli"),
             ProviderStatus::Stable
         );
     }

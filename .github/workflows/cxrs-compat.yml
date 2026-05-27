@@ -126,10 +126,10 @@ jobs:
           repo="$(mktemp -d)"
           trap 'rm -rf "$repo"' EXIT
           git -C "$repo" init -q
-          mkdir -p "$repo/.codex/cxlogs"
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"e1","timestamp":"2026-01-01T00:00:00Z","command":"cx","backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":10,"schema_enforced":false,"schema_valid":true}
-          {"execution_id":"e2","timestamp":"2026-01-01T00:00:01Z","command":"next","backend_used":"codex","capture_provider":"native","execution_mode":"deterministic","duration_ms":20,"schema_enforced":true,"schema_valid":true,"task_id":"task_1"}
+          mkdir -p "$repo/.cx/cxlogs"
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"e1","timestamp":"2026-01-01T00:00:00Z","command":"cx","backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":10,"schema_enforced":false,"schema_valid":true}
+          {"execution_id":"e2","timestamp":"2026-01-01T00:00:01Z","command":"next","backend_used":"primary","capture_provider":"native","execution_mode":"deterministic","duration_ms":20,"schema_enforced":true,"schema_valid":true,"task_id":"task_1"}
           JSONL
           out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- logs stats 2 --json)"
           echo "$out" | jq -e '.window_runs == 2' >/dev/null
@@ -144,9 +144,9 @@ jobs:
           repo="$(mktemp -d)"
           trap 'rm -rf "$repo"' EXIT
           git -C "$repo" init -q
-          mkdir -p "$repo/.codex/cxlogs"
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"s1","timestamp":"2026-01-01T00:00:00Z","command":"cx","backend_used":"codex","adapter_type":"codex-cli","provider_transport":"process","provider_status":null,"capture_provider":"native","execution_mode":"lean","duration_ms":10,"schema_enforced":false,"schema_valid":true,"quarantine_id":null,"task_id":null,"system_output_len_raw":null,"system_output_len_processed":null,"system_output_len_clipped":null,"system_output_lines_raw":null,"system_output_lines_processed":null,"system_output_lines_clipped":null,"input_tokens":null,"cached_input_tokens":null,"effective_input_tokens":null,"output_tokens":null,"policy_blocked":null,"policy_reason":null,"timed_out":null,"timeout_secs":null,"command_label":null,"retry_attempt":null,"retry_max":null,"retry_reason":null,"retry_backoff_ms":null}
+          mkdir -p "$repo/.cx/cxlogs"
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"s1","timestamp":"2026-01-01T00:00:00Z","command":"cx","backend_used":"primary","adapter_type":"primary-cli","provider_transport":"process","provider_status":null,"capture_provider":"native","execution_mode":"lean","duration_ms":10,"schema_enforced":false,"schema_valid":true,"quarantine_id":null,"task_id":null,"system_output_len_raw":null,"system_output_len_processed":null,"system_output_len_clipped":null,"system_output_lines_raw":null,"system_output_lines_processed":null,"system_output_lines_clipped":null,"input_tokens":null,"cached_input_tokens":null,"effective_input_tokens":null,"output_tokens":null,"policy_blocked":null,"policy_reason":null,"timed_out":null,"timeout_secs":null,"command_label":null,"retry_attempt":null,"retry_max":null,"retry_reason":null,"retry_backoff_ms":null}
           JSONL
           out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- logs validate --strict)"
           echo "$out" | grep -q "status: ok"
@@ -157,11 +157,11 @@ jobs:
           repo="$(mktemp -d)"
           trap 'rm -rf "$repo"' EXIT
           git -C "$repo" init -q
-          mkdir -p "$repo/.codex/cxlogs"
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"s1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":12,"schema_enforced":false,"schema_valid":true,"queue_ms":3000,"worker_id":"w1"}
-          {"execution_id":"s2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":14,"schema_enforced":false,"schema_valid":true,"queue_ms":3200,"worker_id":"w1"}
-          {"execution_id":"s3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo","backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":16,"schema_enforced":false,"schema_valid":true,"queue_ms":3400,"worker_id":"w1"}
+          mkdir -p "$repo/.cx/cxlogs"
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"s1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":12,"schema_enforced":false,"schema_valid":true,"queue_ms":3000,"worker_id":"w1"}
+          {"execution_id":"s2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":14,"schema_enforced":false,"schema_valid":true,"queue_ms":3200,"worker_id":"w1"}
+          {"execution_id":"s3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo","backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":16,"schema_enforced":false,"schema_valid":true,"queue_ms":3400,"worker_id":"w1"}
           JSONL
           set +e
           out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- diag --json --strict --window 3)"
@@ -181,10 +181,10 @@ jobs:
           repo="$(mktemp -d)"
           trap 'rm -rf "$repo"' EXIT
           git -C "$repo" init -q
-          mkdir -p "$repo/.codex/cxlogs"
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"o1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":1000,"schema_enforced":false,"schema_valid":true,"task_id":"task_001","retry_attempt":1,"timed_out":true}
-          {"execution_id":"o2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":800,"schema_enforced":false,"schema_valid":true,"task_id":"task_001","retry_attempt":2,"timed_out":false}
+          mkdir -p "$repo/.cx/cxlogs"
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"o1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":1000,"schema_enforced":false,"schema_valid":true,"task_id":"task_001","retry_attempt":1,"timed_out":true}
+          {"execution_id":"o2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":800,"schema_enforced":false,"schema_valid":true,"task_id":"task_001","retry_attempt":2,"timed_out":false}
           JSONL
           out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- optimize 10 --json)"
           echo "$out" | jq -e '.scoreboard.retry_health.rows_after_retry == 1' >/dev/null
@@ -197,12 +197,12 @@ jobs:
           repo="$(mktemp -d)"
           trap 'rm -rf "$repo"' EXIT
           git -C "$repo" init -q
-          mkdir -p "$repo/.codex/cxlogs"
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"b1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":1000,"schema_enforced":false,"schema_valid":true,"effective_input_tokens":100,"output_tokens":20}
+          mkdir -p "$repo/.cx/cxlogs"
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"b1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":1000,"schema_enforced":false,"schema_valid":true,"effective_input_tokens":100,"output_tokens":20}
           {"execution_id":"b2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"ollama","backend_selected":"ollama","capture_provider":"native","execution_mode":"lean","duration_ms":1500,"schema_enforced":false,"schema_valid":true,"effective_input_tokens":90,"output_tokens":18}
           JSONL
-          out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- broker benchmark --backend codex --backend ollama --window 10 --strict --min-runs 1 --json)"
+          out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- broker benchmark --backend primary --backend ollama --window 10 --strict --min-runs 1 --json)"
           echo "$out" | jq -e '.window == 10' >/dev/null
           echo "$out" | jq -e '.summary | type == "array"' >/dev/null
           echo "$out" | jq -e '.summary | length == 2' >/dev/null
@@ -212,12 +212,12 @@ jobs:
           echo "$out" | jq -e '.violation_counts.warn == 0 and .violation_counts.critical == 0' >/dev/null
 
           # Warn-only threshold path: insufficient samples but non-zero per backend should fail only under severity=warn.
-          cat > "$repo/.codex/cxlogs/runs.jsonl" <<'JSONL'
-          {"execution_id":"bw1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":900,"schema_enforced":false,"schema_valid":true}
+          cat > "$repo/.cx/cxlogs/runs.jsonl" <<'JSONL'
+          {"execution_id":"bw1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo","backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":900,"schema_enforced":false,"schema_valid":true}
           {"execution_id":"bw2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo","backend_used":"ollama","backend_selected":"ollama","capture_provider":"native","execution_mode":"lean","duration_ms":950,"schema_enforced":false,"schema_valid":true}
           JSONL
           set +e
-          warn_out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- broker benchmark --backend codex --backend ollama --window 10 --strict --min-runs 2 --severity warn --json)"
+          warn_out="$(cd "$repo" && cargo run --quiet --manifest-path "$GITHUB_WORKSPACE/rust/cxrs/Cargo.toml" -- broker benchmark --backend primary --backend ollama --window 10 --strict --min-runs 2 --severity warn --json)"
           warn_rc=$?
           set -e
           test "$warn_rc" -eq 1

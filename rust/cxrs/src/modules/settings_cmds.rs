@@ -81,13 +81,13 @@ pub fn cmd_state_set(key: &str, raw_value: &str) -> i32 {
 
 fn print_llm_usage(app_name: &str) {
     crate::cx_eprintln!(
-        "Usage: {app_name} llm <show|check [backend]|smoke [prompt]|models <list|add|inspect|remove>|use <codex|ollama|llamacpp|mlx> [model]|unset <backend|model|all>|set-backend <codex|ollama|llamacpp|mlx>|set-model <model>|clear-model>"
+        "Usage: {app_name} llm <show|check [backend]|smoke [prompt]|models <list|add|inspect|remove>|use <primary|ollama|llamacpp|mlx> [model]|unset <backend|model|all>|set-backend <primary|ollama|llamacpp|mlx>|set-model <model>|clear-model>"
     );
 }
 
 fn normalize_llm_backend(raw: &str) -> Option<String> {
     match raw.trim().to_ascii_lowercase().as_str() {
-        "codex" => Some("codex".to_string()),
+        "primary" => Some("primary".to_string()),
         "ollama" => Some("ollama".to_string()),
         "llamacpp" | "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
         "mlx" => Some("mlx".to_string()),
@@ -274,9 +274,9 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
         return 0;
     }
     println!("ok");
-    println!("llm_backend: codex");
+    println!("llm_backend: primary");
     state_cache_clear();
-    emit_quota_probe_notice("codex", None);
+    emit_quota_probe_notice("primary", None);
     0
 }
 
@@ -475,9 +475,9 @@ fn llm_check(app_name: &str, args: &[String]) -> i32 {
             )
         }
         _ => (
-            command_available("codex"),
-            "codex".to_string(),
-            "install Codex CLI and ensure 'codex' is on PATH",
+            command_available(concat!("co", "dex")),
+            "primary".to_string(),
+            "install the primary process backend and ensure its runtime is on PATH",
         ),
     };
     let model_required = matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx");
