@@ -355,6 +355,11 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
         description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
     },
     CommandHelp {
+        name: "task events",
+        usage: "{APP} task events [--limit N] [--json|--jsonl] [--follow]",
+        description: "Read task-events.v1 progress events emitted by run-all",
+    },
+    CommandHelp {
         name: "task run-plan",
         usage: "{APP} task run-plan [--status pending|in_progress|complete|failed] [--json]",
         description: "Preview deterministic execution waves before run-all",
@@ -366,7 +371,7 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "task run-all",
-        usage: "{APP} task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]",
+        usage: "{APP} task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--events-jsonl] [--summary text|json] [--json|--text]",
         description: "Run tasks by status (sequential default; mixed uses run-plan waves and broker-aware backend routing)",
     },
 ];

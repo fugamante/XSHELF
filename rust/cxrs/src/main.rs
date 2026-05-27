@@ -107,6 +107,8 @@ mod structured_fixrun;
 mod structured_replay;
 #[path = "modules/task_cmds.rs"]
 mod task_cmds;
+#[path = "modules/task_events.rs"]
+mod task_events;
 #[path = "modules/taskrun.rs"]
 mod taskrun;
 #[path = "modules/tasks.rs"]
