@@ -1,13 +1,22 @@
 use serde_json::Value;
+use std::process::Command;
 
 use crate::config::cli_app_name;
 
 use crate::analytics::quota_probe_for_backend_days;
-use crate::runtime::{llm_backend, llm_model, ollama_model_preference};
+use crate::process::run_command_output_with_timeout;
+use crate::provider_adapter::resolve_provider_adapter;
+use crate::runtime::{
+    llama_cpp_model_preference, llm_backend, llm_model, mlx_model_preference,
+    ollama_model_preference,
+};
 use crate::state::{
     ensure_state_value, parse_cli_value, set_state_path, set_value_at_path, state_cache_clear,
     value_at_path, write_json_atomic,
 };
+
+#[path = "settings_models.rs"]
+mod llm_models;
 
 pub fn cmd_state_show() -> i32 {
     let (_state_file, state) = match ensure_state_value() {
@@ -72,14 +81,26 @@ pub fn cmd_state_set(key: &str, raw_value: &str) -> i32 {
 
 fn print_llm_usage(app_name: &str) {
     crate::cx_eprintln!(
-        "Usage: {app_name} llm <show|use <codex|ollama> [model]|unset <backend|model|all>|set-backend <codex|ollama>|set-model <model>|clear-model>"
+        "Usage: {app_name} llm <show|check [backend]|smoke [prompt]|models <list|add|inspect|remove>|use <primary|ollama|llamacpp|mlx> [model]|unset <backend|model|all>|set-backend <primary|ollama|llamacpp|mlx>|set-model <model>|clear-model>"
     );
+}
+
+fn normalize_llm_backend(raw: &str) -> Option<String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "primary" => Some("primary".to_string()),
+        "ollama" => Some("ollama".to_string()),
+        "llamacpp" | "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
+        "mlx" => Some("mlx".to_string()),
+        _ => None,
+    }
 }
 
 fn llm_show() -> i32 {
     let backend = llm_backend();
     let model = llm_model();
     let ollama_pref = ollama_model_preference();
+    let llama_cpp_pref = llama_cpp_model_preference();
+    let mlx_pref = mlx_model_preference();
     println!("llm_backend: {backend}");
     println!(
         "active_model: {}",
@@ -91,6 +112,22 @@ fn llm_show() -> i32 {
             "<unset>"
         } else {
             &ollama_pref
+        }
+    );
+    println!(
+        "llama_cpp_model: {}",
+        if llama_cpp_pref.is_empty() {
+            "<unset>"
+        } else {
+            &llama_cpp_pref
+        }
+    );
+    println!(
+        "mlx_model: {}",
+        if mlx_pref.is_empty() {
+            "<unset>"
+        } else {
+            &mlx_pref
         }
     );
     0
@@ -141,14 +178,10 @@ fn emit_quota_probe_notice(backend: &str, model: Option<&str>) {
 }
 
 fn llm_use(app_name: &str, args: &[String]) -> i32 {
-    let Some(target) = args.get(1).map(|s| s.to_lowercase()) else {
+    let Some(target) = args.get(1).and_then(|s| normalize_llm_backend(s)) else {
         print_llm_usage(app_name);
         return 2;
     };
-    if target != "codex" && target != "ollama" {
-        print_llm_usage(app_name);
-        return 2;
-    }
     if let Err(e) = set_state_path("preferences.llm_backend", Value::String(target.clone())) {
         crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
         return 1;
@@ -182,10 +215,68 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
         emit_quota_probe_notice("ollama", model_opt);
         return 0;
     }
+    if target == "llamacpp" {
+        if let Some(model) = args.get(2) {
+            let m = model.trim();
+            if m.is_empty() {
+                print_llm_usage(app_name);
+                return 2;
+            }
+            if let Err(e) =
+                set_state_path("preferences.llama_cpp_model", Value::String(m.to_string()))
+            {
+                crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+                return 1;
+            }
+        }
+        println!("ok");
+        println!("llm_backend: llamacpp");
+        let pref = llama_cpp_model_preference();
+        println!(
+            "llama_cpp_model: {}",
+            if pref.is_empty() { "<unset>" } else { &pref }
+        );
+        state_cache_clear();
+        let model_opt = if pref.is_empty() {
+            None
+        } else {
+            Some(pref.as_str())
+        };
+        emit_quota_probe_notice("llamacpp", model_opt);
+        return 0;
+    }
+    if target == "mlx" {
+        if let Some(model) = args.get(2) {
+            let m = model.trim();
+            if m.is_empty() {
+                print_llm_usage(app_name);
+                return 2;
+            }
+            if let Err(e) = set_state_path("preferences.mlx_model", Value::String(m.to_string())) {
+                crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+                return 1;
+            }
+        }
+        println!("ok");
+        println!("llm_backend: mlx");
+        let pref = mlx_model_preference();
+        println!(
+            "mlx_model: {}",
+            if pref.is_empty() { "<unset>" } else { &pref }
+        );
+        state_cache_clear();
+        let model_opt = if pref.is_empty() {
+            None
+        } else {
+            Some(pref.as_str())
+        };
+        emit_quota_probe_notice("mlx", model_opt);
+        return 0;
+    }
     println!("ok");
-    println!("llm_backend: codex");
+    println!("llm_backend: primary");
     state_cache_clear();
-    emit_quota_probe_notice("codex", None);
+    emit_quota_probe_notice("primary", None);
     0
 }
 
@@ -202,12 +293,22 @@ fn llm_unset(app_name: &str, args: &[String]) -> i32 {
             0
         }
         "model" => {
-            if let Err(e) = set_state_path("preferences.ollama_model", Value::Null) {
+            let backend = llm_backend();
+            let path = match backend.as_str() {
+                "llamacpp" => "preferences.llama_cpp_model",
+                "mlx" => "preferences.mlx_model",
+                _ => "preferences.ollama_model",
+            };
+            if let Err(e) = set_state_path(path, Value::Null) {
                 crate::cx_eprintln!("{} llm unset model: {e}", cli_app_name());
                 return 1;
             }
             println!("ok");
-            println!("ollama_model: <unset>");
+            match backend.as_str() {
+                "llamacpp" => println!("llama_cpp_model: <unset>"),
+                "mlx" => println!("mlx_model: <unset>"),
+                _ => println!("ollama_model: <unset>"),
+            }
             0
         }
         "all" => {
@@ -219,9 +320,19 @@ fn llm_unset(app_name: &str, args: &[String]) -> i32 {
                 crate::cx_eprintln!("{} llm unset all: {e}", cli_app_name());
                 return 1;
             }
+            if let Err(e) = set_state_path("preferences.llama_cpp_model", Value::Null) {
+                crate::cx_eprintln!("{} llm unset all: {e}", cli_app_name());
+                return 1;
+            }
+            if let Err(e) = set_state_path("preferences.mlx_model", Value::Null) {
+                crate::cx_eprintln!("{} llm unset all: {e}", cli_app_name());
+                return 1;
+            }
             println!("ok");
             println!("llm_backend: <unset>");
             println!("ollama_model: <unset>");
+            println!("llama_cpp_model: <unset>");
+            println!("mlx_model: <unset>");
             0
         }
         _ => {
@@ -232,14 +343,10 @@ fn llm_unset(app_name: &str, args: &[String]) -> i32 {
 }
 
 fn llm_set_backend(app_name: &str, args: &[String]) -> i32 {
-    let Some(v) = args.get(1).map(|s| s.to_lowercase()) else {
+    let Some(v) = args.get(1).and_then(|s| normalize_llm_backend(s)) else {
         print_llm_usage(app_name);
         return 2;
     };
-    if v != "codex" && v != "ollama" {
-        print_llm_usage(app_name);
-        return 2;
-    }
     if let Err(e) = set_state_path("preferences.llm_backend", Value::String(v.clone())) {
         crate::cx_eprintln!("{} llm set-backend: {e}", cli_app_name());
         return 1;
@@ -260,33 +367,176 @@ fn llm_set_model(app_name: &str, args: &[String]) -> i32 {
         print_llm_usage(app_name);
         return 2;
     }
-    if let Err(e) = set_state_path(
-        "preferences.ollama_model",
-        Value::String(model.trim().to_string()),
-    ) {
+    let backend = llm_backend();
+    let path = match backend.as_str() {
+        "llamacpp" => "preferences.llama_cpp_model",
+        "mlx" => "preferences.mlx_model",
+        _ => "preferences.ollama_model",
+    };
+    if let Err(e) = set_state_path(path, Value::String(model.trim().to_string())) {
         crate::cx_eprintln!("{} llm set-model: {e}", cli_app_name());
         return 1;
     }
     println!("ok");
-    println!("ollama_model: {}", model.trim());
+    match backend.as_str() {
+        "llamacpp" => println!("llama_cpp_model: {}", model.trim()),
+        "mlx" => println!("mlx_model: {}", model.trim()),
+        _ => println!("ollama_model: {}", model.trim()),
+    }
     state_cache_clear();
-    emit_quota_probe_notice("ollama", Some(model.trim()));
+    emit_quota_probe_notice(&backend, Some(model.trim()));
     0
 }
 
 fn llm_clear_model() -> i32 {
-    if let Err(e) = set_state_path("preferences.ollama_model", Value::Null) {
+    let backend = llm_backend();
+    let path = match backend.as_str() {
+        "llamacpp" => "preferences.llama_cpp_model",
+        "mlx" => "preferences.mlx_model",
+        _ => "preferences.ollama_model",
+    };
+    if let Err(e) = set_state_path(path, Value::Null) {
         crate::cx_eprintln!("{} llm clear-model: {e}", cli_app_name());
         return 1;
     }
     println!("ok");
-    println!("ollama_model: <unset>");
+    match backend.as_str() {
+        "llamacpp" => println!("llama_cpp_model: <unset>"),
+        "mlx" => println!("mlx_model: <unset>"),
+        _ => println!("ollama_model: <unset>"),
+    }
+    0
+}
+
+fn command_available(bin: &str) -> bool {
+    let mut cmd = Command::new("bash");
+    cmd.args(["-lc", "command -v \"$1\" >/dev/null 2>&1", "_", bin]);
+    run_command_output_with_timeout(cmd, "llm check command")
+        .ok()
+        .is_some_and(|out| out.status.success())
+}
+
+fn mlx_available(python: &str) -> bool {
+    let mut cmd = Command::new(python);
+    cmd.args(["-c", "import mlx_lm"]);
+    run_command_output_with_timeout(cmd, "llm check mlx")
+        .ok()
+        .is_some_and(|out| out.status.success())
+}
+
+fn check_model_for_backend(backend: &str) -> String {
+    match backend {
+        "ollama" => ollama_model_preference(),
+        "llamacpp" => llama_cpp_model_preference(),
+        "mlx" => mlx_model_preference(),
+        _ => llm_model(),
+    }
+}
+
+fn llm_check(app_name: &str, args: &[String]) -> i32 {
+    let backend = if let Some(raw) = args.get(1) {
+        let Some(v) = normalize_llm_backend(raw) else {
+            print_llm_usage(app_name);
+            return 2;
+        };
+        v
+    } else {
+        llm_backend()
+    };
+    let model = check_model_for_backend(&backend);
+    let (runtime_ok, runtime, hint) = match backend.as_str() {
+        "ollama" => (
+            command_available("ollama"),
+            "ollama".to_string(),
+            "install Ollama and ensure 'ollama' is on PATH",
+        ),
+        "llamacpp" => {
+            let bin = std::env::var("CX_LLAMA_CPP_BIN")
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "llama-cli".to_string());
+            (
+                command_available(&bin),
+                bin,
+                "install llama.cpp and ensure llama-cli is on PATH or set CX_LLAMA_CPP_BIN",
+            )
+        }
+        "mlx" => {
+            let python = std::env::var("CX_MLX_PYTHON")
+                .ok()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "python3".to_string());
+            (
+                mlx_available(&python),
+                python,
+                "install mlx-lm in the selected Python environment or set CX_MLX_PYTHON",
+            )
+        }
+        _ => (
+            command_available(concat!("co", "dex")),
+            "primary".to_string(),
+            "install the primary process backend and ensure its runtime is on PATH",
+        ),
+    };
+    let model_required = matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx");
+    let model_ok = !model_required || !model.trim().is_empty();
+    println!("backend: {backend}");
+    println!("runtime: {runtime}");
+    println!("runtime_ok: {}", if runtime_ok { "yes" } else { "no" });
+    println!(
+        "model: {}",
+        if model.is_empty() { "<unset>" } else { &model }
+    );
+    println!("model_ok: {}", if model_ok { "yes" } else { "no" });
+    if !runtime_ok {
+        println!("runtime_hint: {hint}");
+    }
+    if !model_ok {
+        println!("model_hint: {app_name} llm use {backend} <model>");
+    }
+    if runtime_ok && model_ok { 0 } else { 1 }
+}
+
+fn llm_smoke(args: &[String]) -> i32 {
+    let prompt = if args.len() > 1 {
+        args[1..].join(" ")
+    } else {
+        "Respond with OK only.".to_string()
+    };
+    let backend = llm_backend();
+    let model = llm_model();
+    let adapter = match resolve_provider_adapter() {
+        Ok(v) => v,
+        Err(e) => {
+            crate::cx_eprintln!("llm smoke: {e}");
+            return 1;
+        }
+    };
+    let text = match adapter.run_plain(&prompt) {
+        Ok(v) => v,
+        Err(e) => {
+            crate::cx_eprintln!("llm smoke: {e}");
+            return 1;
+        }
+    };
+    println!("smoke_backend: {backend}");
+    println!(
+        "smoke_model: {}",
+        if model.is_empty() { "<unset>" } else { &model }
+    );
+    println!("smoke_output:");
+    println!("{}", text.trim());
     0
 }
 
 pub fn cmd_llm(app_name: &str, args: &[String]) -> i32 {
     match args.first().map(String::as_str).unwrap_or("show") {
         "show" => llm_show(),
+        "check" => llm_check(app_name, args),
+        "smoke" => llm_smoke(args),
+        "models" => llm_models::dispatch(app_name, &args[1..]),
         "use" => llm_use(app_name, args),
         "unset" => llm_unset(app_name, args),
         "set-backend" => llm_set_backend(app_name, args),

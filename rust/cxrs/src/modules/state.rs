@@ -43,6 +43,8 @@ fn default_state_value() -> Value {
         "preferences": {
             "llm_backend": Value::Null,
             "ollama_model": Value::Null,
+            "llama_cpp_model": Value::Null,
+            "mlx_model": Value::Null,
             "conventional_commits": Value::Null,
             "pr_summary_format": Value::Null,
             "default_json_output": Value::Null

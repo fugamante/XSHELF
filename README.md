@@ -1,16 +1,81 @@
 # XSHELF (formerly CX)
 
-`XSHELF` is a deterministic, Rust-first LLM runtime for repository work.
+`XSHELF` is a deterministic Rust runtime for LLM-assisted repository work: it
+wraps repo commands with structured validation, inspectable runtime state, and
+explicit execution policy.
 
-It is built for people who want:
-- structured command execution with schema-enforced JSON
-- repo-scoped runtime state, logs, quarantine, and task orchestration
-- explicit policy boundaries and execution guidance instead of silent agent drift
-- machine-readable diagnostics that downstream tools can rely on
+Use it when free-form agent output is too loose for automation, CI, or operator
+workflows that need stable JSON contracts and replayable diagnostics.
 
-Naming note:
-- `XSHELF/CX` is an independent open-source project and is not affiliated with or endorsed by OpenAI.
-- `CX` remains the compatibility name across the current command surface during transition.
+Trust and naming:
+- `XSHELF/CX` is an independent open-source project and is not affiliated with
+  or endorsed by OpenAI.
+- `XSHELF` is the primary project name.
+- `CX` remains a supported compatibility command surface during migration
+  (`./bin/cx ...`).
+
+## Try It
+
+Start here in two minutes. These first commands are read-only inspection checks;
+they do not change repository configuration.
+
+```bash
+./bin/xshelf version
+./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20
+```
+
+Expected results:
+- `version` prints the XSHELF runtime version.
+- `task check --json` reports task orchestration readiness.
+- `core --json` prints machine-readable runtime and backend state.
+- `diag --json` prints recent machine-readable diagnostics.
+
+Then check backend health:
+
+```bash
+./bin/xshelf llm check
+./bin/xshelf doctor
+./bin/xshelf health
+```
+
+Run `cxo` only after readiness and backend checks are healthy. A safe first
+command is a read-only repository inspection:
+
+```bash
+./bin/xshelf cxo git status
+```
+
+The short alias is available as `./bin/xs ...`; the compatibility alias remains
+available as `./bin/cx ...`.
+
+## Who It Is For
+
+XSHELF is for:
+- repo operators who need auditable command results instead of loose agent text
+- teams wiring LLM-assisted workflows into CI or local automation
+- developers testing hosted or local model backends behind explicit policy
+
+## What You Get
+
+- Deterministic command pipeline: capture, reduce, budget, execute, validate,
+  quarantine invalid structured output, and append telemetry.
+- Structured runtime visibility: JSON surfaces for `core`, `diag`, `scheduler`,
+  `telemetry`, `logs`, `optimize`, `policy`, `quota`, and `broker`.
+- Task orchestration: `task add`, `task fanout`, `task run`, and `task run-all`
+  with explicit readiness and concurrency summaries.
+- Backend policy: default `primary`, optional `ollama`, `llamacpp`, and `mlx`,
+  with HTTP transport behind explicit rollout policy.
+
+Key terms:
+- deterministic: same inputs and settings produce inspectable runtime behavior
+- schema: the required JSON shape a structured command result must match
+- quarantine: invalid structured output is saved for inspection and replay
+- backend: the model runtime that handles LLM calls
+- policy: explicit rules for allowed execution paths and transports
+
+## Entrypoints
 
 Canonical runtime:
 - engine: `rust/cxrs`
@@ -18,31 +83,6 @@ Canonical runtime:
 - short alias: `bin/xs`
 - compatibility alias: `bin/cx`
 - compatibility shell shim: `lib/cx.sh`
-
-## What It Does
-
-Core runtime capabilities:
-- deterministic structured commands with quarantine/replay on validation failure
-- unified Rust execution pipeline:
-  - capture
-  - native reduction
-  - budgeting
-  - LLM execution
-  - validation
-  - logging
-- task graph and run orchestration:
-  - `task add`
-  - `task fanout`
-  - `task run`
-  - `task run-all`
-- append-only telemetry, diagnostics, and policy visibility
-- run-all concurrency summaries on task, diagnostics, and telemetry surfaces
-- backend adapters with explicit rollout policy and opt-in HTTP transport
-- one OpenAI-compatible HTTP JSON request profile on the existing `http-curl` adapter boundary
-
-Default backend model:
-- `codex` by default
-- `ollama` optional
 
 ## Requirements
 
@@ -57,32 +97,10 @@ Minimum local requirements:
 Optional but commonly used:
 - `jq` for JSON inspection in examples
 - `ollama` if you want the optional local backend path
+- `llama-cli` from llama.cpp if you want the optional `llamacpp` local backend
+- `mlx-lm` in a Python environment if you want the optional macOS `mlx` backend
 
-## Quick Start
-
-Basic runtime checks:
-
-```bash
-cd <repo-root>
-./bin/xshelf version
-./bin/xshelf core
-./bin/xshelf doctor
-./bin/xshelf health
-```
-
-Run a normal command through the runtime:
-
-```bash
-./bin/xshelf cxo git status
-```
-
-Inspect runtime status in JSON:
-
-```bash
-./bin/xshelf core --json
-./bin/xshelf diag --json --window 50
-./bin/xshelf scheduler --json --window 50
-```
+## Shell Setup
 
 Install shell functions and man pages:
 
@@ -111,13 +129,13 @@ The Rust pipeline is intentionally strict:
 7. append telemetry
 
 Current compatibility storage path:
-- repo-scoped runtime state currently lives under `.codex/`
+- repo-scoped runtime state currently lives under `.cx/`
 
 Current layout:
-- schemas: `.codex/schemas/`
-- logs: `.codex/cxlogs/`
-- quarantine: `.codex/quarantine/`
-- state/tasks/runtime metadata: `.codex/`
+- schemas: `.cx/schemas/`
+- logs: `.cx/cxlogs/`
+- quarantine: `.cx/quarantine/`
+- state/tasks/runtime metadata: `.cx/`
 
 Runtime vs development:
 - end users should use `doctor`, `health`, and command JSON surfaces
@@ -129,9 +147,31 @@ Backend selection:
 
 ```bash
 ./bin/xshelf llm show
-./bin/xshelf llm use codex
+./bin/xshelf llm check
+./bin/xshelf llm use primary
 ./bin/xshelf llm use ollama llama3.1
+./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+./bin/xshelf llm models list --json | jq .
+./bin/xshelf llm models add local_qwen --backend mlx --model mlx-community/Qwen2.5-1.5B-Instruct-4bit
+./bin/xshelf llm models inspect local_qwen --json | jq .
+./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
+```
+
+`llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
+specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a
+small Apache-2.0 GGUF model whose Q4_0 file is about 429 MB and whose model card
+documents direct `llama-cli -hf ggml-org/Qwen3-0.6B-GGUF:Q4_0` usage.
+
+```bash
+brew install llama.cpp
+./scripts/llamacpp_smoke.sh
+
+# Equivalent manual smoke:
+./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+CX_CMD_TIMEOUT_SECS=600 \
+CX_LLAMA_CPP_ARGS="-n 64 --temp 0 -c 2048 --simple-io" \
+  ./bin/xshelf cxo printf 'xshelf llamacpp smoke\n'
 ```
 
 Structured command and schema inspection:
@@ -184,6 +224,13 @@ Important runtime knobs:
 - backend/model:
   - `CX_LLM_BACKEND`
   - `CX_OLLAMA_MODEL`
+  - `CX_LLAMA_CPP_MODEL`
+  - `CX_LLAMA_CPP_BIN`
+  - `CX_LLAMA_CPP_ARGS`
+  - `CX_MLX_MODEL`
+  - `CX_MLX_PYTHON`
+  - `CX_MLX_ARGS`
+  - `CX_MLX_MAX_TOKENS`
   - `CX_MODEL`
 - output mode:
   - `CX_JSON_DEFAULT`
@@ -226,36 +273,27 @@ Useful state/config commands:
 ./bin/xshelf quota catalog show --json | jq .
 ```
 
-## Docs Map
+## Where To Go Next
 
-Use the docs below for deeper material.
+Operator docs:
+- [docs/README.md](docs/README.md) - documentation index
+- [docs/manuals/00_README.md](docs/manuals/00_README.md) - manual entrypoint
+- [docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf](docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf) - generated master manual PDF
+- [docs/manuals/02_web/CX_MANUAL_MASTER.html](docs/manuals/02_web/CX_MANUAL_MASTER.html) - tracked HTML reader mirror
+- [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md) - HTTP/TLS operator guidance
 
-Product and repo boundary:
-- [docs/REPO_ROLE_CONTRACT.md](docs/REPO_ROLE_CONTRACT.md)
-- [docs/REPO_SYNC_PLAN.md](docs/REPO_SYNC_PLAN.md)
-- [docs/XSHELF_RENAME_MIGRATION.md](docs/XSHELF_RENAME_MIGRATION.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/RELEASE_CADENCE.md](docs/RELEASE_CADENCE.md)
+Maintainer docs:
+- [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
+- [docs/project/ROADMAP.md](docs/project/ROADMAP.md)
+- [docs/project/RELEASE_CADENCE.md](docs/project/RELEASE_CADENCE.md)
+- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Execution guidance and orchestration:
-- [docs/PHASE_VI_EXECUTION_GUIDANCE.md](docs/PHASE_VI_EXECUTION_GUIDANCE.md)
-- [docs/PHASE_VI_PARALLEL_SUBSTRATE.md](docs/PHASE_VI_PARALLEL_SUBSTRATE.md)
-- [docs/POST_PHASE_VI_OVERVIEW.md](docs/POST_PHASE_VI_OVERVIEW.md)
-- [docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md](docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md)
-
-Budget-aware orchestration:
-- [docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md](docs/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md)
-- [docs/PHASE_VII_WORK.json](docs/PHASE_VII_WORK.json)
-
-Contracts and adapters:
-- [docs/CONTRACT_COMPATIBILITY.md](docs/CONTRACT_COMPATIBILITY.md)
-- [docs/PROVIDER_ADAPTER_PLAN.md](docs/PROVIDER_ADAPTER_PLAN.md)
-- [docs/HTTP_PROVIDER_TLS.md](docs/HTTP_PROVIDER_TLS.md)
-
-TurboQuant research archive:
-- [docs/TURBOQUANT_SPIKE.md](docs/TURBOQUANT_SPIKE.md)
-- [docs/TURBOQUANT_METRIC.md](docs/TURBOQUANT_METRIC.md)
-- [docs/TURBOQUANT_CAP_MLX.md](docs/TURBOQUANT_CAP_MLX.md)
+Planning and history:
+- [docs/orchestration/](docs/orchestration/) - phase plans, work queues, and milestone notes
+- [docs/turboquant/](docs/turboquant/) - TurboQuant experiment archive
+- [docs/project/RUST_FIRST_MIGRATION.md](docs/project/RUST_FIRST_MIGRATION.md)
+- [docs/project/SECURITY_HISTORY_REWRITE.md](docs/project/SECURITY_HISTORY_REWRITE.md)
 
 ## Validation
 
@@ -271,9 +309,9 @@ Maintainer validation:
 
 ```bash
 ./scripts/compat_local.sh --quick
-./scripts/compat_local.sh --full --out .codex/compat/latest.json
+./scripts/compat_local.sh --full --out .cx/compat/latest.json
 ./scripts/compat_all.sh --quick
-./scripts/compat_all.sh --full --out .codex/compat/all_latest.json
+./scripts/compat_all.sh --full --out .cx/compat/all_latest.json
 ./bin/cx-compat-local --quick
 ```
 
@@ -319,8 +357,8 @@ Versioning:
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - [SECURITY.md](SECURITY.md)
-- [docs/GOOD_FIRST_ISSUES.md](docs/GOOD_FIRST_ISSUES.md)
-- [docs/CONTRIBUTOR_WALKTHROUGH.md](docs/CONTRIBUTOR_WALKTHROUGH.md)
+- [docs/contributing/GOOD_FIRST_ISSUES.md](docs/contributing/GOOD_FIRST_ISSUES.md)
+- [docs/contributing/CONTRIBUTOR_WALKTHROUGH.md](docs/contributing/CONTRIBUTOR_WALKTHROUGH.md)
 
 ## License
 

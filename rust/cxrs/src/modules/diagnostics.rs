@@ -619,10 +619,13 @@ fn concurrency_diag_value(
     cfg: &crate::config::AppConfig,
 ) -> Value {
     let default_backend = cfg.llm_backend.to_lowercase();
-    let default_backend_pool = if matches!(default_backend.as_str(), "codex" | "ollama") {
+    let default_backend_pool = if matches!(
+        default_backend.as_str(),
+        "primary" | "ollama" | "llamacpp" | "mlx"
+    ) {
         vec![default_backend]
     } else {
-        vec!["codex".to_string()]
+        vec!["primary".to_string()]
     };
     let defaults = serde_json::json!({
         "run_all_mode": "sequential",
@@ -1192,7 +1195,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "<unresolved>".to_string());
     let repo = repo_root_hint().unwrap_or_else(|| PathBuf::from("."));
-    let schema_dir = repo.join(".codex").join("schemas");
+    let schema_dir = repo.join(".cx").join("schemas");
     let backend = llm_backend();
     let model = llm_model();
     let active_model = if model.is_empty() {
@@ -1871,7 +1874,7 @@ mod tests {
     fn require_policy_field() {
         let row_missing = json!({
             "execution_id":"e1",
-            "backend_used":"codex",
+            "backend_used":"primary",
             "capture_provider":"native",
             "execution_mode":"lean",
             "schema_enforced":false,
@@ -1885,7 +1888,7 @@ mod tests {
 
         let row_with = json!({
             "execution_id":"e2",
-            "backend_used":"codex",
+            "backend_used":"primary",
             "capture_provider":"native",
             "execution_mode":"lean",
             "schema_enforced":false,
@@ -1946,7 +1949,7 @@ mod tests {
         let scheduler = json!({
             "queue_ms_p95": 0,
             "queue_rows": 12,
-            "backend_distribution": {"codex": 6, "ollama": 6},
+            "backend_distribution": {"primary": 6, "ollama": 6},
             "workers_seen": ["w1", "w2"],
             "window_runs": 12,
             "rows_with_retry_attempt": 12,

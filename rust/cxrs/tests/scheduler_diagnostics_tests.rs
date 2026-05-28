@@ -9,7 +9,7 @@ fn diag_reports_scheduler_distribution_fields() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"d1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true,"queue_ms":0,"worker_id":"w1"
         }),
         serde_json::json!({
@@ -19,7 +19,7 @@ fn diag_reports_scheduler_distribution_fields() {
         }),
         serde_json::json!({
             "execution_id":"d3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":14,"schema_enforced":false,"schema_valid":true,"queue_ms":1800,"worker_id":"w1"
         }),
     ];
@@ -41,7 +41,7 @@ fn diag_reports_scheduler_distribution_fields() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("scheduler_backend_distribution: codex=2,ollama=1"),
+        stdout.contains("scheduler_backend_distribution: ollama=1,primary=2"),
         "{stdout}"
     );
     assert!(
@@ -72,21 +72,21 @@ fn diag_p7_metrics() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"pm1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":120,
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":120,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":0,
             "run_all_failure_pattern":"clean",
             "run_all_recommended_resume_point":"xshelf task run-all --status pending"
         }),
         serde_json::json!({
             "execution_id":"pm2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":140,
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":140,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
             "run_all_failure_pattern":"retryable_failure",
             "run_all_recommended_resume_point":"xshelf task check --json"
         }),
         serde_json::json!({
             "execution_id":"pm3","timestamp":"2026-01-01T00:00:02Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean","duration_ms":150,
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean","duration_ms":150,
             "schema_enforced":false,"schema_valid":true,"run_all_mode":"mixed","run_all_failed":1,
             "run_all_failure_pattern":"retryable_failure",
             "run_all_recommended_resume_point":"xshelf task check --json"
@@ -122,7 +122,7 @@ fn diag_json_reports_scheduler_object() {
     let repo = TempRepo::new("cxrs-it");
     let row = serde_json::json!({
         "execution_id":"dj1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-        "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":10,"schema_enforced":false,"schema_valid":true,
         "queue_ms":500,"worker_id":"w1","retry_attempt":2,
         "queue_started_at":"2026-01-01T00:00:00Z","task_started_at":"2026-01-01T00:00:01Z","task_finished_at":"2026-01-01T00:00:02Z"
@@ -137,7 +137,7 @@ fn diag_json_reports_scheduler_object() {
         stderr_str(&out)
     );
     let v: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
-    assert_eq!(v.get("backend").and_then(Value::as_str), Some("codex"));
+    assert_eq!(v.get("backend").and_then(Value::as_str), Some("primary"));
     assert_eq!(
         v.get("scheduler_window_requested").and_then(Value::as_u64),
         Some(200)
@@ -203,7 +203,7 @@ fn diag_json_window_scopes_scheduler_rows() {
     for i in 1..=3u64 {
         rows.push(serde_json::json!({
             "execution_id":format!("dw{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":i * 100,"worker_id":"w1"
         }));
     }
@@ -235,17 +235,17 @@ fn diag_json_reports_run_all_critical_telemetry() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"dc1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
             "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
             "run_all_halted_remaining":1,
             "run_all_backend_fallback_rows":2,
-            "run_all_backend_fallbacks":"codex->ollama=2"
+            "run_all_backend_fallbacks":"primary->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"dc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true
         }),
     ];
@@ -304,7 +304,7 @@ fn diag_json_reports_run_all_critical_telemetry() {
         observed
             .get("latest_backend_fallbacks")
             .and_then(Value::as_str),
-        Some("codex->ollama=2")
+        Some("primary->ollama=2")
     );
 }
 
@@ -315,7 +315,7 @@ fn scheduler_json_strict_reports_severity() {
     for i in 1..=4u64 {
         rows.push(serde_json::json!({
             "execution_id":format!("sch{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":2500 + i * 10,"worker_id":"w1"
         }));
     }
@@ -343,17 +343,17 @@ fn scheduler_json_strict_flags_critical_halts() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"schc1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
             "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
             "run_all_halted_remaining":1,
             "run_all_backend_fallback_rows":2,
-            "run_all_backend_fallbacks":"codex->ollama=2"
+            "run_all_backend_fallbacks":"primary->ollama=2"
         }),
         serde_json::json!({
             "execution_id":"schc2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true,"queue_ms":100,"worker_id":"w1"
         }),
     ];
@@ -395,7 +395,7 @@ fn scheduler_json_strict_flags_critical_halts() {
         observed
             .get("latest_backend_fallbacks")
             .and_then(Value::as_str),
-        Some("codex->ollama=2")
+        Some("primary->ollama=2")
     );
 }
 
@@ -406,7 +406,7 @@ fn scheduler_json_matches_contract_fixture() {
     for i in 1..=2u64 {
         rows.push(serde_json::json!({
             "execution_id":format!("schfx{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":i * 100,"worker_id":"w1"
         }));
     }
@@ -592,19 +592,19 @@ fn diag_wave_observed() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"wv1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true,
             "task_id":"t1","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":120
         }),
         serde_json::json!({
             "execution_id":"wv2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":12,"schema_enforced":false,"schema_valid":true,
             "task_id":"t2","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":180
         }),
         serde_json::json!({
             "execution_id":"wv3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":14,"schema_enforced":false,"schema_valid":true,
             "task_id":"t3","wave_index":2,"wave_mode":"sequential","wave_size":1,"queue_ms":260
         }),

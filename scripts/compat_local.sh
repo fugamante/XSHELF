@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 MODE="quick"
 JSON_STDOUT=0
-OUT_FILE=".codex/compat/latest.json"
+OUT_FILE=".cx/compat/latest.json"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

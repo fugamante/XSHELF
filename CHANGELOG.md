@@ -15,13 +15,21 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Phase VIII local model substrate (Slice 1):
+  - added repo-scoped local model registry at `.cx/local_models.json`.
+  - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
+  - `llm use mlx <alias>` now resolves through the local model registry while preserving direct `CX_MLX_MODEL` compatibility.
+- Phase X token-compression planning corpus:
+  - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
+  - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
+  - roadmap now tracks Phase X as active planning with explicit non-goals for generic storage/assembly compression paths.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
   - added `bin/xs-install` and `bin/xs-uninstall` wrappers.
   - added `bin/xshelf-install` and `bin/xshelf-uninstall` wrappers.
   - install flow now publishes `xshelf.1`, `xs.1`, and `cx.1` man-page entries.
-  - added `docs/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
+  - added `docs/project/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
   - top-level help/task-help/usage error text now follows the invoked command name (`xshelf`, `xs`, or `cx`).
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
@@ -64,7 +72,7 @@ Notes:
     - `CX_HTTP_REQUIRE_HTTPS` (default `1`)
     - `CX_HTTP_ALLOW_LOCAL_HTTP` (default `1`, loopback-only HTTP exception)
   - `cx version` / `cx core` now print HTTP TLS policy toggles when `provider_transport=http`.
-  - added operator runbook: `docs/HTTP_PROVIDER_TLS.md`.
+  - added operator runbook: `docs/providers/HTTP_PROVIDER_TLS.md`.
 - Phase VI telemetry refinement:
   - `diag --json` / `scheduler --json` now expose scheduler timing-attribution coverage keys:
     - `rows_with_retry_attempt`
@@ -77,11 +85,11 @@ Notes:
   - added `scripts/compat_local.sh` at repo root with unified runner contract:
     - `--quick|--full`
     - `--json`
-    - `--out <path>` (default `.codex/compat/latest.json`)
+    - `--out <path>` (default `.cx/compat/latest.json`)
   - added `scripts/compat_all.sh` aggregate runner for multi-repo local checks:
     - auto-discovers sibling `cx` and `cx-eval-lab` repos when present
     - supports `--repo <path>` repeatable override
-    - emits aggregate JSON report (`.codex/compat/all_latest.json` by default)
+    - emits aggregate JSON report (`.cx/compat/all_latest.json` by default)
   - added wrapper `bin/cx-compat-local`.
   - standardized report schema to align with `cx-eval-lab` local compat artifacts (`status`, `mode`, `summary`, `steps`, host/toolchain/git metadata).
 - Adaptive output-mode resolution and introspection:
@@ -111,13 +119,14 @@ Notes:
 - Planning/docs updates:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
   - added Phase VI kickoff guidance in roadmap.
-  - added `docs/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
-  - added `docs/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.
+  - added `docs/project/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
+  - added `docs/project/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.
   - documented `mode` resolution and `CX_JSON_AUTO` behavior in README.
   - documented `diag/scheduler` top-level `concurrency` JSON fields (defaults + observed) and added examples in README telemetry section.
   - added README `jq` one-liners to extract `diag/scheduler` `concurrency.defaults` and `concurrency.observed` for CI/operator checks.
   - `cxrs-compat` CI now includes a command-surface gate that fails when command entrypoints are changed without corresponding docs/changelog updates.
   - refined command-surface CI gate to require `CHANGELOG.md` whenever command entrypoint files change (README/docs updates remain optional but recommended).
+  - added workflow action pin guardrail in `cxrs-compat` to require third-party GitHub Actions to be pinned to full 40-character commit SHAs (`scripts/check_action_pins.sh`).
   - `cxrs-compat` now captures and uploads failure artifacts (`rust_check`, `compat_check`, `shell_regression` logs) per OS job to speed up CI triage.
   - `cxrs-compat` failure artifacts now include a compact `summary_<os>.txt` with error-pattern extracts and tail context for faster diagnosis.
 - Phase VI execution lane (explicit, non-default):
@@ -188,11 +197,11 @@ Notes:
   - added shared JSON mode resolver precedence:
     - `--json` / `--text` CLI override
     - `CX_JSON_DEFAULT` env
-    - `.codex/state.json` at `preferences.default_json_output`
+    - `.cx/state.json` at `preferences.default_json_output`
     - command default fallback
   - wired into `task run-all`, `diag`, `scheduler`, `optimize`, and `logs stats`/`telemetry`.
 - Provider quota catalog commands:
-  - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
+  - added `cx quota catalog refresh` to seed `.cx/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.
   - added opt-in automatic refresh controls:
     - `cx quota catalog auto on --interval-hours N`
@@ -218,7 +227,7 @@ Notes:
   - supports configured totals via:
     - `CX_QUOTA_<BACKEND>_TOTAL_TOKENS`
     - `CX_QUOTA_TOTAL_TOKENS`
-    - `.codex/state.json` at `preferences.quota.<backend>_total_tokens`
+    - `.cx/state.json` at `preferences.quota.<backend>_total_tokens`
   - `ollama` is reported as `service_kind=local_unmetered`.
 - Lean-session behavior hardening:
   - `bin/cx-lean-session` no longer sets broker policy implicitly.
@@ -242,7 +251,7 @@ Notes:
     - `telemetry.v1`
     - `broker-benchmark.v1`
   - `--actions` payloads now include `actions_contract_version=actions.v1`.
-  - added compatibility policy doc: `docs/CONTRACT_COMPATIBILITY.md`.
+  - added compatibility policy doc: `docs/providers/CONTRACT_COMPATIBILITY.md`.
 - Broker strictness hardening:
   - `broker benchmark --severity` now accepts `warning` as alias to `warn`.
   - usage/help text updated to `warn|warning|critical`.
@@ -300,19 +309,19 @@ Notes:
   - aligned runtime introspection status output with typed provider status mapping.
   - expanded provider adapter tests for status normalization and mapping determinism.
 - Phase V kickoff docs:
-  - added `docs/PHASE_V_PROVIDER_AGNOSTIC_ORCHESTRATION.md` (execution spec).
-  - added `docs/PHASE_V_IMPLEMENTATION_BACKLOG.md` (ticketized backlog and validation checklist).
-  - linked Phase V docs from `docs/ROADMAP.md`.
+  - added `docs/orchestration/PHASE_V_PROVIDER_AGNOSTIC_ORCHESTRATION.md` (execution spec).
+  - added `docs/orchestration/PHASE_V_IMPLEMENTATION_BACKLOG.md` (ticketized backlog and validation checklist).
+  - linked Phase V docs from `docs/project/ROADMAP.md`.
 - Phase IV milestone status alignment:
-  - updated `docs/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md` to mark Milestones A-D as completed.
-  - refreshed `docs/ROADMAP.md` to reflect post-Phase-IV priorities and Phase V preparation.
+  - updated `docs/orchestration/PHASE_IV_MULTI_MODEL_ORCHESTRATION.md` to mark Milestones A-D as completed.
+  - refreshed `docs/project/ROADMAP.md` to reflect post-Phase-IV priorities and Phase V preparation.
 - Branding Phase 1 (non-breaking):
   - introduced `bin/xshelf` alias entrypoint delegating to canonical `bin/cx`.
   - updated top-level docs to `XSHELF (formerly CX)` while preserving all `cx` commands and `CX_*` environment compatibility.
   - added integration coverage for `bin/xshelf version`.
-- Provider adapter Phase 1 substrate (experimental branch `codex/provider-adapter-phase1`):
+- Provider adapter Phase 1 substrate (experimental branch `primary/provider-adapter-phase1`):
   - introduced `ProviderAdapter` interface under `rust/cxrs/src/modules/provider_adapter.rs`.
-  - added `CodexCliAdapter` and `OllamaCliAdapter` implementations.
+  - added `PrimaryProcessAdapter` and `OllamaCliAdapter` implementations.
   - execution core now resolves a provider adapter and routes plain/JSONL calls through the adapter contract (no behavior change intended).
   - added adapter-focused unit coverage for backend normalization and Ollama JSONL wrapping.
   - added centralized adapter invocation helpers for current backend selection.
@@ -322,7 +331,7 @@ Notes:
     - `provider_transport`
     - `provider_status`
   - strict log contract, migration, and integration assertions updated for the new fields.
-  - added adapter telemetry parity smoke tests covering codex and ollama run paths.
+  - added adapter telemetry parity smoke tests covering primary and ollama run paths.
   - added mock-adapter integration tests for schema success and schema-failure quarantine paths without provider binaries.
   - provider capability surface added (`jsonl_native`, `schema_strict`, `transport`) and exposed in `cxversion`/`cxcore`.
   - added `CX_PROVIDER_ADAPTER=http-stub` fail-fast path for future HTTP transport work:
@@ -354,7 +363,7 @@ Notes:
     - `cxdiffsum`
     - `cxfix_run`
   - `logs validate` and `ci validate` now default to legacy-compatible validation (strict contract still available with `--strict`).
-  - added structured-command parity coverage for `next` between `codex-cli` and `mock` adapters.
+  - added structured-command parity coverage for `next` between `primary-cli` and `mock` adapters.
 - `broker benchmark` strict severity tiers for CI policies:
   - new flag: `--severity warn|critical` (default `critical`).
   - violation classification:
@@ -374,7 +383,7 @@ Notes:
   - added integration coverage to validate `broker benchmark --json` top-level and summary item key contract.
   - added CI gate step `Broker Benchmark Contract Gate` in `.github/workflows/cxrs-compat.yml`.
 - `broker benchmark` command for local backend telemetry comparison:
-  - `cx broker benchmark [--backend codex|ollama]... [--window N] [--json]`
+  - `cx broker benchmark [--backend primary|ollama]... [--window N] [--json]`
   - computes per-backend run count, average duration, p95 duration, average effective input tokens, and average output tokens from `runs.jsonl`.
   - supports deterministic machine-readable output for operator/CI tooling.
 - integration test coverage for broker benchmark JSON output and metric aggregation.
@@ -467,9 +476,9 @@ Notes:
   - high-load mixed-mode least-loaded fairness stress test validating backend spread, worker spread, and queue telemetry under cap pressure.
   - explicit mixed-mode failure path test for zero-available backend pools (`task run-all` returns non-zero with clear scheduler error).
 - Phase IV broker + mixed routing controls:
-  - `cx broker set --policy latency|quality|cost|balanced` persisted to `.codex/state.json`.
+  - `cx broker set --policy latency|quality|cost|balanced` persisted to `.cx/state.json`.
   - `cx task run-all --mode mixed` now accepts:
-    - `--backend-pool codex,ollama`
+    - `--backend-pool primary,ollama`
     - `--backend-cap backend=limit`
     - `--max-workers N` (planner metadata; single-worker execution remains current behavior)
   - deterministic backend selection per scheduled task using task backend preference + broker policy fallback.
@@ -501,10 +510,10 @@ Notes:
   - score factors: success status, execution id presence, and error-size penalty.
   - deterministic tie-break: lowest replica index.
 - mixed-mode scheduler reliability coverage expanded:
-  - backend cap enforcement test for codex-limited worker scheduling.
+  - backend cap enforcement test for primary-limited worker scheduling.
   - dependency-wave ordering test with queue telemetry assertions.
-  - balanced backend-pool fairness test (codex + ollama) to ensure no backend starvation.
-  - queue growth stress test under strict backend cap (`codex=1`) validating deferred-task `queue_ms`.
+  - balanced backend-pool fairness test (primary + ollama) to ensure no backend starvation.
+  - queue growth stress test under strict backend cap (`primary=1`) validating deferred-task `queue_ms`.
 - `cxdiag` scheduler diagnostics section:
   - reports recent-window queue telemetry (`scheduler_queue_ms_avg`, `scheduler_queue_ms_p95`),
   - worker distribution (`scheduler_workers_seen`, `scheduler_worker_distribution`),
@@ -643,8 +652,8 @@ Notes:
   - expanded failure-matrix coverage:
     - missing schema file in partial registry scenarios
     - corrupted quarantine record handling (`quarantine show`)
-    - unwritable `.codex/quarantine` error surfacing during schema failure handling
-    - unwritable `.codex/cxlogs` resilience (command execution remains functional)
+    - unwritable `.cx/quarantine` error surfacing during schema failure handling
+    - unwritable `.cx/cxlogs` resilience (command execution remains functional)
     - timeout override end-to-end coverage for `CX_TIMEOUT_LLM_SECS`, `CX_TIMEOUT_GIT_SECS`, and `CX_TIMEOUT_SHELL_SECS`
   - expanded Ollama backend coverage:
     - unset/set model transition enforcement with persisted state verification
@@ -700,7 +709,7 @@ Notes:
   - added policy tests for `/usr` vs `/usr/local` behavior, repo-root writes, and symlink escape scenarios
 - Expanded `cxparity` overlap coverage and invariants:
   - widened shared-command matrix from a minimal subset to include `cx`, `cxj`, `cxol`, `cxcopy`, `cxnext`, `cxdiffsum_staged`, `cxcommitmsg`, and `cxcommitjson`
-  - added deterministic local parity mocks (`codex` + clipboard backend) so parity runs are stable and backend-independent
+  - added deterministic local parity mocks (`primary` + clipboard backend) so parity runs are stable and backend-independent
   - parity temp repos now receive schema registry fixtures, enabling structured-command checks without ambient machine state
   - tightened parity log invariant checks via required-field validation (`schema_enforced`, `duration_ms` included)
 - Replaced string-parsed timeout telemetry with structured timeout propagation:

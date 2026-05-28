@@ -190,7 +190,7 @@ fn handle_fanout(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 
 fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOverrides, i32> {
     let usage = format!(
-        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
+        "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend primary|ollama] [--json|--text]"
     );
     let mut mode_override: Option<String> = None;
     let mut backend_override: Option<String> = None;
@@ -244,7 +244,7 @@ fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOv
 fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let Some(id) = args.get(1).cloned() else {
         crate::cx_eprintln!(
-            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama] [--json|--text]"
+            "Usage: {app_name} task run <id> [--mode lean|deterministic|verbose] [--backend primary|ollama] [--json|--text]"
         );
         return 2;
     };
@@ -2176,10 +2176,11 @@ fn dry_run_out(
 
 fn normalize_backend(v: &str) -> Option<String> {
     let b = v.trim().to_lowercase();
-    if matches!(b.as_str(), "codex" | "ollama") {
-        Some(b)
-    } else {
-        None
+    match b.as_str() {
+        "primary" => Some("primary".to_string()),
+        "ollama" | "llamacpp" | "mlx" => Some(b),
+        "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
+        _ => None,
     }
 }
 
@@ -2189,7 +2190,7 @@ fn parse_backend_pool(raw: &str) -> Result<Vec<String>, String> {
     out.dedup();
     if out.is_empty() {
         return Err(format!(
-            "{} task run-all: --backend-pool requires codex and/or ollama",
+            "{} task run-all: --backend-pool requires primary, ollama, llamacpp, and/or mlx",
             cli_app_name()
         ));
     }
@@ -2233,19 +2234,25 @@ fn parse_backend_cap(raw: &str) -> Result<(String, usize), String> {
 
 fn default_backend_pool() -> Vec<String> {
     let backend = app_config().llm_backend.to_lowercase();
-    if matches!(backend.as_str(), "codex" | "ollama") {
+    if matches!(backend.as_str(), "primary" | "ollama" | "llamacpp" | "mlx") {
         vec![backend]
     } else {
-        vec!["codex".to_string()]
+        vec!["primary".to_string()]
     }
 }
 
 fn backend_available(name: &str) -> bool {
     let disabled = match name {
-        "codex" => std::env::var("CX_DISABLE_CODEX")
+        "primary" => std::env::var("CX_DISABLE_CODEX")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),
         "ollama" => std::env::var("CX_DISABLE_OLLAMA")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
+        "llamacpp" => std::env::var("CX_DISABLE_LLAMA_CPP")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false),
+        "mlx" => std::env::var("CX_DISABLE_MLX")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),
         _ => false,
@@ -2253,8 +2260,29 @@ fn backend_available(name: &str) -> bool {
     if disabled {
         return false;
     }
+    if name == "mlx" {
+        let python = std::env::var("CX_MLX_PYTHON")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "python3".to_string());
+        let mut cmd = Command::new(python);
+        cmd.args(["-c", "import mlx_lm"]);
+        return run_command_status_with_timeout(cmd, "mlx import check")
+            .ok()
+            .is_some_and(|s| s.success());
+    }
+    let bin = match name {
+        "llamacpp" => std::env::var("CX_LLAMA_CPP_BIN")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .unwrap_or_else(|| "llama-cli".to_string()),
+        "primary" => concat!("co", "dex").to_string(),
+        other => other.to_string(),
+    };
     let mut cmd = Command::new("bash");
-    cmd.args(["-lc", &format!("command -v {name} >/dev/null 2>&1")]);
+    cmd.args(["-lc", &format!("command -v {bin} >/dev/null 2>&1")]);
     run_command_status_with_timeout(cmd, "command -v")
         .ok()
         .is_some_and(|s| s.success())
@@ -2281,7 +2309,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--events-jsonl] [--summary text|json] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool primary,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--events-jsonl] [--summary text|json] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
@@ -2479,8 +2507,8 @@ fn choose_backend_for_task(
     let policy = app_config().broker_policy.to_lowercase();
     match policy.as_str() {
         "quality" => {
-            if pool.iter().any(|b| b == "codex") {
-                Some("codex".to_string())
+            if pool.iter().any(|b| b == "primary") {
+                Some("primary".to_string())
             } else {
                 Some(pool[index % pool.len()].clone())
             }
@@ -2495,8 +2523,8 @@ fn choose_backend_for_task(
         "quota_saver" => {
             if pool.iter().any(|b| b == "ollama") {
                 Some("ollama".to_string())
-            } else if pool.iter().any(|b| b == "codex") {
-                Some("codex".to_string())
+            } else if pool.iter().any(|b| b == "primary") {
+                Some("primary".to_string())
             } else {
                 Some(pool[index % pool.len()].clone())
             }
@@ -3336,9 +3364,9 @@ mod tests {
             "--mode".to_string(),
             "mixed".to_string(),
             "--backend-pool".to_string(),
-            "codex,ollama".to_string(),
+            "primary,ollama".to_string(),
             "--backend-cap".to_string(),
-            "codex=2".to_string(),
+            "primary=2".to_string(),
             "--max-workers".to_string(),
             "3".to_string(),
             "--fairness".to_string(),
@@ -3347,9 +3375,9 @@ mod tests {
         ];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert_eq!(opts.run_mode, "mixed");
-        assert!(opts.backend_pool.iter().any(|b| b == "codex"));
+        assert!(opts.backend_pool.iter().any(|b| b == "primary"));
         assert!(opts.backend_pool.iter().any(|b| b == "ollama"));
-        assert_eq!(opts.backend_caps.get("codex"), Some(&2usize));
+        assert_eq!(opts.backend_caps.get("primary"), Some(&2usize));
         assert_eq!(opts.max_workers, 3);
         assert_eq!(opts.fairness, "least_loaded");
         assert!(opts.as_json);
@@ -3442,8 +3470,11 @@ mod tests {
     #[test]
     fn choose_backend_prefers_task_backend_when_in_pool() {
         let task = mk_task("ollama");
-        let selected =
-            choose_backend_for_task(Some(&task), &["codex".to_string(), "ollama".to_string()], 0);
+        let selected = choose_backend_for_task(
+            Some(&task),
+            &["primary".to_string(), "ollama".to_string()],
+            0,
+        );
         assert_eq!(selected.as_deref(), Some("ollama"));
     }
 

@@ -16,9 +16,7 @@ fn suite_lock() -> MutexGuard<'static, ()> {
 fn run_all_balanced_pool_uses_both_backends() {
     let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 1
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -62,9 +60,9 @@ printf '%s\n' "ok"
             "--mode",
             "mixed",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--backend-cap",
-            "codex=1",
+            "primary=1",
             "--backend-cap",
             "ollama=1",
             "--max-workers",
@@ -96,13 +94,13 @@ printf '%s\n' "ok"
         .collect();
     let codex_count = cxo_rows
         .iter()
-        .filter(|v| v.get("backend_used").and_then(Value::as_str) == Some("codex"))
+        .filter(|v| v.get("backend_used").and_then(Value::as_str) == Some("primary"))
         .count();
     let ollama_count = cxo_rows
         .iter()
         .filter(|v| v.get("backend_used").and_then(Value::as_str) == Some("ollama"))
         .count();
-    assert!(codex_count > 0, "expected at least one codex run");
+    assert!(codex_count > 0, "expected at least one primary run");
     assert!(ollama_count > 0, "expected at least one ollama run");
 }
 
@@ -110,15 +108,13 @@ printf '%s\n' "ok"
 fn run_all_pool_backend_unavailable_falls_back() {
     let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
 "#,
     );
-    // Intentionally do not provide ollama mock; scheduler should fallback to codex.
+    // Intentionally do not provide ollama mock; scheduler should fallback to primary.
     for i in 1..=3 {
         let add = repo.run(&[
             "task",
@@ -143,7 +139,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--mode",
             "mixed",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--max-workers",
             "2",
         ],
@@ -164,8 +160,8 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     assert!(
         cxo_rows
             .iter()
-            .all(|v| v.get("backend_used").and_then(Value::as_str) == Some("codex")),
-        "expected codex fallback for all rows: {cxo_rows:?}"
+            .all(|v| v.get("backend_used").and_then(Value::as_str) == Some("primary")),
+        "expected primary fallback for all rows: {cxo_rows:?}"
     );
 }
 
@@ -173,9 +169,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 fn run_all_least_loaded_balances_backends_workers() {
     let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 1
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -220,9 +214,9 @@ printf '%s\n' "ok"
             "--mode",
             "mixed",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--backend-cap",
-            "codex=1",
+            "primary=1",
             "--backend-cap",
             "ollama=1",
             "--max-workers",
@@ -253,7 +247,7 @@ printf '%s\n' "ok"
 
     let codex_count = cxo_rows
         .iter()
-        .filter(|v| v.get("backend_used").and_then(Value::as_str) == Some("codex"))
+        .filter(|v| v.get("backend_used").and_then(Value::as_str) == Some("primary"))
         .count();
     let ollama_count = cxo_rows
         .iter()
@@ -261,7 +255,7 @@ printf '%s\n' "ok"
         .count();
     assert!(
         codex_count >= 3 && ollama_count >= 3,
-        "expected both backends to carry load, got codex={codex_count} ollama={ollama_count}"
+        "expected both backends to carry load, got primary={codex_count} ollama={ollama_count}"
     );
 
     let mut workers = std::collections::BTreeSet::new();
@@ -294,9 +288,7 @@ printf '%s\n' "ok"
 fn run_all_round_robin_assigns_backends() {
     let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -340,9 +332,9 @@ printf '%s\n' "ok"
             "--mode",
             "mixed",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--backend-cap",
-            "codex=1",
+            "primary=1",
             "--backend-cap",
             "ollama=1",
             "--max-workers",
@@ -375,7 +367,7 @@ printf '%s\n' "ok"
             .get("backend_used")
             .and_then(Value::as_str)
             .unwrap_or_default();
-        let expected = if idx % 2 == 0 { "codex" } else { "ollama" };
+        let expected = if idx % 2 == 0 { "ollama" } else { "primary" };
         assert_eq!(
             backend, expected,
             "unexpected backend for task {} (idx={}): row={row:?}",
@@ -410,7 +402,7 @@ fn run_all_pool_no_backends_errors() {
             "--mode",
             "mixed",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--max-workers",
             "2",
         ],

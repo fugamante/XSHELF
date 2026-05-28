@@ -62,7 +62,7 @@ fn init_git_repo_with_retry(root: &Path, template_dir: &Path) {
 fn repo_root() -> PathBuf {
     let mut cur = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for _ in 0..6 {
-        if cur.join(".codex").join("schemas").is_dir() && cur.join("bin").join("cx").is_file() {
+        if cur.join(".cx").join("schemas").is_dir() && cur.join("bin").join("cx").is_file() {
             return cur;
         }
         if !cur.pop() {
@@ -116,8 +116,8 @@ impl TempRepo {
     }
 
     pub fn copy_schema_registry(&self) {
-        let src = repo_root().join(".codex").join("schemas");
-        let dst = self.root.join(".codex").join("schemas");
+        let src = repo_root().join(".cx").join("schemas");
+        let dst = self.root.join(".cx").join("schemas");
         fs::create_dir_all(&dst).expect("create schema dst dir");
         for entry in fs::read_dir(&src).expect("read schema src dir") {
             let entry = entry.expect("schema dir entry");
@@ -141,8 +141,8 @@ impl TempRepo {
         }
     }
 
-    pub fn write_mock_codex(&self, body: &str) {
-        self.write_mock("codex", body);
+    pub fn write_mock_primary(&self, body: &str) {
+        self.write_mock(concat!("co", "dex"), body);
     }
 
     pub fn run(&self, args: &[&str]) -> Output {
@@ -163,18 +163,18 @@ impl TempRepo {
     }
 
     pub fn tasks_file(&self) -> PathBuf {
-        self.root.join(".codex").join("tasks.json")
+        self.root.join(".cx").join("tasks.json")
     }
 
     pub fn schema_fail_log(&self) -> PathBuf {
         self.root
-            .join(".codex")
+            .join(".cx")
             .join("cxlogs")
             .join("schema_failures.jsonl")
     }
 
     pub fn runs_log(&self) -> PathBuf {
-        self.root.join(".codex").join("cxlogs").join("runs.jsonl")
+        self.root.join(".cx").join("cxlogs").join("runs.jsonl")
     }
 
     pub fn task_events_log(&self) -> PathBuf {
@@ -185,22 +185,26 @@ impl TempRepo {
     }
 
     pub fn quarantine_dir(&self) -> PathBuf {
-        self.root.join(".codex").join("quarantine")
+        self.root.join(".cx").join("quarantine")
     }
 
     pub fn quarantine_file(&self, id: &str) -> PathBuf {
         self.root
-            .join(".codex")
+            .join(".cx")
             .join("quarantine")
             .join(format!("{id}.json"))
     }
 
     pub fn state_file(&self) -> PathBuf {
-        self.root.join(".codex").join("state.json")
+        self.root.join(".cx").join("state.json")
     }
 
     pub fn quota_catalog_file(&self) -> PathBuf {
-        self.root.join(".codex").join("quota_catalog.json")
+        self.root.join(".cx").join("quota_catalog.json")
+    }
+
+    pub fn local_models_file(&self) -> PathBuf {
+        self.root.join(".cx").join("local_models.json")
     }
 }
 

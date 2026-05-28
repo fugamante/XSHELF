@@ -73,7 +73,7 @@ fn normalize_execution_log_row(
     repo_root_val: String,
     has_modern: bool,
 ) -> ExecutionLog {
-    let backend_used = get_str(obj, &["backend_used", "llm_backend"], "codex");
+    let backend_used = get_str(obj, &["backend_used", "llm_backend"], "primary");
     let (schema_enforced, schema_valid) = normalize_schema_fields(obj);
     let mut row = ExecutionLog {
         execution_id: get_str(obj, &["execution_id"], "").if_empty_else(|| {

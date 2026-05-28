@@ -1,0 +1,69 @@
+{
+  "phase": "phase8",
+  "status": "active_implementation",
+  "title": "local_model_substrate",
+  "goal": "turn local model selection into a typed lifecycle substrate for MLX and other local backends while preserving XSHELF adapter boundaries",
+  "constraints": [
+    "preserve existing CX_MLX_MODEL and llm use mlx <model> compatibility",
+    "keep process adapters as defaults",
+    "do not claim persisted KV restore unless a selected backend exposes evidence",
+    "keep TurboQuant cache and memory metrics typed",
+    "avoid hidden downloads or slow disk scans during normal execution"
+  ],
+  "slices": [
+    {
+      "id": "p8_registry",
+      "status": "done",
+      "goal": "add a local model registry with deterministic list/add/remove behavior"
+    },
+    {
+      "id": "p8_alias_resolution",
+      "status": "planned",
+      "goal": "allow llm use and task model overrides to resolve registry aliases while direct model strings remain compatible"
+    },
+    {
+      "id": "p8_inspection",
+      "status": "planned",
+      "goal": "add inspect and cheap accounting for local model path, size, cache location, and unresolved states"
+    },
+    {
+      "id": "p8_capabilities",
+      "status": "planned",
+      "goal": "surface typed runtime capabilities for process, HTTP, resident-server, cache, batching, VLM, embedding, and reranker support"
+    },
+    {
+      "id": "p8_mlx_verification",
+      "status": "planned",
+      "goal": "add registry-aware MLX smoke and optional benchmark profiles with typed runtime and cache metrics"
+    },
+    {
+      "id": "p8_resident_server",
+      "status": "planned",
+      "goal": "support optional OpenAI-compatible resident local MLX servers through explicit HTTP adapter configuration"
+    }
+  ],
+  "initial_registry_fields": [
+    "id",
+    "alias",
+    "backend",
+    "provider",
+    "repo_id",
+    "revision",
+    "resolved_model",
+    "local_path",
+    "quantization",
+    "format",
+    "size_bytes",
+    "cache_path",
+    "last_used_at",
+    "last_smoke_status",
+    "preferred_args",
+    "trust_remote_code"
+  ],
+  "references": [
+    "docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md",
+    "docs/turboquant/TURBOQUANT_METRIC.md",
+    "docs/turboquant/TURBOQUANT_CAP_MLX.md",
+    "docs/providers/PROVIDER_ADAPTER_PLAN.md"
+  ]
+}

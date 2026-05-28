@@ -19,12 +19,12 @@ fn logs_stats_alias_reports_population_drift() {
     fs::create_dir_all(log.parent().expect("log parent")).expect("mkdir logs");
     let row1 = serde_json::json!({
         "execution_id":"e1","timestamp":"2026-01-01T00:00:00Z","command":"cx",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":10,"schema_enforced":false,"schema_valid":true
     });
     let row2 = serde_json::json!({
         "execution_id":"e2","timestamp":"2026-01-01T00:00:01Z","command":"next",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"deterministic",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"deterministic",
         "duration_ms":20,"schema_enforced":true,"schema_valid":true,"task_id":"task_001",
         "retry_attempt":2,"timed_out":false
     });
@@ -113,13 +113,13 @@ fn telemetry_json_matches_contract_fixture() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"tf1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true,
             "provider_transport":"http","http_provider_format":"text","http_parser_mode":"envelope"
         }),
         serde_json::json!({
             "execution_id":"tf2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":12,"schema_enforced":false,"schema_valid":true
         }),
     ];
@@ -270,7 +270,7 @@ fn logs_stats_strict_severity_behave_expected() {
     fs::create_dir_all(log.parent().expect("log parent")).expect("mkdir logs");
     let weak_row = serde_json::json!({
         "execution_id":"e1","timestamp":"2026-01-01T00:00:00Z","command":"cx",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean"
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean"
     });
     let mut text = serde_json::to_string(&weak_row).expect("row");
     text.push('\n');
@@ -353,19 +353,19 @@ fn telemetry_json_groups_http_mode_stats() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"h1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10,"schema_enforced":false,"schema_valid":true,
             "provider_transport":"http","http_provider_format":"text","http_parser_mode":"envelope"
         }),
         serde_json::json!({
             "execution_id":"h2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":12,"schema_enforced":false,"schema_valid":false,
             "provider_transport":"http","http_provider_format":"text","http_parser_mode":"envelope"
         }),
         serde_json::json!({
             "execution_id":"h3","timestamp":"2026-01-01T00:00:02Z","command":"cxj","tool":"cxj",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":14,"schema_enforced":false,"schema_valid":true,
             "provider_transport":"http","http_provider_format":"jsonl","http_parser_mode":"jsonl_passthrough"
         }),
@@ -417,7 +417,7 @@ fn telemetry_json_output_is_stable_on_macos() {
     fs::create_dir_all(log.parent().expect("log parent")).expect("mkdir logs");
     let row = serde_json::json!({
         "execution_id":"m1","timestamp":"2026-01-01T00:00:00Z","command":"cx",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":12,"schema_enforced":false,"schema_valid":true
     });
     let mut text = serde_json::to_string(&row).expect("row");
@@ -446,7 +446,7 @@ fn diag_json_matches_contract_fixture() {
     fs::create_dir_all(log.parent().expect("log parent")).expect("mkdir logs");
     let row = serde_json::json!({
         "execution_id":"diagfx1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-        "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":10,"schema_enforced":false,"schema_valid":true,"queue_ms":250,"worker_id":"w1"
     });
     let mut text = serde_json::to_string(&row).expect("serialize row");
@@ -646,7 +646,7 @@ fn diag_json_strict_fails_on_queue_severity() {
     for i in 1..=6u64 {
         let row = serde_json::json!({
             "execution_id":format!("ds{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":3000 + i * 10,"worker_id":"w1"
         });
         text.push_str(&serde_json::to_string(&row).expect("serialize row"));
@@ -681,7 +681,7 @@ fn diag_json_strict_passes_on_ok_severity() {
     fs::create_dir_all(log.parent().expect("log parent")).expect("mkdir logs");
     let row = serde_json::json!({
         "execution_id":"dsp1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-        "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1"
     });
     let mut text = serde_json::to_string(&row).expect("serialize row");
@@ -706,7 +706,7 @@ fn diag_json_actions_match_contract_fixture() {
     for i in 1..=4u64 {
         rows.push(serde_json::json!({
             "execution_id":format!("diact{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":2500 + i,"worker_id":"w1"
         }));
     }
@@ -725,7 +725,7 @@ fn scheduler_json_actions_match_contract_fixture() {
     for i in 1..=4u64 {
         rows.push(serde_json::json!({
             "execution_id":format!("schact{i}"),"timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":10 + i,"schema_enforced":false,"schema_valid":true,"queue_ms":2400 + i,"worker_id":"w1"
         }));
     }
@@ -743,7 +743,7 @@ fn diag_actions_next() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"dexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":true,
             "run_all_scheduled":3,"run_all_complete":1,"run_all_failed":1,"run_all_critical_errors":1,
@@ -756,7 +756,7 @@ fn diag_actions_next() {
         }),
         serde_json::json!({
             "execution_id":"dexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":20,"schema_enforced":false,"schema_valid":true,"queue_ms":2500,"worker_id":"w1"
         }),
     ];
@@ -786,7 +786,7 @@ fn diag_actions_bias() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"dbias1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
@@ -797,7 +797,7 @@ fn diag_actions_bias() {
         }),
         serde_json::json!({
             "execution_id":"dbias2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
@@ -808,7 +808,7 @@ fn diag_actions_bias() {
         }),
         serde_json::json!({
             "execution_id":"dbias3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":20,"schema_enforced":false,"schema_valid":true,"queue_ms":2500,"worker_id":"w1"
         }),
     ];
@@ -841,7 +841,7 @@ fn scheduler_actions_next() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"sexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":100,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"parallel","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":4,"run_all_failed":0,"run_all_critical_errors":0,
@@ -855,7 +855,7 @@ fn scheduler_actions_next() {
         }),
         serde_json::json!({
             "execution_id":"sexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":24,"schema_enforced":false,"schema_valid":true,"queue_ms":2600,"worker_id":"w1"
         }),
     ];

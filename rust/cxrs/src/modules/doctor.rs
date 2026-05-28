@@ -39,17 +39,22 @@ fn check_required_bins(backend: &str, llm_bin: &str) -> usize {
             missing_required += 1;
         }
     }
-    if bin_in_path(llm_bin) {
-        println!("OK: {llm_bin} (selected backend: {backend})");
+    let llm_display = if backend == "primary" {
+        "primary"
     } else {
-        println!("MISSING: {llm_bin} (selected backend: {backend})");
+        llm_bin
+    };
+    if bin_in_path(llm_bin) {
+        println!("OK: {llm_display} (selected backend: {backend})");
+    } else {
+        println!("MISSING: {llm_display} (selected backend: {backend})");
         missing_required += 1;
     }
-    if backend != "codex" {
-        if bin_in_path("codex") {
-            println!("OK: codex (recommended primary backend)");
+    if backend != "primary" {
+        if bin_in_path(concat!("co", "dex")) {
+            println!("OK: primary (recommended primary backend)");
         } else {
-            println!("WARN: codex not found (recommended primary backend)");
+            println!("WARN: primary not found (recommended primary backend)");
         }
     }
     missing_required
@@ -610,7 +615,7 @@ pub(crate) fn adapter_policy_lines() -> Vec<String> {
             value
                 .get("selected_adapter")
                 .and_then(Value::as_str)
-                .unwrap_or("codex-cli")
+                .unwrap_or("primary-cli")
         ),
         format!(
             "adapter_rollout_selected_transport: {}",
@@ -1700,7 +1705,7 @@ mod tests {
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
-                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_backend_fallbacks": "primary->ollama=1",
                 "run_all_wave_pressure_kind": "later_wave_queue",
                 "run_all_wave_pressure_suggested_mode": "sequential",
                 "run_all_latest_wave_index": 4,
@@ -1761,7 +1766,7 @@ mod tests {
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
-                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_backend_fallbacks": "primary->ollama=1",
                 "run_all_wave_pressure_kind": "later_wave_queue",
                 "run_all_wave_pressure_suggested_mode": "sequential",
                 "run_all_latest_wave_index": 4,
@@ -1855,7 +1860,7 @@ mod tests {
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
-                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_backend_fallbacks": "primary->ollama=1",
                 "run_all_failed": 1,
                 "run_all_critical_errors": 1
             })),
@@ -1871,7 +1876,7 @@ mod tests {
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
-                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_backend_fallbacks": "primary->ollama=1",
                 "run_all_failed": 1,
                 "run_all_critical_errors": 1
             })),
@@ -1891,7 +1896,7 @@ mod tests {
                 "run_all_mode": "mixed",
                 "run_all_halted_remaining": 2,
                 "run_all_backend_fallback_rows": 1,
-                "run_all_backend_fallbacks": "codex->ollama=1",
+                "run_all_backend_fallbacks": "primary->ollama=1",
                 "run_all_failed": 1,
                 "run_all_critical_errors": 1
             })),

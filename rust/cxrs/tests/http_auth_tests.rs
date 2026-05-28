@@ -189,7 +189,7 @@ fn secret_perm_cov() {
 fn core_auth_mode() {
     let repo = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
-        .find(|path| path.join(".codex").join("schemas").is_dir())
+        .find(|path| path.join(".cx").join("schemas").is_dir())
         .expect("repo root")
         .to_path_buf();
     let out = std::process::Command::new(repo.join("bin").join("cx"))
@@ -224,7 +224,7 @@ fn core_auth_mode() {
 fn core_auth_src() {
     let repo = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
-        .find(|path| path.join(".codex").join("schemas").is_dir())
+        .find(|path| path.join(".cx").join("schemas").is_dir())
         .expect("repo root")
         .to_path_buf();
     let secret = repo.join(".tmp-http-token");
