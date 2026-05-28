@@ -14,6 +14,7 @@ Manual source policy:
 - Canonical source: `03_src/latex/CX_MANUAL_MASTER.tex`
 - Generated PDF: `01_pdf/CX_MANUAL_MASTER.pdf`
 - HTML mirror: `02_web/CX_MANUAL_MASTER.html`
+- Public-surface ownership: `../project/PUBLIC_SURFACES.md`
 
 Treat the LaTeX source as authoritative. Refresh the PDF from LaTeX when manual
 content changes. The HTML file is a tracked convenience mirror unless an

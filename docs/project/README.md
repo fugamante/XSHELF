@@ -4,6 +4,7 @@ Active policy and operator-adjacent docs:
 - [REPO_ROLE_CONTRACT.md](REPO_ROLE_CONTRACT.md)
 - [ROADMAP.md](ROADMAP.md)
 - [RELEASE_CADENCE.md](RELEASE_CADENCE.md)
+- [PUBLIC_SURFACES.md](PUBLIC_SURFACES.md)
 - [XSHELF_RENAME_MIGRATION.md](XSHELF_RENAME_MIGRATION.md)
 
 Maintainer planning and history:
