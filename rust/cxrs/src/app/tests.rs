@@ -65,6 +65,9 @@ fn schema_failure_writes_quarantine_and_logs() {
     env::set_current_dir(dir.path()).expect("cd temp");
     let _ = Command::new("git")
         .args(["init"])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
         .output()
         .expect("git init");
 
