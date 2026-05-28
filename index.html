@@ -16,9 +16,12 @@
         <a href="#pipeline">Pipeline</a>
         <a href="#capabilities">Capabilities</a>
         <a href="#install">Install</a>
-        <a href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Manual</a>
+        <a href="./docs/manuals/02_web/CX_MANUAL_MASTER.html" data-manual-link>Reference</a>
       </nav>
-      <a class="header-action" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Open Manual</a>
+      <div class="header-actions">
+        <a class="header-action secondary" href="https://github.com/fugamante/XSHELF">GitHub repo</a>
+        <a class="header-action" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html" data-manual-link>Open Reference</a>
+      </div>
     </header>
 
     <main id="top">
@@ -29,11 +32,21 @@
           <p class="lead">
             XSHELF wraps repository commands with bounded capture, schema-checked
             outputs, explicit execution policy, and replayable telemetry for
-            CI and local automation.
+            CI and local automation. Make LLM-assisted repo automation parseable,
+            bounded, and replayable.
           </p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button primary" href="#install">Try it</a>
-            <a class="button secondary" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Read manual</a>
+            <a class="button primary" href="#install" data-try-action>Start verification</a>
+            <a class="button secondary" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html" data-manual-link>Read reference</a>
+          </div>
+          <div class="mobile-link-row" aria-label="Secondary actions">
+            <a href="https://github.com/fugamante/XSHELF">GitHub repo</a>
+            <a href="./docs/manuals/02_web/CX_MANUAL_MASTER.html" data-manual-link>Reference</a>
+          </div>
+          <div class="safe-command" aria-label="Safe first command">
+            <span>Safe first command</span>
+            <code data-safe-command>./bin/xshelf task check --json</code>
+            <button type="button" data-copy-safe>Copy</button>
           </div>
           <dl class="status-strip" aria-label="Runtime proof points">
             <div>
@@ -52,15 +65,16 @@
         </div>
 
         <div class="terminal-stack">
-          <section class="quick-tabs" aria-label="Runtime surfaces">
-            <button type="button" class="active" data-surface-tab="operator">Operator</button>
-            <button type="button" data-surface-tab="ci">CI</button>
-            <button type="button" data-surface-tab="local">Local models</button>
+          <section class="quick-tabs terminal-tabs" aria-label="Runtime surfaces">
+            <button type="button" class="active" data-surface-tab="operator">Runtime check</button>
+            <button type="button" data-surface-tab="ci">CI gate</button>
+            <button type="button" data-surface-tab="local">Local model</button>
+            <button type="button" data-surface-tab="schema">Schema failure</button>
           </section>
 
           <div class="terminal-panel" aria-label="XSHELF terminal preview">
             <div class="terminal-top">
-              <span>operator proof</span>
+              <span data-terminal-title>runtime check</span>
               <div class="terminal-tools">
                 <button type="button" class="copy-command" data-copy-terminal>Copy</button>
                 <div class="window-dots" aria-hidden="true">
@@ -68,13 +82,13 @@
                 </div>
               </div>
             </div>
-            <pre><code data-terminal-code>$ ./bin/xshelf core --json
+            <pre><code data-terminal-code>$ ./bin/xshelf task check --json
 {
+  "contract_version": "task-check.v1",
   "runtime": "rust",
-  "entrypoint": "xshelf",
-  "policy": "explicit",
-  "logs": ".cx/cxlogs/runs.jsonl",
-  "quarantine": ".cx/quarantine"
+  "strict_plan_ok": true,
+  "can_execute": true,
+  "log_file": ".cx/cxlogs/runs.jsonl"
 }</code></pre>
             <div class="terminal-footer" aria-live="polite">
               <span data-terminal-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
@@ -82,6 +96,25 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section class="proof-band" aria-label="Contract proof">
+        <article data-proof-key="readiness">
+          <span>task-check.v1</span>
+          <strong>Readiness is a parseable contract</strong>
+        </article>
+        <article data-proof-key="events">
+          <span>task-events.v1</span>
+          <strong>Progress stream stays off stdout</strong>
+        </article>
+        <article data-proof-key="backend">
+          <span>model registry</span>
+          <strong>Backend selection stays explicit</strong>
+        </article>
+        <article data-proof-key="quarantine">
+          <span>quarantine</span>
+          <strong>Invalid output gets a replay handle</strong>
+        </article>
       </section>
 
       <section id="pipeline" class="section-block">
@@ -179,6 +212,10 @@
               <td>Failure is ambiguous</td>
               <td>Failure is quarantined</td>
             </tr>
+            <tr>
+              <td>Progress logs break parsers</td>
+              <td>Events stream separately from final JSON</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -189,8 +226,8 @@
           <div>
             <h2>Install And Verify</h2>
             <p>
-              Start with read-only inspection. Run backend execution only after
-              readiness and health checks pass.
+              Start with the selected workflow's read-only checks. Run backend
+              execution only after readiness and health checks pass.
             </p>
           </div>
         </div>
@@ -226,15 +263,18 @@
       (() => {
         const surfaces = {
           operator: {
+            title: "runtime check",
+            safeCommand: "./bin/xshelf task check --json",
+            proof: "readiness",
             status: ["Rust canonical", "JSON contracts", "Replayable"],
             caption: "Capture -> Budget -> Validate -> Telemetry",
-            terminal: `$ ./bin/xshelf core --json
+            terminal: `$ ./bin/xshelf task check --json
 {
+  "contract_version": "task-check.v1",
   "runtime": "rust",
-  "entrypoint": "xshelf",
-  "policy": "explicit",
-  "logs": ".cx/cxlogs/runs.jsonl",
-  "quarantine": ".cx/quarantine"
+  "strict_plan_ok": true,
+  "can_execute": true,
+  "log_file": ".cx/cxlogs/runs.jsonl"
 }`,
             steps: [
               ["Inspect runtime", "./bin/xshelf version\n./bin/xshelf task check --json\n./bin/xshelf core --json"],
@@ -243,6 +283,9 @@
             ],
           },
           ci: {
+            title: "ci gate",
+            safeCommand: "./bin/xshelf task run-all --status pending --events-jsonl --json",
+            proof: "events",
             status: ["Parseable stdout", "Explicit policy", "Guarded checks"],
             caption: "Plan -> Gate -> Execute -> Validate",
             terminal: `$ ./bin/xshelf task run-all --status pending --events-jsonl --json
@@ -259,6 +302,9 @@
             ],
           },
           local: {
+            title: "local model",
+            safeCommand: "./bin/xshelf llm check",
+            proof: "backend",
             status: ["Backend visible", "Model explicit", "Smoke checked"],
             caption: "Select -> Inspect -> Smoke -> Route",
             terminal: `$ ./bin/xshelf llm models inspect local_mlx --json
@@ -274,14 +320,39 @@
               ["Smoke route", "./bin/xshelf llm smoke \"Respond with OK only.\"\n./bin/xshelf cxo git status"],
             ],
           },
+          schema: {
+            title: "schema failure",
+            safeCommand: "./bin/xshelf quarantine list",
+            proof: "quarantine",
+            status: ["Failure handled", "Replay handle", "Stdout guarded"],
+            caption: "Validate -> Quarantine -> Replay -> Repair",
+            terminal: `$ ./bin/xshelf diffsum-staged | jq .
+schema validation failed
+quarantine_id: q_20260528_143012
+raw_response: .cx/quarantine/q_20260528_143012.json
+
+$ ./bin/xshelf replay q_20260528_143012`,
+            steps: [
+              ["Validate schema", "./bin/xshelf commitjson | jq .\n./bin/xshelf diffsum-staged | jq ."],
+              ["Inspect failure", "./bin/xshelf quarantine list\n./bin/xshelf quarantine show <id>"],
+              ["Replay safely", "./bin/xshelf replay <id>\n./bin/xshelf logs validate --fix=false"],
+            ],
+          },
         };
 
         const tabs = [...document.querySelectorAll("[data-surface-tab]")];
         const terminal = document.querySelector("[data-terminal-code]");
+        const terminalTitle = document.querySelector("[data-terminal-title]");
         const caption = document.querySelector("[data-terminal-caption]");
         const statusValues = [...document.querySelectorAll(".status-strip dd")];
         const stepCards = [...document.querySelectorAll("[data-step-card]")];
+        const proofCards = [...document.querySelectorAll("[data-proof-key]")];
         const copyButton = document.querySelector("[data-copy-terminal]");
+        const safeCommand = document.querySelector("[data-safe-command]");
+        const safeCopy = document.querySelector("[data-copy-safe]");
+        const tryAction = document.querySelector("[data-try-action]");
+        const manualLinks = [...document.querySelectorAll("[data-manual-link]")];
+        let currentSurface = "operator";
 
         function activate(name) {
           const surface = surfaces[name] || surfaces.operator;
@@ -290,8 +361,15 @@
             tab.classList.toggle("active", selected);
             tab.setAttribute("aria-pressed", String(selected));
           });
+          currentSurface = name;
+          terminalTitle.textContent = surface.title;
           terminal.textContent = surface.terminal;
           caption.textContent = surface.caption;
+          safeCommand.textContent = surface.safeCommand;
+          proofCards.forEach((card) => {
+            const active = card.dataset.proofKey === surface.proof;
+            card.classList.toggle("active", active);
+          });
           statusValues.forEach((node, index) => {
             node.textContent = surface.status[index];
           });
@@ -301,20 +379,61 @@
             card.querySelector("[data-step-code]").textContent = step[1];
           });
           copyButton.textContent = "Copy";
+          safeCopy.textContent = "Copy";
         }
 
         tabs.forEach((tab) => {
           tab.setAttribute("aria-pressed", String(tab.classList.contains("active")));
           tab.addEventListener("click", () => activate(tab.dataset.surfaceTab));
         });
+        activate(currentSurface);
+
+        async function copyText(text) {
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+              return true;
+            }
+          } catch (_error) {
+            /* Fall back below for local file previews and older browsers. */
+          }
+
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            return document.execCommand("copy");
+          } catch (_error) {
+            return false;
+          } finally {
+            textarea.remove();
+          }
+        }
 
         copyButton.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(terminal.textContent);
-            copyButton.textContent = "Copied";
-          } catch (_error) {
-            copyButton.textContent = "Select text";
-          }
+          copyButton.textContent = (await copyText(terminal.textContent)) ? "Copied" : "Select text";
+        });
+
+        safeCopy.addEventListener("click", async () => {
+          safeCopy.textContent = (await copyText(safeCommand.textContent)) ? "Copied" : "Select";
+        });
+
+        tryAction.addEventListener("click", (event) => {
+          event.preventDefault();
+          const install = document.querySelector("#install");
+          activate(currentSurface);
+          install.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+
+        manualLinks.forEach((link) => {
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            window.location.assign(new URL(link.getAttribute("href"), window.location.href).href);
+          });
         });
       })();
     </script>
