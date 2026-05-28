@@ -261,10 +261,10 @@
           local: {
             status: ["Backend visible", "Model explicit", "Smoke checked"],
             caption: "Select -> Inspect -> Smoke -> Route",
-            terminal: `$ ./bin/xshelf llm models inspect local_qwen --json
+            terminal: `$ ./bin/xshelf llm models inspect local_mlx --json
 {
   "backend": "mlx",
-  "model": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+  "model": "$MLX_MODEL_ID",
   "transport": "process",
   "status": "configured"
 }`,
