@@ -51,17 +51,24 @@
           </dl>
         </div>
 
-        <div class="terminal-panel" aria-label="XSHELF terminal preview">
-          <div class="terminal-top">
-            <span>operator proof</span>
-            <div class="terminal-tools">
-              <button type="button" class="copy-command" data-copy-terminal>Copy</button>
-              <div class="window-dots" aria-hidden="true">
-                <span></span><span></span><span></span>
+        <div class="terminal-stack">
+          <section class="quick-tabs" aria-label="Runtime surfaces">
+            <button type="button" class="active" data-surface-tab="operator">Operator</button>
+            <button type="button" data-surface-tab="ci">CI</button>
+            <button type="button" data-surface-tab="local">Local models</button>
+          </section>
+
+          <div class="terminal-panel" aria-label="XSHELF terminal preview">
+            <div class="terminal-top">
+              <span>operator proof</span>
+              <div class="terminal-tools">
+                <button type="button" class="copy-command" data-copy-terminal>Copy</button>
+                <div class="window-dots" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
               </div>
             </div>
-          </div>
-          <pre><code data-terminal-code>$ ./bin/xshelf core --json
+            <pre><code data-terminal-code>$ ./bin/xshelf core --json
 {
   "runtime": "rust",
   "entrypoint": "xshelf",
@@ -69,17 +76,12 @@
   "logs": ".cx/cxlogs/runs.jsonl",
   "quarantine": ".cx/quarantine"
 }</code></pre>
-          <div class="terminal-footer" aria-live="polite">
-            <span data-terminal-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
-            <span class="live-dot">ready</span>
+            <div class="terminal-footer" aria-live="polite">
+              <span data-terminal-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
+              <span class="live-dot">ready</span>
+            </div>
           </div>
         </div>
-      </section>
-
-      <section class="quick-tabs" aria-label="Runtime surfaces">
-        <button type="button" class="active" data-surface-tab="operator">Operator</button>
-        <button type="button" data-surface-tab="ci">CI</button>
-        <button type="button" data-surface-tab="local">Local models</button>
       </section>
 
       <section id="pipeline" class="section-block">

@@ -222,6 +222,12 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.terminal-stack {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
 .terminal-top,
 .terminal-footer {
   display: flex;
@@ -312,6 +318,11 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--soft);
+}
+
+.terminal-stack .quick-tabs {
+  justify-self: center;
+  margin: 0;
 }
 
 .quick-tabs button {
@@ -647,6 +658,10 @@ pre code {
   .quick-tabs {
     width: 100%;
     margin-bottom: 46px;
+  }
+
+  .terminal-stack .quick-tabs {
+    margin-bottom: 0;
   }
 
   .quick-tabs button {
