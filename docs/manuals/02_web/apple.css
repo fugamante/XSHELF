@@ -248,6 +248,29 @@ h1 {
   gap: 6px;
 }
 
+.terminal-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.copy-command {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1d2734;
+  color: #c8d3df;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.copy-command:hover {
+  color: #ffffff;
+  border-color: #526171;
+}
+
 .window-dots span {
   width: 10px;
   height: 10px;
@@ -300,13 +323,21 @@ h1 {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
-  cursor: default;
+  cursor: pointer;
 }
 
 .quick-tabs .active {
   background: #ffffff;
   color: var(--ink);
   box-shadow: 0 1px 8px rgba(15, 32, 56, 0.08);
+}
+
+.quick-tabs button:focus-visible,
+.copy-command:focus-visible,
+.button:focus-visible,
+.header-action:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 
 .section-block,
@@ -634,6 +665,17 @@ pre code {
     min-height: 0;
     padding: 20px;
     font-size: 12px;
+  }
+
+  .terminal-top,
+  .terminal-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .terminal-tools {
+    width: 100%;
+    justify-content: space-between;
   }
 
   pre code {

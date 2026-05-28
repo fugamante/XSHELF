@@ -229,6 +229,7 @@ Maintainer docs:
 - [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
 - [docs/project/ROADMAP.md](docs/project/ROADMAP.md)
 - [docs/project/RELEASE_CADENCE.md](docs/project/RELEASE_CADENCE.md)
+- [docs/project/PUBLIC_SURFACES.md](docs/project/PUBLIC_SURFACES.md)
 - [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 
