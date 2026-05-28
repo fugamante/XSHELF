@@ -54,6 +54,8 @@ Notes:
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.
+  - `task run-all --events-jsonl` emits additive `task-events.v1` progress events to stderr and `.codex/cxlogs/task_events.jsonl` while preserving stdout contracts.
+  - added `task events [--limit N] [--json|--jsonl] [--follow]` to read persisted task event streams.
 - Diagnostics severity/actions:
   - `diag` / `scheduler` now classify low timing-attribution coverage (`timing_coverage_low`) and emit an explicit corrective action in `--actions` mode.
 - HTTP adapter TLS enforcement:
