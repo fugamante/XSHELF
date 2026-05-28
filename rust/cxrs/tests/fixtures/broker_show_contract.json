@@ -8,7 +8,7 @@
     "adapter_rollout_policy"
   ],
   "availability_keys": [
-    "codex",
+    "primary",
     "ollama"
   ],
   "adapter_rollout_policy_keys": [

@@ -49,6 +49,8 @@ mod introspect;
 mod json_mode;
 #[path = "modules/llm.rs"]
 mod llm;
+#[path = "modules/local_models.rs"]
+mod local_models;
 #[path = "modules/log_contract.rs"]
 mod log_contract;
 #[path = "modules/logs.rs"]

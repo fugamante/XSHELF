@@ -15,14 +15,14 @@ fn suite_lock() -> MutexGuard<'static, ()> {
 fn adapter_telemetry_fields_present_for_codex_runs() {
     let _guard = suite_lock();
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock_codex(
+    repo.write_mock_primary(
         r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":1,"output_tokens":2}}'
 "#,
     );
-    let out = repo.run(&["cxo", "echo", "adapter-codex"]);
+    let out = repo.run(&["cxo", "echo", "adapter-primary"]);
     assert!(
         out.status.success(),
         "stdout={} stderr={}",
@@ -37,7 +37,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":10,"cached_input
         .expect("cxo row");
     assert_eq!(
         row.get("adapter_type").and_then(Value::as_str),
-        Some("codex-cli"),
+        Some("primary-cli"),
         "row={row}"
     );
     assert_eq!(

@@ -41,10 +41,18 @@ def main() -> int:
         return fail("CHANGELOG.md missing '## [Unreleased]' section")
 
     readme_text = readme.read_text(encoding="utf-8")
-    required_sections = ["## Requirements", "## Quick Start", "## Validation"]
+    required_sections = ["## Requirements", "## Validation"]
     for section in required_sections:
         if section not in readme_text:
             return fail(f"README.md missing section: {section}")
+
+    startup_sections = ["## Quick Start", "## Try It"]
+    if not any(section in readme_text for section in startup_sections):
+        return fail(
+            "README.md missing startup section (expected one of: "
+            + ", ".join(startup_sections)
+            + ")"
+        )
 
     print("release_check_ok")
     print(f"repo_root={root}")

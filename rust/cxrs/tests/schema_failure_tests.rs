@@ -7,8 +7,8 @@ use serde_json::Value;
 fn schema_failure_creates_quarantine_and_logs() {
     let repo = TempRepo::new("cxrs-it");
 
-    // Mock codex JSONL output with invalid JSON payload for schema commands.
-    repo.write_mock_codex(
+    // Mock primary JSONL output with invalid JSON payload for schema commands.
+    repo.write_mock_primary(
         r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"not-json"}}'
@@ -106,7 +106,7 @@ fn mock_schema_failure_creates_quarantine_logs() {
 #[test]
 fn next_parity_codex_cli_vs_mock_adapter() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock_codex(
+    repo.write_mock_primary(
         r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"{\"commands\":[\"echo parity-next\"]}"}}'
@@ -156,7 +156,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":14,"cached_input
     assert_eq!(mock_lines, vec!["echo parity-next".to_string()]);
     assert_eq!(
         codex_lines, mock_lines,
-        "next output diverged between codex-cli and mock adapter"
+        "next output diverged between primary-cli and mock adapter"
     );
 }
 

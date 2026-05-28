@@ -274,14 +274,14 @@ pub fn cmd_ci(app_name: &str, args: &[String]) -> i32 {
 
     let mut errors: Vec<String> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
-    let schema_dir = root.join(".codex").join("schemas");
+    let schema_dir = root.join(".cx").join("schemas");
 
     check_required_schemas(&schema_dir, &mut errors);
     let log_file = validate_logs(parsed.legacy_ok, &mut errors, &mut warnings);
     let budget = validate_budget(&mut errors, &mut warnings);
 
     if parsed.strict {
-        let qdir = root.join(".codex").join("quarantine");
+        let qdir = root.join(".cx").join("quarantine");
         if qdir.exists() && !qdir.is_dir() {
             errors.push(format!(
                 "quarantine path exists but is not a dir: {}",

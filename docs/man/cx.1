@@ -144,11 +144,11 @@ Validate run-log JSONL contract.
 Telemetry health/contract drift summary.
 .SH BACKEND AND STATE
 .TP
-.B llm show|use|unset|set-backend|set-model|clear-model
-Manage backend/model selection.
+.B llm show|check|smoke|use|unset|set-backend|set-model|clear-model
+Manage and verify backend/model selection.
 .TP
 .B state show|get|set
-Read/write repo state in \fB.codex/state.json\fR.
+Read/write repo state in \fB.cx/state.json\fR.
 .TP
 .B quota ...
 Quota probing/catalog/guard controls.
@@ -161,16 +161,16 @@ Show active command safety policy.
 Classify a command as safe/dangerous.
 .SH FILES
 .TP
-.I .codex/cxlogs/runs.jsonl
+.I .cx/cxlogs/runs.jsonl
 Execution telemetry log.
 .TP
-.I .codex/cxlogs/schema_failures.jsonl
+.I .cx/cxlogs/schema_failures.jsonl
 Schema failure ledger.
 .TP
-.I .codex/quarantine/
+.I .cx/quarantine/
 Quarantined malformed structured outputs.
 .TP
-.I .codex/schemas/
+.I .cx/schemas/
 Schema registry.
 .SH ENVIRONMENT
 .TP
@@ -178,10 +178,32 @@ Schema registry.
 Execution mode (for example: lean, deterministic, verbose).
 .TP
 .B CX_LLM_BACKEND
-Backend selection (for example: codex, ollama).
+Backend selection (for example: primary, ollama, llamacpp, mlx).
 .TP
 .B CX_OLLAMA_MODEL
 Model used when backend is ollama.
+.TP
+.B CX_LLAMA_CPP_MODEL
+GGUF model path or llama.cpp Hugging Face repo spec used when backend is llamacpp.
+For example: /models/model.gguf or ggml-org/Qwen3-0.6B-GGUF:Q4_0.
+.TP
+.B CX_LLAMA_CPP_BIN
+llama.cpp CLI binary path/name. Defaults to llama-cli.
+.TP
+.B CX_LLAMA_CPP_ARGS
+Additional shell-split arguments appended to llama-cli.
+.TP
+.B CX_MLX_MODEL
+MLX model identifier/path used when backend is mlx.
+.TP
+.B CX_MLX_PYTHON
+Python executable for mlx-lm. Defaults to python3.
+.TP
+.B CX_MLX_ARGS
+Additional shell-split arguments appended to python -m mlx_lm generate.
+.TP
+.B CX_MLX_MAX_TOKENS
+Optional max-token value passed to mlx-lm generate.
 .TP
 .B CX_CONTEXT_BUDGET_CHARS
 Context character budget.

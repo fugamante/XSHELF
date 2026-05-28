@@ -206,12 +206,12 @@ fn quota_json_reports_projection_and_top_commands() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"q1","timestamp":now,"command":"cxdiffsum_staged","tool":"cxdiffsum_staged",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":2200,"input_tokens":2000,"cached_input_tokens":500,"effective_input_tokens":1500,"output_tokens":120
         }),
         serde_json::json!({
             "execution_id":"q2","timestamp":chrono::Utc::now().to_rfc3339(),"command":"cxcommitmsg","tool":"cxcommitmsg",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1800,"input_tokens":900,"cached_input_tokens":100,"effective_input_tokens":800,"output_tokens":80
         }),
     ];
@@ -243,7 +243,7 @@ fn quota_probe_reports_configured_total_remaining() {
     let now = chrono::Utc::now().to_rfc3339();
     let rows = vec![serde_json::json!({
         "execution_id":"qp1","timestamp":now,"command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":1000,"input_tokens":500,"cached_input_tokens":100,"effective_input_tokens":400,"output_tokens":80
     })];
     let mut text = String::new();
@@ -261,7 +261,7 @@ fn quota_probe_reports_configured_total_remaining() {
     let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("quota probe json");
     assert_eq!(
         payload.get("backend").and_then(Value::as_str),
-        Some("codex")
+        Some("primary")
     );
     assert_eq!(
         payload.get("quota_source").and_then(Value::as_str),
@@ -293,7 +293,7 @@ fn quota_guard_check_reports_warning_and_options() {
     let now = chrono::Utc::now().to_rfc3339();
     let rows = vec![serde_json::json!({
         "execution_id":"qg1","timestamp":now,"command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":900,"input_tokens":900,"cached_input_tokens":100,"effective_input_tokens":800,"output_tokens":60
     })];
     let mut text = String::new();
@@ -342,7 +342,7 @@ fn quota_set_unset_updates_probe_totals() {
     let now = chrono::Utc::now().to_rfc3339();
     let row = serde_json::json!({
         "execution_id":"qs1","timestamp":now,"command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":500,"input_tokens":300,"cached_input_tokens":0,"effective_input_tokens":300,"output_tokens":20
     });
     fs::write(
@@ -351,7 +351,7 @@ fn quota_set_unset_updates_probe_totals() {
     )
     .expect("write runs");
 
-    let set = repo.run(&["quota", "set", "codex", "1000"]);
+    let set = repo.run(&["quota", "set", "primary", "1000"]);
     assert!(set.status.success(), "stderr={}", stderr_str(&set));
 
     let probed = repo.run(&["quota", "probe", "30", "--json"]);
@@ -359,7 +359,7 @@ fn quota_set_unset_updates_probe_totals() {
     let payload: Value = serde_json::from_str(&stdout_str(&probed)).expect("quota probe json");
     assert_eq!(
         payload.get("quota_source").and_then(Value::as_str),
-        Some("state:preferences.quota.codex_total_tokens")
+        Some("state:preferences.quota.primary_total_tokens")
     );
     assert_eq!(
         payload.get("quota_total_tokens").and_then(Value::as_u64),
@@ -372,7 +372,7 @@ fn quota_set_unset_updates_probe_totals() {
         Some(700)
     );
 
-    let unset = repo.run(&["quota", "unset", "codex"]);
+    let unset = repo.run(&["quota", "unset", "primary"]);
     assert!(unset.status.success(), "stderr={}", stderr_str(&unset));
     let probed2 = repo.run(&["quota", "probe", "30", "--json"]);
     assert!(probed2.status.success(), "stderr={}", stderr_str(&probed2));
@@ -411,7 +411,7 @@ fn quota_probe_uses_catalog_without_state_total() {
     let now = chrono::Utc::now().to_rfc3339();
     let row = serde_json::json!({
         "execution_id":"qc1","timestamp":now,"command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":500,"input_tokens":300,"cached_input_tokens":0,"effective_input_tokens":300,"output_tokens":20
     });
     fs::write(
@@ -431,7 +431,7 @@ fn quota_probe_uses_catalog_without_state_total() {
     let payload: Value = serde_json::from_str(&stdout_str(&probe)).expect("quota probe json");
     assert_eq!(
         payload.get("quota_source").and_then(Value::as_str),
-        Some("catalog:codex:plus")
+        Some("catalog:primary:plus")
     );
     assert_eq!(
         payload.get("quota_limit_type").and_then(Value::as_str),
@@ -491,13 +491,13 @@ fn prompt_stats_json_reports_filter_savings() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"ps1","timestamp":now,"command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":200,"schema_enforced":false,"schema_valid":true,
             "prompt_len_raw":120,"prompt_len_filtered":90,"prompt_filter_applied":true
         }),
         serde_json::json!({
             "execution_id":"ps2","timestamp":chrono::Utc::now().to_rfc3339(),"command":"cxcommitmsg","tool":"cxcommitmsg",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":210,"schema_enforced":true,"schema_valid":true,
             "prompt_len_raw":80,"prompt_len_filtered":80,"prompt_filter_applied":false
         }),

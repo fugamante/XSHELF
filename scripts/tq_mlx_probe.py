@@ -11,10 +11,10 @@ import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PROMPTS = [
-    ("smoke", ROOT / "docs/tq_prompts/smoke.txt", 8, "exact_OK"),
-    ("context_fill", ROOT / "docs/tq_prompts/context_fill.txt", 64, "non_empty_summary"),
-    ("retrieval", ROOT / "docs/tq_prompts/retrieval.txt", 16, "exact_TURBO-314159"),
-    ("instruct", ROOT / "docs/tq_prompts/instruct.txt", 48, "exact_JSON_contract"),
+    ("smoke", ROOT / "docs/turboquant/prompts/smoke.txt", 8, "exact_OK"),
+    ("context_fill", ROOT / "docs/turboquant/prompts/context_fill.txt", 64, "non_empty_summary"),
+    ("retrieval", ROOT / "docs/turboquant/prompts/retrieval.txt", 16, "exact_TURBO-314159"),
+    ("instruct", ROOT / "docs/turboquant/prompts/instruct.txt", 48, "exact_JSON_contract"),
 ]
 
 

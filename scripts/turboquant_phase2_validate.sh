@@ -279,12 +279,12 @@ cx_tqv_run() {
 
   local repo_root
   repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  local prompts_root="$repo_root/docs/tq_prompts"
+  local prompts_root="$repo_root/docs/turboquant/prompts"
   local prompts=(
-    "smoke:docs/tq_prompts/smoke.txt:$prompts_root/smoke.txt:8"
-    "context_fill:docs/tq_prompts/context_fill.txt:$prompts_root/context_fill.txt:$predict_n"
-    "retrieval:docs/tq_prompts/retrieval.txt:$prompts_root/retrieval.txt:16"
-    "instruct:docs/tq_prompts/instruct.txt:$prompts_root/instruct.txt:48"
+    "smoke:docs/turboquant/prompts/smoke.txt:$prompts_root/smoke.txt:8"
+    "context_fill:docs/turboquant/prompts/context_fill.txt:$prompts_root/context_fill.txt:$predict_n"
+    "retrieval:docs/turboquant/prompts/retrieval.txt:$prompts_root/retrieval.txt:16"
+    "instruct:docs/turboquant/prompts/instruct.txt:$prompts_root/instruct.txt:48"
   )
 
   python3 - "$out" "$(basename "$binary")" "$(basename "$model")" "$context_size" <<'PY'
