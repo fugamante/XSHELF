@@ -53,12 +53,12 @@
 
         <div class="terminal-panel" aria-label="XSHELF terminal preview">
           <div class="terminal-top">
-            <span>operator check</span>
+            <span data-command-label>operator check</span>
             <div class="window-dots" aria-hidden="true">
               <span></span><span></span><span></span>
             </div>
           </div>
-          <pre><code>$ ./bin/xshelf task check --json
+          <pre><code data-command-code>$ ./bin/xshelf task check --json
 {
   "contract_version": "task-check.v1",
   "runtime": "rust",
@@ -67,16 +67,16 @@
   "log_file": ".cx/cxlogs/runs.jsonl"
 }</code></pre>
           <div class="terminal-footer">
-            <span>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
+            <span data-command-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
             <span class="live-dot">ready</span>
           </div>
         </div>
       </section>
 
       <section class="quick-tabs" aria-label="Quick command selector">
-        <button type="button" class="active">macOS/Linux</button>
-        <button type="button">Rust dev</button>
-        <button type="button">CI probe</button>
+        <button type="button" class="active" data-command-tab="shell" aria-pressed="true">macOS/Linux</button>
+        <button type="button" data-command-tab="rust" aria-pressed="false">Rust dev</button>
+        <button type="button" data-command-tab="ci" aria-pressed="false">CI probe</button>
       </section>
 
       <section id="pipeline" class="section-block">
@@ -309,5 +309,58 @@
       <span>Target: fast scanning + reliable execution.</span>
       <span>Last updated: 2026-05-26</span>
     </footer>
+    <script>
+      (() => {
+        const commands = {
+          shell: {
+            label: "operator check",
+            caption: "Capture -> Budget -> Validate -> Telemetry",
+            code: `$ ./bin/xshelf task check --json
+{
+  "contract_version": "task-check.v1",
+  "runtime": "rust",
+  "strict_plan_ok": true,
+  "can_execute": true,
+  "log_file": ".cx/cxlogs/runs.jsonl"
+}`,
+          },
+          rust: {
+            label: "rust dev check",
+            caption: "Format -> Lint -> Test -> Contract",
+            code: `$ cargo fmt --check
+$ cargo clippy --all-targets -- -D warnings
+$ cargo test --tests -- --test-threads=1`,
+          },
+          ci: {
+            label: "ci probe",
+            caption: "Readiness -> Compatibility -> Release metadata",
+            code: `$ ./scripts/compat_local.sh --full --out .cx/compat/latest.json
+$ python3 rust/cxrs/tools/release_check.py --repo-root .
+$ ./bin/xshelf logs validate --fix=false`,
+          },
+        };
+
+        const tabs = [...document.querySelectorAll("[data-command-tab]")];
+        const label = document.querySelector("[data-command-label]");
+        const caption = document.querySelector("[data-command-caption]");
+        const code = document.querySelector("[data-command-code]");
+
+        function activate(name) {
+          const command = commands[name] || commands.shell;
+          tabs.forEach((tab) => {
+            const selected = tab.dataset.commandTab === name;
+            tab.classList.toggle("active", selected);
+            tab.setAttribute("aria-pressed", String(selected));
+          });
+          label.textContent = command.label;
+          caption.textContent = command.caption;
+          code.textContent = command.code;
+        }
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => activate(tab.dataset.commandTab));
+        });
+      })();
+    </script>
   </body>
 </html>
