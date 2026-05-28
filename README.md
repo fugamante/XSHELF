@@ -148,8 +148,8 @@ Structured output:
 ./bin/xshelf llm use ollama llama3.1
 ./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
 ./bin/xshelf llm models list --json | jq .
-./bin/xshelf llm models add local_qwen --backend mlx --model mlx-community/Qwen2.5-1.5B-Instruct-4bit
-./bin/xshelf llm models inspect local_qwen --json | jq .
+./bin/xshelf llm models add local_mlx --backend mlx --model "$MLX_MODEL_ID"
+./bin/xshelf llm models inspect local_mlx --json | jq .
 ./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```
