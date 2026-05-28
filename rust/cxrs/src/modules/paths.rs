@@ -36,6 +36,9 @@ pub fn repo_root_hint() -> Option<PathBuf> {
 fn repo_root_uncached() -> Option<PathBuf> {
     let mut cmd = Command::new("git");
     cmd.args(["rev-parse", "--show-toplevel"]);
+    cmd.env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE");
     let out = run_command_output_with_timeout(cmd, "git rev-parse --show-toplevel").ok()?;
     if !out.status.success() {
         return None;

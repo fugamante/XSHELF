@@ -15,6 +15,10 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Repository governance:
+  - added `branch-protection-audit` workflow for solo-maintainer mode.
+  - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
+  - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
 - Phase VIII local model substrate (Slice 1):
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
@@ -784,6 +788,7 @@ Notes:
 - CI now runs dedicated reliability suite job step (`cargo test --test reliability_integration`).
 
 ### Fixed
+- Repository root resolution now ignores inherited Git hook environment variables when resolving from the current working directory.
 - Reduced fragile parsing and error suppression in run-log and schema paths via explicit error propagation and quarantining (`2600d21`, `4106410`, `3390c14`).
 - Improved deterministic schema-path reliability by consolidating schema helpers and validators (`c1072e6`, `1380d5c`).
 

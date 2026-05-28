@@ -47,6 +47,9 @@ fn init_git_repo_with_retry(root: &Path, template_dir: &Path) {
             .arg("init")
             .arg("-q")
             .arg(format!("--template={}", template_dir.display()))
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .env_remove("GIT_INDEX_FILE")
             .current_dir(root)
             .output()
             .expect("run git init");
@@ -155,7 +158,10 @@ impl TempRepo {
         cmd.args(args)
             .current_dir(&self.root)
             .env("HOME", &self.home)
-            .env("PATH", path);
+            .env("PATH", path)
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .env_remove("GIT_INDEX_FILE");
         for (k, v) in envs {
             cmd.env(k, v);
         }
