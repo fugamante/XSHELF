@@ -22,6 +22,7 @@ use crate::logs::load_values;
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, set_state_path};
+use crate::task_events::{TaskEvent, cmd_task_events, emit as emit_task_event};
 use crate::taskrun::{TaskRunError, TaskRunner};
 use crate::tasks::set_task_status;
 use crate::tasks::task_run_state;
@@ -1308,10 +1309,30 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 .get(id)
                 .cloned()
                 .unwrap_or_else(|| fallback_wave_meta(idx));
+            let event_backend = backend_selected
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string());
+            emit_task_event(options.events_jsonl, {
+                let mut event = TaskEvent::new("queued");
+                event.task_id = Some(id);
+                event.status = Some("pending");
+                event.backend = Some(&event_backend);
+                event.requested_backend = requested_backend.as_deref();
+                event.wave_index = Some(wave_meta.index);
+                event.wave_mode = Some(&wave_meta.mode);
+                event.wave_size = Some(wave_meta.size);
+                event
+            });
+            emit_start_event(
+                &options,
+                id,
+                &event_backend,
+                requested_backend.as_deref(),
+                0,
+                &wave_meta,
+            );
             if options.as_json {
-                let backend = backend_selected
-                    .clone()
-                    .unwrap_or_else(|| "unknown".to_string());
+                let backend = event_backend.clone();
                 let run_result = run_task_managed_subprocess(
                     id.clone(),
                     backend.clone(),
@@ -1328,7 +1349,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
-                            summary.add_task_run(TaskRunEvent {
+                            let event = TaskRunEvent {
                                 id: id.clone(),
                                 backend,
                                 requested_backend: requested_backend.clone(),
@@ -1339,12 +1360,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 wave_index: wave_meta.index,
                                 wave_mode: wave_meta.mode.clone(),
                                 wave_size: wave_meta.size,
-                            });
+                            };
+                            emit_result_event(&options, &event);
+                            summary.add_task_run(event);
                             continue;
                         }
                         let failure = classify_failure_for_execution(execution_id.as_deref());
                         summary.record_failure(failure.class);
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: id.clone(),
                             backend,
                             requested_backend: requested_backend.clone(),
@@ -1355,7 +1378,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             wave_index: wave_meta.index,
                             wave_mode: wave_meta.mode.clone(),
                             wave_size: wave_meta.size,
-                        });
+                        };
+                        emit_result_event(&options, &event);
+                        summary.add_task_run(event);
                         continue;
                     }
                     Err(e) => {
@@ -1364,7 +1389,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             cli_app_name()
                         );
                         summary.record_critical_error();
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: id.clone(),
                             backend,
                             requested_backend: requested_backend.clone(),
@@ -1375,7 +1400,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             wave_index: wave_meta.index,
                             wave_mode: wave_meta.mode.clone(),
                             wave_size: wave_meta.size,
-                        });
+                        };
+                        emit_result_event(&options, &event);
+                        summary.add_task_run(event);
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
                             halt_all = true;
@@ -1409,7 +1436,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
-                            summary.add_task_run(TaskRunEvent {
+                            let event = TaskRunEvent {
                                 id: id.clone(),
                                 backend: backend_selected
                                     .clone()
@@ -1422,12 +1449,26 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                                 wave_index: wave_meta.index,
                                 wave_mode: wave_meta.mode.clone(),
                                 wave_size: wave_meta.size,
-                            });
+                            };
+                            emit_result_event(&options, &event);
+                            summary.add_task_run(event);
                             finished = true;
                             break;
                         }
                         let failure = classify_failure_for_execution(execution_id.as_deref());
                         if should_retry(failure.class, attempt, max_retries) {
+                            let mut event = TaskEvent::new("retrying");
+                            event.task_id = Some(id);
+                            event.status = Some("in_progress");
+                            event.backend = Some(&event_backend);
+                            event.requested_backend = requested_backend.as_deref();
+                            event.execution_id = execution_id.as_deref();
+                            event.failure_class = Some(&failure.reason);
+                            event.queue_ms = Some(0);
+                            event.wave_index = Some(wave_meta.index);
+                            event.wave_mode = Some(&wave_meta.mode);
+                            event.wave_size = Some(wave_meta.size);
+                            emit_runall_event(&options, event);
                             let next_backoff = retry_backoff_ms(attempt - 1);
                             retry_reason = Some(failure.reason);
                             retry_backoff = Some(next_backoff);
@@ -1436,7 +1477,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         }
                         summary.record_failure(failure.class);
                         crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: id.clone(),
                             backend: backend_selected
                                 .clone()
@@ -1449,7 +1490,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             wave_index: wave_meta.index,
                             wave_mode: wave_meta.mode.clone(),
                             wave_size: wave_meta.size,
-                        });
+                        };
+                        emit_result_event(&options, &event);
+                        summary.add_task_run(event);
                         finished = true;
                         break;
                     }
@@ -1459,7 +1502,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             cli_app_name()
                         );
                         summary.record_critical_error();
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: id.clone(),
                             backend: backend_selected
                                 .clone()
@@ -1472,7 +1515,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             wave_index: wave_meta.index,
                             wave_mode: wave_meta.mode.clone(),
                             wave_size: wave_meta.size,
-                        });
+                        };
+                        emit_result_event(&options, &event);
+                        summary.add_task_run(event);
                         if options.halt_on_critical {
                             summary.halted_on_critical = true;
                             halt_all = true;
@@ -1485,7 +1530,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             if !finished {
                 summary.record_failure(FailureClass::NonRetryable);
                 crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
-                summary.add_task_run(TaskRunEvent {
+                let event = TaskRunEvent {
                     id: id.clone(),
                     backend: backend_selected
                         .clone()
@@ -1498,7 +1543,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     wave_index: wave_meta.index,
                     wave_mode: wave_meta.mode.clone(),
                     wave_size: wave_meta.size,
-                });
+                };
+                emit_result_event(&options, &event);
+                summary.add_task_run(event);
             }
         }
         summary
@@ -1506,6 +1553,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let backend_fallbacks = runall_backend_fallbacks(&summary);
     let reason_counts = runall_reason_counts(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
+    emit_summary_event(&options, scheduled_count, &summary, halted_remaining);
     let concurrency_summary = runall_concurrency_summary(&summary);
     let invariants = runall_invariants_value(
         scheduled_count as u64,
@@ -1752,6 +1800,7 @@ struct RunAllOptions {
     max_workers: usize,
     fairness: String,
     halt_on_critical: bool,
+    events_jsonl: bool,
     as_json: bool,
     summary_format: String,
 }
@@ -2260,7 +2309,7 @@ fn fallback_backend(selected: Option<String>, available: &[String]) -> Option<St
 
 fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOptions, i32> {
     let usage = format!(
-        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool primary,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]"
+        "Usage: {app_name} task run-all [--status pending|in_progress|complete|failed] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool primary,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--events-jsonl] [--summary text|json] [--json|--text]"
     );
     let mut status_filter = "pending".to_string();
     let mut run_mode = "sequential".to_string();
@@ -2272,6 +2321,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
     let mut max_workers = 1usize;
     let mut fairness = "round_robin".to_string();
     let mut halt_on_critical = app_config().task_halt_on_critical;
+    let mut events_jsonl = false;
     let mut as_json: Option<bool> = None;
     let mut summary_format = "text".to_string();
     let mut i = 1usize;
@@ -2374,6 +2424,10 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
                 halt_on_critical = false;
                 i += 1;
             }
+            "--events-jsonl" => {
+                events_jsonl = true;
+                i += 1;
+            }
             "--summary" => {
                 let Some(v) = args.get(i + 1).map(String::as_str) else {
                     crate::cx_eprintln!("{usage}");
@@ -2427,6 +2481,7 @@ fn parse_run_all_options(app_name: &str, args: &[String]) -> Result<RunAllOption
         max_workers,
         fairness,
         halt_on_critical,
+        events_jsonl,
         as_json: resolve_json_mode(as_json, false),
         summary_format,
     })
@@ -2529,6 +2584,84 @@ fn set_task_status_quiet(id: &str, status: &str) -> Result<(), String> {
     set_task_status(id, status)
 }
 
+fn emit_runall_event(options: &RunAllOptions, event: TaskEvent<'_>) {
+    emit_task_event(options.events_jsonl, event);
+}
+
+fn emit_pending_event(options: &RunAllOptions, launch: &PendingLaunch) {
+    let mut event = TaskEvent::new("queued");
+    event.task_id = Some(&launch.id);
+    event.status = Some("pending");
+    event.backend = Some(&launch.backend);
+    event.requested_backend = launch.requested_backend.as_deref();
+    event.wave_index = Some(launch.wave_index);
+    event.wave_mode = Some(&launch.wave_mode);
+    event.wave_size = Some(launch.wave_size);
+    emit_runall_event(options, event);
+}
+
+fn emit_start_event(
+    options: &RunAllOptions,
+    id: &str,
+    backend: &str,
+    requested_backend: Option<&str>,
+    queue_ms: u64,
+    wave: &TaskWaveMeta,
+) {
+    let mut event = TaskEvent::new("started");
+    event.task_id = Some(id);
+    event.status = Some("in_progress");
+    event.backend = Some(backend);
+    event.requested_backend = requested_backend;
+    event.queue_ms = Some(queue_ms);
+    event.wave_index = Some(wave.index);
+    event.wave_mode = Some(&wave.mode);
+    event.wave_size = Some(wave.size);
+    emit_runall_event(options, event);
+}
+
+fn emit_result_event(options: &RunAllOptions, event: &TaskRunEvent) {
+    let mut out = TaskEvent::new(match event.status.as_str() {
+        "complete" => "completed",
+        "critical_error" => "critical_error",
+        "failed" => {
+            if event.failure_class.as_deref() == Some("policy_blocked") {
+                "blocked"
+            } else {
+                "failed"
+            }
+        }
+        other => other,
+    });
+    out.task_id = Some(&event.id);
+    out.status = Some(&event.status);
+    out.backend = Some(&event.backend);
+    out.requested_backend = event.requested_backend.as_deref();
+    out.execution_id = event.execution_id.as_deref();
+    out.failure_class = event.failure_class.as_deref();
+    out.queue_ms = Some(event.queue_ms);
+    out.wave_index = Some(event.wave_index);
+    out.wave_mode = Some(&event.wave_mode);
+    out.wave_size = Some(event.wave_size);
+    emit_runall_event(options, out);
+}
+
+fn emit_summary_event(
+    options: &RunAllOptions,
+    scheduled_count: usize,
+    summary: &RunAllSummary,
+    halted_remaining: usize,
+) {
+    let mut event = TaskEvent::new("summary");
+    event.scheduled = Some(scheduled_count as u64);
+    event.complete = Some(summary.ok as u64);
+    event.failed = Some(summary.failed as u64);
+    event.blocked = Some(summary.blocked as u64);
+    event.critical_errors = Some(summary.critical_errors as u64);
+    event.halted_remaining = Some(halted_remaining as u64);
+    emit_runall_event(options, event);
+}
+
 fn run_schedule_parallel(
     schedule: &[String],
     task_index: &HashMap<String, TaskRecord>,
@@ -2562,6 +2695,9 @@ fn run_schedule_parallel(
             }
         })
         .collect();
+    for launch in &pending {
+        emit_pending_event(options, launch);
+    }
     let mut active: Vec<ActiveLaunch> = Vec::new();
     let mut backend_active: HashMap<String, usize> = HashMap::new();
     let mut summary = RunAllSummary::default();
@@ -2591,6 +2727,19 @@ fn run_schedule_parallel(
             let launch = pending.remove(pos);
             set_task_status_quiet(&launch.id, "in_progress")?;
             let queue_ms = launch.queue_since.elapsed().as_millis() as u64;
+            let start_wave = TaskWaveMeta {
+                index: launch.wave_index,
+                mode: launch.wave_mode.clone(),
+                size: launch.wave_size,
+            };
+            emit_start_event(
+                options,
+                &launch.id,
+                &launch.backend,
+                launch.requested_backend.as_deref(),
+                queue_ms,
+                &start_wave,
+            );
             let worker_id = format!("w{next_worker}");
             next_worker = if next_worker >= options.max_workers {
                 1
@@ -2655,7 +2804,7 @@ fn run_schedule_parallel(
                     if code == 0 {
                         summary.record_success();
                         let _ = set_task_status_quiet(&done.id, "complete");
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
                             requested_backend: done.requested_backend,
@@ -2666,7 +2815,9 @@ fn run_schedule_parallel(
                             wave_index: done.wave_index,
                             wave_mode: done.wave_mode,
                             wave_size: done.wave_size,
-                        });
+                        };
+                        emit_result_event(options, &event);
+                        summary.add_task_run(event);
                     } else {
                         let failure = classify_failure_for_execution(execution_id.as_deref());
                         summary.record_failure(failure.class);
@@ -2676,7 +2827,7 @@ fn run_schedule_parallel(
                             cli_app_name(),
                             done.id
                         );
-                        summary.add_task_run(TaskRunEvent {
+                        let event = TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
                             requested_backend: done.requested_backend,
@@ -2687,7 +2838,9 @@ fn run_schedule_parallel(
                             wave_index: done.wave_index,
                             wave_mode: done.wave_mode,
                             wave_size: done.wave_size,
-                        });
+                        };
+                        emit_result_event(options, &event);
+                        summary.add_task_run(event);
                     }
                 }
                 Err(e) => {
@@ -2698,7 +2851,7 @@ fn run_schedule_parallel(
                         cli_app_name(),
                         done.id
                     );
-                    summary.add_task_run(TaskRunEvent {
+                    let event = TaskRunEvent {
                         id: done.id,
                         backend: done.backend,
                         requested_backend: done.requested_backend,
@@ -2709,7 +2862,9 @@ fn run_schedule_parallel(
                         wave_index: done.wave_index,
                         wave_mode: done.wave_mode,
                         wave_size: done.wave_size,
-                    });
+                    };
+                    emit_result_event(options, &event);
+                    summary.add_task_run(event);
                     if options.halt_on_critical {
                         summary.halted_on_critical = true;
                         return Ok(summary);
@@ -3161,12 +3316,13 @@ pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
         },
         "fanout" => handle_fanout(app_name, args, deps),
         "check" => handle_task_check(app_name, args, deps),
+        "events" => cmd_task_events(app_name, args),
         "run-plan" => handle_run_plan(app_name, args, deps),
         "run" => handle_run(app_name, args, deps),
         "run-all" => handle_run_all(app_name, args, deps),
         _ => {
             crate::cx_eprintln!(
-                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|check|run-plan|run|run-all> ..."
+                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|check|events|run-plan|run|run-all> ..."
             );
             2
         }
@@ -3302,6 +3458,13 @@ mod tests {
         ];
         let opts = parse_run_all_options("cx", &args).expect("parse options");
         assert_eq!(opts.summary_format, "json");
+    }
+
+    #[test]
+    fn parse_events_jsonl() {
+        let args = vec!["run-all".to_string(), "--events-jsonl".to_string()];
+        let opts = parse_run_all_options("cx", &args).expect("parse options");
+        assert!(opts.events_jsonl);
     }
 
     #[test]

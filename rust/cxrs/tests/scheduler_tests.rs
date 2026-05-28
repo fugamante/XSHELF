@@ -1094,6 +1094,108 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_events_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        concat!("co", "dex"),
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo run-all-events-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "primary",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--events-jsonl",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("task-run-all.v1")
+    );
+
+    let events: Vec<Value> = stderr_str(&out)
+        .lines()
+        .filter(|line| line.trim_start().starts_with('{'))
+        .map(|line| serde_json::from_str::<Value>(line).expect("valid event jsonl"))
+        .collect();
+    assert!(
+        events.len() >= 5,
+        "expected queued/started/result/summary events, got {events:?}"
+    );
+    assert!(
+        events.iter().all(
+            |event| event.get("contract_version").and_then(Value::as_str) == Some("task-events.v1")
+        ),
+        "{events:?}"
+    );
+    let event_names: Vec<&str> = events
+        .iter()
+        .filter_map(|event| event.get("event").and_then(Value::as_str))
+        .collect();
+    assert!(event_names.contains(&"queued"), "{event_names:?}");
+    assert!(event_names.contains(&"started"), "{event_names:?}");
+    assert!(event_names.contains(&"completed"), "{event_names:?}");
+    assert_eq!(event_names.last().copied(), Some("summary"));
+    let summary = events.last().expect("summary event");
+    assert_eq!(summary.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(summary.get("complete").and_then(Value::as_u64), Some(2));
+    assert_eq!(summary.get("failed").and_then(Value::as_u64), Some(0));
+
+    let persisted = common::parse_jsonl(&repo.task_events_log());
+    assert_eq!(persisted.len(), events.len());
+    assert_eq!(
+        persisted
+            .last()
+            .and_then(|event| event.get("event"))
+            .and_then(Value::as_str),
+        Some("summary")
+    );
+
+    let events_out = repo.run(&["task", "events", "--limit", "3", "--json"]);
+    assert!(
+        events_out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&events_out),
+        stderr_str(&events_out)
+    );
+    let recent: Value = serde_json::from_str(&stdout_str(&events_out)).expect("events json");
+    let recent_rows = recent.as_array().expect("events array");
+    assert_eq!(recent_rows.len(), 3, "{recent}");
+    assert_eq!(
+        recent_rows
+            .last()
+            .and_then(|event| event.get("event"))
+            .and_then(Value::as_str),
+        Some("summary")
+    );
+}
+
+#[test]
 fn run_wave_preflight() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![

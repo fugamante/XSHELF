@@ -70,6 +70,13 @@ pub fn resolve_schema_fail_log_file() -> Option<PathBuf> {
     home_dir().map(|h| h.join(".cx").join("cxlogs").join("schema_failures.jsonl"))
 }
 
+pub fn task_events_log() -> Option<PathBuf> {
+    if let Some(root) = repo_root() {
+        return Some(root.join(".codex").join("cxlogs").join("task_events.jsonl"));
+    }
+    home_dir().map(|h| h.join(".codex").join("cxlogs").join("task_events.jsonl"))
+}
+
 pub fn resolve_quarantine_dir() -> Option<PathBuf> {
     if let Some(root) = repo_root() {
         return Some(root.join(".cx").join("quarantine"));
