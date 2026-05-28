@@ -54,11 +54,14 @@
         <div class="terminal-panel" aria-label="XSHELF terminal preview">
           <div class="terminal-top">
             <span>operator proof</span>
-            <div class="window-dots" aria-hidden="true">
-              <span></span><span></span><span></span>
+            <div class="terminal-tools">
+              <button type="button" class="copy-command" data-copy-terminal>Copy</button>
+              <div class="window-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
             </div>
           </div>
-          <pre><code>$ ./bin/xshelf core --json
+          <pre><code data-terminal-code>$ ./bin/xshelf core --json
 {
   "runtime": "rust",
   "entrypoint": "xshelf",
@@ -66,17 +69,17 @@
   "logs": ".cx/cxlogs/runs.jsonl",
   "quarantine": ".cx/quarantine"
 }</code></pre>
-          <div class="terminal-footer">
-            <span>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
+          <div class="terminal-footer" aria-live="polite">
+            <span data-terminal-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
             <span class="live-dot">ready</span>
           </div>
         </div>
       </section>
 
       <section class="quick-tabs" aria-label="Runtime surfaces">
-        <button type="button" class="active">Operator</button>
-        <button type="button">CI</button>
-        <button type="button">Local models</button>
+        <button type="button" class="active" data-surface-tab="operator">Operator</button>
+        <button type="button" data-surface-tab="ci">CI</button>
+        <button type="button" data-surface-tab="local">Local models</button>
       </section>
 
       <section id="pipeline" class="section-block">
@@ -189,25 +192,25 @@
             </p>
           </div>
         </div>
-        <div class="steps">
-          <article>
+        <div class="steps" data-install-steps>
+          <article data-step-card>
             <span>1</span>
-            <h3>Inspect runtime</h3>
-            <pre><code>./bin/xshelf version
+            <h3 data-step-title>Inspect runtime</h3>
+            <pre><code data-step-code>./bin/xshelf version
 ./bin/xshelf task check --json
 ./bin/xshelf core --json</code></pre>
           </article>
-          <article>
+          <article data-step-card>
             <span>2</span>
-            <h3>Check health</h3>
-            <pre><code>./bin/xshelf llm check
+            <h3 data-step-title>Check health</h3>
+            <pre><code data-step-code>./bin/xshelf llm check
 ./bin/xshelf doctor
 ./bin/xshelf health</code></pre>
           </article>
-          <article>
+          <article data-step-card>
             <span>3</span>
-            <h3>Run safely</h3>
-            <pre><code>./bin/xshelf cxo git status</code></pre>
+            <h3 data-step-title>Run safely</h3>
+            <pre><code data-step-code>./bin/xshelf cxo git status</code></pre>
           </article>
         </div>
       </section>
@@ -217,5 +220,101 @@
       <span>XSHELF is independent open-source runtime tooling.</span>
       <span><a href="./docs/manuals/02_web/index.html">Manual index</a></span>
     </footer>
+    <script>
+      (() => {
+        const surfaces = {
+          operator: {
+            status: ["Rust canonical", "JSON contracts", "Replayable"],
+            caption: "Capture -> Budget -> Validate -> Telemetry",
+            terminal: `$ ./bin/xshelf core --json
+{
+  "runtime": "rust",
+  "entrypoint": "xshelf",
+  "policy": "explicit",
+  "logs": ".cx/cxlogs/runs.jsonl",
+  "quarantine": ".cx/quarantine"
+}`,
+            steps: [
+              ["Inspect runtime", "./bin/xshelf version\n./bin/xshelf task check --json\n./bin/xshelf core --json"],
+              ["Check health", "./bin/xshelf llm check\n./bin/xshelf doctor\n./bin/xshelf health"],
+              ["Run safely", "./bin/xshelf cxo git status"],
+            ],
+          },
+          ci: {
+            status: ["Parseable stdout", "Explicit policy", "Guarded checks"],
+            caption: "Plan -> Gate -> Execute -> Validate",
+            terminal: `$ ./bin/xshelf task run-all --status pending --events-jsonl --json
+{
+  "contract_version": "task-run-all.v1",
+  "summary": "parseable",
+  "events_stream": "stderr",
+  "can_execute": true
+}`,
+            steps: [
+              ["Gate contracts", "./bin/xshelf task check --json | jq .\n./bin/xshelf policy show --json | jq ."],
+              ["Run bounded tasks", "./bin/xshelf task run-all --status pending --mode mixed\n./bin/xshelf task events --limit 20 --json"],
+              ["Validate logs", "./bin/xshelf logs validate --fix=false\n./bin/xshelf telemetry 50 --json | jq ."],
+            ],
+          },
+          local: {
+            status: ["Backend visible", "Model explicit", "Smoke checked"],
+            caption: "Select -> Inspect -> Smoke -> Route",
+            terminal: `$ ./bin/xshelf llm models inspect local_qwen --json
+{
+  "backend": "mlx",
+  "model": "mlx-community/Qwen2.5-1.5B-Instruct-4bit",
+  "transport": "process",
+  "status": "configured"
+}`,
+            steps: [
+              ["Inspect backend", "./bin/xshelf llm show\n./bin/xshelf llm models list --json | jq ."],
+              ["Select model", "./bin/xshelf llm use ollama llama3.1\n./bin/xshelf llm check"],
+              ["Smoke route", "./bin/xshelf llm smoke \"Respond with OK only.\"\n./bin/xshelf cxo git status"],
+            ],
+          },
+        };
+
+        const tabs = [...document.querySelectorAll("[data-surface-tab]")];
+        const terminal = document.querySelector("[data-terminal-code]");
+        const caption = document.querySelector("[data-terminal-caption]");
+        const statusValues = [...document.querySelectorAll(".status-strip dd")];
+        const stepCards = [...document.querySelectorAll("[data-step-card]")];
+        const copyButton = document.querySelector("[data-copy-terminal]");
+
+        function activate(name) {
+          const surface = surfaces[name] || surfaces.operator;
+          tabs.forEach((tab) => {
+            const selected = tab.dataset.surfaceTab === name;
+            tab.classList.toggle("active", selected);
+            tab.setAttribute("aria-pressed", String(selected));
+          });
+          terminal.textContent = surface.terminal;
+          caption.textContent = surface.caption;
+          statusValues.forEach((node, index) => {
+            node.textContent = surface.status[index];
+          });
+          stepCards.forEach((card, index) => {
+            const step = surface.steps[index];
+            card.querySelector("[data-step-title]").textContent = step[0];
+            card.querySelector("[data-step-code]").textContent = step[1];
+          });
+          copyButton.textContent = "Copy";
+        }
+
+        tabs.forEach((tab) => {
+          tab.setAttribute("aria-pressed", String(tab.classList.contains("active")));
+          tab.addEventListener("click", () => activate(tab.dataset.surfaceTab));
+        });
+
+        copyButton.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(terminal.textContent);
+            copyButton.textContent = "Copied";
+          } catch (_error) {
+            copyButton.textContent = "Select text";
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

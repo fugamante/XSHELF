@@ -1,6 +1,6 @@
 # Web Visual QA
 
-Scope: tracked HTML/CSS manual mirror in `docs/manuals/02_web/`.
+Scope: root landing page and tracked HTML/CSS manual mirror.
 
 The web manual is intentionally operator-first:
 - compact sticky navigation
@@ -15,6 +15,8 @@ The web manual is intentionally operator-first:
 - Web mirror: `docs/manuals/02_web/CX_MANUAL_MASTER.html`
 - Shared web CSS: `docs/manuals/02_web/apple.css`
 - Web index: `docs/manuals/02_web/index.html`
+- Public landing page: `index.html`
+- Surface ownership policy: `docs/project/PUBLIC_SURFACES.md`
 
 The LaTeX source is still canonical for manual content. The HTML mirror is a
 tracked reader surface until an automated HTML generation path exists.
@@ -22,7 +24,8 @@ tracked reader surface until an automated HTML generation path exists.
 ## Render Checks
 
 Use the bundled browser runtime or another local Chromium/Playwright setup to
-render both desktop and mobile widths.
+render both desktop and mobile widths for `index.html` and
+`docs/manuals/02_web/CX_MANUAL_MASTER.html`.
 
 Expected baseline:
 - desktop viewport: `1440x1100`
@@ -31,8 +34,11 @@ Expected baseline:
 - no clipped text or controls
 - terminal/code blocks remain readable
 - top navigation and manual table of contents remain usable
+- landing page tabs update the terminal proof, status rail, and install steps
 
 Current screenshot scratch paths used during the operator UI refresh:
+- `.cx/landing_desktop.png`
+- `.cx/landing_mobile.png`
 - `.cx/manual_desktop.png`
 - `.cx/manual_mobile.png`
 
