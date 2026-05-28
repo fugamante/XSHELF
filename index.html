@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>XSHELF</title>
+    <link rel="stylesheet" href="./docs/manuals/02_web/apple.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="XSHELF home">
+        <span class="brand-mark">XS</span>
+        <span>XSHELF</span>
+      </a>
+      <nav aria-label="Primary">
+        <a href="#pipeline">Pipeline</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#install">Install</a>
+        <a href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Manual</a>
+      </nav>
+      <a class="header-action" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Open Manual</a>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="product-line">XSHELF (formerly CX)</p>
+          <h1>Runtime for deterministic operator work.</h1>
+          <p class="lead">
+            XSHELF wraps repository commands with bounded capture, schema-checked
+            outputs, explicit execution policy, and replayable telemetry for
+            CI and local automation.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button primary" href="#install">Try it</a>
+            <a class="button secondary" href="./docs/manuals/02_web/CX_MANUAL_MASTER.html">Read manual</a>
+          </div>
+          <dl class="status-strip" aria-label="Runtime proof points">
+            <div>
+              <dt>Engine</dt>
+              <dd>Rust canonical</dd>
+            </div>
+            <div>
+              <dt>Output</dt>
+              <dd>JSON contracts</dd>
+            </div>
+            <div>
+              <dt>Failure</dt>
+              <dd>Replayable</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="terminal-panel" aria-label="XSHELF terminal preview">
+          <div class="terminal-top">
+            <span>operator proof</span>
+            <div class="window-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+          <pre><code>$ ./bin/xshelf core --json
+{
+  "runtime": "rust",
+  "entrypoint": "xshelf",
+  "policy": "explicit",
+  "logs": ".cx/cxlogs/runs.jsonl",
+  "quarantine": ".cx/quarantine"
+}</code></pre>
+          <div class="terminal-footer">
+            <span>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
+            <span class="live-dot">ready</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-tabs" aria-label="Runtime surfaces">
+        <button type="button" class="active">Operator</button>
+        <button type="button">CI</button>
+        <button type="button">Local models</button>
+      </section>
+
+      <section id="pipeline" class="section-block">
+        <div class="section-head">
+          <span class="section-index">01</span>
+          <div>
+            <h2>Predictable Command Flow</h2>
+            <p>
+              XSHELF constrains system output before it reaches a model and
+              records enough evidence for operators to explain what happened.
+            </p>
+          </div>
+        </div>
+        <div class="pipeline-grid">
+          <article>
+            <span>Capture</span>
+            <p>Collect command output and reduce it inside the runtime boundary.</p>
+          </article>
+          <article>
+            <span>Budget</span>
+            <p>Apply explicit character and line limits before prompt assembly.</p>
+          </article>
+          <article>
+            <span>Validate</span>
+            <p>Check structured output against stable JSON contracts.</p>
+          </article>
+          <article>
+            <span>Replay</span>
+            <p>Quarantine failures and preserve telemetry for later inspection.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="capabilities" class="section-block">
+        <div class="section-head">
+          <span class="section-index">02</span>
+          <div>
+            <h2>Operator Surfaces</h2>
+            <p>
+              The runtime exposes state, policy, tasks, and telemetry through
+              commands that are meant to be read by both people and automation.
+            </p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <article class="card">
+            <h3>Runtime state</h3>
+            <p>Inspect backend, budgets, logs, transport policy, and model configuration.</p>
+            <code>./bin/xshelf core --json</code>
+          </article>
+          <article class="card">
+            <h3>Task graph</h3>
+            <p>Fan out objectives, run bounded workers, and emit parseable progress events.</p>
+            <code>./bin/xshelf task check --json</code>
+          </article>
+          <article class="card">
+            <h3>Policy</h3>
+            <p>Make execution boundaries and unsafe command decisions explicit.</p>
+            <code>./bin/xshelf policy show --json</code>
+          </article>
+          <article class="card">
+            <h3>Telemetry</h3>
+            <p>Validate logs, inspect traces, and spot schema or budget drift.</p>
+            <code>./bin/xshelf logs validate --fix=false</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="compare-band" aria-label="Why XSHELF differs">
+        <div>
+          <h2>Built for automation boundaries.</h2>
+          <p>
+            XSHELF does not treat model output as a transcript to skim. It treats
+            command execution, structured result validation, and failure evidence
+            as runtime contracts.
+          </p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Loose agent flow</th>
+              <th scope="col">XSHELF flow</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Unbounded context</td>
+              <td>Budgeted capture</td>
+            </tr>
+            <tr>
+              <td>Text-first result</td>
+              <td>Schema-first result</td>
+            </tr>
+            <tr>
+              <td>Failure is ambiguous</td>
+              <td>Failure is quarantined</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="install" class="section-block">
+        <div class="section-head">
+          <span class="section-index">03</span>
+          <div>
+            <h2>Install And Verify</h2>
+            <p>
+              Start with read-only inspection. Run backend execution only after
+              readiness and health checks pass.
+            </p>
+          </div>
+        </div>
+        <div class="steps">
+          <article>
+            <span>1</span>
+            <h3>Inspect runtime</h3>
+            <pre><code>./bin/xshelf version
+./bin/xshelf task check --json
+./bin/xshelf core --json</code></pre>
+          </article>
+          <article>
+            <span>2</span>
+            <h3>Check health</h3>
+            <pre><code>./bin/xshelf llm check
+./bin/xshelf doctor
+./bin/xshelf health</code></pre>
+          </article>
+          <article>
+            <span>3</span>
+            <h3>Run safely</h3>
+            <pre><code>./bin/xshelf cxo git status</code></pre>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>XSHELF is independent open-source runtime tooling.</span>
+      <span><a href="./docs/manuals/02_web/index.html">Manual index</a></span>
+    </footer>
+  </body>
+</html>
