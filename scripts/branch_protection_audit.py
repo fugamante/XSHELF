@@ -152,6 +152,12 @@ def main() -> int:
     if not token:
         print("GITHUB_TOKEN is required", file=sys.stderr)
         return 2
+    if env_bool("GITHUB_ACTIONS") and not token_present:
+        print(
+            "::notice::BRANCH_PROTECTION_TOKEN is not configured; "
+            "branch-protection audit is inactive"
+        )
+        return 0
 
     writers = write_collaborators(token, repo, owner)
     gate = review_gate(token, repo, branch)

@@ -24,6 +24,9 @@ The token must be able to read repository collaborators and update branch
 protection. A fine-scoped GitHub token or GitHub App installation token is
 preferred over a broad personal token.
 
+Until this secret is configured, scheduled workflow runs exit successfully with
+a notice and do not inspect or modify branch protection.
+
 Restored review settings:
 
 ```json
