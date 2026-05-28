@@ -3,192 +3,311 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>XSHELF Manual (Master)</title>
+    <title>XSHELF Operator Manual</title>
     <link rel="stylesheet" href="./apple.css" />
   </head>
   <body>
-    <div class="wrap">
-      <header>
-        <div class="k">XSHELF</div>
-        <h1>Manual (Master)</h1>
-        <div class="meta">Last updated: 2026-05-26 · Focus: deterministic, observable, safe runtime</div>
-      </header>
-
-      <section class="callout">
-        <p><strong>Intent.</strong> XSHELF is built for predictable LLM-assisted work under load: bounded context, schema-validated structured outputs, strict telemetry, and safe automation boundaries.</p>
-        <p>XSHELF is a runtime substrate, not a chat transcript. It captures relevant repository output, enforces budgets before that output reaches the model, makes structured results checkable, and records enough telemetry to explain what happened later.</p>
-      </section>
-
-      <section class="callout">
-        <p><strong>Naming note.</strong> <code>xshelf</code> is the canonical CLI, <code>xs</code> is the short alias, and <code>cx</code> remains the supported compatibility alias.</p>
-      </section>
-
-      <section class="callout">
-        <p><strong>Runtime architecture notes.</strong> Runtime behavior is Rust-canonical and actively modularized. <code>src/app/mod.rs</code> remains the orchestrator while command families have been extracted into focused modules (<code>introspect</code>, <code>runtime_controls</code>, <code>agentcmds</code>, <code>logview</code>, <code>analytics</code>, <code>diagnostics</code>, <code>routing</code>, <code>prompting</code>, <code>optimize</code>, <code>doctor</code>, <code>schema_ops</code>, <code>settings_cmds</code>, <code>structured_cmds</code>, <code>task_cmds</code>). Contract behavior remains deterministic and quarantine-backed.</p>
-      </section>
-
-      <section class="grid" aria-label="Quickstart">
-        <div class="card">
-          <div class="k">Quickstart</div>
-          <p>Run these backend-safe commands to confirm routing, task readiness, and runtime state.</p>
-          <pre><code>cd <repo-root>
-./bin/xshelf version
-./bin/xshelf task check --json
-./bin/xshelf core --json
-./bin/xshelf diag --json --window 20</code></pre>
-          <p><strong>What to verify</strong></p>
-          <ul>
-            <li><code>execution_path</code> is Rust when available.</li>
-            <li><code>log_file</code> points to <code>.cx/cxlogs/runs.jsonl</code>.</li>
-            <li><code>budget_chars</code>/<code>budget_lines</code> are explicit.</li>
-            <li><code>diffsum-staged</code> returns JSON that parses with <code>jq</code>.</li>
-            <li>Clipping is visible via <code>./bin/xshelf trace</code> when it occurs.</li>
-          </ul>
-          <p><span class="pill">Rust-first</span><span class="pill">Schema-enforced</span><span class="pill">Budgeted capture</span></p>
-        </div>
-        <div class="card">
-          <div class="k">Installation / Prereqs</div>
-          <ul>
-            <li><strong>Required:</strong> <code>bash</code></li>
-            <li><strong>Required:</strong> <code>git</code></li>
-            <li><strong>Required:</strong> <code>jq</code></li>
-            <li><strong>Required for default backend:</strong> <code>primary</code> CLI</li>
-            <li><strong>Dev:</strong> <code>cargo</code>/<code>rustc</code> (build/run <code>cxrs</code>)</li>
-          </ul>
-          <pre><code>./bin/xshelf doctor
-./bin/xshelf capture-status</code></pre>
-          <p class="meta">Optional: <code>ollama</code> (local backend).</p>
-        </div>
-      </section>
-
-      <section class="grid" aria-label="Common workflows and troubleshooting">
-        <div class="card">
-          <div class="k">Common workflows</div>
-          <ul>
-            <li><strong>Summarize staged diff (JSON):</strong> <code>./bin/xshelf diffsum-staged | jq .</code></li>
-            <li><strong>Generate commit object (JSON):</strong> <code>./bin/xshelf commitjson | jq .</code></li>
-            <li><strong>Fan out an objective:</strong> <code>./bin/xshelf task fanout "..." --from staged-diff</code></li>
-            <li><strong>Run pending tasks:</strong> <code>./bin/xshelf task run-all --status pending</code></li>
-            <li><strong>Optimize from history:</strong> <code>./bin/xshelf optimize 200</code></li>
-          </ul>
-          <p class="meta">More workflows are covered in the sections below.</p>
-        </div>
-        <div class="card">
-          <div class="k">Troubleshooting</div>
-          <ul>
-            <li><strong>Unexpected fallback:</strong> run <code>./bin/xshelf where &lt;cmd&gt;</code> and confirm <code>execution_path</code> via <code>./bin/xshelf version</code>.</li>
-            <li><strong>Schema command fails:</strong> inspect <code>./bin/xshelf quarantine list</code>, then <code>./bin/xshelf replay &lt;id&gt;</code>.</li>
-            <li><strong>Budget clipping surprises:</strong> run <code>./bin/xshelf budget</code> and <code>./bin/xshelf trace</code>; reduce capture scope or raise budgets intentionally.</li>
-            <li><strong>Strict log validation fails:</strong> legacy rows may predate the current telemetry contract; new runs should conform.</li>
-            <li><strong>Backend confusion:</strong> run <code>./bin/xshelf llm show</code> and verify the selected model when using Ollama.</li>
-          </ul>
-          <pre><code>./bin/xshelf logs validate --fix=false
-./bin/xshelf trace</code></pre>
-        </div>
-      </section>
-
-      <nav class="toc">
-        <div class="k">Contents</div>
-        <ul>
-          <li><a href="#start">Start Here: Verify What You’re Running</a></li>
-          <li><a href="#pipeline">The Pipeline (Capture → Budget → Embed)</a></li>
-          <li><a href="#schemas">Structured Outputs (Schemas/Quarantine/Replay)</a></li>
-          <li><a href="#policy">Safety Sandbox (Policy Engine)</a></li>
-          <li><a href="#tasks">Task Graph (Fan-out/Run/Run-all)</a></li>
-          <li><a href="#telemetry">Telemetry (Contract/Validation/Heuristics)</a></li>
-          <li><a href="#optimize">Self-Optimization</a></li>
-          <li><a href="#procedures">Operator Procedures</a></li>
-        </ul>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="XSHELF home">
+        <span class="brand-mark">XS</span>
+        <span>XSHELF</span>
+      </a>
+      <nav aria-label="Primary">
+        <a href="#pipeline">Pipeline</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#install">Install</a>
+        <a href="#procedures">Procedures</a>
       </nav>
+      <a class="header-action" href="#manual">Manual</a>
+    </header>
 
-      <section id="start">
-        <h2>Start Here: Verify What You’re Running</h2>
-        <p>Prefer Rust execution. If you are on Bash fallback, expect reduced guarantees.</p>
-        <pre><code>cd <repo-root>
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="product-line">XSHELF (formerly CX)</p>
+          <h1>Runtime for deterministic operator work.</h1>
+          <p class="lead">
+            XSHELF wraps repository commands with bounded capture, schema-checked
+            outputs, explicit execution policy, and telemetry that operators can
+            replay later.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button primary" href="#install">Try it</a>
+            <a class="button secondary" href="#manual">Read manual</a>
+          </div>
+          <dl class="status-strip" aria-label="Runtime proof points">
+            <div>
+              <dt>Surface</dt>
+              <dd>Rust canonical</dd>
+            </div>
+            <div>
+              <dt>Contract</dt>
+              <dd>JSON first</dd>
+            </div>
+            <div>
+              <dt>Failure</dt>
+              <dd>Quarantine backed</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="terminal-panel" aria-label="XSHELF terminal preview">
+          <div class="terminal-top">
+            <span>operator check</span>
+            <div class="window-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+          <pre><code>$ ./bin/xshelf task check --json
+{
+  "contract_version": "task-check.v1",
+  "runtime": "rust",
+  "strict_plan_ok": true,
+  "can_execute": true,
+  "log_file": ".cx/cxlogs/runs.jsonl"
+}</code></pre>
+          <div class="terminal-footer">
+            <span>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
+            <span class="live-dot">ready</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-tabs" aria-label="Quick command selector">
+        <button type="button" class="active">macOS/Linux</button>
+        <button type="button">Rust dev</button>
+        <button type="button">CI probe</button>
+      </section>
+
+      <section id="pipeline" class="section-block">
+        <div class="section-head">
+          <span class="section-index">01</span>
+          <div>
+            <h2>Operator Pipeline</h2>
+            <p>
+              System output is constrained before it becomes model-visible
+              context. Every stage has an inspectable command surface.
+            </p>
+          </div>
+        </div>
+        <div class="pipeline-grid">
+          <article>
+            <span>Capture</span>
+            <p>Collect repository output and reduce it before prompt assembly.</p>
+          </article>
+          <article>
+            <span>Budget</span>
+            <p>Clip or chunk context with explicit character and line limits.</p>
+          </article>
+          <article>
+            <span>Validate</span>
+            <p>Require structured JSON contracts and quarantine invalid results.</p>
+          </article>
+          <article>
+            <span>Telemetry</span>
+            <p>Append enough runtime evidence to explain the run later.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="capabilities" class="section-block">
+        <div class="section-head">
+          <span class="section-index">02</span>
+          <div>
+            <h2>Capabilities</h2>
+            <p>
+              Core surfaces are grouped around operator decisions: what is
+              active, what is safe, what can run, and what failed.
+            </p>
+          </div>
+        </div>
+        <div class="card-grid">
+          <article class="card">
+            <h3>Runtime state</h3>
+            <p>Inspect active backend, budgets, logs, transport policy, and model configuration.</p>
+            <code>./bin/xshelf core --json</code>
+          </article>
+          <article class="card">
+            <h3>Task graph</h3>
+            <p>Fan out objectives, list pending work, run bounded workers, and emit progress events.</p>
+            <code>./bin/xshelf task run-all --status pending</code>
+          </article>
+          <article class="card">
+            <h3>Policy</h3>
+            <p>Block unsafe execution paths and make override state explicit for automation.</p>
+            <code>./bin/xshelf policy show --json</code>
+          </article>
+          <article class="card">
+            <h3>Telemetry</h3>
+            <p>Validate log contracts, inspect recent traces, and identify budget or schema drift.</p>
+            <code>./bin/xshelf logs validate --fix=false</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="compare-band" aria-label="Why XSHELF differs">
+        <div>
+          <h2>Not a chat transcript.</h2>
+          <p>
+            XSHELF is a runtime substrate for predictable LLM-assisted work under
+            load. It favors parseable contracts, replayable diagnostics, and
+            conservative policy over free-form agent output.
+          </p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Loose flow</th>
+              <th scope="col">XSHELF flow</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Unbounded prompt context</td>
+              <td>Explicit capture budgets</td>
+            </tr>
+            <tr>
+              <td>Best-effort text output</td>
+              <td>Schema-validated JSON</td>
+            </tr>
+            <tr>
+              <td>Failure disappears in logs</td>
+              <td>Quarantine and replay handles</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="install" class="section-block">
+        <div class="section-head">
+          <span class="section-index">03</span>
+          <div>
+            <h2>Install And Verify</h2>
+            <p>
+              Start with read-only inspection. Run backend execution only after
+              readiness and health checks are clean.
+            </p>
+          </div>
+        </div>
+        <div class="steps">
+          <article>
+            <span>1</span>
+            <h3>Check runtime identity</h3>
+            <pre><code>./bin/xshelf version
+./bin/xshelf task check --json
+./bin/xshelf core --json</code></pre>
+          </article>
+          <article>
+            <span>2</span>
+            <h3>Confirm backend health</h3>
+            <pre><code>./bin/xshelf llm check
+./bin/xshelf doctor
+./bin/xshelf health</code></pre>
+          </article>
+          <article>
+            <span>3</span>
+            <h3>Run a safe first command</h3>
+            <pre><code>./bin/xshelf cxo git status</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="manual" class="manual-layout">
+        <aside class="toc" aria-label="Manual contents">
+          <div class="toc-title">Manual</div>
+          <a href="#start">Verify runtime</a>
+          <a href="#schemas">Schemas</a>
+          <a href="#policy">Safety sandbox</a>
+          <a href="#tasks">Task graph</a>
+          <a href="#telemetry">Telemetry</a>
+          <a href="#optimize">Optimize</a>
+          <a href="#procedures">Procedures</a>
+        </aside>
+
+        <div class="manual-content">
+          <section id="start">
+            <h2>Start Here: Verify What You’re Running</h2>
+            <p>Prefer Rust execution. If you are on Bash fallback, expect reduced guarantees.</p>
+            <pre><code>cd &lt;repo-root&gt;
 ./bin/xshelf version
 ./bin/xshelf diag
 ./bin/xshelf where version diffsum-staged task optimize</code></pre>
-      </section>
+          </section>
 
-      <section id="pipeline">
-        <h2>The Pipeline (Capture → Budget → Embed)</h2>
-        <p>System output is constrained before it becomes prompt text.</p>
-        <pre><code>raw system output
-  -&gt; internal native reduction
-  -&gt; mandatory budgeting (clip/chunk)
-  -&gt; embed into prompt</code></pre>
-        <p class="callout"><strong>Budgets.</strong> Use <code>CX_CONTEXT_BUDGET_CHARS</code>, <code>CX_CONTEXT_BUDGET_LINES</code>, <code>CX_CONTEXT_CLIP_MODE</code>, <code>CX_CONTEXT_CLIP_FOOTER</code>.</p>
-        <pre><code>./bin/xshelf budget
-./bin/xshelf trace</code></pre>
-      </section>
-
-      <section id="schemas">
-        <h2>Structured Outputs (Schemas/Quarantine/Replay)</h2>
-        <p>Schema commands request JSON-only output, parse JSON, validate it, and quarantine failures.</p>
-        <pre><code>./bin/xshelf schema list
+          <section id="schemas">
+            <h2>Structured Outputs</h2>
+            <p>Schema commands request JSON-only output, parse JSON, validate it, and quarantine failures.</p>
+            <pre><code>./bin/xshelf schema list
 ./bin/xshelf commitjson | jq .
 ./bin/xshelf diffsum-staged | jq .
 ./bin/xshelf next git status | jq .</code></pre>
-        <pre><code>./bin/xshelf quarantine list
+            <pre><code>./bin/xshelf quarantine list
 ./bin/xshelf replay &lt;id&gt;</code></pre>
-      </section>
+          </section>
 
-      <section id="policy">
-        <h2>Safety Sandbox (Policy Engine)</h2>
-        <p>Blocks destructive patterns and out-of-repo writes by default.</p>
-        <pre><code>./bin/xshelf policy show
+          <section id="policy">
+            <h2>Safety Sandbox</h2>
+            <p>Policy blocks destructive patterns and out-of-repo writes by default.</p>
+            <pre><code>./bin/xshelf policy show
 ./bin/xshelf policy check "rm -rf ."</code></pre>
-      </section>
+          </section>
 
-      <section id="tasks">
-        <h2>Task Graph (Fan-out/Run/Run-all)</h2>
-        <p>Tasks are the unit of migration to parallel work: small, role-tagged, log-linked.</p>
-        <pre><code>./bin/xshelf task fanout "Ship release notes improvements" --from staged-diff
+          <section id="tasks">
+            <h2>Task Graph</h2>
+            <p>Tasks are the unit of migration to parallel work: small, role-tagged, and log-linked.</p>
+            <pre><code>./bin/xshelf task fanout "Ship release notes improvements" --from staged-diff
 ./bin/xshelf task list --status pending
 ./bin/xshelf task run-all --status pending</code></pre>
-      </section>
+          </section>
 
-      <section id="telemetry">
-        <h2>Telemetry (Contract/Validation/Heuristics)</h2>
-        <pre><code>./bin/xshelf logs validate --fix=false
+          <section id="telemetry">
+            <h2>Telemetry</h2>
+            <pre><code>./bin/xshelf logs validate --fix=false
 ./bin/xshelf metrics 50
 ./bin/xshelf trace</code></pre>
-        <div class="callout">
-          <p><strong>Heuristics.</strong></p>
-          <ul>
-            <li><code>effective_input_tokens</code> high: prompts too large or too variable.</li>
-            <li>cache trend down: stabilize prompt templates and capture scope.</li>
-            <li>clipping frequent: reduce capture scope or raise budgets intentionally.</li>
-            <li>schema failures spike: enforce deterministic mode and reduce ambiguity.</li>
-          </ul>
-        </div>
-      </section>
+            <ul class="signal-list">
+              <li><code>effective_input_tokens</code> high: prompts are too large or too variable.</li>
+              <li>Cache trend down: stabilize prompt templates and capture scope.</li>
+              <li>Clipping frequent: reduce capture scope or raise budgets intentionally.</li>
+              <li>Schema failures spike: enforce deterministic mode and reduce ambiguity.</li>
+            </ul>
+          </section>
 
-      <section id="optimize">
-        <h2>Self-Optimization</h2>
-        <pre><code>./bin/xshelf optimize 200
+          <section id="optimize">
+            <h2>Self-Optimization</h2>
+            <pre><code>./bin/xshelf optimize 200
 ./bin/xshelf optimize 200 --json | jq .</code></pre>
-      </section>
+          </section>
 
-      <section id="procedures">
-        <h2>Operator Procedures</h2>
-        <h3>Budget stress test</h3>
-        <pre><code>CX_CONTEXT_BUDGET_CHARS=2000 CX_CONTEXT_BUDGET_LINES=40 ./bin/xshelf cxo git status
+          <section id="procedures">
+            <h2>Operator Procedures</h2>
+            <div class="procedure-grid">
+              <article>
+                <h3>Budget stress test</h3>
+                <pre><code>CX_CONTEXT_BUDGET_CHARS=2000 CX_CONTEXT_BUDGET_LINES=40 ./bin/xshelf cxo git status
 ./bin/xshelf budget
 ./bin/xshelf trace</code></pre>
-        <h3>Schema integrity check</h3>
-        <pre><code>./bin/xshelf commitjson | jq .
+              </article>
+              <article>
+                <h3>Schema integrity check</h3>
+                <pre><code>./bin/xshelf commitjson | jq .
 ./bin/xshelf diffsum-staged | jq .</code></pre>
-        <h3>Task loop</h3>
-        <pre><code>./bin/xshelf task fanout "Objective: tighten schema errors" --from log
+              </article>
+              <article>
+                <h3>Task loop</h3>
+                <pre><code>./bin/xshelf task fanout "Objective: tighten schema errors" --from log
 ./bin/xshelf task run-all --status pending
 ./bin/xshelf optimize 200</code></pre>
+              </article>
+            </div>
+          </section>
+        </div>
       </section>
+    </main>
 
-      <hr />
-      <footer>
-        <div>Target: fast scanning + reliable execution.</div>
-      </footer>
-    </div>
+    <footer class="site-footer">
+      <span>Target: fast scanning + reliable execution.</span>
+      <span>Last updated: 2026-05-26</span>
+    </footer>
   </body>
 </html>
