@@ -177,6 +177,13 @@ impl TempRepo {
         self.root.join(".codex").join("cxlogs").join("runs.jsonl")
     }
 
+    pub fn task_events_log(&self) -> PathBuf {
+        self.root
+            .join(".codex")
+            .join("cxlogs")
+            .join("task_events.jsonl")
+    }
+
     pub fn quarantine_dir(&self) -> PathBuf {
         self.root.join(".codex").join("quarantine")
     }

@@ -152,7 +152,13 @@ Task graph:
 ./bin/xshelf task check --json | jq .
 ./bin/xshelf task run-all --status pending --mode mixed
 ./bin/xshelf task run-all --status pending --mode parallel --max-workers 2
+./bin/xshelf task run-all --status pending --events-jsonl --json
+./bin/xshelf task events --limit 20 --json
 ```
+
+`--events-jsonl` writes additive `task-events.v1` progress events to stderr and
+`.codex/cxlogs/task_events.jsonl`, so the final stdout JSON contract remains
+parseable by automation.
 
 Telemetry and policy:
 

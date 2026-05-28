@@ -6,6 +6,7 @@ pub const BROKER_BENCHMARK_JSON_CONTRACT_VERSION: &str = "broker-benchmark.v1";
 pub const BROKER_SHOW_JSON_CONTRACT_VERSION: &str = "broker-show.v1";
 pub const ACTIONS_JSON_CONTRACT_VERSION: &str = "actions.v1";
 pub const TASK_CHECK_JSON_CONTRACT_VERSION: &str = "task-check.v1";
+pub const TASK_EVENTS_JSONL_CONTRACT_VERSION: &str = "task-events.v1";
 pub const TASK_RUN_ALL_JSON_CONTRACT_VERSION: &str = "task-run-all.v1";
 pub const TASK_LIST_JSON_CONTRACT_VERSION: &str = "task-list.v1";
 pub const TASK_SHOW_JSON_CONTRACT_VERSION: &str = "task-show.v1";
