@@ -951,7 +951,6 @@ pre code {
   }
 
   .status-strip div + div {
-    padding-left: 0;
     border-top: 1px solid var(--line);
     border-left: 0;
   }
