@@ -285,6 +285,14 @@ Deliver:
 - `/v1/models` probe when configured
 - capability mapping for resident server features
 
+Current status: done.
+
+Implementation notes:
+
+- `xshelf llm resident show` now emits a typed `llm-resident.v1` contract with selected adapter/transport/profile and resident capability lanes.
+- `xshelf llm resident probe-models` now probes `/v1/models` through the existing `http-curl` adapter controls and returns typed model ID/count evidence when configured.
+- runtime capabilities now report `resident_server=true` only for HTTP + `openai_json` profile; process adapters stay explicit `false`.
+
 Validation:
 
 - process adapters remain defaults

@@ -42,6 +42,10 @@ Notes:
     - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
     - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
     - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
+  - completed resident-server opt-in slice:
+    - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
+    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
+    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.

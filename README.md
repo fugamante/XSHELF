@@ -158,6 +158,11 @@ Structured output:
 ./bin/xshelf llm models inspect local_mlx --disk-usage --json | jq .
 ./bin/xshelf llm verify mlx --profile smoke --json | jq .
 ./bin/xshelf llm verify mlx --profile benchmark --ctx 8192 --json | jq .
+./bin/xshelf llm resident show --json | jq .
+CX_PROVIDER_ADAPTER=http-curl \
+CX_HTTP_REQUEST_PROFILE=openai_json \
+CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
+  ./bin/xshelf llm resident probe-models --json | jq .
 ./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```
@@ -167,6 +172,8 @@ active backend, runtime execution resolves it to the record's `resolved_model`.
 `llm show` prints both alias and resolved model when applicable.
 `llm models inspect` uses cheap path checks by default; recursive directory
 accounting runs only when `--disk-usage` is provided.
+`llm resident` exposes explicit resident-server capability state and an optional
+`/v1/models` probe on opt-in HTTP adapter profiles.
 
 `llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
 specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a

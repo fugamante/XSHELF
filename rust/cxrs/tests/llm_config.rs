@@ -1080,6 +1080,95 @@ printf 'smoke ok'
 }
 
 #[test]
+fn llm_resident_show_json_contract() {
+    let repo = TempRepo::new("cxrs-llm");
+    let out = repo.run(&["llm", "resident", "show", "--json"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload = serde_json::from_str::<Value>(&stdout_str(&out)).expect("resident show json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("llm-resident.v1")
+    );
+    assert_eq!(
+        payload.get("selected_transport").and_then(Value::as_str),
+        Some("process")
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("resident_server"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+}
+
+#[test]
+fn llm_resident_probe_models_uses_http_openai_profile() {
+    let repo = TempRepo::new("cxrs-llm");
+    repo.write_mock(
+        "curl",
+        r#"#!/usr/bin/env bash
+cat <<'JSON'
+{"data":[{"id":"mlx-local"},{"id":"qwen-local"}]}
+JSON
+"#,
+    );
+    let out = repo.run_with_env(
+        &["llm", "resident", "probe-models", "--json"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            (
+                "CX_HTTP_PROVIDER_URL",
+                "http://127.0.0.1:11434/v1/chat/completions",
+            ),
+            ("CX_HTTP_REQUIRE_HTTPS", "0"),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload = serde_json::from_str::<Value>(&stdout_str(&out)).expect("resident probe json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("llm-resident.v1")
+    );
+    assert_eq!(
+        payload.get("selected_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("resident_server"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload
+            .get("probe")
+            .and_then(|v| v.get("probe_url"))
+            .and_then(Value::as_str),
+        Some("http://127.0.0.1:11434/v1/models")
+    );
+    assert_eq!(
+        payload
+            .get("probe")
+            .and_then(|v| v.get("model_count"))
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+}
+
+#[test]
 fn task_model_alias_resolves_for_active_backend_auto() {
     let repo = TempRepo::new("cxrs-llm");
     let args_file = repo.root.join("mlx_task_args.txt");

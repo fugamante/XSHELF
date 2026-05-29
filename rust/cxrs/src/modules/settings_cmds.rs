@@ -13,7 +13,10 @@ use crate::llm::run_mlx_plain;
 use crate::local_models::{find_record_for_backend, resolve_model_for_backend};
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
-use crate::provider_adapter::resolve_provider_adapter;
+use crate::provider_adapter::{
+    http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
+    selected_provider_transport, selected_runtime_caps,
+};
 use crate::runtime::{
     llama_cpp_model_preference, llm_backend, llm_model, mlx_model_preference,
     ollama_model_preference,
@@ -89,7 +92,7 @@ pub fn cmd_state_set(key: &str, raw_value: &str) -> i32 {
 
 fn print_llm_usage(app_name: &str) {
     crate::cx_eprintln!(
-        "Usage: {app_name} llm <show|check [backend]|smoke [prompt]|verify [mlx] [--profile smoke|benchmark] [--ctx N] [--prompt <text>] [--json]|models <list|add|inspect|remove>|use <primary|ollama|llamacpp|mlx> [model]|unset <backend|model|all>|set-backend <primary|ollama|llamacpp|mlx>|set-model <model>|clear-model>"
+        "Usage: {app_name} llm <show|check [backend]|smoke [prompt]|verify [mlx] [--profile smoke|benchmark] [--ctx N] [--prompt <text>] [--json]|resident [show|probe-models] [--json]|models <list|add|inspect|remove>|use <primary|ollama|llamacpp|mlx> [model]|unset <backend|model|all>|set-backend <primary|ollama|llamacpp|mlx>|set-model <model>|clear-model>"
     );
 }
 
@@ -954,12 +957,102 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
     0
 }
 
+fn llm_resident(app_name: &str, args: &[String]) -> i32 {
+    let op = args.get(1).map(String::as_str).unwrap_or("show");
+    let json_out = has_flag(args, "--json");
+    let runtime_caps = selected_runtime_caps();
+    let mut payload = json!({
+        "contract_version": "llm-resident.v1",
+        "timestamp": utc_now_iso(),
+        "selected_adapter": selected_adapter_name(),
+        "selected_transport": selected_provider_transport(),
+        "http_request_profile": http_profile_opt(),
+        "runtime_capability": {
+            "resident_server": runtime_caps.resident_server,
+            "openai_compatible": runtime_caps.openai_compatible,
+            "anthropic_compatible": runtime_caps.anthropic_compatible,
+            "supports_batching": runtime_caps.supports_batching,
+            "supports_persisted_kv_restore": runtime_caps.supports_persisted_kv_restore
+        }
+    });
+    if op == "probe-models" {
+        match probe_http_models_v1() {
+            Ok(v) => {
+                payload["probe"] = v;
+            }
+            Err(e) => {
+                crate::cx_eprintln!("{} llm resident probe-models: {e}", cli_app_name());
+                return 1;
+            }
+        }
+    } else if op != "show" {
+        print_llm_usage(app_name);
+        return 2;
+    }
+
+    if json_out {
+        return emit_json(&payload);
+    }
+    println!("resident_adapter: {}", selected_adapter_name());
+    println!("resident_transport: {}", selected_provider_transport());
+    println!(
+        "resident_http_profile: {}",
+        http_profile_opt().unwrap_or("n/a")
+    );
+    println!(
+        "resident_capability: {}",
+        runtime_caps
+            .resident_server
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "openai_compatible: {}",
+        runtime_caps
+            .openai_compatible
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    if let Some(probe) = payload.get("probe") {
+        println!(
+            "probe_url: {}",
+            probe
+                .get("probe_url")
+                .and_then(Value::as_str)
+                .unwrap_or("<unknown>")
+        );
+        println!(
+            "probe_model_count: {}",
+            probe
+                .get("model_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        );
+        let ids = probe
+            .get("model_ids")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<&str>>()
+                    .join(",")
+            })
+            .unwrap_or_default();
+        println!(
+            "probe_model_ids: {}",
+            if ids.is_empty() { "<none>" } else { &ids }
+        );
+    }
+    0
+}
+
 pub fn cmd_llm(app_name: &str, args: &[String]) -> i32 {
     match args.first().map(String::as_str).unwrap_or("show") {
         "show" => llm_show(),
         "check" => llm_check(app_name, args),
         "smoke" => llm_smoke(args),
         "verify" => llm_verify(app_name, args),
+        "resident" => llm_resident(app_name, args),
         "models" => llm_models::dispatch(app_name, &args[1..]),
         "use" => llm_use(app_name, args),
         "unset" => llm_unset(app_name, args),

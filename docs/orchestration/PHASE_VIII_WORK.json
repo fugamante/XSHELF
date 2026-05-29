@@ -38,7 +38,7 @@
     },
     {
       "id": "p8_resident_server",
-      "status": "planned",
+      "status": "done",
       "goal": "support optional OpenAI-compatible resident local MLX servers through explicit HTTP adapter configuration"
     }
   ],

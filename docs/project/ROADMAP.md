@@ -101,6 +101,10 @@
     - added `llm verify mlx` with `--profile smoke|benchmark` and typed verification output (`contract_version=llm-verify.v1`)
     - verification model resolution is registry-aware (`input`, `resolved`, optional alias/id metadata)
     - benchmark profile reports typed runtime/correctness and memory envelope fields (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`)
+  - Slice 6 landed:
+    - added `llm resident show|probe-models` with typed resident contract output (`contract_version=llm-resident.v1`)
+    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is configured
+    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
