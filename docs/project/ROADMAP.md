@@ -85,6 +85,10 @@
     - `.cx/local_models.json` registry
     - `xshelf llm models list|add|inspect|remove`
     - deterministic JSON/text outputs with focused integration coverage
+  - Slice 2 landed:
+    - `llm use <ollama|llamacpp|mlx> <alias-or-id>` resolves registry tokens to `resolved_model`
+    - `llm show` surfaces alias and resolved model fields when applicable
+    - task model overrides resolve aliases against the effective backend, including auto backend selection
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
