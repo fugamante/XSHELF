@@ -1,6 +1,6 @@
 {
   "phase": "phase10",
-  "status": "active_planning",
+  "status": "active_implementation",
   "title": "token_compression_layer",
   "goal": "reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence",
   "constraints": [
@@ -21,7 +21,7 @@
   "slices": [
     {
       "id": "p10_spec_fixture_plan",
-      "status": "in_progress",
+      "status": "done",
       "goal": "capture the Phase X design, reducer acceptance gates, fixture classes, and recall metrics"
     },
     {

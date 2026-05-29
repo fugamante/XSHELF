@@ -1,12 +1,18 @@
 # Phase VIII: Local Model Substrate
 
-Status: active implementation
+Status: complete
 
 ## Objective
 
 Give XSHELF a firmer base for Apple-local and other local models by turning local model selection from a string preference into a typed lifecycle substrate.
 
 Phase VIII is inspired by oMLX's model-management approach, but it is not a plan to clone oMLX or move inference internals into XSHELF. The goal is to make XSHELF better at discovering, selecting, validating, and routing local models while preserving its provider-adapter boundary.
+
+Completion evidence:
+
+- all six planned slices are implemented and covered by focused Rust tests
+- resident-server probing was validated locally on 2026-05-29 through `llm-resident.v1` with `model_count=1`
+- process adapters remain the default path; HTTP resident behavior remains explicit opt-in
 
 ## Problem Statement
 

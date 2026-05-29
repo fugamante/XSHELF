@@ -46,10 +46,12 @@ Notes:
     - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
     - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
     - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
+  - closed the planned Phase VIII slice set after local resident probe validation through `llm-resident.v1`.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
-  - roadmap now tracks Phase X as active planning with explicit non-goals for generic storage/assembly compression paths.
+  - roadmap now tracks Phase X as active implementation with explicit non-goals for generic storage/assembly compression paths.
+  - completed Slice 1 by documenting reducer acceptance gates, fixture manifest fields, and initial recall-focused fixture classes.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

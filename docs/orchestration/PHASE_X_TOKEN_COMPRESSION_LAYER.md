@@ -1,6 +1,6 @@
 # Phase X: Token Compression Layer
 
-Status: active planning
+Status: active implementation
 
 ## Objective
 
@@ -205,6 +205,52 @@ Required metrics:
 - task success or replay outcome when measurable
 - reducer wall time and allocation behavior only after correctness is stable
 
+## Reducer Acceptance Gates
+
+Every reducer slice must define and pass these gates before it can affect normal prompt assembly:
+
+- `critical_span_recall`: required spans from the fixture manifest are present after reduction
+- `lossiness_declared`: lossy, semantic, or uncertain reduction is explicitly labeled
+- `fallback_safe`: high uncertainty keeps source slices rather than replacing them with summaries
+- `replay_recoverable`: omitted regions have enough pointer data to inspect the original capture
+- `contract_neutral`: existing schema, policy, quarantine, replay, and log contracts remain compatible
+- `bounded_cost`: reducer runtime is linear in capture size for normal fixtures and avoids hidden filesystem scans
+
+Slice-specific gates may add stricter thresholds. They must not weaken these baseline gates.
+
+## Fixture Plan
+
+Fixture manifests should pair input captures with expected retained spans. A fixture is useful only when it can fail for the right reason: losing the critical line, hiding lossiness, or reporting misleading savings.
+
+Initial fixture fields:
+
+- `fixture_id`
+- `command`
+- `exit_status`
+- `profile`
+- `input_path`
+- `expected_reducer_kind`
+- `required_spans`
+- `optional_spans`
+- `expected_lossiness_level`
+- `max_uncertainty`
+- `min_reduction_ratio`
+- `notes`
+
+Initial fixture classes:
+
+- `cargo_test_failure`: failing test names, panic/error/assertion blocks, final summary, exit status
+- `clippy_or_build_warnings`: diagnostics with file/line spans, warning class, final failure summary
+- `huge_git_diff`: diff headers, hunk headers, changed lines, touched paths
+- `rename_and_binary_diff`: rename markers, binary markers, file modes, touched paths
+- `generated_file_diff`: generated-file markers and enough changed-line evidence to justify omission
+- `repeated_stack_trace`: first causal frame, repeated frame count, final distinct frame
+- `jsonl_telemetry_history`: invalid rows, severity fields, current run IDs, schema names
+- `schema_heavy_prompt`: schema names/hashes and required validation instructions
+- `unicode_paths_and_diagnostics`: exact path retention and diagnostic line retention
+- `mixed_stdout_stderr`: stream attribution for errors and summaries
+- `misleading_repeated_errors`: retain the final distinct error when earlier repeated errors differ
+
 ## Non-Goals
 
 - no public capture artifact contract until internal metadata stabilizes
@@ -226,12 +272,14 @@ Deliver:
 - reducer acceptance gates
 - fixture classes and recall metrics
 
-Current status: in progress.
+Current status: done.
 
 Validation:
 
 - JSON work queue parses
 - roadmap points to the new phase
+- reducer acceptance gates are documented
+- fixture manifest fields and initial fixture classes are documented
 
 ### Slice 2: Internal Reduction Metadata
 

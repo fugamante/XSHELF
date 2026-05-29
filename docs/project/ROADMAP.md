@@ -65,11 +65,15 @@
   - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
-## Phase VIII (active implementation)
+## Phase VIII (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md`
 - Work queue: `docs/orchestration/PHASE_VIII_WORK.json`
 - Goal: turn local model selection into a typed lifecycle substrate for MLX and other local backends.
+- Milestone result:
+  - all six planned slices are complete
+  - a live local `llm resident probe-models --json` run validated the explicit HTTP resident path with `model_count=1`
+  - resident support remains bounded to explicit OpenAI-compatible HTTP profile evidence
 - Discovery basis:
   - oMLX shows the value of treating Apple-local models as lifecycle objects rather than one-off model strings.
   - XSHELF already supports `mlx` through `mlx-lm`, but model management is currently limited to a selected model string.
@@ -108,7 +112,7 @@
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
-## Phase X (active planning)
+## Phase X (active implementation)
 
 - Planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`
 - Work queue: `docs/orchestration/PHASE_X_WORK.json`
@@ -124,6 +128,11 @@
   - test-output reducer recall
   - diff reducer recall
   - budget-aware prompt assembly
+- Current implementation state:
+  - Slice 1 landed:
+    - planning spec and work queue are active
+    - reducer acceptance gates are documented (`critical_span_recall`, lossiness labels, safe fallback, replay recovery, contract neutrality, bounded cost)
+    - fixture manifest fields and initial fixture classes are documented before runtime behavior changes
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 

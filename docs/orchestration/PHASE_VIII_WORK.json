@@ -1,8 +1,14 @@
 {
   "phase": "phase8",
-  "status": "active_implementation",
+  "status": "complete",
   "title": "local_model_substrate",
   "goal": "turn local model selection into a typed lifecycle substrate for MLX and other local backends while preserving XSHELF adapter boundaries",
+  "completed_at": "2026-05-29",
+  "completion_evidence": [
+    "all planned slices are done",
+    "resident-server probe path validated locally through llm-resident.v1 with model_count=1",
+    "process adapters remain defaults and HTTP remains explicit opt-in"
+  ],
   "constraints": [
     "preserve existing CX_MLX_MODEL and llm use mlx <model> compatibility",
     "keep process adapters as defaults",
