@@ -505,6 +505,155 @@ fn models_replace() {
 }
 
 #[test]
+fn models_inspect_reports_accounting_and_missing_paths() {
+    let repo = TempRepo::new("cxrs-llm");
+    let missing_path = repo.root.join("does-not-exist");
+    let model_dir = repo.root.join("model-dir");
+    let cache_dir = repo.root.join("cache-dir");
+    fs::create_dir_all(&model_dir).expect("create model dir");
+    fs::create_dir_all(&cache_dir).expect("create cache dir");
+    fs::write(model_dir.join("model.bin"), b"abc").expect("write model file");
+    fs::write(cache_dir.join("cache.bin"), b"12345").expect("write cache file");
+
+    let missing_path_s = missing_path.display().to_string();
+    let model_dir_s = model_dir.display().to_string();
+    let cache_dir_s = cache_dir.display().to_string();
+
+    let add_missing = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "missing-local",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/MissingLocal",
+        "--local-path",
+        &missing_path_s,
+    ]);
+    assert!(
+        add_missing.status.success(),
+        "stderr={}",
+        stderr_str(&add_missing)
+    );
+
+    let inspect_missing = repo.run(&["llm", "models", "inspect", "missing-local", "--json"]);
+    assert!(
+        inspect_missing.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect_missing),
+        stderr_str(&inspect_missing)
+    );
+    let missing_json =
+        serde_json::from_str::<Value>(&stdout_str(&inspect_missing)).expect("inspect missing");
+    assert_eq!(
+        missing_json
+            .get("inspect")
+            .and_then(|v| v.get("resolved_model_status"))
+            .and_then(Value::as_str),
+        Some("missing_local_path")
+    );
+    assert_eq!(
+        missing_json
+            .get("inspect")
+            .and_then(|v| v.get("local_path"))
+            .and_then(|v| v.get("status"))
+            .and_then(Value::as_str),
+        Some("missing")
+    );
+
+    let add_resolved = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "with-local-dir",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/LocalDir",
+        "--local-path",
+        &model_dir_s,
+        "--cache-path",
+        &cache_dir_s,
+    ]);
+    assert!(
+        add_resolved.status.success(),
+        "stderr={}",
+        stderr_str(&add_resolved)
+    );
+
+    let inspect_cheap = repo.run(&["llm", "models", "inspect", "with-local-dir", "--json"]);
+    assert!(
+        inspect_cheap.status.success(),
+        "stderr={}",
+        stderr_str(&inspect_cheap)
+    );
+    let cheap_json =
+        serde_json::from_str::<Value>(&stdout_str(&inspect_cheap)).expect("inspect cheap");
+    assert_eq!(
+        cheap_json
+            .get("inspect")
+            .and_then(|v| v.get("accounting_mode"))
+            .and_then(Value::as_str),
+        Some("cheap")
+    );
+    assert_eq!(
+        cheap_json
+            .get("inspect")
+            .and_then(|v| v.get("local_path"))
+            .and_then(|v| v.get("path_kind"))
+            .and_then(Value::as_str),
+        Some("dir")
+    );
+    assert!(
+        cheap_json
+            .get("inspect")
+            .and_then(|v| v.get("local_path"))
+            .and_then(|v| v.get("size_bytes"))
+            .is_some_and(Value::is_null)
+    );
+
+    let inspect_disk = repo.run(&[
+        "llm",
+        "models",
+        "inspect",
+        "with-local-dir",
+        "--disk-usage",
+        "--json",
+    ]);
+    assert!(
+        inspect_disk.status.success(),
+        "stderr={}",
+        stderr_str(&inspect_disk)
+    );
+    let disk_json =
+        serde_json::from_str::<Value>(&stdout_str(&inspect_disk)).expect("inspect disk");
+    assert_eq!(
+        disk_json
+            .get("inspect")
+            .and_then(|v| v.get("accounting_mode"))
+            .and_then(Value::as_str),
+        Some("disk_usage")
+    );
+    assert_eq!(
+        disk_json
+            .get("inspect")
+            .and_then(|v| v.get("local_path"))
+            .and_then(|v| v.get("size_bytes"))
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        disk_json
+            .get("inspect")
+            .and_then(|v| v.get("cache_path"))
+            .and_then(|v| v.get("size_bytes"))
+            .and_then(Value::as_u64),
+        Some(5)
+    );
+}
+
+#[test]
 fn llm_use_mlx_alias_shows_resolved_model() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
@@ -539,7 +688,10 @@ fn llm_use_mlx_alias_shows_resolved_model() {
     );
     let text = stdout_str(&show);
     assert!(text.contains("llm_backend: mlx"), "{text}");
-    assert!(text.contains("mlx_model: mlx-community/Tiny-Resolved"), "{text}");
+    assert!(
+        text.contains("mlx_model: mlx-community/Tiny-Resolved"),
+        "{text}"
+    );
     assert!(text.contains("mlx_model_alias: tiny"), "{text}");
     assert!(
         text.contains("mlx_model_resolved_model: mlx-community/Tiny-Resolved"),

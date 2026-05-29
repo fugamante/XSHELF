@@ -23,7 +23,7 @@
     },
     {
       "id": "p8_inspection",
-      "status": "planned",
+      "status": "done",
       "goal": "add inspect and cheap accounting for local model path, size, cache location, and unresolved states"
     },
     {

@@ -240,6 +240,8 @@ Deliver:
 - cheap path existence and size reporting
 - optional expensive disk accounting flag
 
+Current status: done.
+
 Validation:
 
 - no slow scans on normal command paths

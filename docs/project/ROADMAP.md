@@ -89,6 +89,10 @@
     - `llm use <ollama|llamacpp|mlx> <alias-or-id>` resolves registry tokens to `resolved_model`
     - `llm show` surfaces alias and resolved model fields when applicable
     - task model overrides resolve aliases against the effective backend, including auto backend selection
+  - Slice 3 landed:
+    - `llm models inspect <alias-or-id>` now reports typed cheap path/accounting status in both text and JSON output
+    - explicit `--disk-usage` enables recursive directory-size accounting; default inspect path avoids slow scans
+    - missing local paths remain non-fatal and visible through `resolved_model_status` and path status fields
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 

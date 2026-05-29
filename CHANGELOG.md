@@ -29,6 +29,11 @@ Notes:
     - task model overrides can use backend-scoped aliases without changing direct-string behavior.
     - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
     - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
+  - completed inspection/accounting slice:
+    - `llm models inspect <alias-or-id>` now emits typed cheap accounting status for local/cache paths in text and JSON output.
+    - default inspect mode performs cheap path checks only and avoids recursive disk scans.
+    - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
+    - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
