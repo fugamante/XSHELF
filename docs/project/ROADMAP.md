@@ -141,6 +141,10 @@
     - strengthened the test-output reducer to retain failing-test names, panic/assertion context, final summaries, and distinct warnings
     - added fixture-backed recall gates for required and forbidden spans
     - public telemetry remains unchanged; savings are available through internal reducer metadata
+  - Slice 4 landed:
+    - strengthened the diff reducer to retain file mode, rename/copy, binary, hunk, and changed-line markers
+    - added fixture-backed recall gates for mixed rename, binary, new-file, deleted-file, and unchanged-context omission cases
+    - public telemetry remains unchanged; savings are available through internal reducer metadata
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 

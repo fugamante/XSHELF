@@ -226,12 +226,20 @@ fn reduce_diff_like(input: &str) -> String {
     for line in input.lines() {
         if line.starts_with("diff --git ")
             || line.starts_with("index ")
+            || line.starts_with("new file mode ")
+            || line.starts_with("deleted file mode ")
+            || line.starts_with("old mode ")
+            || line.starts_with("new mode ")
+            || line.starts_with("similarity index ")
+            || line.starts_with("dissimilarity index ")
             || line.starts_with("--- ")
             || line.starts_with("+++ ")
             || line.starts_with("@@ ")
             || line.starts_with("Binary files ")
             || line.starts_with("rename from ")
             || line.starts_with("rename to ")
+            || line.starts_with("copy from ")
+            || line.starts_with("copy to ")
         {
             out.push(line.to_string());
         } else if (line.starts_with('+') || line.starts_with('-')) && changed < 300 {
@@ -500,5 +508,79 @@ index 111..222 100644
                 .critical_sections_kept
                 .contains(&"final_summary")
         );
+    }
+
+    #[test]
+    fn diff_fixture_retains_structural_spans() {
+        let input = include_str!("../../tests/fixtures/phase_x/git_diff_mixed.txt");
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/phase_x/diff_reducer_manifest.json"
+        ))
+        .expect("parse diff fixture manifest");
+        let command = manifest
+            .get("command")
+            .and_then(serde_json::Value::as_array)
+            .expect("command")
+            .iter()
+            .map(|v| v.as_str().expect("command string").to_string())
+            .collect::<Vec<String>>();
+
+        let result = native_reduce_output_with_metadata(&command, input);
+        assert_eq!(
+            result.metadata.reducer_kind,
+            manifest
+                .get("expected_reducer_kind")
+                .and_then(serde_json::Value::as_str)
+                .expect("expected reducer kind")
+        );
+        assert_eq!(
+            result.metadata.lossiness_level,
+            manifest
+                .get("expected_lossiness_level")
+                .and_then(serde_json::Value::as_str)
+                .expect("expected lossiness")
+        );
+        assert_eq!(
+            result.metadata.uncertainty,
+            manifest
+                .get("max_uncertainty")
+                .and_then(serde_json::Value::as_str)
+                .expect("max uncertainty")
+        );
+
+        for span in manifest
+            .get("required_spans")
+            .and_then(serde_json::Value::as_array)
+            .expect("required spans")
+        {
+            let span = span.as_str().expect("span string");
+            assert!(result.text.contains(span), "missing required span: {span}");
+        }
+        for span in manifest
+            .get("forbidden_spans")
+            .and_then(serde_json::Value::as_array)
+            .expect("forbidden spans")
+        {
+            let span = span.as_str().expect("span string");
+            assert!(!result.text.contains(span), "kept forbidden span: {span}");
+        }
+
+        let min_reduction_ratio = manifest
+            .get("min_reduction_ratio")
+            .and_then(serde_json::Value::as_f64)
+            .expect("min reduction ratio");
+        let actual_reduction_ratio = (result.metadata.raw_chars - result.metadata.reduced_chars)
+            as f64
+            / result.metadata.raw_chars as f64;
+        assert!(
+            actual_reduction_ratio >= min_reduction_ratio,
+            "reduction ratio {actual_reduction_ratio} below {min_reduction_ratio}"
+        );
+        for section in ["diff_headers", "hunk_headers", "changed_lines"] {
+            assert!(
+                result.metadata.critical_sections_kept.contains(&section),
+                "missing critical section: {section}"
+            );
+        }
     }
 }

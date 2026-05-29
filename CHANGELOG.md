@@ -54,6 +54,7 @@ Notes:
   - completed Slice 1 by documenting reducer acceptance gates, fixture manifest fields, and initial recall-focused fixture classes.
   - completed Slice 2 by adding private reducer metadata behind the existing capture reducer while preserving the string-only reducer API.
   - completed Slice 3 by strengthening test-output reduction with fixture-backed recall gates for failing tests, assertion context, final summaries, and repeated warning collapse.
+  - completed Slice 4 by strengthening diff reduction with fixture-backed recall gates for file modes, rename/copy markers, binary markers, hunk headers, changed lines, and touched paths.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

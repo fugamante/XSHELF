@@ -36,7 +36,7 @@
     },
     {
       "id": "p10_diff_reducer",
-      "status": "planned",
+      "status": "done",
       "goal": "add diff reducer recall gates for headers, hunk headers, changed lines, rename/binary markers, and touched paths"
     },
     {

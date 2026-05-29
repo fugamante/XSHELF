@@ -332,6 +332,14 @@ Deliver:
 - retain diff headers, hunk headers, changed lines, rename/binary markers, touched paths
 - omit low-value unchanged context with explicit omission records
 
+Current status: done.
+
+Implementation notes:
+
+- `reduce_diff_like` now retains file mode, similarity/dissimilarity, rename/copy, binary, diff header, hunk header, and changed-line markers.
+- fixture-backed recall coverage lives under `rust/cxrs/tests/fixtures/phase_x/` with a manifest describing required and forbidden diff spans.
+- the fixture covers rename, binary, new-file, deleted-file, hunk, changed-line, touched-path, and unchanged-context omission behavior.
+
 Validation:
 
 - changed-line and hunk-header recall are near-total on fixtures
