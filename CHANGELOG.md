@@ -52,6 +52,7 @@ Notes:
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
   - roadmap now tracks Phase X as active implementation with explicit non-goals for generic storage/assembly compression paths.
   - completed Slice 1 by documenting reducer acceptance gates, fixture manifest fields, and initial recall-focused fixture classes.
+  - completed Slice 2 by adding private reducer metadata behind the existing capture reducer while preserving the string-only reducer API.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

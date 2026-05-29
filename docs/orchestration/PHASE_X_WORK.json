@@ -26,7 +26,7 @@
     },
     {
       "id": "p10_internal_reduction_metadata",
-      "status": "planned",
+      "status": "done",
       "goal": "add private reducer metadata for kind, version, profile, stats, lossiness, uncertainty, and replay pointers without changing public output"
     },
     {

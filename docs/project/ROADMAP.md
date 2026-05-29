@@ -133,6 +133,10 @@
     - planning spec and work queue are active
     - reducer acceptance gates are documented (`critical_span_recall`, lossiness labels, safe fallback, replay recovery, contract neutrality, bounded cost)
     - fixture manifest fields and initial fixture classes are documented before runtime behavior changes
+  - Slice 2 landed:
+    - added private reducer metadata behind the existing capture reducer path
+    - preserved `native_reduce_output` string behavior through a compatibility wrapper
+    - no public CLI, log, schema, or telemetry contract changed
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 

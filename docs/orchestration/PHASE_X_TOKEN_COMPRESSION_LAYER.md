@@ -291,6 +291,14 @@ Deliver:
 - lossiness and uncertainty labels
 - focused unit tests
 
+Current status: done.
+
+Implementation notes:
+
+- `native_reduce_output_with_metadata` returns reduced text plus private metadata for reducer kind/version, profile, lossiness, raw/reduced/clipped stats, omitted lines/chars, critical sections, uncertainty, and replay pointer.
+- `native_reduce_output` remains the compatibility wrapper and still returns only reduced text.
+- metadata starts internal to the Rust capture reducer module; it is not exposed as a public CLI, log, schema, or telemetry contract.
+
 Validation:
 
 - existing capture output remains compatible
