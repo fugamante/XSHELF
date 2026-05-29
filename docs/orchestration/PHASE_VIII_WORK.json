@@ -18,7 +18,7 @@
     },
     {
       "id": "p8_alias_resolution",
-      "status": "planned",
+      "status": "done",
       "goal": "allow llm use and task model overrides to resolve registry aliases while direct model strings remain compatible"
     },
     {

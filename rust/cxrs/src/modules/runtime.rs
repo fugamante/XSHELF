@@ -3,6 +3,7 @@ use std::io::{self, IsTerminal, Write};
 use std::process::Command;
 
 use crate::config::{app_config, cli_app_name};
+use crate::local_models::find_record_for_backend;
 use crate::process::run_command_output_with_timeout;
 use crate::state::{read_state_value, set_state_path, value_at_path};
 
@@ -97,7 +98,10 @@ fn ollama_list_models() -> Vec<String> {
 pub fn resolve_ollama_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return Ok(model);
+        return match find_record_for_backend(&model, "ollama") {
+            Ok(Some(record)) => Ok(record.resolved_model),
+            Ok(None) | Err(_) => Ok(model),
+        };
     }
     if !is_interactive_tty() {
         return Err(format!(
@@ -148,7 +152,10 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
 pub fn resolve_llama_cpp_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return Ok(model);
+        return match find_record_for_backend(&model, "llamacpp") {
+            Ok(Some(record)) => Ok(record.resolved_model),
+            Ok(None) | Err(_) => Ok(model),
+        };
     }
     Err(format!(
         "llama.cpp model is unset; set CX_LLAMA_CPP_MODEL to a GGUF path or run '{} llm set-model <path.gguf>' while backend is llamacpp",
@@ -159,7 +166,10 @@ pub fn resolve_llama_cpp_model_for_run() -> Result<String, String> {
 pub fn resolve_mlx_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return Ok(model);
+        return match find_record_for_backend(&model, "mlx") {
+            Ok(Some(record)) => Ok(record.resolved_model),
+            Ok(None) | Err(_) => Ok(model),
+        };
     }
     Err(format!(
         "MLX model is unset; set CX_MLX_MODEL or run '{} llm set-model <model>' while backend is mlx",

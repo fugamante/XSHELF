@@ -147,12 +147,17 @@ Structured output:
 ./bin/xshelf llm use primary
 ./bin/xshelf llm use ollama llama3.1
 ./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
+./bin/xshelf llm use mlx local_mlx
 ./bin/xshelf llm models list --json | jq .
 ./bin/xshelf llm models add local_mlx --backend mlx --model "$MLX_MODEL_ID"
 ./bin/xshelf llm models inspect local_mlx --json | jq .
 ./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```
+
+When the selected model token matches a local-model registry alias or ID for the
+active backend, runtime execution resolves it to the record's `resolved_model`.
+`llm show` prints both alias and resolved model when applicable.
 
 `llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
 specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a

@@ -289,6 +289,59 @@ fn llm_use_mlx_persists_model_name() {
 }
 
 #[test]
+fn llm_use_mlx_alias_persists_resolved_model() {
+    let repo = TempRepo::new("cxrs-llm");
+    let add = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "tiny",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/Tiny",
+    ]);
+    assert!(
+        add.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&add),
+        stderr_str(&add)
+    );
+
+    let out = repo.run(&["llm", "use", "mlx", "tiny"]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let text = stdout_str(&out);
+    assert!(text.contains("mlx_model: mlx-community/Tiny"), "{text}");
+
+    let show = repo.run(&["llm", "show"]);
+    assert!(show.status.success(), "stderr={}", stderr_str(&show));
+    let show_text = stdout_str(&show);
+    assert!(
+        show_text.contains("mlx_model: mlx-community/Tiny"),
+        "{show_text}"
+    );
+    assert!(show_text.contains("mlx_model_alias: tiny"), "{show_text}");
+    assert!(
+        show_text.contains("mlx_model_resolved_model: mlx-community/Tiny"),
+        "{show_text}"
+    );
+
+    let state = read_json(&repo.state_file());
+    assert_eq!(
+        state
+            .get("preferences")
+            .and_then(|v| v.get("mlx_model"))
+            .and_then(Value::as_str),
+        Some("mlx-community/Tiny")
+    );
+}
+
+#[test]
 fn models_crud() {
     let repo = TempRepo::new("cxrs-llm");
 
@@ -452,6 +505,137 @@ fn models_replace() {
 }
 
 #[test]
+fn llm_use_mlx_alias_shows_resolved_model() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "tiny",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Tiny-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let use_out = repo.run(&["llm", "use", "mlx", "tiny"]);
+    assert!(
+        use_out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&use_out),
+        stderr_str(&use_out)
+    );
+
+    let show = repo.run(&["llm", "show"]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    let text = stdout_str(&show);
+    assert!(text.contains("llm_backend: mlx"), "{text}");
+    assert!(text.contains("mlx_model: mlx-community/Tiny-Resolved"), "{text}");
+    assert!(text.contains("mlx_model_alias: tiny"), "{text}");
+    assert!(
+        text.contains("mlx_model_resolved_model: mlx-community/Tiny-Resolved"),
+        "{text}"
+    );
+    assert!(
+        text.contains("active_model_resolved_model: mlx-community/Tiny-Resolved"),
+        "{text}"
+    );
+
+    let state = read_json(&repo.state_file());
+    assert_eq!(
+        state
+            .get("preferences")
+            .and_then(|v| v.get("mlx_model"))
+            .and_then(Value::as_str),
+        Some("mlx-community/Tiny-Resolved")
+    );
+}
+
+#[test]
+fn mlx_alias_exec_resolution_and_env_direct_override() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "tiny",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Tiny-Resolved",
+        ])
+        .status
+        .success()
+    );
+    assert!(repo.run(&["llm", "use", "mlx", "tiny"]).status.success());
+
+    let alias_args_file = repo.root.join("mlx_alias_args.txt");
+    let alias_args_path = alias_args_file.display().to_string();
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MLX_ARGS_FILE"
+printf 'mlx ok'
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+
+    let alias_run = repo.run_with_env(
+        &["cxo", "echo", "hi"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_MLX_MODEL", "tiny"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("MLX_ARGS_FILE", &alias_args_path),
+        ],
+    );
+    assert!(
+        alias_run.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&alias_run),
+        stderr_str(&alias_run)
+    );
+    let alias_args = fs::read_to_string(&alias_args_file).expect("read mlx alias args");
+    assert!(
+        alias_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
+        "{alias_args}"
+    );
+
+    let direct_args_file = repo.root.join("mlx_direct_args.txt");
+    let direct_args_path = direct_args_file.display().to_string();
+    let direct_run = repo.run_with_env(
+        &["cxo", "echo", "hi"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_MLX_MODEL", "mlx-community/Direct-From-Env"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("MLX_ARGS_FILE", &direct_args_path),
+        ],
+    );
+    assert!(
+        direct_run.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&direct_run),
+        stderr_str(&direct_run)
+    );
+    let direct_args = fs::read_to_string(&direct_args_file).expect("read mlx direct args");
+    assert!(
+        direct_args.contains("--model\nmlx-community/Direct-From-Env\n"),
+        "{direct_args}"
+    );
+}
+
+#[test]
 fn mlx_backend_runs_mlx_lm_mock() {
     let repo = TempRepo::new("cxrs-llm");
     repo.write_mock(
@@ -570,4 +754,75 @@ printf 'smoke ok'
     let text = stdout_str(&out);
     assert!(text.contains("smoke_backend: llamacpp"), "{text}");
     assert!(text.contains("smoke_output:\nsmoke ok"), "{text}");
+}
+
+#[test]
+fn task_model_alias_resolves_for_active_backend_auto() {
+    let repo = TempRepo::new("cxrs-llm");
+    let args_file = repo.root.join("mlx_task_args.txt");
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MLX_TASK_ARGS_FILE"
+printf 'mlx task ok'
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+    let args_path = args_file.display().to_string();
+
+    let add_model = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "tiny-task",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/Tiny-Task",
+    ]);
+    assert!(
+        add_model.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&add_model),
+        stderr_str(&add_model)
+    );
+
+    let add_task = repo.run(&[
+        "task",
+        "add",
+        "cxo echo model-override",
+        "--role",
+        "implementer",
+        "--model",
+        "tiny-task",
+    ]);
+    assert!(
+        add_task.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&add_task),
+        stderr_str(&add_task)
+    );
+    let task_id = stdout_str(&add_task).trim().to_string();
+
+    let run = repo.run_with_env(
+        &["task", "run", &task_id],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("MLX_TASK_ARGS_FILE", &args_path),
+        ],
+    );
+    assert!(
+        run.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&run),
+        stderr_str(&run)
+    );
+    assert!(stdout_str(&run).contains("mlx task ok"));
+
+    let args = fs::read_to_string(&args_file).expect("read mlx task args");
+    assert!(
+        args.contains("--model\nmlx-community/Tiny-Task\n"),
+        "{args}"
+    );
 }

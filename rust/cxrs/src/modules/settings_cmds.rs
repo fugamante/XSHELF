@@ -4,6 +4,7 @@ use std::process::Command;
 use crate::config::cli_app_name;
 
 use crate::analytics::quota_probe_for_backend_days;
+use crate::local_models::{find_record_for_backend, resolve_model_for_backend};
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::resolve_provider_adapter;
 use crate::runtime::{
@@ -95,6 +96,20 @@ fn normalize_llm_backend(raw: &str) -> Option<String> {
     }
 }
 
+fn emit_model_resolution_line(backend: &str, model: &str, label: &str) {
+    if model.trim().is_empty() {
+        return;
+    }
+    if let Ok(Some(record)) = find_record_for_backend(model, backend) {
+        println!("{label}_alias: {}", record.alias);
+        println!("{label}_resolved_model: {}", record.resolved_model);
+    }
+}
+
+fn resolve_model_for_use(backend: &str, model: &str) -> Result<String, String> {
+    resolve_model_for_backend(backend, model).map(|r| r.resolved_model)
+}
+
 fn llm_show() -> i32 {
     let backend = llm_backend();
     let model = llm_model();
@@ -130,6 +145,10 @@ fn llm_show() -> i32 {
             &mlx_pref
         }
     );
+    emit_model_resolution_line("ollama", &ollama_pref, "ollama_model");
+    emit_model_resolution_line("llamacpp", &llama_cpp_pref, "llama_cpp_model");
+    emit_model_resolution_line("mlx", &mlx_pref, "mlx_model");
+    emit_model_resolution_line(&backend, &model, "active_model");
     0
 }
 
@@ -193,7 +212,15 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
                 print_llm_usage(app_name);
                 return 2;
             }
-            if let Err(e) = set_state_path("preferences.ollama_model", Value::String(m.to_string()))
+            let resolved = match resolve_model_for_use("ollama", m) {
+                Ok(v) => v,
+                Err(e) => {
+                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+                    return 1;
+                }
+            };
+            if let Err(e) =
+                set_state_path("preferences.ollama_model", Value::String(resolved.clone()))
             {
                 crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
                 return 1;
@@ -222,9 +249,17 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
                 print_llm_usage(app_name);
                 return 2;
             }
-            if let Err(e) =
-                set_state_path("preferences.llama_cpp_model", Value::String(m.to_string()))
-            {
+            let resolved = match resolve_model_for_use("llamacpp", m) {
+                Ok(v) => v,
+                Err(e) => {
+                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+                    return 1;
+                }
+            };
+            if let Err(e) = set_state_path(
+                "preferences.llama_cpp_model",
+                Value::String(resolved.clone()),
+            ) {
                 crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
                 return 1;
             }
@@ -252,7 +287,14 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
                 print_llm_usage(app_name);
                 return 2;
             }
-            if let Err(e) = set_state_path("preferences.mlx_model", Value::String(m.to_string())) {
+            let resolved = match resolve_model_for_use("mlx", m) {
+                Ok(v) => v,
+                Err(e) => {
+                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+                    return 1;
+                }
+            };
+            if let Err(e) = set_state_path("preferences.mlx_model", Value::String(resolved)) {
                 crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
                 return 1;
             }

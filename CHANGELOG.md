@@ -19,10 +19,16 @@ Notes:
   - added `branch-protection-audit` workflow for solo-maintainer mode.
   - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
   - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
-- Phase VIII local model substrate (Slice 1):
+- Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
-  - `llm use mlx <alias>` now resolves through the local model registry while preserving direct `CX_MLX_MODEL` compatibility.
+  - completed alias-resolution slice:
+    - `llm use <ollama|llamacpp|mlx> <alias-or-id>` now canonicalizes registry tokens for the selected backend.
+    - runtime execution resolves backend-scoped aliases/IDs to `resolved_model` while preserving direct model strings.
+    - `llm show` now prints alias and resolved model fields when a registry token is active.
+    - task model overrides can use backend-scoped aliases without changing direct-string behavior.
+    - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
+    - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.

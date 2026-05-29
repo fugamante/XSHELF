@@ -225,6 +225,8 @@ Deliver:
 - `llm show` surfaces both alias and resolved model when applicable
 - task model overrides can use aliases without breaking direct model strings
 
+Current status: done.
+
 Validation:
 
 - env vars still win over state
