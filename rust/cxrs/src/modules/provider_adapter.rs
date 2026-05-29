@@ -52,6 +52,23 @@ pub struct BackendExperimentCapabilities {
     pub turboquant_metric_kind: Option<&'static str>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackendRuntimeCapabilities {
+    pub model_registry: Option<bool>,
+    pub model_aliases: Option<bool>,
+    pub local_model_path: Option<bool>,
+    pub resident_server: Option<bool>,
+    pub openai_compatible: Option<bool>,
+    pub anthropic_compatible: Option<bool>,
+    pub supports_batching: Option<bool>,
+    pub supports_tool_calling: Option<bool>,
+    pub supports_vlm: Option<bool>,
+    pub supports_embeddings: Option<bool>,
+    pub supports_reranking: Option<bool>,
+    pub cache_metric_kind: Option<&'static str>,
+    pub supports_persisted_kv_restore: Option<bool>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpTlsPosture {
     pub https_required: bool,
@@ -604,6 +621,58 @@ pub fn backend_tq_caps(raw_backend: &str) -> BackendExperimentCapabilities {
 
 pub fn selected_tq_caps() -> BackendExperimentCapabilities {
     backend_tq_caps(&llm_backend())
+}
+
+pub fn backend_runtime_caps_for(
+    backend_raw: &str,
+    adapter_name: &str,
+    http_profile_name: Option<&str>,
+) -> BackendRuntimeCapabilities {
+    let backend = normalized_backend_name(backend_raw);
+    let local_backend = matches!(backend, "ollama" | "llamacpp" | "mlx");
+    let is_http = provider_transport_for_adapter(adapter_name) == "http";
+    let openai_profile = http_profile_name == Some("openai_json");
+    BackendRuntimeCapabilities {
+        model_registry: Some(local_backend),
+        model_aliases: Some(local_backend),
+        local_model_path: Some(local_backend),
+        resident_server: if is_http { None } else { Some(false) },
+        openai_compatible: if is_http {
+            Some(openai_profile)
+        } else {
+            Some(false)
+        },
+        anthropic_compatible: None,
+        supports_batching: None,
+        supports_tool_calling: None,
+        supports_vlm: None,
+        supports_embeddings: None,
+        supports_reranking: None,
+        cache_metric_kind: backend_tq_caps(backend).turboquant_metric_kind,
+        supports_persisted_kv_restore: Some(false),
+    }
+}
+
+pub fn selected_runtime_caps() -> BackendRuntimeCapabilities {
+    backend_runtime_caps_for(&llm_backend(), selected_adapter_name(), http_profile_opt())
+}
+
+pub fn runtime_caps_json(caps: BackendRuntimeCapabilities) -> Value {
+    json!({
+        "model_registry": caps.model_registry,
+        "model_aliases": caps.model_aliases,
+        "local_model_path": caps.local_model_path,
+        "resident_server": caps.resident_server,
+        "openai_compatible": caps.openai_compatible,
+        "anthropic_compatible": caps.anthropic_compatible,
+        "supports_batching": caps.supports_batching,
+        "supports_tool_calling": caps.supports_tool_calling,
+        "supports_vlm": caps.supports_vlm,
+        "supports_embeddings": caps.supports_embeddings,
+        "supports_reranking": caps.supports_reranking,
+        "cache_metric_kind": caps.cache_metric_kind,
+        "supports_persisted_kv_restore": caps.supports_persisted_kv_restore
+    })
 }
 
 pub fn current_provider_capabilities() -> Result<ProviderCapabilities, LlmRunError> {
@@ -1230,6 +1299,43 @@ mod tests {
         assert_eq!(llama.turboquant_runtime_support, "reference_only");
         assert_eq!(llama.turboquant_backend_role, "codec_reference_backend");
         assert_eq!(llama.turboquant_metric_kind, Some("raw_ratio"));
+    }
+
+    #[test]
+    fn runtime_caps_typed_for_local_backends_and_http_profile() {
+        let mlx_process = super::backend_runtime_caps_for("mlx", "mlx-python", None);
+        assert_eq!(mlx_process.model_registry, Some(true));
+        assert_eq!(mlx_process.model_aliases, Some(true));
+        assert_eq!(mlx_process.local_model_path, Some(true));
+        assert_eq!(mlx_process.resident_server, Some(false));
+        assert_eq!(mlx_process.openai_compatible, Some(false));
+        assert_eq!(mlx_process.cache_metric_kind, Some("cache_nbytes"));
+        assert_eq!(mlx_process.supports_persisted_kv_restore, Some(false));
+
+        let llama_process = super::backend_runtime_caps_for("llamacpp", "llama.cpp-cli", None);
+        assert_eq!(llama_process.cache_metric_kind, Some("raw_ratio"));
+        assert_eq!(llama_process.model_registry, Some(true));
+
+        let ollama_process = super::backend_runtime_caps_for("ollama", "ollama-cli", None);
+        assert_eq!(ollama_process.model_registry, Some(true));
+        assert_eq!(ollama_process.cache_metric_kind, None);
+
+        let http_plain =
+            super::backend_runtime_caps_for("primary", "http-curl", Some("plain_text"));
+        assert_eq!(http_plain.model_registry, Some(false));
+        assert_eq!(http_plain.model_aliases, Some(false));
+        assert_eq!(http_plain.local_model_path, Some(false));
+        assert_eq!(http_plain.resident_server, None);
+        assert_eq!(http_plain.openai_compatible, Some(false));
+
+        let http_openai =
+            super::backend_runtime_caps_for("primary", "http-curl", Some("openai_json"));
+        assert_eq!(http_openai.openai_compatible, Some(true));
+        assert_eq!(http_openai.resident_server, None);
+        assert_eq!(http_openai.supports_batching, None);
+        assert_eq!(http_openai.supports_tool_calling, None);
+        assert_eq!(http_openai.supports_embeddings, None);
+        assert_eq!(http_openai.supports_reranking, None);
     }
 
     #[test]

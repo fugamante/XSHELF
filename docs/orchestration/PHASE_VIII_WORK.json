@@ -28,7 +28,7 @@
     },
     {
       "id": "p8_capabilities",
-      "status": "planned",
+      "status": "done",
       "goal": "surface typed runtime capabilities for process, HTTP, resident-server, cache, batching, VLM, embedding, and reranker support"
     },
     {

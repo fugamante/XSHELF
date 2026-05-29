@@ -115,6 +115,14 @@ fn core_tq_json() {
             .and_then(Value::as_str),
         Some("standard_provider")
     );
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("runtime"))
+            .and_then(|v| v.get("supports_persisted_kv_restore"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
 }
 
 #[test]
@@ -207,6 +215,14 @@ fn version_tq_json() {
             .and_then(|v| v.get("cx_runtime_support"))
             .and_then(Value::as_str),
         Some("none")
+    );
+    assert_eq!(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("runtime"))
+            .and_then(|v| v.get("supports_persisted_kv_restore"))
+            .and_then(Value::as_bool),
+        Some(false)
     );
     assert_eq!(payload.get("name").and_then(Value::as_str), Some("cxrs"));
 }

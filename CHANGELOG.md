@@ -34,6 +34,10 @@ Notes:
     - default inspect mode performs cheap path checks only and avoids recursive disk scans.
     - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
     - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
+  - completed capability envelope slice:
+    - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
+    - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
+    - added backend capability mapping coverage for `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.

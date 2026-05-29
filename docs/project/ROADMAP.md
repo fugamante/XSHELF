@@ -93,6 +93,10 @@
     - `llm models inspect <alias-or-id>` now reports typed cheap path/accounting status in both text and JSON output
     - explicit `--disk-usage` enables recursive directory-size accounting; default inspect path avoids slow scans
     - missing local paths remain non-fatal and visible through `resolved_model_status` and path status fields
+  - Slice 4 landed:
+    - `core --json`, `version --json`, `diag --json`, and `scheduler --json` now expose a typed `backend_capabilities.runtime` envelope
+    - runtime capability fields are explicit and nullable where unknown (`resident_server`, batching/tooling/VLM/embedding/reranking, compatibility lanes)
+    - backend capability mapping coverage now includes `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 

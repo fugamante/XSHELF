@@ -103,6 +103,10 @@ Runtime state:
 ./bin/xshelf broker show --json | jq .
 ```
 
+`core/version/diag/scheduler` JSON surfaces now include
+`backend_capabilities.runtime`, a typed capability envelope with explicit nulls
+for unknown support lanes.
+
 Task graph:
 
 ```bash

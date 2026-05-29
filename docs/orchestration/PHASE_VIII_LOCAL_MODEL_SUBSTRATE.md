@@ -255,6 +255,8 @@ Deliver:
 - diagnostics/core/version exposure
 - backend capability tests for `mlx`, `llamacpp`, `ollama`, and `http-curl`
 
+Current status: done.
+
 Validation:
 
 - no existing JSON contracts lose fields
