@@ -156,6 +156,31 @@
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 
+## Phase XI (active)
+
+- Planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`
+- Work queue: `docs/orchestration/PHASE_XI_WORK.json`
+- Goal: wire token-compression primitives through shadow-first runtime gates without changing default capture contracts.
+- Discovery basis:
+  - Phase X left reducer metadata and budget-aware assembly as internal primitives.
+  - Runtime wiring is the next decision point, but default command capture and public telemetry must remain stable until fixture-backed gates prove safety.
+- First contract focus:
+  - opt-in shadow assembly
+  - default-output compatibility
+  - private omission evidence
+  - rollback simplicity
+  - additive-only public surfaces if a later slice promotes telemetry or diagnostics
+- Current implementation state:
+  - Slice 1 landed:
+    - added the Phase XI rollout contract and work queue.
+    - documented acceptance gates for default compatibility, recall, lossiness labels, safe fallback, bounded cost, contract neutrality, and rollback.
+  - Slice 2 landed:
+    - added a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate from command/status, reducer metadata, and reduced output.
+    - focused tests cover command/status retention and high-uncertainty output promotion while keeping reducer metadata as contextual evidence.
+    - normal command capture output, public telemetry, schemas, quarantine, and replay artifacts remain unchanged by default.
+- Guardrail:
+  - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
+
 ## Phase VI (stabilized substrate)
 
 - Kickoff spec: `docs/orchestration/PHASE_VI_PARALLEL_SUBSTRATE.md`

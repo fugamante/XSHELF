@@ -14,6 +14,10 @@ Completion evidence:
 - reducer metadata, test-output recall, diff recall, and budget-aware section assembly exist as internal primitives
 - normal command capture, public telemetry, schema, policy, quarantine, and replay contracts remain unchanged until runtime wiring is explicit
 
+Follow-on:
+
+- Phase XI (`PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`) is the shadow-first runtime wiring phase for these primitives. It starts from a private assembly candidate path and keeps normal command capture and public contracts unchanged by default.
+
 ## Problem Statement
 
 XSHELF already has useful capture controls:

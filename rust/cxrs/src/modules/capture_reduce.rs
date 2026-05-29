@@ -331,6 +331,7 @@ fn reduce_tree_or_ls(input: &str) -> String {
         .join("\n")
 }
 
+#[allow(dead_code)]
 pub fn native_reduce_output(cmd: &[String], input: &str) -> String {
     native_reduce_output_with_metadata(cmd, input).text
 }

@@ -57,6 +57,11 @@ Notes:
   - completed Slice 4 by strengthening diff reduction with fixture-backed recall gates for file modes, rename/copy markers, binary markers, hunk headers, changed lines, and touched paths.
   - completed Slice 5 by adding an internal budget-aware section assembler with priority ordering, omission records, and high-uncertainty fallback behavior.
   - closed the planned Phase X slice set while preserving normal command capture and public telemetry contracts.
+- Phase XI token-compression runtime wiring:
+  - added planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`.
+  - added work queue: `docs/orchestration/PHASE_XI_WORK.json`.
+  - completed Slice 1 by documenting the shadow-first rollout contract, acceptance gates, rollback rule, and public-surface boundaries.
+  - completed Slice 2 with a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate without changing returned capture output or public telemetry.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
