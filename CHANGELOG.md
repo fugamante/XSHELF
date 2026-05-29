@@ -38,6 +38,10 @@ Notes:
     - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
     - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
     - added backend capability mapping coverage for `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants.
+  - completed MLX verification slice:
+    - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
+    - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
+    - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.

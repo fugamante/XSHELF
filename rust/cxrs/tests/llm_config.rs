@@ -654,6 +654,177 @@ fn models_inspect_reports_accounting_and_missing_paths() {
 }
 
 #[test]
+fn llm_verify_mlx_smoke_resolves_registry_alias() {
+    let repo = TempRepo::new("cxrs-llm");
+    let add = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "tiny",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/Tiny-Resolved",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf 'OK'
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+    let out = repo.run_with_env(
+        &["llm", "verify", "mlx", "--json"],
+        &[("CX_MLX_MODEL", "tiny"), ("CX_MLX_PYTHON", &mlx_python)],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let v = serde_json::from_str::<Value>(&stdout_str(&out)).expect("verify json");
+    assert_eq!(
+        v.get("contract_version").and_then(Value::as_str),
+        Some("llm-verify.v1")
+    );
+    assert_eq!(v.get("backend").and_then(Value::as_str), Some("mlx"));
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("model"))
+            .and_then(|v| v.get("input"))
+            .and_then(Value::as_str),
+        Some("tiny")
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("model"))
+            .and_then(|v| v.get("resolved"))
+            .and_then(Value::as_str),
+        Some("mlx-community/Tiny-Resolved")
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("correctness"))
+            .and_then(|v| v.get("exact"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+}
+
+#[test]
+fn llm_verify_mlx_benchmark_emits_typed_metrics() {
+    let repo = TempRepo::new("cxrs-llm");
+    let add = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "bench",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/BenchResolved",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+OUT=""
+PREV=""
+for ARG in "$@"; do
+  if [ "$PREV" = "--out" ]; then
+    OUT="$ARG"
+    break
+  fi
+  PREV="$ARG"
+done
+cat > "$OUT" <<'JSON'
+{
+  "contract_version": "turboquant-mlx.v2",
+  "backend": "mlx",
+  "model": "mlx-community/BenchResolved",
+  "context_target": 8192,
+  "runs": [
+    {
+      "prompt_name": "smoke",
+      "passed": true,
+      "prompt_tokens_per_sec": 100.0,
+      "decode_tokens_per_sec": 50.0,
+      "peak_memory_gb": 1.2,
+      "cache_nbytes": 1000,
+      "wall_ms": 200
+    },
+    {
+      "prompt_name": "retrieval",
+      "passed": true,
+      "prompt_tokens_per_sec": 120.0,
+      "decode_tokens_per_sec": 70.0,
+      "peak_memory_gb": 1.5,
+      "cache_nbytes": 1200,
+      "wall_ms": 300
+    }
+  ],
+  "passes": 2,
+  "total": 2
+}
+JSON
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+    let out = repo.run_with_env(
+        &["llm", "verify", "mlx", "--profile", "benchmark", "--json"],
+        &[("CX_MLX_MODEL", "bench"), ("CX_MLX_PYTHON", &mlx_python)],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let v = serde_json::from_str::<Value>(&stdout_str(&out)).expect("verify json");
+    assert_eq!(v.get("profile").and_then(Value::as_str), Some("benchmark"));
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("memory"))
+            .and_then(|v| v.get("cache_metric_kind"))
+            .and_then(Value::as_str),
+        Some("cache_nbytes")
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("memory"))
+            .and_then(|v| v.get("cache_metric_unit"))
+            .and_then(Value::as_str),
+        Some("bytes")
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("correctness"))
+            .and_then(|v| v.get("exact"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("runtime"))
+            .and_then(|v| v.get("prompt_tps_mean"))
+            .and_then(Value::as_f64),
+        Some(110.0)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("memory"))
+            .and_then(|v| v.get("peak_memory_gb_max"))
+            .and_then(Value::as_f64),
+        Some(1.5)
+    );
+}
+
+#[test]
 fn llm_use_mlx_alias_shows_resolved_model() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(

@@ -97,6 +97,10 @@
     - `core --json`, `version --json`, `diag --json`, and `scheduler --json` now expose a typed `backend_capabilities.runtime` envelope
     - runtime capability fields are explicit and nullable where unknown (`resident_server`, batching/tooling/VLM/embedding/reranking, compatibility lanes)
     - backend capability mapping coverage now includes `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants
+  - Slice 5 landed:
+    - added `llm verify mlx` with `--profile smoke|benchmark` and typed verification output (`contract_version=llm-verify.v1`)
+    - verification model resolution is registry-aware (`input`, `resolved`, optional alias/id metadata)
+    - benchmark profile reports typed runtime/correctness and memory envelope fields (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`)
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 

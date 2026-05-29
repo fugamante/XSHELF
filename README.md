@@ -156,6 +156,8 @@ Structured output:
 ./bin/xshelf llm models add local_mlx --backend mlx --model "$MLX_MODEL_ID"
 ./bin/xshelf llm models inspect local_mlx --json | jq .
 ./bin/xshelf llm models inspect local_mlx --disk-usage --json | jq .
+./bin/xshelf llm verify mlx --profile smoke --json | jq .
+./bin/xshelf llm verify mlx --profile benchmark --ctx 8192 --json | jq .
 ./bin/xshelf llm smoke "Respond with OK only."
 ./bin/xshelf llm unset model
 ```

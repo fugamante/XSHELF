@@ -33,7 +33,7 @@
     },
     {
       "id": "p8_mlx_verification",
-      "status": "planned",
+      "status": "done",
       "goal": "add registry-aware MLX smoke and optional benchmark profiles with typed runtime and cache metrics"
     },
     {

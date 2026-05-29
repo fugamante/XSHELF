@@ -270,6 +270,8 @@ Deliver:
 - optional MLX benchmark profile
 - typed metrics aligned with TurboQuant metric contract
 
+Current status: done.
+
 Validation:
 
 - small fixture-backed tests for parser/contract behavior

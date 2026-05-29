@@ -99,7 +99,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "llm",
         usage: "llm <op> [...]",
-        description: "Manage and verify LLM backend/model defaults (show|check|smoke|use|unset|set-backend|set-model|clear-model|models list|models add|models inspect|models remove)",
+        description: "Manage and verify LLM backend/model defaults (show|check|smoke|verify|use|unset|set-backend|set-model|clear-model|models list|models add|models inspect|models remove)",
     },
     CommandHelp {
         name: "state",
