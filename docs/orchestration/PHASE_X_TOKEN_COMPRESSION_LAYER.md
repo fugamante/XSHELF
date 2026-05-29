@@ -312,10 +312,18 @@ Deliver:
 - retain failing test names, panic/error/assertion blocks, final summary, and exit status
 - collapse pass noise and repeated warnings
 
+Current status: done.
+
+Implementation notes:
+
+- `reduce_test_output` now keeps failing-test names, panic/assertion context, final summaries, and distinct warnings while dropping passing-test noise.
+- fixture-backed recall coverage lives under `rust/cxrs/tests/fixtures/phase_x/` with a manifest describing required and forbidden spans.
+- internal reducer metadata reports raw/reduced size and retained critical sections; public telemetry remains unchanged in this slice.
+
 Validation:
 
 - golden and adversarial fixtures prove critical-span retention
-- telemetry reports savings without changing user-facing semantics
+- internal metadata reports savings without changing user-facing semantics
 
 ### Slice 4: Diff Reducer Recall
 

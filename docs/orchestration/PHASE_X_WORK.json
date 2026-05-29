@@ -31,7 +31,7 @@
     },
     {
       "id": "p10_test_output_reducer",
-      "status": "planned",
+      "status": "done",
       "goal": "implement the first command-specific reducer with recall gates for failing tests, panic/error/assertion blocks, final summaries, and exit status"
     },
     {

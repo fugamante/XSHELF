@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,12 +66,11 @@ impl ReducerKind {
             Self::GitLog => vec!["commit_ids", "authors", "dates"],
             Self::Grep => vec!["matching_lines"],
             Self::TreeLs => vec!["listed_paths"],
-            Self::TestOutput | Self::DeepFallback => {
-                vec![
-                    "failing_test_names",
-                    "panic_error_assertion_warning_snippets",
-                ]
-            }
+            Self::TestOutput | Self::DeepFallback => vec![
+                "failing_test_names",
+                "panic_error_assertion_warning_snippets",
+                "final_summary",
+            ],
             Self::GenericPassthrough => Vec::new(),
         }
     }
@@ -272,21 +272,46 @@ fn reduce_grep_like(input: &str) -> String {
 }
 
 fn reduce_test_output(input: &str) -> String {
-    input
-        .lines()
-        .filter(|line| {
-            let lower = line.to_ascii_lowercase();
-            lower.contains("fail")
-                || lower.contains("error")
-                || lower.contains("panic")
-                || lower.contains("warning")
-                || lower.contains("passed")
-                || lower.contains("test result")
-                || lower.contains("running ")
-        })
-        .take(400)
-        .collect::<Vec<_>>()
-        .join("\n")
+    let mut out: Vec<String> = Vec::new();
+    let mut seen_warnings: HashSet<String> = HashSet::new();
+    let mut context_lines = 0usize;
+
+    for line in input.lines() {
+        let lower = line.to_ascii_lowercase();
+        let lower_trim = lower.trim_start();
+        let actual_panic = lower_trim.starts_with("thread ") && lower.contains("panicked");
+        let actual_assertion = lower_trim.starts_with("assertion ");
+        let keep = lower.contains("fail")
+            || lower.contains("error")
+            || actual_panic
+            || lower.contains("warning")
+            || actual_assertion
+            || lower.contains("test result")
+            || lower.contains("running ")
+            || lower_trim.starts_with("left:")
+            || lower_trim.starts_with("right:")
+            || lower_trim.starts_with("note:")
+            || lower_trim.starts_with("failures:");
+
+        if keep {
+            if lower.contains("warning") && !seen_warnings.insert(line.to_string()) {
+                continue;
+            }
+            out.push(line.to_string());
+            if actual_panic || actual_assertion {
+                context_lines = context_lines.max(3);
+            }
+        } else if context_lines > 0 {
+            out.push(line.to_string());
+            context_lines -= 1;
+        }
+
+        if out.len() >= 400 {
+            break;
+        }
+    }
+
+    out.join("\n")
 }
 
 fn reduce_tree_or_ls(input: &str) -> String {
@@ -393,5 +418,87 @@ index 111..222 100644
         assert_eq!(metadata.omitted_lines, 0);
         assert_eq!(metadata.omitted_chars, 0);
         assert!(metadata.critical_sections_kept.is_empty());
+    }
+
+    #[test]
+    fn test_output_fixture_retains_required_spans() {
+        let input = include_str!("../../tests/fixtures/phase_x/cargo_test_failure.txt");
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/phase_x/test_output_reducer_manifest.json"
+        ))
+        .expect("parse fixture manifest");
+        let command = manifest
+            .get("command")
+            .and_then(serde_json::Value::as_array)
+            .expect("command")
+            .iter()
+            .map(|v| v.as_str().expect("command string").to_string())
+            .collect::<Vec<String>>();
+
+        let result = native_reduce_output_with_metadata(&command, input);
+        assert_eq!(
+            result.metadata.reducer_kind,
+            manifest
+                .get("expected_reducer_kind")
+                .and_then(serde_json::Value::as_str)
+                .expect("expected reducer kind")
+        );
+        assert_eq!(
+            result.metadata.lossiness_level,
+            manifest
+                .get("expected_lossiness_level")
+                .and_then(serde_json::Value::as_str)
+                .expect("expected lossiness")
+        );
+        assert_eq!(
+            result.metadata.uncertainty,
+            manifest
+                .get("max_uncertainty")
+                .and_then(serde_json::Value::as_str)
+                .expect("max uncertainty")
+        );
+
+        for span in manifest
+            .get("required_spans")
+            .and_then(serde_json::Value::as_array)
+            .expect("required spans")
+        {
+            let span = span.as_str().expect("span string");
+            assert!(result.text.contains(span), "missing required span: {span}");
+        }
+        for span in manifest
+            .get("forbidden_spans")
+            .and_then(serde_json::Value::as_array)
+            .expect("forbidden spans")
+        {
+            let span = span.as_str().expect("span string");
+            assert!(!result.text.contains(span), "kept forbidden span: {span}");
+        }
+
+        assert_eq!(
+            result
+                .text
+                .matches("warning: unused variable: `noise`")
+                .count(),
+            1
+        );
+        assert!(result.metadata.reduced_chars < result.metadata.raw_chars);
+        let min_reduction_ratio = manifest
+            .get("min_reduction_ratio")
+            .and_then(serde_json::Value::as_f64)
+            .expect("min reduction ratio");
+        let actual_reduction_ratio = (result.metadata.raw_chars - result.metadata.reduced_chars)
+            as f64
+            / result.metadata.raw_chars as f64;
+        assert!(
+            actual_reduction_ratio >= min_reduction_ratio,
+            "reduction ratio {actual_reduction_ratio} below {min_reduction_ratio}"
+        );
+        assert!(
+            result
+                .metadata
+                .critical_sections_kept
+                .contains(&"final_summary")
+        );
     }
 }

@@ -137,6 +137,10 @@
     - added private reducer metadata behind the existing capture reducer path
     - preserved `native_reduce_output` string behavior through a compatibility wrapper
     - no public CLI, log, schema, or telemetry contract changed
+  - Slice 3 landed:
+    - strengthened the test-output reducer to retain failing-test names, panic/assertion context, final summaries, and distinct warnings
+    - added fixture-backed recall gates for required and forbidden spans
+    - public telemetry remains unchanged; savings are available through internal reducer metadata
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 
