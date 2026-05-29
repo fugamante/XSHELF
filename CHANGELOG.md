@@ -55,6 +55,8 @@ Notes:
   - completed Slice 2 by adding private reducer metadata behind the existing capture reducer while preserving the string-only reducer API.
   - completed Slice 3 by strengthening test-output reduction with fixture-backed recall gates for failing tests, assertion context, final summaries, and repeated warning collapse.
   - completed Slice 4 by strengthening diff reduction with fixture-backed recall gates for file modes, rename/copy markers, binary markers, hunk headers, changed lines, and touched paths.
+  - completed Slice 5 by adding an internal budget-aware section assembler with priority ordering, omission records, and high-uncertainty fallback behavior.
+  - closed the planned Phase X slice set while preserving normal command capture and public telemetry contracts.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

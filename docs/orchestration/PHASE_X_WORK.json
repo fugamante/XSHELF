@@ -1,8 +1,14 @@
 {
   "phase": "phase10",
-  "status": "active_implementation",
+  "status": "complete",
   "title": "token_compression_layer",
   "goal": "reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence",
+  "completed_at": "2026-05-29",
+  "completion_evidence": [
+    "all planned slices are done",
+    "reducer metadata, test-output recall, diff recall, and budget-aware section assembly are covered by focused Rust tests",
+    "normal command capture and public telemetry remain unchanged until runtime wiring is explicit"
+  ],
   "constraints": [
     "optimize effective input tokens, not compressed byte count",
     "preserve schema, policy, quarantine, replay, and telemetry contracts",
@@ -41,7 +47,7 @@
     },
     {
       "id": "p10_budget_aware_assembly",
-      "status": "planned",
+      "status": "done",
       "goal": "assemble compressed context by priority tiers with stable section ordering, omission records, and high-uncertainty fallback"
     }
   ],

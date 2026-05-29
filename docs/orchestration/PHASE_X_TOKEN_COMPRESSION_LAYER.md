@@ -1,12 +1,18 @@
 # Phase X: Token Compression Layer
 
-Status: active implementation
+Status: complete
 
 ## Objective
 
 Turn XSHELF's capture and prompt reduction path into a typed token-compression layer that reduces model-visible context without hiding task-critical evidence.
 
 Phase X is not generic byte compression. It is command-aware context reduction: preserve the exact lines needed for correct action, collapse low-value repetition, and assemble prompts by explicit priority.
+
+Completion evidence:
+
+- all five planned slices are implemented and covered by focused Rust tests
+- reducer metadata, test-output recall, diff recall, and budget-aware section assembly exist as internal primitives
+- normal command capture, public telemetry, schema, policy, quarantine, and replay contracts remain unchanged until runtime wiring is explicit
 
 ## Problem Statement
 
@@ -354,14 +360,24 @@ Deliver:
 - omission records
 - strict fallback when reducer uncertainty is high
 
+Current status: done.
+
+Implementation notes:
+
+- internal `assemble_sections_with_config` builds prompt sections by priority tier while preserving stable same-priority order.
+- low-priority sections are omitted before high-priority sections when budget is tight, with explicit internal omission records.
+- high-uncertainty sections are promoted ahead of ordinary high/medium/low sections; oversized critical sections are clipped with an explicit omission record.
+- this slice adds an internal primitive only; it does not wire the assembler into normal command capture or public telemetry.
+
 Validation:
 
 - compressed prompts remain schema-valid and task-useful on regression fixtures
-- prompt telemetry shows effective token savings
+- focused unit tests cover ordering, omission records, high-uncertainty fallback, and oversized critical clipping
+- public prompt telemetry remains unchanged until runtime wiring is explicit
 
-## Assembly Boundary
+## Low-Level Optimization Boundary
 
-Assembly remains outside Phase X.
+Hand-written CPU assembly remains outside Phase X.
 
 Rust-level improvements such as fewer allocations, structured parsers, `memchr`, `bstr`, or `aho-corasick` may be considered after correctness gates exist. Hand-written assembly is not justified for token compression unless a future benchmark proves a real backend data-plane kernel is the bottleneck and a portable fallback exists.
 

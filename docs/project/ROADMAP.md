@@ -112,11 +112,15 @@
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
-## Phase X (active implementation)
+## Phase X (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`
 - Work queue: `docs/orchestration/PHASE_X_WORK.json`
 - Goal: reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence.
+- Milestone result:
+  - all five planned slices are complete
+  - internal reducer metadata, test-output recall, diff recall, and budget-aware section assembly are implemented
+  - runtime wiring remains an explicit future decision because public prompt/log contracts were intentionally preserved
 - Discovery basis:
   - the current capture reducer and budget clipper already reduce obvious prompt bloat
   - the next gain is command-specific reduction metadata, recall gates, and priority-based prompt assembly
@@ -145,6 +149,10 @@
     - strengthened the diff reducer to retain file mode, rename/copy, binary, hunk, and changed-line markers
     - added fixture-backed recall gates for mixed rename, binary, new-file, deleted-file, and unchanged-context omission cases
     - public telemetry remains unchanged; savings are available through internal reducer metadata
+  - Slice 5 landed:
+    - added an internal budget-aware section assembler with stable priority ordering and omission records
+    - high-uncertainty sections are promoted ahead of ordinary context, and oversized critical sections are clipped explicitly
+    - normal command capture and public telemetry remain unchanged until runtime wiring is explicit
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 
