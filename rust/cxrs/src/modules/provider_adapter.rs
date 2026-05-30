@@ -1422,7 +1422,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_caps_typed_for_local_backends_and_http_profile() {
+    fn runtime_caps_typed_for_local_and_http_profile() {
         let mlx_process = super::backend_runtime_caps_for("mlx", "mlx-python", None);
         assert_eq!(mlx_process.model_registry, Some(true));
         assert_eq!(mlx_process.model_aliases, Some(true));

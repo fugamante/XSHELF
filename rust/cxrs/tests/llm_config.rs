@@ -505,7 +505,7 @@ fn models_replace() {
 }
 
 #[test]
-fn models_inspect_reports_accounting_and_missing_paths() {
+fn models_inspect_reports_accounting_paths() {
     let repo = TempRepo::new("cxrs-llm");
     let missing_path = repo.root.join("does-not-exist");
     let model_dir = repo.root.join("model-dir");
@@ -884,7 +884,7 @@ fn llm_use_mlx_alias_shows_resolved_model() {
 }
 
 #[test]
-fn mlx_alias_exec_resolution_and_env_direct_override() {
+fn mlx_alias_exec_resolution_env_override() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
         repo.run(&[
@@ -1108,7 +1108,7 @@ fn llm_resident_show_json_contract() {
 }
 
 #[test]
-fn llm_resident_probe_models_uses_http_openai_profile() {
+fn llm_resident_probe_uses_openai_profile() {
     let repo = TempRepo::new("cxrs-llm");
     repo.write_mock(
         "curl",
@@ -1169,7 +1169,7 @@ JSON
 }
 
 #[test]
-fn task_model_alias_resolves_for_active_backend_auto() {
+fn task_model_alias_resolves_active_backend() {
     let repo = TempRepo::new("cxrs-llm");
     let args_file = repo.root.join("mlx_task_args.txt");
     repo.write_mock(
