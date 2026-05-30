@@ -460,6 +460,15 @@ fn scheduler_json_matches_contract_fixture() {
         &turboquant_keys,
         "scheduler.backend_capabilities.turboquant",
     );
+    let runtime_keys = fixture_keys(&fixture, "backend_capabilities_runtime_keys");
+    assert_has_keys(
+        payload
+            .get("backend_capabilities")
+            .and_then(|v| v.get("runtime"))
+            .expect("backend_capabilities.runtime"),
+        &runtime_keys,
+        "scheduler.backend_capabilities.runtime",
+    );
     let adapter_policy_keys = fixture_keys(&fixture, "adapter_rollout_policy_keys");
     assert_has_keys(
         payload

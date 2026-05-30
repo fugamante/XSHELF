@@ -3,6 +3,7 @@ use crate::llm::{
     run_llama_cpp_plain, run_mlx_plain, run_ollama_plain, run_primary_jsonl, run_primary_plain,
     wrap_agent_text_as_jsonl,
 };
+use crate::process::run_command_output_with_timeout;
 use crate::runtime::{
     llm_backend, resolve_llama_cpp_model_for_run, resolve_mlx_model_for_run,
     resolve_ollama_model_for_run,
@@ -50,6 +51,23 @@ pub struct BackendExperimentCapabilities {
     pub turboquant_runtime_support: &'static str,
     pub turboquant_backend_role: &'static str,
     pub turboquant_metric_kind: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackendRuntimeCapabilities {
+    pub model_registry: Option<bool>,
+    pub model_aliases: Option<bool>,
+    pub local_model_path: Option<bool>,
+    pub resident_server: Option<bool>,
+    pub openai_compatible: Option<bool>,
+    pub anthropic_compatible: Option<bool>,
+    pub supports_batching: Option<bool>,
+    pub supports_tool_calling: Option<bool>,
+    pub supports_vlm: Option<bool>,
+    pub supports_embeddings: Option<bool>,
+    pub supports_reranking: Option<bool>,
+    pub cache_metric_kind: Option<&'static str>,
+    pub supports_persisted_kv_restore: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -604,6 +622,177 @@ pub fn backend_tq_caps(raw_backend: &str) -> BackendExperimentCapabilities {
 
 pub fn selected_tq_caps() -> BackendExperimentCapabilities {
     backend_tq_caps(&llm_backend())
+}
+
+pub fn backend_runtime_caps_for(
+    backend_raw: &str,
+    adapter_name: &str,
+    http_profile_name: Option<&str>,
+) -> BackendRuntimeCapabilities {
+    let backend = normalized_backend_name(backend_raw);
+    let local_backend = matches!(backend, "ollama" | "llamacpp" | "mlx");
+    let is_http = provider_transport_for_adapter(adapter_name) == "http";
+    let openai_profile = http_profile_name == Some("openai_json");
+    BackendRuntimeCapabilities {
+        model_registry: Some(local_backend),
+        model_aliases: Some(local_backend),
+        local_model_path: Some(local_backend),
+        resident_server: if is_http {
+            Some(openai_profile)
+        } else {
+            Some(false)
+        },
+        openai_compatible: if is_http {
+            Some(openai_profile)
+        } else {
+            Some(false)
+        },
+        anthropic_compatible: None,
+        supports_batching: None,
+        supports_tool_calling: None,
+        supports_vlm: None,
+        supports_embeddings: None,
+        supports_reranking: None,
+        cache_metric_kind: backend_tq_caps(backend).turboquant_metric_kind,
+        supports_persisted_kv_restore: Some(false),
+    }
+}
+
+pub fn selected_runtime_caps() -> BackendRuntimeCapabilities {
+    backend_runtime_caps_for(&llm_backend(), selected_adapter_name(), http_profile_opt())
+}
+
+pub fn runtime_caps_json(caps: BackendRuntimeCapabilities) -> Value {
+    json!({
+        "model_registry": caps.model_registry,
+        "model_aliases": caps.model_aliases,
+        "local_model_path": caps.local_model_path,
+        "resident_server": caps.resident_server,
+        "openai_compatible": caps.openai_compatible,
+        "anthropic_compatible": caps.anthropic_compatible,
+        "supports_batching": caps.supports_batching,
+        "supports_tool_calling": caps.supports_tool_calling,
+        "supports_vlm": caps.supports_vlm,
+        "supports_embeddings": caps.supports_embeddings,
+        "supports_reranking": caps.supports_reranking,
+        "cache_metric_kind": caps.cache_metric_kind,
+        "supports_persisted_kv_restore": caps.supports_persisted_kv_restore
+    })
+}
+
+fn models_probe_url(url: &str) -> Result<String, LlmRunError> {
+    let trimmed = url.trim();
+    let (scheme, rest) = if let Some(v) = trimmed.strip_prefix("https://") {
+        ("https://", v)
+    } else if let Some(v) = trimmed.strip_prefix("http://") {
+        ("http://", v)
+    } else {
+        return Err(LlmRunError::message(
+            "http-curl adapter [http_url_scheme_invalid] CX_HTTP_PROVIDER_URL must use http:// or https://".to_string(),
+        ));
+    };
+    let authority = rest.split('/').next().unwrap_or(rest).trim();
+    if authority.is_empty() {
+        return Err(LlmRunError::message(
+            "http-curl adapter [http_url_host_invalid] unable to parse provider host from CX_HTTP_PROVIDER_URL".to_string(),
+        ));
+    }
+    Ok(format!("{scheme}{authority}/v1/models"))
+}
+
+pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
+    if selected_provider_transport() != "http" {
+        return Err(LlmRunError::message(
+            "http models probe requires CX_PROVIDER_ADAPTER=http-curl|http-stub".to_string(),
+        ));
+    }
+    if http_profile() != "openai_json" {
+        return Err(LlmRunError::message(
+            "http models probe requires CX_HTTP_REQUEST_PROFILE=openai_json".to_string(),
+        ));
+    }
+    let url = env_nonempty("CX_HTTP_PROVIDER_URL").ok_or_else(|| {
+        LlmRunError::message("http models probe requires CX_HTTP_PROVIDER_URL".to_string())
+    })?;
+    validate_http_url(&url)?;
+    let probe_url = models_probe_url(&url)?;
+    let auth = http_auth_pair()?;
+
+    let mut cmd = std::process::Command::new("curl");
+    cmd.args([
+        "-sS",
+        "-f",
+        "-X",
+        "GET",
+        &probe_url,
+        "-H",
+        "Accept: application/json",
+    ]);
+    if let Some((name, value)) = auth {
+        cmd.args(["-H", &format!("{name}: {value}")]);
+    }
+    if let Some(pinned) = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY") {
+        cmd.args(["--pinnedpubkey", &pinned]);
+    }
+    if let Some(ca_bundle) = env_nonempty("CX_HTTP_CA_BUNDLE") {
+        cmd.args(["--cacert", &ca_bundle]);
+    }
+    if let Some(client_cert) = env_nonempty("CX_HTTP_CLIENT_CERT") {
+        cmd.args(["--cert", &client_cert]);
+    }
+    if let Some(client_key) = env_nonempty("CX_HTTP_CLIENT_KEY") {
+        cmd.args(["--key", &client_key]);
+    }
+    match http_tlsver() {
+        "1.3" => {
+            cmd.arg("--tlsv1.3");
+        }
+        "1.2" => {
+            cmd.arg("--tlsv1.2");
+        }
+        _ => {}
+    }
+    if http_follow_redirects() {
+        cmd.arg("-L");
+        cmd.arg("--max-redirs");
+        cmd.arg(http_max_redirects().to_string());
+    }
+
+    let out = run_command_output_with_timeout(cmd, "http provider models probe")
+        .map_err(LlmRunError::message)?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(LlmRunError::message(if stderr.is_empty() {
+            format!("http models probe exited with status {}", out.status)
+        } else {
+            format!(
+                "http models probe exited with status {}: {}",
+                out.status, stderr
+            )
+        }));
+    }
+    let parsed = serde_json::from_slice::<Value>(&out.stdout).map_err(|e| {
+        LlmRunError::message(format!(
+            "http models probe expected JSON payload from {}: {e}",
+            probe_url
+        ))
+    })?;
+    let model_ids: Vec<String> = parsed
+        .get("data")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("id").and_then(Value::as_str))
+                .map(ToOwned::to_owned)
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_default();
+    Ok(json!({
+        "probe_url": probe_url,
+        "model_count": model_ids.len(),
+        "model_ids": model_ids
+    }))
 }
 
 pub fn current_provider_capabilities() -> Result<ProviderCapabilities, LlmRunError> {
@@ -1233,6 +1422,43 @@ mod tests {
     }
 
     #[test]
+    fn runtime_caps_typed_for_local_and_http_profile() {
+        let mlx_process = super::backend_runtime_caps_for("mlx", "mlx-python", None);
+        assert_eq!(mlx_process.model_registry, Some(true));
+        assert_eq!(mlx_process.model_aliases, Some(true));
+        assert_eq!(mlx_process.local_model_path, Some(true));
+        assert_eq!(mlx_process.resident_server, Some(false));
+        assert_eq!(mlx_process.openai_compatible, Some(false));
+        assert_eq!(mlx_process.cache_metric_kind, Some("cache_nbytes"));
+        assert_eq!(mlx_process.supports_persisted_kv_restore, Some(false));
+
+        let llama_process = super::backend_runtime_caps_for("llamacpp", "llama.cpp-cli", None);
+        assert_eq!(llama_process.cache_metric_kind, Some("raw_ratio"));
+        assert_eq!(llama_process.model_registry, Some(true));
+
+        let ollama_process = super::backend_runtime_caps_for("ollama", "ollama-cli", None);
+        assert_eq!(ollama_process.model_registry, Some(true));
+        assert_eq!(ollama_process.cache_metric_kind, None);
+
+        let http_plain =
+            super::backend_runtime_caps_for("primary", "http-curl", Some("plain_text"));
+        assert_eq!(http_plain.model_registry, Some(false));
+        assert_eq!(http_plain.model_aliases, Some(false));
+        assert_eq!(http_plain.local_model_path, Some(false));
+        assert_eq!(http_plain.resident_server, Some(false));
+        assert_eq!(http_plain.openai_compatible, Some(false));
+
+        let http_openai =
+            super::backend_runtime_caps_for("primary", "http-curl", Some("openai_json"));
+        assert_eq!(http_openai.openai_compatible, Some(true));
+        assert_eq!(http_openai.resident_server, Some(true));
+        assert_eq!(http_openai.supports_batching, None);
+        assert_eq!(http_openai.supports_tool_calling, None);
+        assert_eq!(http_openai.supports_embeddings, None);
+        assert_eq!(http_openai.supports_reranking, None);
+    }
+
+    #[test]
     fn adapter_trait_capabilities_match_mapping() {
         let primary = super::PrimaryProcessAdapter;
         let caps = primary.capabilities();
@@ -1282,6 +1508,29 @@ mod tests {
         assert!(is_local_url("http://[::1]/health"));
         assert!(!is_local_url("http://example.com"));
         assert!(!is_local_url("https://localhost:8080"));
+    }
+
+    #[test]
+    fn models_probe_url_rewrites_to_v1_models() {
+        assert_eq!(
+            super::models_probe_url("http://127.0.0.1:11434/v1/chat/completions")
+                .expect("probe url"),
+            "http://127.0.0.1:11434/v1/models"
+        );
+        assert_eq!(
+            super::models_probe_url("https://api.example.local/anything").expect("probe url"),
+            "https://api.example.local/v1/models"
+        );
+    }
+
+    #[test]
+    fn models_probe_url_rejects_invalid_shape() {
+        let err = super::models_probe_url("api.example.local/v1").expect_err("invalid url");
+        assert!(
+            err.message.contains("http_url_scheme_invalid"),
+            "{}",
+            err.message
+        );
     }
 
     #[test]

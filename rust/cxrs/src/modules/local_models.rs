@@ -147,8 +147,13 @@ fn record_to_value(record: &LocalModelRecord) -> Value {
     })
 }
 
-fn valid_backend(value: &str) -> bool {
-    matches!(value, "ollama" | "llamacpp" | "mlx")
+pub fn normalize_backend(value: &str) -> Option<&'static str> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "ollama" => Some("ollama"),
+        "llamacpp" | "llama.cpp" | "llama_cpp" => Some("llamacpp"),
+        "mlx" => Some("mlx"),
+        _ => None,
+    }
 }
 
 fn valid_remote_code(value: &str) -> bool {
@@ -191,16 +196,33 @@ pub fn find_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
     Ok(None)
 }
 
+pub fn find_record_for_backend(
+    query: &str,
+    backend: &str,
+) -> Result<Option<LocalModelRecord>, String> {
+    let Some(canonical_backend) = normalize_backend(backend) else {
+        return Ok(None);
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(None);
+    }
+    for record in list_records()? {
+        if record.backend == canonical_backend
+            && (record.id == q || record.alias == q || record.resolved_model == q)
+        {
+            return Ok(Some(record));
+        }
+    }
+    Ok(None)
+}
+
 pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String> {
     let alias = clean_token("alias", &input.alias)?;
-    let backend = input.backend.trim().to_ascii_lowercase();
-    let backend = match backend.as_str() {
-        "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
-        _ => backend,
-    };
-    if !valid_backend(&backend) {
+    let Some(backend) = normalize_backend(&input.backend) else {
         return Err("backend must be ollama|llamacpp|mlx".to_string());
-    }
+    };
+    let backend = backend.to_string();
     let resolved_model = input.resolved_model.trim();
     if resolved_model.is_empty() {
         return Err("resolved model cannot be empty".to_string());
@@ -289,4 +311,37 @@ pub fn registry_json() -> Result<Value, String> {
 
 pub fn record_json(record: &LocalModelRecord) -> Value {
     record_to_value(record)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelResolution {
+    pub resolved_model: String,
+    pub alias: Option<String>,
+    pub id: Option<String>,
+}
+
+pub fn resolve_model_for_backend(backend: &str, query: &str) -> Result<ModelResolution, String> {
+    let Some(normalized_backend) = normalize_backend(backend) else {
+        return Err("backend must be ollama|llamacpp|mlx".to_string());
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Err("model cannot be empty".to_string());
+    }
+
+    if let Some(record) = find_record(q)?
+        && record.backend == normalized_backend
+    {
+        return Ok(ModelResolution {
+            resolved_model: record.resolved_model,
+            alias: Some(record.alias),
+            id: Some(record.id),
+        });
+    }
+
+    Ok(ModelResolution {
+        resolved_model: q.to_string(),
+        alias: None,
+        id: None,
+    })
 }
