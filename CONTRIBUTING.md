@@ -39,6 +39,7 @@ python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --ma
 - Preserve stdout pipeline behavior; diagnostics go to stderr.
 - Do not introduce startup side effects.
 - Update `README.md`/`CHANGELOG.md` when behavior or contracts change.
+- Keep release cadence current: CI fails when `VERSION` is older than 14 days unless the PR is explicitly labeled `release-exception`.
 - Keep third-party GitHub Actions pinned to full 40-character commit SHAs; validate with `./scripts/check_action_pins.sh .`.
 
 ## Commit Guidance

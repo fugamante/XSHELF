@@ -23,6 +23,13 @@ cd ../..
 - Validate `CHANGELOG.md` has release notes.
 - Validate README requirements/version notes still match tested environment.
 
+## Cadence Enforcement
+
+- CI enforces release recency with `python3 rust/cxrs/tools/release_check.py --max-version-age-days 14`.
+- The check fails when `VERSION` has not changed for more than 14 days.
+- Temporary bypass is allowed only on pull requests carrying label `release-exception`.
+- Use `release-exception` only with explicit rationale and a follow-up release cut plan.
+
 ## Versioning Policy
 
 - Use semantic versioning intent:
