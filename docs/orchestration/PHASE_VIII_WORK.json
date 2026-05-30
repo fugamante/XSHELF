@@ -1,8 +1,14 @@
 {
   "phase": "phase8",
-  "status": "active_implementation",
+  "status": "complete",
   "title": "local_model_substrate",
   "goal": "turn local model selection into a typed lifecycle substrate for MLX and other local backends while preserving XSHELF adapter boundaries",
+  "completed_at": "2026-05-29",
+  "completion_evidence": [
+    "all planned slices are done",
+    "resident-server probe path validated locally through llm-resident.v1 with model_count=1",
+    "process adapters remain defaults and HTTP remains explicit opt-in"
+  ],
   "constraints": [
     "preserve existing CX_MLX_MODEL and llm use mlx <model> compatibility",
     "keep process adapters as defaults",
@@ -18,27 +24,27 @@
     },
     {
       "id": "p8_alias_resolution",
-      "status": "planned",
+      "status": "done",
       "goal": "allow llm use and task model overrides to resolve registry aliases while direct model strings remain compatible"
     },
     {
       "id": "p8_inspection",
-      "status": "planned",
+      "status": "done",
       "goal": "add inspect and cheap accounting for local model path, size, cache location, and unresolved states"
     },
     {
       "id": "p8_capabilities",
-      "status": "planned",
+      "status": "done",
       "goal": "surface typed runtime capabilities for process, HTTP, resident-server, cache, batching, VLM, embedding, and reranker support"
     },
     {
       "id": "p8_mlx_verification",
-      "status": "planned",
+      "status": "done",
       "goal": "add registry-aware MLX smoke and optional benchmark profiles with typed runtime and cache metrics"
     },
     {
       "id": "p8_resident_server",
-      "status": "planned",
+      "status": "done",
       "goal": "support optional OpenAI-compatible resident local MLX servers through explicit HTTP adapter configuration"
     }
   ],

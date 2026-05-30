@@ -19,14 +19,49 @@ Notes:
   - added `branch-protection-audit` workflow for solo-maintainer mode.
   - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
   - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
-- Phase VIII local model substrate (Slice 1):
+- Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
-  - `llm use mlx <alias>` now resolves through the local model registry while preserving direct `CX_MLX_MODEL` compatibility.
+  - completed alias-resolution slice:
+    - `llm use <ollama|llamacpp|mlx> <alias-or-id>` now canonicalizes registry tokens for the selected backend.
+    - runtime execution resolves backend-scoped aliases/IDs to `resolved_model` while preserving direct model strings.
+    - `llm show` now prints alias and resolved model fields when a registry token is active.
+    - task model overrides can use backend-scoped aliases without changing direct-string behavior.
+    - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
+    - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
+  - completed inspection/accounting slice:
+    - `llm models inspect <alias-or-id>` now emits typed cheap accounting status for local/cache paths in text and JSON output.
+    - default inspect mode performs cheap path checks only and avoids recursive disk scans.
+    - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
+    - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
+  - completed capability envelope slice:
+    - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
+    - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
+    - added backend capability mapping coverage for `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants.
+  - completed MLX verification slice:
+    - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
+    - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
+    - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
+  - completed resident-server opt-in slice:
+    - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
+    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
+    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
+  - closed the planned Phase VIII slice set after local resident probe validation through `llm-resident.v1`.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
   - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
-  - roadmap now tracks Phase X as active planning with explicit non-goals for generic storage/assembly compression paths.
+  - roadmap now tracks Phase X as active implementation with explicit non-goals for generic storage/assembly compression paths.
+  - completed Slice 1 by documenting reducer acceptance gates, fixture manifest fields, and initial recall-focused fixture classes.
+  - completed Slice 2 by adding private reducer metadata behind the existing capture reducer while preserving the string-only reducer API.
+  - completed Slice 3 by strengthening test-output reduction with fixture-backed recall gates for failing tests, assertion context, final summaries, and repeated warning collapse.
+  - completed Slice 4 by strengthening diff reduction with fixture-backed recall gates for file modes, rename/copy markers, binary markers, hunk headers, changed lines, and touched paths.
+  - completed Slice 5 by adding an internal budget-aware section assembler with priority ordering, omission records, and high-uncertainty fallback behavior.
+  - closed the planned Phase X slice set while preserving normal command capture and public telemetry contracts.
+- Phase XI token-compression runtime wiring:
+  - added planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`.
+  - added work queue: `docs/orchestration/PHASE_XI_WORK.json`.
+  - completed Slice 1 by documenting the shadow-first rollout contract, acceptance gates, rollback rule, and public-surface boundaries.
+  - completed Slice 2 with a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate without changing returned capture output or public telemetry.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

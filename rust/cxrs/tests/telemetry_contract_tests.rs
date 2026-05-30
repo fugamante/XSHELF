@@ -635,6 +635,12 @@ fn diag_json_matches_contract_fixture() {
         &turboquant_keys,
         "diag.backend_capabilities.turboquant",
     );
+    let runtime = payload
+        .get("backend_capabilities")
+        .and_then(|v| v.get("runtime"))
+        .expect("diag.backend_capabilities.runtime");
+    let runtime_keys = fixture_keys(&fixture, "backend_capabilities_runtime_keys");
+    assert_has_keys(runtime, &runtime_keys, "diag.backend_capabilities.runtime");
 }
 
 #[test]

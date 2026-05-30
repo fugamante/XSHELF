@@ -1,8 +1,14 @@
 {
   "phase": "phase10",
-  "status": "active_planning",
+  "status": "complete",
   "title": "token_compression_layer",
   "goal": "reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence",
+  "completed_at": "2026-05-29",
+  "completion_evidence": [
+    "all planned slices are done",
+    "reducer metadata, test-output recall, diff recall, and budget-aware section assembly are covered by focused Rust tests",
+    "normal command capture and public telemetry remain unchanged until runtime wiring is explicit"
+  ],
   "constraints": [
     "optimize effective input tokens, not compressed byte count",
     "preserve schema, policy, quarantine, replay, and telemetry contracts",
@@ -21,27 +27,27 @@
   "slices": [
     {
       "id": "p10_spec_fixture_plan",
-      "status": "in_progress",
+      "status": "done",
       "goal": "capture the Phase X design, reducer acceptance gates, fixture classes, and recall metrics"
     },
     {
       "id": "p10_internal_reduction_metadata",
-      "status": "planned",
+      "status": "done",
       "goal": "add private reducer metadata for kind, version, profile, stats, lossiness, uncertainty, and replay pointers without changing public output"
     },
     {
       "id": "p10_test_output_reducer",
-      "status": "planned",
+      "status": "done",
       "goal": "implement the first command-specific reducer with recall gates for failing tests, panic/error/assertion blocks, final summaries, and exit status"
     },
     {
       "id": "p10_diff_reducer",
-      "status": "planned",
+      "status": "done",
       "goal": "add diff reducer recall gates for headers, hunk headers, changed lines, rename/binary markers, and touched paths"
     },
     {
       "id": "p10_budget_aware_assembly",
-      "status": "planned",
+      "status": "done",
       "goal": "assemble compressed context by priority tiers with stable section ordering, omission records, and high-uncertainty fallback"
     }
   ],

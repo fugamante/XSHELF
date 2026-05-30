@@ -1,12 +1,22 @@
 # Phase X: Token Compression Layer
 
-Status: active planning
+Status: complete
 
 ## Objective
 
 Turn XSHELF's capture and prompt reduction path into a typed token-compression layer that reduces model-visible context without hiding task-critical evidence.
 
 Phase X is not generic byte compression. It is command-aware context reduction: preserve the exact lines needed for correct action, collapse low-value repetition, and assemble prompts by explicit priority.
+
+Completion evidence:
+
+- all five planned slices are implemented and covered by focused Rust tests
+- reducer metadata, test-output recall, diff recall, and budget-aware section assembly exist as internal primitives
+- normal command capture, public telemetry, schema, policy, quarantine, and replay contracts remain unchanged until runtime wiring is explicit
+
+Follow-on:
+
+- Phase XI (`PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`) is the shadow-first runtime wiring phase for these primitives. It starts from a private assembly candidate path and keeps normal command capture and public contracts unchanged by default.
 
 ## Problem Statement
 
@@ -205,6 +215,52 @@ Required metrics:
 - task success or replay outcome when measurable
 - reducer wall time and allocation behavior only after correctness is stable
 
+## Reducer Acceptance Gates
+
+Every reducer slice must define and pass these gates before it can affect normal prompt assembly:
+
+- `critical_span_recall`: required spans from the fixture manifest are present after reduction
+- `lossiness_declared`: lossy, semantic, or uncertain reduction is explicitly labeled
+- `fallback_safe`: high uncertainty keeps source slices rather than replacing them with summaries
+- `replay_recoverable`: omitted regions have enough pointer data to inspect the original capture
+- `contract_neutral`: existing schema, policy, quarantine, replay, and log contracts remain compatible
+- `bounded_cost`: reducer runtime is linear in capture size for normal fixtures and avoids hidden filesystem scans
+
+Slice-specific gates may add stricter thresholds. They must not weaken these baseline gates.
+
+## Fixture Plan
+
+Fixture manifests should pair input captures with expected retained spans. A fixture is useful only when it can fail for the right reason: losing the critical line, hiding lossiness, or reporting misleading savings.
+
+Initial fixture fields:
+
+- `fixture_id`
+- `command`
+- `exit_status`
+- `profile`
+- `input_path`
+- `expected_reducer_kind`
+- `required_spans`
+- `optional_spans`
+- `expected_lossiness_level`
+- `max_uncertainty`
+- `min_reduction_ratio`
+- `notes`
+
+Initial fixture classes:
+
+- `cargo_test_failure`: failing test names, panic/error/assertion blocks, final summary, exit status
+- `clippy_or_build_warnings`: diagnostics with file/line spans, warning class, final failure summary
+- `huge_git_diff`: diff headers, hunk headers, changed lines, touched paths
+- `rename_and_binary_diff`: rename markers, binary markers, file modes, touched paths
+- `generated_file_diff`: generated-file markers and enough changed-line evidence to justify omission
+- `repeated_stack_trace`: first causal frame, repeated frame count, final distinct frame
+- `jsonl_telemetry_history`: invalid rows, severity fields, current run IDs, schema names
+- `schema_heavy_prompt`: schema names/hashes and required validation instructions
+- `unicode_paths_and_diagnostics`: exact path retention and diagnostic line retention
+- `mixed_stdout_stderr`: stream attribution for errors and summaries
+- `misleading_repeated_errors`: retain the final distinct error when earlier repeated errors differ
+
 ## Non-Goals
 
 - no public capture artifact contract until internal metadata stabilizes
@@ -226,12 +282,14 @@ Deliver:
 - reducer acceptance gates
 - fixture classes and recall metrics
 
-Current status: in progress.
+Current status: done.
 
 Validation:
 
 - JSON work queue parses
 - roadmap points to the new phase
+- reducer acceptance gates are documented
+- fixture manifest fields and initial fixture classes are documented
 
 ### Slice 2: Internal Reduction Metadata
 
@@ -242,6 +300,14 @@ Deliver:
 - raw/reduced/clipped stats
 - lossiness and uncertainty labels
 - focused unit tests
+
+Current status: done.
+
+Implementation notes:
+
+- `native_reduce_output_with_metadata` returns reduced text plus private metadata for reducer kind/version, profile, lossiness, raw/reduced/clipped stats, omitted lines/chars, critical sections, uncertainty, and replay pointer.
+- `native_reduce_output` remains the compatibility wrapper and still returns only reduced text.
+- metadata starts internal to the Rust capture reducer module; it is not exposed as a public CLI, log, schema, or telemetry contract.
 
 Validation:
 
@@ -256,10 +322,18 @@ Deliver:
 - retain failing test names, panic/error/assertion blocks, final summary, and exit status
 - collapse pass noise and repeated warnings
 
+Current status: done.
+
+Implementation notes:
+
+- `reduce_test_output` now keeps failing-test names, panic/assertion context, final summaries, and distinct warnings while dropping passing-test noise.
+- fixture-backed recall coverage lives under `rust/cxrs/tests/fixtures/phase_x/` with a manifest describing required and forbidden spans.
+- internal reducer metadata reports raw/reduced size and retained critical sections; public telemetry remains unchanged in this slice.
+
 Validation:
 
 - golden and adversarial fixtures prove critical-span retention
-- telemetry reports savings without changing user-facing semantics
+- internal metadata reports savings without changing user-facing semantics
 
 ### Slice 4: Diff Reducer Recall
 
@@ -267,6 +341,14 @@ Deliver:
 
 - retain diff headers, hunk headers, changed lines, rename/binary markers, touched paths
 - omit low-value unchanged context with explicit omission records
+
+Current status: done.
+
+Implementation notes:
+
+- `reduce_diff_like` now retains file mode, similarity/dissimilarity, rename/copy, binary, diff header, hunk header, and changed-line markers.
+- fixture-backed recall coverage lives under `rust/cxrs/tests/fixtures/phase_x/` with a manifest describing required and forbidden diff spans.
+- the fixture covers rename, binary, new-file, deleted-file, hunk, changed-line, touched-path, and unchanged-context omission behavior.
 
 Validation:
 
@@ -282,14 +364,24 @@ Deliver:
 - omission records
 - strict fallback when reducer uncertainty is high
 
+Current status: done.
+
+Implementation notes:
+
+- internal `assemble_sections_with_config` builds prompt sections by priority tier while preserving stable same-priority order.
+- low-priority sections are omitted before high-priority sections when budget is tight, with explicit internal omission records.
+- high-uncertainty sections are promoted ahead of ordinary high/medium/low sections; oversized critical sections are clipped with an explicit omission record.
+- this slice adds an internal primitive only; it does not wire the assembler into normal command capture or public telemetry.
+
 Validation:
 
 - compressed prompts remain schema-valid and task-useful on regression fixtures
-- prompt telemetry shows effective token savings
+- focused unit tests cover ordering, omission records, high-uncertainty fallback, and oversized critical clipping
+- public prompt telemetry remains unchanged until runtime wiring is explicit
 
-## Assembly Boundary
+## Low-Level Optimization Boundary
 
-Assembly remains outside Phase X.
+Hand-written CPU assembly remains outside Phase X.
 
 Rust-level improvements such as fewer allocations, structured parsers, `memchr`, `bstr`, or `aho-corasick` may be considered after correctness gates exist. Hand-written assembly is not justified for token compression unless a future benchmark proves a real backend data-plane kernel is the bottleneck and a portable fallback exists.
 
