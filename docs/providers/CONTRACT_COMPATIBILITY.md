@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-05-25
+Last updated: 2026-06-01
 
 ## Scope
 
@@ -15,6 +15,7 @@ Covered JSON surfaces:
 - `xshelf broker benchmark --json`
 - `xshelf broker show --json`
 - `xshelf task check --json`
+- `xshelf task run-plan --json`
 - `xshelf task run-all --json`
 - `xshelf task list --json`
 - `xshelf task show <id> --json`
@@ -32,6 +33,7 @@ Current versions:
 - `broker-benchmark.v1`
 - `broker-show.v1`
 - `task-check.v1`
+- `task-run-plan.v1`
 - `task-run-all.v1`
 - `task-list.v1`
 - `task-show.v1`

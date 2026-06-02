@@ -159,6 +159,7 @@ Notes:
   - `scheduler --json` now includes matching `concurrency` shape (`defaults` + `observed`) so operator/CI consumers can use a shared schema across diag/scheduler surfaces.
 - Planning/docs updates:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
+  - aligned `docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md` status with completed Phase VII milestone state.
   - added Phase VI kickoff guidance in roadmap.
   - added `docs/project/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
   - added `docs/project/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.

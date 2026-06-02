@@ -1,6 +1,6 @@
 # Phase VII: Budget-Aware Orchestration
 
-Status: active planning
+Status: milestone complete
 
 ## Objective
 
@@ -13,6 +13,11 @@ Phase VII is not about blindly minimizing cost. It is about optimizing reasoning
 - expensive diagnosis is escalated only when justified by evidence
 - prior state is carried forward so unchanged situations are not re-derived every turn
 - output quality, safety, and contract determinism remain intact
+
+Milestone completion note:
+
+- All planned Phase VII slices are complete (`docs/orchestration/PHASE_VII_WORK.json` shows `status: milestone_complete` with every slice marked `done`).
+- Runtime/test evidence for cost metadata, reasoning gate, context carry-forward, metrics, and bias/action-ordering is present in `rust/cxrs/src/modules/doctor.rs`, `rust/cxrs/src/modules/diagnostics.rs`, and fixture-backed contract tests under `rust/cxrs/tests/`.
 
 ## Problem Statement
 
