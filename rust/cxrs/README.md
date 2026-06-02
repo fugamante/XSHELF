@@ -110,8 +110,8 @@ cargo build
 
 | Dependency | Minimum | Validated in this repo | Notes |
 |---|---:|---:|---|
-| `rustc` | 1.93.1 | 1.93.1 | Build/runtime implementation |
-| `cargo` | 1.93.1 | 1.93.1 | Build/test tooling |
+| `rustc` | 1.95.0 | 1.95.0 | Build/runtime implementation |
+| `cargo` | 1.95.0 | 1.95.0 | Build/test tooling |
 | `python3` | 3.10+ | 3.14.3 | Quality gate + support scripts |
 | `make` | 3.81+ | 3.81 | Convenience build/check targets |
 
