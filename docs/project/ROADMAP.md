@@ -178,6 +178,10 @@
     - added a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate from command/status, reducer metadata, and reduced output.
     - focused tests cover command/status retention and high-uncertainty output promotion while keeping reducer metadata as contextual evidence.
     - normal command capture output, public telemetry, schemas, quarantine, and replay artifacts remain unchanged by default.
+  - Slice 4 landed:
+    - added fixture-backed shadow measurements for the existing test-output and diff corpora under constrained budgets.
+    - measurement gates now assert bounded omissions, critical-span recall, replay-style evidence retention, and positive size deltas without changing runtime defaults.
+    - shadow measurements remain test-only and do not write public telemetry, quarantine records, or replay artifacts.
 - Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 

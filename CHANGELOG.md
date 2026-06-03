@@ -64,6 +64,7 @@ Notes:
   - added work queue: `docs/orchestration/PHASE_XI_WORK.json`.
   - completed Slice 1 by documenting the shadow-first rollout contract, acceptance gates, rollback rule, and public-surface boundaries.
   - completed Slice 2 with a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate without changing returned capture output or public telemetry.
+  - completed Slice 4 with fixture-backed shadow measurement gates for test-output and diff corpora, covering bounded omissions, critical-span recall, replay-style evidence retention, and size deltas without changing runtime defaults.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

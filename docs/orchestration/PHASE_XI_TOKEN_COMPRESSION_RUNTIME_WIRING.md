@@ -72,3 +72,12 @@ Before typed assembly can affect model-visible prompt text, every affected comma
 Slice 1 is complete.
 
 Slice 2 is complete. A private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path builds a typed assembly candidate from command/status, reducer metadata, and reduced output, then discards it. Focused unit coverage verifies the candidate keeps command/status evidence, promotes high-uncertainty output evidence, and keeps metadata as context rather than promoted evidence. Normal capture output and public telemetry remain unchanged.
+
+Slice 4 is complete. Fixture-backed shadow measurements now exercise the existing test-output and diff corpora under constrained budgets and assert:
+
+- omission counts stay bounded for the covered command classes
+- required fixture spans survive through shadow assembly
+- command/status and output evidence remain present for replay-style recovery
+- assembled shadow text still reduces size relative to the raw fixture input
+
+These measurements remain test-only and non-public. They do not write telemetry, logs, quarantine records, or replay artifacts.

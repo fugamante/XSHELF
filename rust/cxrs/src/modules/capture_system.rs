@@ -183,6 +183,7 @@ pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, Captur
 mod tests {
     use super::super::capture_reduce::native_reduce_output_with_metadata;
     use super::*;
+    use serde_json::Value;
 
     fn test_budget(chars: usize, lines: usize) -> BudgetConfig {
         BudgetConfig {
@@ -256,5 +257,149 @@ mod tests {
             format!("{:?}", without_shadow.1),
             format!("{:?}", with_shadow.1)
         );
+    }
+
+    fn parse_fixture_manifest(json: &str) -> Value {
+        serde_json::from_str(json).expect("parse fixture manifest")
+    }
+
+    fn manifest_command(manifest: &Value) -> Vec<String> {
+        manifest
+            .get("command")
+            .and_then(Value::as_array)
+            .expect("command")
+            .iter()
+            .map(|value| value.as_str().expect("command string").to_string())
+            .collect()
+    }
+
+    fn manifest_exit_status(manifest: &Value) -> i32 {
+        manifest
+            .get("exit_status")
+            .and_then(Value::as_i64)
+            .expect("exit status") as i32
+    }
+
+    fn shadow_budget(cmd: &[String], status: i32, reduction: &ReductionResult) -> BudgetConfig {
+        let command = command_section(cmd, status);
+        let output_id = if reduction.metadata.uncertainty == "high" {
+            "output.uncertain_fallback"
+        } else {
+            "output.reduced"
+        };
+        let output_block = format!("[high] {output_id}\n{}\n", reduction.text.trim_end());
+        let command_block = format!("[critical] command.exit_status\n{}\n", command.trim_end());
+        let metadata_block = format!(
+            "[medium] reducer.metadata\n{}\n",
+            metadata_section(&reduction.metadata).trim_end()
+        );
+
+        test_budget(
+            command_block.chars().count() + output_block.chars().count() + 16,
+            command_block.lines().count() + output_block.lines().count() + 2,
+        )
+        .with_metadata_ceiling(
+            metadata_block.chars().count(),
+            metadata_block.lines().count(),
+        )
+    }
+
+    fn required_spans(manifest: &Value) -> Vec<&str> {
+        manifest
+            .get("required_spans")
+            .and_then(Value::as_array)
+            .expect("required spans")
+            .iter()
+            .map(|value| value.as_str().expect("required span"))
+            .collect()
+    }
+
+    trait BudgetExt {
+        fn with_metadata_ceiling(
+            self,
+            metadata_chars: usize,
+            metadata_lines: usize,
+        ) -> BudgetConfig;
+    }
+
+    impl BudgetExt for BudgetConfig {
+        fn with_metadata_ceiling(
+            self,
+            metadata_chars: usize,
+            metadata_lines: usize,
+        ) -> BudgetConfig {
+            BudgetConfig {
+                budget_chars: self
+                    .budget_chars
+                    .max(1)
+                    .saturating_sub(metadata_chars.min(8)),
+                budget_lines: self
+                    .budget_lines
+                    .max(1)
+                    .saturating_sub(metadata_lines.min(1)),
+                ..self
+            }
+        }
+    }
+
+    fn assert_shadow_measurements(manifest: &Value, input: &str) {
+        let command = manifest_command(manifest);
+        let status = manifest_exit_status(manifest);
+        let reduction = native_reduce_output_with_metadata(&command, input);
+        let cfg = shadow_budget(&command, status, &reduction);
+        let shadow = assemble_capture_shadow(&command, status, &reduction, &cfg);
+        let shadow_chars = shadow.text.chars().count();
+        let shadow_reduction_ratio = (reduction.metadata.raw_chars.saturating_sub(shadow_chars))
+            as f64
+            / reduction.metadata.raw_chars as f64;
+
+        assert!(shadow.text.contains("[critical] command.exit_status"));
+        assert!(
+            shadow.text.contains("exit_status:")
+                && !shadow
+                    .omitted_section_ids
+                    .iter()
+                    .any(|id| id == "command.exit_status")
+        );
+        assert!(
+            shadow.text.contains("output.")
+                && !shadow
+                    .omitted_section_ids
+                    .iter()
+                    .any(|id| id.starts_with("output."))
+        );
+        for span in required_spans(manifest) {
+            assert!(
+                shadow.text.contains(span),
+                "missing required shadow span: {span}"
+            );
+        }
+        assert!(
+            shadow.omitted_section_ids.len() <= 1,
+            "unexpected shadow omissions: {:?}",
+            shadow.omitted_section_ids
+        );
+        assert!(
+            shadow_reduction_ratio >= 0.05,
+            "shadow reduction ratio {shadow_reduction_ratio} below floor"
+        );
+    }
+
+    #[test]
+    fn shadow_measurements_hold_for_test_output_fixture() {
+        let manifest = parse_fixture_manifest(include_str!(
+            "../../tests/fixtures/phase_x/test_output_reducer_manifest.json"
+        ));
+        let input = include_str!("../../tests/fixtures/phase_x/cargo_test_failure.txt");
+        assert_shadow_measurements(&manifest, input);
+    }
+
+    #[test]
+    fn shadow_measurements_hold_for_diff_fixture() {
+        let manifest = parse_fixture_manifest(include_str!(
+            "../../tests/fixtures/phase_x/diff_reducer_manifest.json"
+        ));
+        let input = include_str!("../../tests/fixtures/phase_x/git_diff_mixed.txt");
+        assert_shadow_measurements(&manifest, input);
     }
 }

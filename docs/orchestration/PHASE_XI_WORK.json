@@ -28,7 +28,7 @@
     },
     {
       "id": "p11_measurement_gates",
-      "status": "pending",
+      "status": "done",
       "goal": "collect non-public fixture measurements for omission counts, recall, replay recoverability, and size deltas"
     },
     {
