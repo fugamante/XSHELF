@@ -76,7 +76,7 @@ End users do not need the full test suite for normal product usage.
 
 - Normal runtime usage: `xshelf`, `xs`, `cxrs`, `doctor`, `health`, schema commands, task commands
 - Lightweight runtime verification: `xshelf doctor`, `xshelf health`
-- Maintainer-only validation: `cargo test`, `compat-check`, `parity-check`, CI guardrails
+- Maintainer-only validation: `cargo test`, `compat-check`, `parity-check`, `cargo outdated`, CI guardrails
 
 The shipped runtime does not run the full test suite during normal command execution.
 Tests and guardrails are for development, CI, and release confidence.
