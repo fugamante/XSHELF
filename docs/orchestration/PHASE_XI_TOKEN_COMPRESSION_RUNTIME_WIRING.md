@@ -81,3 +81,15 @@ Slice 4 is complete. Fixture-backed shadow measurements now exercise the existin
 - assembled shadow text still reduces size relative to the raw fixture input
 
 These measurements remain test-only and non-public. They do not write telemetry, logs, quarantine records, or replay artifacts.
+
+Slice 3 is complete. An explicit `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` profile now allows typed assembly to replace the prompt text only for the reducer classes already covered by Phase XI fixtures:
+
+- `test` output through the `test_output` reducer
+- `git diff` style output through the `git_diff` reducer
+
+The profile remains opt-in and fallback-safe:
+
+- default capture behavior remains unchanged
+- unsupported reducers continue using the legacy reduced text path
+- if typed assembly would omit command/exit-status or output evidence under a tight budget, capture falls back to the legacy reduced text path
+- no public telemetry, quarantine, replay, or schema surface changed

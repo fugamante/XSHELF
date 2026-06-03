@@ -48,6 +48,23 @@ fn shadow_enabled() -> bool {
         == 1
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CapturePromptProfile {
+    Legacy,
+    ShadowNarrow,
+}
+
+fn capture_prompt_profile() -> CapturePromptProfile {
+    match env::var("CX_CAPTURE_PROMPT_PROFILE")
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("shadow_narrow") => CapturePromptProfile::ShadowNarrow,
+        _ => CapturePromptProfile::Legacy,
+    }
+}
+
 fn command_section(cmd: &[String], status: i32) -> String {
     let command = shell_words::join(cmd.iter().map(String::as_str));
     format!("command: {command}\nexit_status: {status}")
@@ -146,6 +163,7 @@ fn process_capture(
     raw_out: String,
     native_reduce: bool,
     run_shadow: bool,
+    prompt_profile: CapturePromptProfile,
     cfg: &BudgetConfig,
 ) -> (String, CaptureStats) {
     let processed = raw_out.clone();
@@ -154,13 +172,32 @@ fn process_capture(
     } else {
         passthrough_result(processed)
     };
-    if run_shadow {
-        let _ = assemble_capture_shadow(cmd, status, &reduction, cfg);
-    }
-    let (clipped_text, mut stats) = clip_text_with_config(&reduction.text, cfg);
+    let use_shadow_prompt = native_reduce
+        && prompt_profile == CapturePromptProfile::ShadowNarrow
+        && matches!(reduction.metadata.reducer_kind, "git_diff" | "test_output");
+    let shadow = if run_shadow || use_shadow_prompt {
+        Some(assemble_capture_shadow(cmd, status, &reduction, cfg))
+    } else {
+        None
+    };
+    let prompt_text = shadow
+        .as_ref()
+        .filter(|shadow| use_shadow_prompt && shadow_safe_for_prompt(shadow))
+        .map(|shadow| shadow.text.as_str())
+        .unwrap_or(&reduction.text);
+    let (clipped_text, mut stats) = clip_text_with_config(prompt_text, cfg);
     stats.rtk_used = Some(false);
     stats.capture_provider = Some("native".to_string());
     (clipped_text, stats)
+}
+
+fn shadow_safe_for_prompt(shadow: &ShadowAssembly) -> bool {
+    shadow.text.contains("exit_status:")
+        && shadow.text.contains("output.")
+        && !shadow
+            .omitted_section_ids
+            .iter()
+            .any(|id| id == "command.exit_status" || id.starts_with("output."))
 }
 
 pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, CaptureStats), String> {
@@ -174,8 +211,15 @@ pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, Captur
         .unwrap_or(1)
         == 1;
     let cfg = budget_config_from_env();
-    let (clipped_text, stats) =
-        process_capture(cmd, status, raw_out, native_reduce, shadow_enabled(), &cfg);
+    let (clipped_text, stats) = process_capture(
+        cmd,
+        status,
+        raw_out,
+        native_reduce,
+        shadow_enabled(),
+        capture_prompt_profile(),
+        &cfg,
+    );
     Ok((clipped_text, status, stats))
 }
 
@@ -249,14 +293,109 @@ mod tests {
         let cmd = vec!["test".to_string()];
         let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
         let cfg = test_budget(1000, 80);
-        let without_shadow = process_capture(&cmd, 101, raw.to_string(), true, false, &cfg);
-        let with_shadow = process_capture(&cmd, 101, raw.to_string(), true, true, &cfg);
+        let without_shadow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let with_shadow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            true,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
 
         assert_eq!(without_shadow.0, with_shadow.0);
         assert_eq!(
             format!("{:?}", without_shadow.1),
             format!("{:?}", with_shadow.1)
         );
+    }
+
+    #[test]
+    fn shadow_narrow_profile_uses_assembled_test_output() {
+        let cmd = vec!["test".to_string()];
+        let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
+        let cfg = test_budget(1000, 80);
+        let (captured, stats) = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert!(captured.contains("[critical] command.exit_status"));
+        assert!(captured.contains("[high] output.reduced"));
+        assert!(captured.contains("api_error"));
+        assert_eq!(
+            stats.system_output_len_raw,
+            Some(captured.chars().count() as u64)
+        );
+    }
+
+    #[test]
+    fn shadow_narrow_profile_falls_back_for_unsupported_command() {
+        let cmd = vec!["git".to_string(), "status".to_string()];
+        let raw = "On branch main\nChanges not staged for commit:\n  modified: README.md\n";
+        let cfg = test_budget(1000, 80);
+        let legacy = process_capture(
+            &cmd,
+            0,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let shadow_narrow = process_capture(
+            &cmd,
+            0,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert_eq!(legacy.0, shadow_narrow.0);
+        assert_eq!(format!("{:?}", legacy.1), format!("{:?}", shadow_narrow.1));
+    }
+
+    #[test]
+    fn shadow_prompt_guard_falls_back_when_output_would_be_omitted() {
+        let cmd = vec!["test".to_string()];
+        let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
+        let cfg = test_budget(40, 2);
+        let legacy = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let shadow_narrow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert_eq!(legacy.0, shadow_narrow.0);
     }
 
     fn parse_fixture_manifest(json: &str) -> Value {

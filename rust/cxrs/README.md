@@ -122,6 +122,7 @@ Platform notes:
 - Shell examples assume POSIX `bash`.
 - System capture provider is internal native only.
 - Native reduction can be toggled with `CX_NATIVE_REDUCE=1|0` (default `1`) and tuned with `CX_CAPTURE_PROFILE=fast|balanced|deep` (default `balanced`).
+- Phase XI runtime wiring stays opt-in: `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` lets fixture-backed `test` and `git diff` command classes use typed assembly as prompt text, while unsupported or unsafe tight-budget cases fall back to the legacy reduced-text path.
 
 ## Install
 
@@ -176,7 +177,7 @@ GitHub Actions:
 
 Capture provider:
 - Native internal capture/reduction path only.
-- Optional tuning: `CX_NATIVE_REDUCE=1|0` and `CX_CAPTURE_PROFILE=fast|balanced|deep`.
+- Optional tuning: `CX_NATIVE_REDUCE=1|0`, `CX_CAPTURE_PROFILE=fast|balanced|deep`, and `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` for the narrow Phase XI opt-in path.
 
 ## Development vs Runtime Requirements
 

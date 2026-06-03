@@ -182,7 +182,11 @@
     - added fixture-backed shadow measurements for the existing test-output and diff corpora under constrained budgets.
     - measurement gates now assert bounded omissions, critical-span recall, replay-style evidence retention, and positive size deltas without changing runtime defaults.
     - shadow measurements remain test-only and do not write public telemetry, quarantine records, or replay artifacts.
-- Guardrail:
+  - Slice 3 landed:
+    - added explicit `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` opt-in runtime wiring for the fixture-backed `test_output` and `git_diff` reducer classes.
+    - unsupported command classes stay on the legacy reduced-text path.
+    - tight-budget cases fall back to legacy reduced text when typed assembly would omit command/status or output evidence.
+  - Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 
 ## Phase VI (stabilized substrate)

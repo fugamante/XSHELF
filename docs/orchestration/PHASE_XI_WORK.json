@@ -23,7 +23,7 @@
     },
     {
       "id": "p11_opt_in_profile",
-      "status": "pending",
+      "status": "done",
       "goal": "add an explicit opt-in prompt profile for narrow command classes only after shadow evidence is fixture-backed"
     },
     {
