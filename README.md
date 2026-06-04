@@ -133,6 +133,10 @@ Policy and telemetry:
 ./bin/xshelf quota probe 30 --json | jq .
 ```
 
+`telemetry --json` / `logs stats --json` now include additive
+`capture_prompt_telemetry` summary fields for the explicit
+`CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` rollout path.
+
 Structured output:
 
 ```bash

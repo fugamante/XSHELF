@@ -54,6 +54,15 @@ enum CapturePromptProfile {
     ShadowNarrow,
 }
 
+impl CapturePromptProfile {
+    fn as_log_field(self) -> Option<&'static str> {
+        match self {
+            Self::Legacy => None,
+            Self::ShadowNarrow => Some("shadow_narrow"),
+        }
+    }
+}
+
 fn capture_prompt_profile() -> CapturePromptProfile {
     match env::var("CX_CAPTURE_PROMPT_PROFILE")
         .ok()
@@ -180,14 +189,29 @@ fn process_capture(
     } else {
         None
     };
+    let shadow_safe = shadow.as_ref().map(shadow_safe_for_prompt);
     let prompt_text = shadow
         .as_ref()
-        .filter(|shadow| use_shadow_prompt && shadow_safe_for_prompt(shadow))
+        .filter(|_| use_shadow_prompt && shadow_safe == Some(true))
         .map(|shadow| shadow.text.as_str())
         .unwrap_or(&reduction.text);
     let (clipped_text, mut stats) = clip_text_with_config(prompt_text, cfg);
     stats.rtk_used = Some(false);
     stats.capture_provider = Some("native".to_string());
+    stats.capture_prompt_profile = prompt_profile.as_log_field().map(str::to_string);
+    stats.capture_prompt_profile_applied = prompt_profile
+        .as_log_field()
+        .map(|_| use_shadow_prompt && shadow_safe == Some(true));
+    stats.capture_prompt_reducer_kind = prompt_profile
+        .as_log_field()
+        .map(|_| reduction.metadata.reducer_kind.to_string());
+    stats.capture_prompt_fallback_reason = capture_prompt_fallback_reason(
+        prompt_profile,
+        native_reduce,
+        reduction.metadata.reducer_kind,
+        shadow_safe,
+    )
+    .map(str::to_string);
     (clipped_text, stats)
 }
 
@@ -198,6 +222,27 @@ fn shadow_safe_for_prompt(shadow: &ShadowAssembly) -> bool {
             .omitted_section_ids
             .iter()
             .any(|id| id == "command.exit_status" || id.starts_with("output."))
+}
+
+fn capture_prompt_fallback_reason(
+    prompt_profile: CapturePromptProfile,
+    native_reduce: bool,
+    reducer_kind: &str,
+    shadow_safe: Option<bool>,
+) -> Option<&'static str> {
+    if prompt_profile != CapturePromptProfile::ShadowNarrow {
+        return None;
+    }
+    if !native_reduce {
+        return Some("native_reduce_disabled");
+    }
+    if !matches!(reducer_kind, "git_diff" | "test_output") {
+        return Some("unsupported_reducer");
+    }
+    if shadow_safe == Some(false) {
+        return Some("missing_required_evidence");
+    }
+    None
 }
 
 pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, CaptureStats), String> {

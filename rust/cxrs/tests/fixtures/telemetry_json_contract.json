@@ -12,6 +12,7 @@
     "task_execution",
     "fields",
     "contract_drift",
+    "capture_prompt_telemetry",
     "retry_telemetry",
     "critical_telemetry",
     "timing_telemetry",
@@ -117,6 +118,22 @@
     "tasks_retry_recovered",
     "tasks_retry_recovery_rate",
     "attempt_histogram"
+  ],
+  "capture_prompt_keys": [
+    "rows_with_explicit_profile",
+    "shadow_narrow_configured_runs",
+    "shadow_narrow_applied_runs",
+    "shadow_narrow_fallback_runs",
+    "applied_reducer_kinds",
+    "fallback_reasons"
+  ],
+  "capture_prompt_reducer_item_keys": [
+    "reducer_kind",
+    "runs"
+  ],
+  "capture_prompt_fallback_item_keys": [
+    "reason",
+    "runs"
   ],
   "critical_keys": [
     "summary_rows",

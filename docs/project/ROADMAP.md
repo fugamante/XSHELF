@@ -5,6 +5,7 @@
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
+- Landed additive Phase XI operator visibility on `telemetry --json` / `logs stats --json` through `capture_prompt_telemetry` for explicit `shadow_narrow` prompt-profile runs.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
@@ -194,7 +195,10 @@
     - all five planned slices are complete.
     - typed assembly is now exercised in shadow mode and narrow opt-in mode without changing default capture behavior.
     - the documented decision is to stop at opt-in-only runtime wiring until broader fixture evidence exists.
-  - Guardrail:
+  - Follow-on additive visibility:
+    - `telemetry --json` / `logs stats --json` now expose `capture_prompt_telemetry` for explicit `shadow_narrow` runs.
+    - run logs now carry nullable prompt-profile fields for configured profile, applied status, reducer kind, and fallback reason.
+- Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 
 ## Phase VI (stabilized substrate)

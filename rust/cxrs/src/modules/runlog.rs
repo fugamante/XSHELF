@@ -291,6 +291,10 @@ pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
     row.prompt_len_raw = Some(raw_prompt.chars().count() as u64);
     row.prompt_len_filtered = Some(filtered_prompt.chars().count() as u64);
     row.prompt_filter_applied = Some(raw_prompt != filtered_prompt);
+    row.capture_prompt_profile = cap.capture_prompt_profile.clone();
+    row.capture_prompt_profile_applied = cap.capture_prompt_profile_applied;
+    row.capture_prompt_reducer_kind = cap.capture_prompt_reducer_kind.clone();
+    row.capture_prompt_fallback_reason = cap.capture_prompt_fallback_reason.clone();
     row.schema_prompt_sha256 = input.schema_prompt.map(sha256_hex);
     row.schema_sha256 = input.schema_raw.map(sha256_hex);
     row.schema_attempt = input.schema_attempt;

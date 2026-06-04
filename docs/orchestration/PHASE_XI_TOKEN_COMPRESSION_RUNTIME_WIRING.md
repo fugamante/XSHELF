@@ -115,3 +115,13 @@ Follow-on rule:
 - widen Phase XI only after new reducer classes have the same fixture-backed recall, omission, fallback, and compatibility coverage as the current `test_output` and `git_diff` lanes
 - if operator visibility becomes necessary, add it through explicit additive diagnostics or telemetry contracts first
 - default prompt replacement remains deferred until opt-in evidence is broader than the current narrow command corpus
+
+Post-phase additive visibility landed through telemetry rather than default wiring changes:
+
+- `telemetry --json` / `logs stats --json` now expose additive `capture_prompt_telemetry`
+- run logs now carry nullable prompt-profile fields for explicit `shadow_narrow` runs:
+  - configured profile
+  - applied status
+  - reducer kind
+  - fallback reason
+- omission metadata still remains internal; the public surface is limited to profile-level rollout visibility
