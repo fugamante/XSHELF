@@ -282,6 +282,8 @@ Validation:
 
 - small fixture-backed tests for parser/contract behavior
 - real MLX checks remain opt-in because local model availability varies
+- registry-backed verification and local smoke paths refresh `last_used_at`
+  metadata; MLX smoke verification also records `last_smoke_status`
 
 ### Slice 6: Resident Server Opt-In
 

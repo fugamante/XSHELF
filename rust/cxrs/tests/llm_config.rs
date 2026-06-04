@@ -712,6 +712,26 @@ printf 'OK'
             .and_then(Value::as_bool),
         Some(true)
     );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "tiny", "--json"]);
+    assert!(
+        inspect.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect),
+        stderr_str(&inspect)
+    );
+    let inspected = serde_json::from_str::<Value>(&stdout_str(&inspect)).expect("inspect json");
+    assert_eq!(
+        inspected.get("last_smoke_status").and_then(Value::as_str),
+        Some("pass")
+    );
+    assert!(
+        inspected
+            .get("last_used_at")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{inspected}"
+    );
 }
 
 #[test]
@@ -1077,6 +1097,68 @@ printf 'smoke ok'
     let text = stdout_str(&out);
     assert!(text.contains("smoke_backend: llamacpp"), "{text}");
     assert!(text.contains("smoke_output:\nsmoke ok"), "{text}");
+}
+
+#[test]
+fn llm_smoke_updates_local_model_last_used_at() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "tiny",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Tiny-Resolved",
+        ])
+        .status
+        .success()
+    );
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf 'smoke ok'
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+    let out = repo.run_with_env(
+        &["llm", "smoke", "say", "ok"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_MLX_MODEL", "tiny"),
+            ("CX_MLX_PYTHON", &mlx_python),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "tiny", "--json"]);
+    assert!(
+        inspect.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect),
+        stderr_str(&inspect)
+    );
+    let inspected = serde_json::from_str::<Value>(&stdout_str(&inspect)).expect("inspect json");
+    assert!(
+        inspected
+            .get("last_used_at")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{inspected}"
+    );
+    assert!(
+        inspected
+            .get("last_smoke_status")
+            .is_some_and(Value::is_null),
+        "{inspected}"
+    );
 }
 
 #[test]

@@ -400,6 +400,14 @@ fn llm_models_inspect(app_name: &str, args: &[String]) -> i32 {
                 if let Some(err) = cache_probe.error.as_deref() {
                     println!("cache_path_error: {err}");
                 }
+                println!(
+                    "last_used_at: {}",
+                    record.last_used_at.as_deref().unwrap_or("<unknown>")
+                );
+                println!(
+                    "last_smoke_status: {}",
+                    record.last_smoke_status.as_deref().unwrap_or("<unknown>")
+                );
                 println!("trust_remote_code: {}", record.trust_remote_code);
                 0
             }

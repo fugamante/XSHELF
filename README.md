@@ -175,7 +175,10 @@ When the selected model token matches a local-model registry alias or ID for the
 active backend, runtime execution resolves it to the record's `resolved_model`.
 `llm show` prints both alias and resolved model when applicable.
 `llm models inspect` uses cheap path checks by default; recursive directory
-accounting runs only when `--disk-usage` is provided.
+accounting runs only when `--disk-usage` is provided. Inspect also surfaces
+the registry record's latest `last_used_at` and `last_smoke_status` metadata
+when a registered local model has been exercised through `llm smoke` or
+`llm verify mlx`.
 `llm resident` exposes explicit resident-server capability state and an optional
 `/v1/models` probe on opt-in HTTP adapter profiles.
 

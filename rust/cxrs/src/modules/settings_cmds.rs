@@ -10,7 +10,9 @@ use crate::config::cli_app_name;
 use crate::analytics::quota_probe_for_backend_days;
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
-use crate::local_models::{find_record_for_backend, resolve_model_for_backend};
+use crate::local_models::{
+    find_record_for_backend, resolve_model_for_backend, touch_record_for_backend,
+};
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
@@ -580,7 +582,23 @@ fn llm_smoke(args: &[String]) -> i32 {
     );
     println!("smoke_output:");
     println!("{}", text.trim());
+    if matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx") && !model.trim().is_empty() {
+        let _ = note_local_model_usage(&backend, &model, None);
+    }
     0
+}
+
+fn note_local_model_usage(backend: &str, model: &str, smoke_status: Option<&str>) -> Option<()> {
+    match touch_record_for_backend(backend, model, Some(&utc_now_iso()), smoke_status) {
+        Ok(_) => Some(()),
+        Err(e) => {
+            crate::cx_eprintln!(
+                "{} llm: unable to update local model registry metadata: {e}",
+                cli_app_name()
+            );
+            None
+        }
+    }
 }
 
 fn has_flag(args: &[String], flag: &str) -> bool {
@@ -865,6 +883,24 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
             return 2;
         }
     };
+    if let Some(model_input) = model_info.get("input").and_then(Value::as_str) {
+        let smoke_status = if profile == "smoke" {
+            match result
+                .as_ref()
+                .ok()
+                .and_then(|v| v.get("correctness"))
+                .and_then(|v| v.get("exact"))
+                .and_then(Value::as_bool)
+            {
+                Some(true) => Some("pass"),
+                Some(false) => Some("fail"),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let _ = note_local_model_usage("mlx", model_input, smoke_status);
+    }
     let payload = match result {
         Ok(v) => json!({
             "contract_version": "llm-verify.v1",

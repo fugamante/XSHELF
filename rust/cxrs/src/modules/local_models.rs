@@ -305,6 +305,52 @@ pub fn remove_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
     Ok(Some(removed))
 }
 
+pub fn touch_record_for_backend(
+    backend: &str,
+    query: &str,
+    last_used_at: Option<&str>,
+    last_smoke_status: Option<&str>,
+) -> Result<Option<LocalModelRecord>, String> {
+    let Some(canonical_backend) = normalize_backend(backend) else {
+        return Err("backend must be ollama|llamacpp|mlx".to_string());
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(None);
+    }
+
+    let mut registry = registry_value()?;
+    let models = registry
+        .get_mut("models")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "local model registry has invalid models array".to_string())?;
+    let Some(idx) = models.iter().position(|item| {
+        item.get("backend").and_then(Value::as_str) == Some(canonical_backend)
+            && (item.get("id").and_then(Value::as_str) == Some(q)
+                || item.get("alias").and_then(Value::as_str) == Some(q)
+                || item.get("resolved_model").and_then(Value::as_str) == Some(q))
+    }) else {
+        return Ok(None);
+    };
+
+    let item = models
+        .get_mut(idx)
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "local model registry has invalid model record".to_string())?;
+    if let Some(ts) = last_used_at {
+        item.insert("last_used_at".to_string(), Value::String(ts.to_string()));
+    }
+    if let Some(status) = last_smoke_status {
+        item.insert(
+            "last_smoke_status".to_string(),
+            Value::String(status.to_string()),
+        );
+    }
+    let record = record_from_value(&Value::Object(item.clone()))?;
+    write_registry(&registry)?;
+    Ok(Some(record))
+}
+
 pub fn registry_json() -> Result<Value, String> {
     registry_value()
 }

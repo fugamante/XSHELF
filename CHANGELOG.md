@@ -37,6 +37,7 @@ Notes:
     - default inspect mode performs cheap path checks only and avoids recursive disk scans.
     - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
     - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
+    - inspect now surfaces registry `last_used_at` / `last_smoke_status` fields in text mode when present.
   - completed capability envelope slice:
     - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
     - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
@@ -45,6 +46,7 @@ Notes:
     - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
     - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
     - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
+    - registry-backed local model metadata now refreshes `last_used_at` on successful local smoke/verify runs and `last_smoke_status` on MLX smoke verification.
   - completed resident-server opt-in slice:
     - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
     - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
