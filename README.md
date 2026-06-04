@@ -163,6 +163,7 @@ Structured output:
 ./bin/xshelf llm verify mlx --profile smoke --json | jq .
 ./bin/xshelf llm verify mlx --profile benchmark --ctx 8192 --json | jq .
 ./bin/xshelf llm resident show --json | jq .
+CX_LLM_BACKEND=mlx \
 CX_PROVIDER_ADAPTER=http-curl \
 CX_HTTP_REQUEST_PROFILE=openai_json \
 CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
@@ -180,7 +181,11 @@ the registry record's latest `last_used_at` and `last_smoke_status` metadata
 when a registered local model has been exercised through `llm smoke` or
 `llm verify mlx`.
 `llm resident` exposes explicit resident-server capability state and an optional
-`/v1/models` probe on opt-in HTTP adapter profiles.
+`/v1/models` probe on opt-in HTTP adapter profiles. The resident capability is
+only considered eligible for the Phase VIII local substrate when all hold:
+selected backend `mlx`, adapter transport `http`, request profile
+`openai_json`, and a local HTTP provider URL such as `127.0.0.1` or
+`localhost`.
 
 `llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
 specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a

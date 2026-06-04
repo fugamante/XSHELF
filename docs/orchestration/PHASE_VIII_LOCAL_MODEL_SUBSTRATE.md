@@ -299,13 +299,13 @@ Implementation notes:
 
 - `xshelf llm resident show` now emits a typed `llm-resident.v1` contract with selected adapter/transport/profile and resident capability lanes.
 - `xshelf llm resident probe-models` now probes `/v1/models` through the existing `http-curl` adapter controls and returns typed model ID/count evidence when configured.
-- runtime capabilities now report `resident_server=true` only for HTTP + `openai_json` profile; process adapters stay explicit `false`.
+- runtime capabilities now report `resident_server=true` only when the selected backend is `mlx`, the adapter transport is HTTP, the request profile is `openai_json`, and the provider URL is local; process adapters and remote HTTP endpoints stay explicit `false`.
 
 Validation:
 
 - process adapters remain defaults
 - HTTP remains explicit opt-in
-- local-only HTTP behavior follows current TLS posture rules
+- local-only HTTP behavior follows current TLS posture rules and the resident contract now reports explicit machine-readable boundary reasons when the configuration falls outside the local MLX path
 
 ## Contract Principles
 

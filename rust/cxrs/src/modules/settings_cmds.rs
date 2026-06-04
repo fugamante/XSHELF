@@ -17,7 +17,7 @@ use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
     http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
-    selected_provider_transport, selected_runtime_caps,
+    selected_provider_transport, selected_resident_boundary_json, selected_runtime_caps,
 };
 use crate::runtime::{
     llama_cpp_model_preference, llm_backend, llm_model, mlx_model_preference,
@@ -1003,6 +1003,7 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
         "selected_adapter": selected_adapter_name(),
         "selected_transport": selected_provider_transport(),
         "http_request_profile": http_profile_opt(),
+        "boundary": selected_resident_boundary_json(),
         "runtime_capability": {
             "resident_server": runtime_caps.resident_server,
             "openai_compatible": runtime_caps.openai_compatible,
@@ -1042,6 +1043,23 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
             .map(|v| v.to_string())
             .unwrap_or_else(|| "null".to_string())
     );
+    if let Some(boundary) = payload.get("boundary") {
+        println!(
+            "resident_boundary_eligible: {}",
+            boundary
+                .get("eligible")
+                .and_then(Value::as_bool)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "false".to_string())
+        );
+        println!(
+            "resident_boundary_reason: {}",
+            boundary
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+        );
+    }
     println!(
         "openai_compatible: {}",
         runtime_caps

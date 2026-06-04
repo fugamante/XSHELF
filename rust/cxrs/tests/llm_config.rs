@@ -1182,6 +1182,20 @@ fn llm_resident_show_json_contract() {
     );
     assert_eq!(
         payload
+            .get("boundary")
+            .and_then(|v| v.get("eligible"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("transport_not_http")
+    );
+    assert_eq!(
+        payload
             .get("runtime_capability")
             .and_then(|v| v.get("resident_server"))
             .and_then(Value::as_bool),
@@ -1203,6 +1217,7 @@ JSON
     let out = repo.run_with_env(
         &["llm", "resident", "probe-models", "--json"],
         &[
+            ("CX_LLM_BACKEND", "mlx"),
             ("CX_PROVIDER_ADAPTER", "http-curl"),
             ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
             (
@@ -1229,6 +1244,20 @@ JSON
     );
     assert_eq!(
         payload
+            .get("boundary")
+            .and_then(|v| v.get("eligible"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("eligible")
+    );
+    assert_eq!(
+        payload
             .get("runtime_capability")
             .and_then(|v| v.get("resident_server"))
             .and_then(Value::as_bool),
@@ -1247,6 +1276,89 @@ JSON
             .and_then(|v| v.get("model_count"))
             .and_then(Value::as_u64),
         Some(2)
+    );
+}
+
+#[test]
+fn llm_resident_probe_requires_mlx_backend_boundary() {
+    let repo = TempRepo::new("cxrs-llm");
+    repo.write_mock(
+        "curl",
+        r#"#!/usr/bin/env bash
+cat <<'JSON'
+{"data":[{"id":"mlx-local"}]}
+JSON
+"#,
+    );
+    let out = repo.run_with_env(
+        &["llm", "resident", "probe-models", "--json"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            (
+                "CX_HTTP_PROVIDER_URL",
+                "http://127.0.0.1:11434/v1/chat/completions",
+            ),
+            ("CX_HTTP_REQUIRE_HTTPS", "0"),
+        ],
+    );
+    assert!(!out.status.success(), "stdout={}", stdout_str(&out));
+    assert!(
+        stderr_str(&out).contains("reason: backend_not_mlx"),
+        "stderr={}",
+        stderr_str(&out)
+    );
+}
+
+#[test]
+fn llm_resident_show_marks_remote_http_endpoint_non_resident() {
+    let repo = TempRepo::new("cxrs-llm");
+    let out = repo.run_with_env(
+        &["llm", "resident", "show", "--json"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            (
+                "CX_HTTP_PROVIDER_URL",
+                "https://api.example.com/v1/chat/completions",
+            ),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload = serde_json::from_str::<Value>(&stdout_str(&out)).expect("resident show json");
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("provider_url_local"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("provider_url_not_local")
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("resident_server"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("openai_compatible"))
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }
 

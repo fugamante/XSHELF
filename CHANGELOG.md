@@ -49,8 +49,9 @@ Notes:
     - registry-backed local model metadata now refreshes `last_used_at` on successful local smoke/verify runs and `last_smoke_status` on MLX smoke verification.
   - completed resident-server opt-in slice:
     - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
-    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
-    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
+    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary only on the explicit local-MLX resident path (`CX_LLM_BACKEND=mlx`, `CX_HTTP_REQUEST_PROFILE=openai_json`, local provider URL).
+    - `llm resident show --json` now includes additive machine-readable boundary eligibility/reason fields for the resident path.
+    - runtime capability mapping now marks `resident_server=true` only on that explicit local-MLX boundary; process adapters and remote OpenAI-compatible endpoints remain explicit `false`.
   - closed the planned Phase VIII slice set after local resident probe validation through `llm-resident.v1`.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.

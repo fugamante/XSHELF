@@ -76,7 +76,7 @@
 - Milestone result:
   - all six planned slices are complete
   - a live local `llm resident probe-models --json` run validated the explicit HTTP resident path with `model_count=1`
-  - resident support remains bounded to explicit OpenAI-compatible HTTP profile evidence
+  - resident support remains bounded to the explicit local-MLX HTTP path (`backend=mlx`, HTTP transport, `openai_json` profile, local provider URL)
 - Discovery basis:
   - oMLX shows the value of treating Apple-local models as lifecycle objects rather than one-off model strings.
   - XSHELF already supports `mlx` through `mlx-lm`, but model management is currently limited to a selected model string.
@@ -110,8 +110,8 @@
     - benchmark profile reports typed runtime/correctness and memory envelope fields (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`)
   - Slice 6 landed:
     - added `llm resident show|probe-models` with typed resident contract output (`contract_version=llm-resident.v1`)
-    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is configured
-    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`
+    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_LLM_BACKEND=mlx` and `CX_HTTP_REQUEST_PROFILE=openai_json` are configured against a local provider URL
+    - runtime capability mapping now marks `resident_server=true` only on that explicit local-MLX resident boundary; process adapters and remote HTTP endpoints remain explicit `false`
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
