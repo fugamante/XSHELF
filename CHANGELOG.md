@@ -68,6 +68,7 @@ Notes:
   - completed Slice 4 with fixture-backed shadow measurement gates for test-output and diff corpora, covering bounded omissions, critical-span recall, replay-style evidence retention, and size deltas without changing runtime defaults.
   - completed Slice 5 by recording the rollout decision to keep runtime wiring opt-in only, preserve the default `run -> reduce -> clip` path, and defer broader reducer expansion and public omission surfaces to later additive contract work.
   - added additive `capture_prompt_telemetry` on `telemetry --json` / `logs stats --json`, plus nullable run-log fields for explicit prompt-profile runs (`capture_prompt_profile`, applied flag, reducer kind, fallback reason).
+  - added additive `optimize --json` capture-prompt rollout guidance via `scoreboard.capture_prompt_profile_rollout`, recommendations, and a follow-up action when explicit `shadow_narrow` runs are falling back or never applying.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.

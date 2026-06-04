@@ -124,4 +124,5 @@ Post-phase additive visibility landed through telemetry rather than default wiri
   - applied status
   - reducer kind
   - fallback reason
+- `optimize --json` now exposes additive `capture_prompt_profile_rollout` guidance and a follow-up action when explicit `shadow_narrow` runs are falling back or never applying
 - omission metadata still remains internal; the public surface is limited to profile-level rollout visibility
