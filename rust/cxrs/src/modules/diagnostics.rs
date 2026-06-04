@@ -410,6 +410,192 @@ fn print_retry_diag(log_file_path: &str, window: usize) {
     println!("retry_attempt_histogram: {hist}");
 }
 
+fn capture_prompt_diag_value(log_file_path: &str, window: usize) -> Value {
+    let defaults = || {
+        serde_json::json!({
+            "window_runs": 0,
+            "rows_with_explicit_profile": 0,
+            "shadow_narrow_configured_runs": 0,
+            "shadow_narrow_applied_runs": 0,
+            "shadow_narrow_fallback_runs": 0,
+            "latest_execution_id": null,
+            "latest_timestamp": null,
+            "latest_command": null,
+            "latest_profile": null,
+            "latest_profile_applied": null,
+            "latest_reducer_kind": null,
+            "latest_fallback_reason": null,
+            "recommendation": "No explicit capture prompt profile runs observed in the current diagnostic window."
+        })
+    };
+
+    let path = Path::new(log_file_path);
+    if !path.exists() {
+        return defaults();
+    }
+
+    let rows = load_values(path, window).unwrap_or_default();
+    let mut rows_with_explicit_profile = 0usize;
+    let mut shadow_narrow_configured_runs = 0usize;
+    let mut shadow_narrow_applied_runs = 0usize;
+    let mut shadow_narrow_fallback_runs = 0usize;
+    let mut latest_explicit_profile: Option<&Value> = None;
+
+    for row in &rows {
+        let profile = row
+            .get("capture_prompt_profile")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let Some(profile) = profile else {
+            continue;
+        };
+        rows_with_explicit_profile += 1;
+        latest_explicit_profile = Some(row);
+        if profile == "shadow_narrow" {
+            shadow_narrow_configured_runs += 1;
+            if row
+                .get("capture_prompt_profile_applied")
+                .and_then(Value::as_bool)
+                == Some(true)
+            {
+                shadow_narrow_applied_runs += 1;
+            } else {
+                shadow_narrow_fallback_runs += 1;
+            }
+        }
+    }
+
+    let latest_execution_id = latest_explicit_profile
+        .and_then(|row| row.get("execution_id"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_timestamp = latest_explicit_profile
+        .and_then(|row| row.get("timestamp").or_else(|| row.get("ts")))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_command = latest_explicit_profile
+        .and_then(|row| row.get("command").or_else(|| row.get("tool")))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_profile = latest_explicit_profile
+        .and_then(|row| row.get("capture_prompt_profile"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_profile_applied = latest_explicit_profile
+        .and_then(|row| row.get("capture_prompt_profile_applied"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_reducer_kind = latest_explicit_profile
+        .and_then(|row| row.get("capture_prompt_reducer_kind"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let latest_fallback_reason = latest_explicit_profile
+        .and_then(|row| row.get("capture_prompt_fallback_reason"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let recommendation = if let Some(row) = latest_explicit_profile {
+        let profile = row
+            .get("capture_prompt_profile")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let applied = row
+            .get("capture_prompt_profile_applied")
+            .and_then(Value::as_bool);
+        let fallback_reason = row
+            .get("capture_prompt_fallback_reason")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        if profile == "shadow_narrow" && applied == Some(true) {
+            "Latest explicit shadow_narrow run applied cleanly; use reducer kind coverage to decide whether more fixture-backed reducers are ready.".to_string()
+        } else if profile == "shadow_narrow" {
+            format!(
+                "Latest explicit shadow_narrow run fell back to legacy reduction{}; inspect telemetry before widening rollout.",
+                fallback_reason
+                    .map(|reason| format!(" ({reason})"))
+                    .unwrap_or_default()
+            )
+        } else {
+            format!(
+                "Latest explicit capture prompt profile '{profile}' was observed; verify reducer eligibility and fallback handling before broadening rollout."
+            )
+        }
+    } else {
+        "No explicit capture prompt profile runs observed in the current diagnostic window."
+            .to_string()
+    };
+
+    serde_json::json!({
+        "window_runs": rows.len(),
+        "rows_with_explicit_profile": rows_with_explicit_profile,
+        "shadow_narrow_configured_runs": shadow_narrow_configured_runs,
+        "shadow_narrow_applied_runs": shadow_narrow_applied_runs,
+        "shadow_narrow_fallback_runs": shadow_narrow_fallback_runs,
+        "latest_execution_id": latest_execution_id,
+        "latest_timestamp": latest_timestamp,
+        "latest_command": latest_command,
+        "latest_profile": latest_profile,
+        "latest_profile_applied": latest_profile_applied,
+        "latest_reducer_kind": latest_reducer_kind,
+        "latest_fallback_reason": latest_fallback_reason,
+        "recommendation": recommendation
+    })
+}
+
+fn print_capture_prompt_diag(log_file_path: &str, window: usize) {
+    let capture_prompt = capture_prompt_diag_value(log_file_path, window);
+    println!(
+        "capture_prompt_rows_with_explicit_profile: {}",
+        capture_prompt
+            .get("rows_with_explicit_profile")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "capture_prompt_shadow_narrow_configured_runs: {}",
+        capture_prompt
+            .get("shadow_narrow_configured_runs")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "capture_prompt_shadow_narrow_applied_runs: {}",
+        capture_prompt
+            .get("shadow_narrow_applied_runs")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "capture_prompt_shadow_narrow_fallback_runs: {}",
+        capture_prompt
+            .get("shadow_narrow_fallback_runs")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+    );
+    println!(
+        "capture_prompt_latest_profile: {}",
+        capture_prompt
+            .get("latest_profile")
+            .and_then(Value::as_str)
+            .unwrap_or("<none>")
+    );
+    println!(
+        "capture_prompt_latest_fallback_reason: {}",
+        capture_prompt
+            .get("latest_fallback_reason")
+            .and_then(Value::as_str)
+            .unwrap_or("<none>")
+    );
+    println!(
+        "capture_prompt_recommendation: {}",
+        capture_prompt
+            .get("recommendation")
+            .and_then(Value::as_str)
+            .unwrap_or("n/a")
+    );
+}
+
 fn critical_diag_value(log_file_path: &str, window: usize) -> Value {
     let path = Path::new(log_file_path);
     if !path.exists() {
@@ -1075,6 +1261,55 @@ fn merge_exec_action(
     actions
 }
 
+fn merge_capture_prompt_action(
+    mut actions: Vec<serde_json::Value>,
+    capture_prompt: &Value,
+) -> Vec<serde_json::Value> {
+    let latest_profile = capture_prompt
+        .get("latest_profile")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let latest_applied = capture_prompt
+        .get("latest_profile_applied")
+        .and_then(Value::as_bool);
+    if latest_profile != "shadow_narrow" || latest_applied == Some(true) {
+        return actions;
+    }
+
+    let fallback_reason = capture_prompt
+        .get("latest_fallback_reason")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let rationale = if let Some(reason) = fallback_reason {
+        format!(
+            "Latest explicit shadow_narrow run fell back to legacy reduction ({reason}); inspect capture prompt telemetry before widening rollout."
+        )
+    } else {
+        "Latest explicit shadow_narrow run never applied typed shadow assembly; inspect capture prompt telemetry before widening rollout.".to_string()
+    };
+    let action = serde_json::json!({
+        "id": "capture_prompt_rollout_followup",
+        "severity": "warning",
+        "rationale": rationale,
+        "command": crate::config::command_with_cli("telemetry 200 --json")
+    });
+    let action_command = action
+        .get("command")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let action_id = action.get("id").and_then(Value::as_str);
+    if actions.iter().any(|existing| {
+        existing.get("command").and_then(Value::as_str) == Some(action_command)
+            || existing.get("id").and_then(Value::as_str) == action_id
+    }) {
+        return actions;
+    }
+    actions.push(action);
+    sort_actions_by_phase7(&mut actions);
+    actions
+}
+
 fn max_action_severity(actions: &[serde_json::Value]) -> &'static str {
     let mut max_level = "ok";
     for action in actions {
@@ -1258,6 +1493,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
+    let capture_prompt = capture_prompt_diag_value(&log_file, window);
     let task_readiness = readiness_diag_value();
     let latest_run = latest_run_all_sum();
     let latest_wave = latest_wave_sum();
@@ -1283,13 +1519,16 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     };
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        merge_exec_action(
-            build_actions_from_reasons(
-                &severity_reasons,
-                window,
-                &crate::config::command_with_cli("task run-all --status pending"),
+        merge_capture_prompt_action(
+            merge_exec_action(
+                build_actions_from_reasons(
+                    &severity_reasons,
+                    window,
+                    &crate::config::command_with_cli("task run-all --status pending"),
+                ),
+                &task_execution,
             ),
-            &task_execution,
+            &capture_prompt,
         )
     } else {
         Vec::new()
@@ -1330,6 +1569,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
             "retry": retry,
             "critical": critical,
             "concurrency": concurrency,
+            "capture_prompt_profile_rollout": capture_prompt,
             "scheduler_window_requested": window,
             "severity": severity,
             "severity_reasons": severity_reasons,
@@ -1380,6 +1620,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
+    print_capture_prompt_diag(&log_file, window);
     let observed = concurrency
         .get("observed")
         .cloned()

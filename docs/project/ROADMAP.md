@@ -7,6 +7,7 @@
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
 - Landed additive Phase XI operator visibility on `telemetry --json` / `logs stats --json` through `capture_prompt_telemetry` for explicit `shadow_narrow` prompt-profile runs.
 - Landed additive `optimize --json` capture-prompt rollout guidance using the same run-log fields for configured/applied/fallback visibility and follow-up actions.
+- Landed additive `diag --json` capture-prompt rollout guidance with latest explicit-profile fallback context and follow-up action support.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
@@ -200,6 +201,7 @@
     - `telemetry --json` / `logs stats --json` now expose `capture_prompt_telemetry` for explicit `shadow_narrow` runs.
     - run logs now carry nullable prompt-profile fields for configured profile, applied status, reducer kind, and fallback reason.
     - `optimize --json` now exposes `scoreboard.capture_prompt_profile_rollout` and follow-up guidance when explicit prompt-profile runs are falling back or never applying.
+    - `diag --json` now exposes `capture_prompt_profile_rollout` with latest explicit-profile fallback context and a follow-up action when the latest `shadow_narrow` run fell back or never applied.
 - Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 

@@ -70,6 +70,7 @@ Notes:
   - completed Slice 5 by recording the rollout decision to keep runtime wiring opt-in only, preserve the default `run -> reduce -> clip` path, and defer broader reducer expansion and public omission surfaces to later additive contract work.
   - added additive `capture_prompt_telemetry` on `telemetry --json` / `logs stats --json`, plus nullable run-log fields for explicit prompt-profile runs (`capture_prompt_profile`, applied flag, reducer kind, fallback reason).
   - added additive `optimize --json` capture-prompt rollout guidance via `scoreboard.capture_prompt_profile_rollout`, recommendations, and a follow-up action when explicit `shadow_narrow` runs are falling back or never applying.
+  - added additive `diag --json` capture-prompt rollout guidance via `capture_prompt_profile_rollout`, including latest explicit-profile fallback context and a follow-up action when the latest `shadow_narrow` run fell back or never applied.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
