@@ -21,6 +21,7 @@ Notes:
   - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
   - added release-cadence staleness gate to `rust/cxrs/tools/release_check.py` with CI enforcement in `cxrs-compat`.
   - cadence gate now fails when `VERSION` is older than 14 days unless pull requests carry explicit `release-exception` label.
+  - refreshed `VERSION` to `2026.06.03` so the cadence gate reflects current active branch state.
 - Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
