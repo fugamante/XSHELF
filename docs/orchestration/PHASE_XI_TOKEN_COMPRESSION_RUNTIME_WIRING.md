@@ -1,6 +1,6 @@
 # Phase XI: Token Compression Runtime Wiring
 
-Status: active
+Status: complete
 
 ## Objective
 
@@ -93,3 +93,25 @@ The profile remains opt-in and fallback-safe:
 - unsupported reducers continue using the legacy reduced text path
 - if typed assembly would omit command/exit-status or output evidence under a tight budget, capture falls back to the legacy reduced text path
 - no public telemetry, quarantine, replay, or schema surface changed
+
+Slice 5 is complete. The rollout decision is to keep Phase XI runtime wiring opt-in only for now.
+
+Decision:
+
+- keep `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` as the only prompt-wiring profile
+- keep default capture on the existing `run -> reduce -> clip` path
+- do not widen reducer eligibility beyond `test_output` and `git_diff` yet
+- do not add public telemetry, diagnostics, quarantine, replay, or schema keys for omission metadata in this phase
+
+Why this is the current stopping point:
+
+- the default-unchanged contract still matters more than marginal prompt savings
+- fixture-backed recall and fallback evidence currently exists only for the narrow reducer set already wired
+- the existing rollback remains simple and deterministic because disabling the opt-in restores the legacy path immediately
+- additive public surfaces should be a separate contract-bearing step rather than implicit fallout from runtime experimentation
+
+Follow-on rule:
+
+- widen Phase XI only after new reducer classes have the same fixture-backed recall, omission, fallback, and compatibility coverage as the current `test_output` and `git_diff` lanes
+- if operator visibility becomes necessary, add it through explicit additive diagnostics or telemetry contracts first
+- default prompt replacement remains deferred until opt-in evidence is broader than the current narrow command corpus

@@ -156,7 +156,7 @@
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 
-## Phase XI (active)
+## Phase XI (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`
 - Work queue: `docs/orchestration/PHASE_XI_WORK.json`
@@ -186,6 +186,14 @@
     - added explicit `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` opt-in runtime wiring for the fixture-backed `test_output` and `git_diff` reducer classes.
     - unsupported command classes stay on the legacy reduced-text path.
     - tight-budget cases fall back to legacy reduced text when typed assembly would omit command/status or output evidence.
+  - Slice 5 landed:
+    - rollout decision is to keep Phase XI runtime wiring opt-in only for now.
+    - default capture remains on the existing `run -> reduce -> clip` path.
+    - broader reducer eligibility and any public omission/diagnostic surfaces are deferred to later additive contract work.
+  - Milestone result:
+    - all five planned slices are complete.
+    - typed assembly is now exercised in shadow mode and narrow opt-in mode without changing default capture behavior.
+    - the documented decision is to stop at opt-in-only runtime wiring until broader fixture evidence exists.
   - Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 
