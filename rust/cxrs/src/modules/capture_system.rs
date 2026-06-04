@@ -413,7 +413,25 @@ mod tests {
         );
 
         assert_eq!(legacy.0, shadow_narrow.0);
-        assert_eq!(format!("{:?}", legacy.1), format!("{:?}", shadow_narrow.1));
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_profile.as_deref(),
+            Some("shadow_narrow")
+        );
+        assert_eq!(shadow_narrow.1.capture_prompt_profile_applied, Some(false));
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_reducer_kind.as_deref(),
+            Some("git_status")
+        );
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_fallback_reason.as_deref(),
+            Some("unsupported_reducer")
+        );
+        let mut expected = shadow_narrow.1.clone();
+        expected.capture_prompt_profile = legacy.1.capture_prompt_profile.clone();
+        expected.capture_prompt_profile_applied = legacy.1.capture_prompt_profile_applied;
+        expected.capture_prompt_reducer_kind = legacy.1.capture_prompt_reducer_kind.clone();
+        expected.capture_prompt_fallback_reason = legacy.1.capture_prompt_fallback_reason.clone();
+        assert_eq!(format!("{:?}", legacy.1), format!("{:?}", expected));
     }
 
     #[test]
