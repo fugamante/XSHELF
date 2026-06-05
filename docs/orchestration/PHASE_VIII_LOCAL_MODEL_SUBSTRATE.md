@@ -237,6 +237,8 @@ Validation:
 
 - env vars still win over state
 - direct model strings still work
+- cross-backend alias collisions do not break backend-scoped resolution
+- ambiguous global inspect/remove selectors fail with backend-scoped guidance
 
 ### Slice 3: Inspection And Accounting
 
@@ -313,6 +315,7 @@ Validation:
 - Registry entries must be deterministic and stable under repeated list/inspect calls.
 - Model aliases must not silently shadow direct local paths.
 - A selected alias must resolve to a concrete backend model string before execution.
+- Global alias selectors must fail when multiple backend records match.
 - Capability fields must say `unknown` or `false` instead of implying support.
 
 ## Open Questions

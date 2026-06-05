@@ -186,14 +186,33 @@ pub fn list_records() -> Result<Vec<LocalModelRecord>, String> {
     Ok(records)
 }
 
+fn ambiguous_query_error(query: &str, records: &[LocalModelRecord]) -> String {
+    let mut ids = records
+        .iter()
+        .map(|record| record.id.as_str())
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    ids.dedup();
+    format!(
+        "local model selector '{}' is ambiguous across backends; use a backend-scoped id ({})",
+        query,
+        ids.join(", ")
+    )
+}
+
 pub fn find_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
     let q = query.trim();
-    for record in list_records()? {
-        if record.id == q || record.alias == q {
-            return Ok(Some(record));
-        }
+    if q.is_empty() {
+        return Ok(None);
     }
-    Ok(None)
+    let matches = list_records()?
+        .into_iter()
+        .filter(|record| record.id == q || record.alias == q)
+        .collect::<Vec<_>>();
+    if matches.len() > 1 {
+        return Err(ambiguous_query_error(q, &matches));
+    }
+    Ok(matches.into_iter().next())
 }
 
 pub fn find_record_for_backend(
@@ -289,15 +308,19 @@ pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String>
 }
 
 pub fn remove_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
+    let selected = match find_record(query)? {
+        Some(record) => record,
+        None => return Ok(None),
+    };
     let mut registry = registry_value()?;
     let models = registry
         .get_mut("models")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "local model registry has invalid models array".to_string())?;
-    let Some(idx) = models.iter().position(|item| {
-        item.get("id").and_then(Value::as_str) == Some(query)
-            || item.get("alias").and_then(Value::as_str) == Some(query)
-    }) else {
+    let Some(idx) = models
+        .iter()
+        .position(|item| item.get("id").and_then(Value::as_str) == Some(selected.id.as_str()))
+    else {
         return Ok(None);
     };
     let removed = record_from_value(&models.remove(idx))?;
@@ -375,9 +398,7 @@ pub fn resolve_model_for_backend(backend: &str, query: &str) -> Result<ModelReso
         return Err("model cannot be empty".to_string());
     }
 
-    if let Some(record) = find_record(q)?
-        && record.backend == normalized_backend
-    {
+    if let Some(record) = find_record_for_backend(q, normalized_backend)? {
         return Ok(ModelResolution {
             resolved_model: record.resolved_model,
             alias: Some(record.alias),

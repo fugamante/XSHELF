@@ -31,6 +31,8 @@ Notes:
     - `llm show` now prints alias and resolved model fields when a registry token is active.
     - task model overrides can use backend-scoped aliases without changing direct-string behavior.
     - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
+    - backend-scoped alias resolution no longer falls through when another backend reuses the same alias.
+    - ambiguous `llm models inspect/remove <alias>` selectors now fail with backend-scoped ID guidance instead of picking the first sorted match.
     - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
   - completed inspection/accounting slice:
     - `llm models inspect <alias-or-id>` now emits typed cheap accounting status for local/cache paths in text and JSON output.

@@ -904,6 +904,152 @@ fn llm_use_mlx_alias_shows_resolved_model() {
 }
 
 #[test]
+fn backend_alias_resolution_ignores_other_backend_collision() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let use_out = repo.run(&["llm", "use", "mlx", "shared"]);
+    assert!(
+        use_out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&use_out),
+        stderr_str(&use_out)
+    );
+    let text = stdout_str(&use_out);
+    assert!(
+        text.contains("mlx_model: mlx-community/Shared-Resolved"),
+        "{text}"
+    );
+    let show = repo.run(&["llm", "show"]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    assert!(stdout_str(&show).contains("mlx_model_alias: shared"));
+}
+
+#[test]
+fn models_inspect_rejects_ambiguous_cross_backend_alias() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "shared"]);
+    assert!(!inspect.status.success(), "stdout={}", stdout_str(&inspect));
+    assert!(
+        stderr_str(&inspect).contains("local model selector 'shared' is ambiguous"),
+        "{}",
+        stderr_str(&inspect)
+    );
+    assert!(
+        stderr_str(&inspect).contains("llamacpp:shared"),
+        "{}",
+        stderr_str(&inspect)
+    );
+    assert!(
+        stderr_str(&inspect).contains("mlx:shared"),
+        "{}",
+        stderr_str(&inspect)
+    );
+}
+
+#[test]
+fn models_remove_rejects_ambiguous_cross_backend_alias() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let remove = repo.run(&["llm", "models", "remove", "shared"]);
+    assert!(!remove.status.success(), "stdout={}", stdout_str(&remove));
+    assert!(
+        stderr_str(&remove).contains("local model selector 'shared' is ambiguous"),
+        "{}",
+        stderr_str(&remove)
+    );
+}
+
+#[test]
 fn mlx_alias_exec_resolution_env_override() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(

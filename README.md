@@ -175,6 +175,8 @@ CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
 When the selected model token matches a local-model registry alias or ID for the
 active backend, runtime execution resolves it to the record's `resolved_model`.
 `llm show` prints both alias and resolved model when applicable.
+If the same alias exists on multiple backends, `llm models inspect/remove`
+now require a backend-scoped ID such as `mlx:local_mlx` instead of guessing.
 `llm models inspect` uses cheap path checks by default; recursive directory
 accounting runs only when `--disk-usage` is provided. Inspect also surfaces
 the registry record's latest `last_used_at` and `last_smoke_status` metadata
