@@ -410,7 +410,7 @@ fn print_retry_diag(log_file_path: &str, window: usize) {
     println!("retry_attempt_histogram: {hist}");
 }
 
-fn capture_prompt_diag_value(log_file_path: &str, window: usize) -> Value {
+fn capture_prompt_diag(log_file_path: &str, window: usize) -> Value {
     let defaults = || {
         serde_json::json!({
             "window_runs": 0,
@@ -543,8 +543,8 @@ fn capture_prompt_diag_value(log_file_path: &str, window: usize) -> Value {
     })
 }
 
-fn print_capture_prompt_diag(log_file_path: &str, window: usize) {
-    let capture_prompt = capture_prompt_diag_value(log_file_path, window);
+fn print_prompt_diag(log_file_path: &str, window: usize) {
+    let capture_prompt = capture_prompt_diag(log_file_path, window);
     println!(
         "capture_prompt_rows_with_explicit_profile: {}",
         capture_prompt
@@ -1261,7 +1261,7 @@ fn merge_exec_action(
     actions
 }
 
-fn merge_capture_prompt_action(
+fn merge_prompt_action(
     mut actions: Vec<serde_json::Value>,
     capture_prompt: &Value,
 ) -> Vec<serde_json::Value> {
@@ -1493,7 +1493,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
     let concurrency = concurrency_diag_value(&log_file, window, cfg);
-    let capture_prompt = capture_prompt_diag_value(&log_file, window);
+    let capture_prompt = capture_prompt_diag(&log_file, window);
     let task_readiness = readiness_diag_value();
     let latest_run = latest_run_all_sum();
     let latest_wave = latest_wave_sum();
@@ -1519,7 +1519,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     };
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
-        merge_capture_prompt_action(
+        merge_prompt_action(
             merge_exec_action(
                 build_actions_from_reasons(
                     &severity_reasons,
@@ -1620,7 +1620,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
     print_readiness_diag(&task_readiness);
     print_retry_diag(&log_file, window);
     print_critical_diag(&log_file, window);
-    print_capture_prompt_diag(&log_file, window);
+    print_prompt_diag(&log_file, window);
     let observed = concurrency
         .get("observed")
         .cloned()

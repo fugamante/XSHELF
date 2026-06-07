@@ -311,7 +311,7 @@ fn telemetry_json_matches_contract_fixture() {
 }
 
 #[test]
-fn telemetry_json_reports_capture_prompt_aggregation() {
+fn telemetry_capture_prompt() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
@@ -782,7 +782,7 @@ fn diag_json_matches_contract_fixture() {
 }
 
 #[test]
-fn diag_json_reports_capture_prompt_rollout_guidance() {
+fn diag_capture_prompt() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({

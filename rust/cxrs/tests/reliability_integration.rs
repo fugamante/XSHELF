@@ -167,7 +167,7 @@ exit 0
 }
 
 #[test]
-fn shadow_narrow_profile_fields_log_for_supported_capture() {
+fn shadow_narrow_logfields() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(
         "test",

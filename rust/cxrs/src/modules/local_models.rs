@@ -328,7 +328,7 @@ pub fn remove_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
     Ok(Some(removed))
 }
 
-pub fn touch_record_for_backend(
+pub fn touch_model_record(
     backend: &str,
     query: &str,
     last_used_at: Option<&str>,

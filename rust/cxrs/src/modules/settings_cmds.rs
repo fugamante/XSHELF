@@ -10,14 +10,12 @@ use crate::config::cli_app_name;
 use crate::analytics::quota_probe_for_backend_days;
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
-use crate::local_models::{
-    find_record_for_backend, resolve_model_for_backend, touch_record_for_backend,
-};
+use crate::local_models::{find_record_for_backend, resolve_model_for_backend, touch_model_record};
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
     http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
-    selected_provider_transport, selected_resident_boundary_json, selected_runtime_caps,
+    selected_provider_transport, selected_resident_json, selected_runtime_caps,
 };
 use crate::runtime::{
     llama_cpp_model_preference, llm_backend, llm_model, mlx_model_preference,
@@ -583,13 +581,13 @@ fn llm_smoke(args: &[String]) -> i32 {
     println!("smoke_output:");
     println!("{}", text.trim());
     if matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx") && !model.trim().is_empty() {
-        let _ = note_local_model_usage(&backend, &model, None);
+        let _ = note_model_usage(&backend, &model, None);
     }
     0
 }
 
-fn note_local_model_usage(backend: &str, model: &str, smoke_status: Option<&str>) -> Option<()> {
-    match touch_record_for_backend(backend, model, Some(&utc_now_iso()), smoke_status) {
+fn note_model_usage(backend: &str, model: &str, smoke_status: Option<&str>) -> Option<()> {
+    match touch_model_record(backend, model, Some(&utc_now_iso()), smoke_status) {
         Ok(_) => Some(()),
         Err(e) => {
             crate::cx_eprintln!(
@@ -899,7 +897,7 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
         } else {
             None
         };
-        let _ = note_local_model_usage("mlx", model_input, smoke_status);
+        let _ = note_model_usage("mlx", model_input, smoke_status);
     }
     let payload = match result {
         Ok(v) => json!({
@@ -1003,7 +1001,7 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
         "selected_adapter": selected_adapter_name(),
         "selected_transport": selected_provider_transport(),
         "http_request_profile": http_profile_opt(),
-        "boundary": selected_resident_boundary_json(),
+        "boundary": selected_resident_json(),
         "runtime_capability": {
             "resident_server": runtime_caps.resident_server,
             "openai_compatible": runtime_caps.openai_compatible,

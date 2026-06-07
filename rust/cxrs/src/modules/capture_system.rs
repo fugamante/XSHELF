@@ -189,7 +189,7 @@ fn process_capture(
     } else {
         None
     };
-    let shadow_safe = shadow.as_ref().map(shadow_safe_for_prompt);
+    let shadow_safe = shadow.as_ref().map(prompt_shadow_safe);
     let prompt_text = shadow
         .as_ref()
         .filter(|_| use_shadow_prompt && shadow_safe == Some(true))
@@ -205,7 +205,7 @@ fn process_capture(
     stats.capture_prompt_reducer_kind = prompt_profile
         .as_log_field()
         .map(|_| reduction.metadata.reducer_kind.to_string());
-    stats.capture_prompt_fallback_reason = capture_prompt_fallback_reason(
+    stats.capture_prompt_fallback_reason = prompt_fallback_reason(
         prompt_profile,
         native_reduce,
         reduction.metadata.reducer_kind,
@@ -215,7 +215,7 @@ fn process_capture(
     (clipped_text, stats)
 }
 
-fn shadow_safe_for_prompt(shadow: &ShadowAssembly) -> bool {
+fn prompt_shadow_safe(shadow: &ShadowAssembly) -> bool {
     shadow.text.contains("exit_status:")
         && shadow.text.contains("output.")
         && !shadow
@@ -224,7 +224,7 @@ fn shadow_safe_for_prompt(shadow: &ShadowAssembly) -> bool {
             .any(|id| id == "command.exit_status" || id.starts_with("output."))
 }
 
-fn capture_prompt_fallback_reason(
+fn prompt_fallback_reason(
     prompt_profile: CapturePromptProfile,
     native_reduce: bool,
     reducer_kind: &str,
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn shadow_narrow_profile_uses_assembled_test_output() {
+    fn shadow_narrow_assembles() {
         let cmd = vec!["test".to_string()];
         let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
         let cfg = test_budget(1000, 80);
@@ -389,7 +389,7 @@ mod tests {
     }
 
     #[test]
-    fn shadow_narrow_profile_falls_back_for_unsupported_command() {
+    fn shadow_narrow_unsupported() {
         let cmd = vec!["git".to_string(), "status".to_string()];
         let raw = "On branch main\nChanges not staged for commit:\n  modified: README.md\n";
         let cfg = test_budget(1000, 80);
@@ -435,7 +435,7 @@ mod tests {
     }
 
     #[test]
-    fn shadow_prompt_guard_falls_back_when_output_would_be_omitted() {
+    fn shadow_prompt_guard() {
         let cmd = vec!["test".to_string()];
         let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
         let cfg = test_budget(40, 2);
@@ -588,7 +588,7 @@ mod tests {
     }
 
     #[test]
-    fn shadow_measurements_hold_for_test_output_fixture() {
+    fn shadow_measurements_test() {
         let manifest = parse_fixture_manifest(include_str!(
             "../../tests/fixtures/phase_x/test_output_reducer_manifest.json"
         ));
@@ -597,7 +597,7 @@ mod tests {
     }
 
     #[test]
-    fn shadow_measurements_hold_for_diff_fixture() {
+    fn shadow_measurements_diff() {
         let manifest = parse_fixture_manifest(include_str!(
             "../../tests/fixtures/phase_x/diff_reducer_manifest.json"
         ));

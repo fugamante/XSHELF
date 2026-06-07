@@ -82,7 +82,7 @@ fn optimize_json_matches_contract_fixture() {
 }
 
 #[test]
-fn optimize_json_reports_capture_prompt_rollout_guidance() {
+fn optimize_capture_prompt() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({

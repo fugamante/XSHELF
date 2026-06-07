@@ -213,7 +213,7 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
         new_in_second.len(),
         missing_in_second.len(),
     );
-    let capture_prompt = compute_capture_prompt_stats(rows);
+    let capture_prompt = compute_prompt_stats(rows);
     let retry = compute_retry_stats(rows);
     let critical = compute_critical_stats(rows);
     let timing = compute_timing_stats(rows);
@@ -232,7 +232,7 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
     }
 }
 
-fn compute_capture_prompt_stats(rows: &[Value]) -> CapturePromptStats {
+fn compute_prompt_stats(rows: &[Value]) -> CapturePromptStats {
     let mut out = CapturePromptStats::default();
     for r in rows {
         let Some(obj) = r.as_object() else {

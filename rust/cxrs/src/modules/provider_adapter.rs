@@ -635,7 +635,7 @@ pub fn backend_runtime_caps_for(
     let is_http = provider_transport_for_adapter(adapter_name) == "http";
     let openai_profile = http_profile_name == Some("openai_json");
     let resident_server =
-        resident_server_capability_for(backend_raw, adapter_name, http_profile_name, provider_url);
+        resident_capability_for(backend_raw, adapter_name, http_profile_name, provider_url);
     BackendRuntimeCapabilities {
         model_registry: Some(local_backend),
         model_aliases: Some(local_backend),
@@ -705,7 +705,7 @@ fn models_probe_url(url: &str) -> Result<String, LlmRunError> {
     Ok(format!("{scheme}{authority}/v1/models"))
 }
 
-pub fn resident_boundary_reason_for(
+pub fn resident_boundary_reason(
     backend_raw: &str,
     adapter_name: &str,
     http_profile_name: Option<&str>,
@@ -729,23 +729,23 @@ pub fn resident_boundary_reason_for(
     "eligible"
 }
 
-fn resident_server_capability_for(
+fn resident_capability_for(
     backend_raw: &str,
     adapter_name: &str,
     http_profile_name: Option<&str>,
     provider_url: Option<&str>,
 ) -> bool {
-    resident_boundary_reason_for(backend_raw, adapter_name, http_profile_name, provider_url)
+    resident_boundary_reason(backend_raw, adapter_name, http_profile_name, provider_url)
         == "eligible"
 }
 
-pub fn selected_resident_boundary_json() -> Value {
+pub fn selected_resident_json() -> Value {
     let backend = llm_backend();
     let adapter = selected_adapter_name();
     let profile = http_profile_opt();
     let provider_url = env_nonempty("CX_HTTP_PROVIDER_URL");
     let local_endpoint = provider_url.as_deref().map(is_local_url);
-    let reason = resident_boundary_reason_for(&backend, adapter, profile, provider_url.as_deref());
+    let reason = resident_boundary_reason(&backend, adapter, profile, provider_url.as_deref());
     json!({
         "required_backend": "mlx",
         "required_transport": "http",
@@ -767,7 +767,7 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
     let profile = http_profile_opt();
     let provider_url = env_nonempty("CX_HTTP_PROVIDER_URL");
     let boundary_reason =
-        resident_boundary_reason_for(&backend, adapter, profile, provider_url.as_deref());
+        resident_boundary_reason(&backend, adapter, profile, provider_url.as_deref());
     if boundary_reason != "eligible" {
         return Err(LlmRunError::message(format!(
             "http models probe requires the local MLX resident boundary (reason: {boundary_reason})"

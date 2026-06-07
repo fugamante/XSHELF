@@ -904,7 +904,7 @@ fn llm_use_mlx_alias_shows_resolved_model() {
 }
 
 #[test]
-fn backend_alias_resolution_ignores_other_backend_collision() {
+fn backend_alias_collision() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
         repo.run(&[
@@ -958,7 +958,7 @@ fn backend_alias_resolution_ignores_other_backend_collision() {
 }
 
 #[test]
-fn models_inspect_rejects_ambiguous_cross_backend_alias() {
+fn inspect_ambiguous_alias() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
         repo.run(&[
@@ -1009,7 +1009,7 @@ fn models_inspect_rejects_ambiguous_cross_backend_alias() {
 }
 
 #[test]
-fn models_remove_rejects_ambiguous_cross_backend_alias() {
+fn remove_ambiguous_alias() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
         repo.run(&[
@@ -1246,7 +1246,7 @@ printf 'smoke ok'
 }
 
 #[test]
-fn llm_smoke_updates_local_model_last_used_at() {
+fn smoke_updates_usage() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
         repo.run(&[
@@ -1426,7 +1426,7 @@ JSON
 }
 
 #[test]
-fn llm_resident_probe_requires_mlx_backend_boundary() {
+fn resident_probe_boundary() {
     let repo = TempRepo::new("cxrs-llm");
     repo.write_mock(
         "curl",
@@ -1457,7 +1457,7 @@ JSON
 }
 
 #[test]
-fn llm_resident_show_marks_remote_http_endpoint_non_resident() {
+fn resident_show_remote() {
     let repo = TempRepo::new("cxrs-llm");
     let out = repo.run_with_env(
         &["llm", "resident", "show", "--json"],
