@@ -282,7 +282,6 @@ mod tests {
             clip_footer: false,
         }
     }
-
     #[test]
     fn shadow_keeps_core() {
         let cmd = vec!["test".to_string()];
@@ -298,7 +297,6 @@ mod tests {
         assert!(shadow.omitted_section_ids.is_empty());
         assert!(!shadow.clipped);
     }
-
     #[test]
     fn shadow_promotes_uncertain() {
         let reduction = ReductionResult {
@@ -332,7 +330,6 @@ mod tests {
         assert!(output < metadata);
         assert!(shadow.text.contains("uncertainty: high"));
     }
-
     #[test]
     fn shadow_does_not_change_result() {
         let cmd = vec!["test".to_string()];
@@ -363,7 +360,6 @@ mod tests {
             format!("{:?}", with_shadow.1)
         );
     }
-
     #[test]
     fn shadow_narrow_assembles() {
         let cmd = vec!["test".to_string()];
@@ -387,7 +383,6 @@ mod tests {
             Some(captured.chars().count() as u64)
         );
     }
-
     #[test]
     fn shadow_narrow_unsupported() {
         let cmd = vec!["git".to_string(), "status".to_string()];
@@ -433,7 +428,6 @@ mod tests {
         expected.capture_prompt_fallback_reason = legacy.1.capture_prompt_fallback_reason.clone();
         assert_eq!(format!("{:?}", legacy.1), format!("{:?}", expected));
     }
-
     #[test]
     fn shadow_prompt_guard() {
         let cmd = vec!["test".to_string()];
@@ -464,7 +458,6 @@ mod tests {
     fn parse_fixture_manifest(json: &str) -> Value {
         serde_json::from_str(json).expect("parse fixture manifest")
     }
-
     fn manifest_command(manifest: &Value) -> Vec<String> {
         manifest
             .get("command")
@@ -474,7 +467,6 @@ mod tests {
             .map(|value| value.as_str().expect("command string").to_string())
             .collect()
     }
-
     fn manifest_exit_status(manifest: &Value) -> i32 {
         manifest
             .get("exit_status")
