@@ -11,11 +11,13 @@
 
 ```bash
 cd rust/cxrs
-cargo fmt --check
+./scripts/guardrails.sh
+./scripts/check_rs_max_lines.sh 600 ../..
+./scripts/check_integration_guardrails.sh ../.. 500
 cargo check
-cargo test --tests -- --test-threads=1
 cargo test --test reliability_integration -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
+python3 tools/release_check.py --repo-root ../.. --max-version-age-days 14
 cd ../..
 ./scripts/check_action_pins.sh .
 ```

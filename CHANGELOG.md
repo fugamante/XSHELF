@@ -22,6 +22,7 @@ Notes:
   - added release-cadence staleness gate to `rust/cxrs/tools/release_check.py` with CI enforcement in `cxrs-compat`.
   - cadence gate now fails when `VERSION` is older than 14 days unless pull requests carry explicit `release-exception` label.
   - refreshed `VERSION` to `2026.06.03` so the cadence gate reflects current active branch state.
+  - aligned maintainer docs/checklists with the active local guardrail path (`rust/cxrs/scripts/guardrails.sh`, Rust line/integration guardrails, and `release_check.py` cadence validation).
 - Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.

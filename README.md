@@ -287,6 +287,10 @@ Runtime-facing validation:
 Maintainer validation:
 
 ```bash
+./rust/cxrs/scripts/guardrails.sh
+./rust/cxrs/scripts/check_rs_max_lines.sh 600 "$(pwd)"
+./rust/cxrs/scripts/check_integration_guardrails.sh "$(pwd)" 500
+python3 ./rust/cxrs/tools/release_check.py --repo-root . --max-version-age-days 14
 ./scripts/compat_local.sh --quick
 ./scripts/compat_local.sh --full --out .cx/compat/latest.json
 ./scripts/compat_all.sh --quick

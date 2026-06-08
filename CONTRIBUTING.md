@@ -27,10 +27,14 @@
 
 ```bash
 cd rust/cxrs
+./scripts/guardrails.sh
+./scripts/check_rs_max_lines.sh 600 "$(pwd)/../.."
+./scripts/check_integration_guardrails.sh "$(pwd)/../.." 500
 cargo fmt
 cargo check
 cargo test --tests -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
+python3 tools/release_check.py --repo-root ../.. --max-version-age-days 14
 ```
 
 ## Pull Request Requirements
@@ -40,6 +44,7 @@ python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --ma
 - Do not introduce startup side effects.
 - Update `README.md`/`CHANGELOG.md` when behavior or contracts change.
 - Keep release cadence current: CI fails when `VERSION` is older than 14 days unless the PR is explicitly labeled `release-exception`.
+- Keep Rust/file/integration guardrails green locally before push: `./scripts/guardrails.sh`, `./scripts/check_rs_max_lines.sh`, and `./scripts/check_integration_guardrails.sh`.
 - Keep third-party GitHub Actions pinned to full 40-character commit SHAs; validate with `./scripts/check_action_pins.sh .`.
 
 ## Commit Guidance
