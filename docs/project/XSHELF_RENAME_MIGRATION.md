@@ -135,6 +135,8 @@ Current status:
 - `bin/xs` is now available as a short runtime alias
 - install flow now supports `bin/xshelf-install`
 - install flow now supports `bin/xs-install`
+- uninstall flow now supports `bin/xshelf-uninstall`
+- uninstall flow now supports `bin/xs-uninstall`
 - man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
 - `cx` remains fully supported as the compatibility path

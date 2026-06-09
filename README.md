@@ -59,6 +59,9 @@ man xshelf
 man cx
 ```
 
+Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
+`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
+
 Then check backend health:
 
 ```bash
@@ -92,6 +95,7 @@ Current compatibility storage path:
 - logs: `.cx/cxlogs/`
 - quarantine: `.cx/quarantine/`
 - state/tasks/runtime metadata: `.cx/`
+- task-event progress stream: `.codex/cxlogs/task_events.jsonl`
 
 ## Capabilities
 
