@@ -140,6 +140,9 @@ Current status:
 - man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
 - `cx` remains fully supported as the compatibility path
+- CI now requires command-surface changes to update `README.md`,
+  `CHANGELOG.md`, and this migration policy together so canonical and
+  compatibility guidance do not drift
 
 Exit criteria:
 

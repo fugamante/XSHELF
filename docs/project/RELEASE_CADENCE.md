@@ -23,6 +23,7 @@ cd ../..
 ```
 
 - Validate `CHANGELOG.md` has release notes.
+- If command entrypoints or command-facing help/routing changed, validate `README.md` and `docs/project/XSHELF_RENAME_MIGRATION.md` were updated in the same bundle.
 - Validate README requirements/version notes still match tested environment.
 
 ## Cadence Enforcement

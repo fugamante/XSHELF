@@ -24,6 +24,7 @@ Notes:
   - refreshed `VERSION` to `2026.06.03` so the cadence gate reflects current active branch state.
   - aligned maintainer docs/checklists with the active local guardrail path (`rust/cxrs/scripts/guardrails.sh`, Rust line/integration guardrails, and `release_check.py` cadence validation).
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
+  - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.
 - Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.

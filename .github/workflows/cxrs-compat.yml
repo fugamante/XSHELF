@@ -59,24 +59,7 @@ jobs:
             fi
           fi
           head="${{ github.sha }}"
-          changed="$(git diff --name-only "$base" "$head")"
-          cmd_changed="$(echo "$changed" | grep -E '^(bin/(cx|xs|xshelf)(-(install|uninstall))?|lib/cx\.sh|cx\.sh|rust/cxrs/src/app/mod\.rs|rust/cxrs/src/modules/(.*cmd.*\.rs|help_data\.rs|native_dispatch\.rs|compat_dispatch\.rs|command_names\.rs|routing\.rs))$' || true)"
-          if [[ -z "$cmd_changed" ]]; then
-            echo "command surface: unchanged"
-            exit 0
-          fi
-          changelog_changed="$(echo "$changed" | grep -E '^CHANGELOG\.md$' || true)"
-          if [[ -z "$changelog_changed" ]]; then
-            echo "Command surface changed without CHANGELOG.md update."
-            echo "Changed command files:"
-            echo "$cmd_changed"
-            exit 1
-          fi
-          docs_changed="$(echo "$changed" | grep -E '^(README\.md|docs/)' || true)"
-          if [[ -z "$docs_changed" ]]; then
-            echo "warning: command surface changed with changelog only (README/docs unchanged)"
-          fi
-          echo "command surface gate: PASS"
+          ./scripts/check_command_surface_docs.sh "$GITHUB_WORKSPACE" "$base" "$head"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
