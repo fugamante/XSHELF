@@ -33,10 +33,12 @@ cd rust/cxrs
 cargo fmt
 cargo check
 cargo test --tests -- --test-threads=1
-python3 -m unittest tools.test_release_check
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
-python3 tools/release_check.py --repo-root ../.. --max-version-age-days 14
 ```
+
+`./scripts/guardrails.sh` includes the release-cadence gate
+(`tools/release_check.py --repo-root ../.. --max-version-age-days 14`) and its
+Python unit tests so the default local path matches `cxrs-compat` CI.
 
 ## Pull Request Requirements
 
