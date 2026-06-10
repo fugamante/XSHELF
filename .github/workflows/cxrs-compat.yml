@@ -60,7 +60,7 @@ jobs:
           fi
           head="${{ github.sha }}"
           changed="$(git diff --name-only "$base" "$head")"
-          cmd_changed="$(echo "$changed" | grep -E '^(bin/cx|lib/cx.sh|cx.sh|rust/cxrs/src/app/mod.rs|rust/cxrs/src/modules/(.*cmd.*\.rs|help_data\.rs|native_dispatch\.rs|compat_dispatch\.rs|command_names\.rs|routing\.rs))$' || true)"
+          cmd_changed="$(echo "$changed" | grep -E '^(bin/(cx|xs|xshelf)(-(install|uninstall))?|lib/cx\.sh|cx\.sh|rust/cxrs/src/app/mod\.rs|rust/cxrs/src/modules/(.*cmd.*\.rs|help_data\.rs|native_dispatch\.rs|compat_dispatch\.rs|command_names\.rs|routing\.rs))$' || true)"
           if [[ -z "$cmd_changed" ]]; then
             echo "command surface: unchanged"
             exit 0
