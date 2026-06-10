@@ -294,6 +294,7 @@ Maintainer validation:
 ./rust/cxrs/scripts/guardrails.sh
 ./rust/cxrs/scripts/check_rs_max_lines.sh 600 "$(pwd)"
 ./rust/cxrs/scripts/check_integration_guardrails.sh "$(pwd)" 500
+python3 -m unittest rust.cxrs.tools.test_release_check
 python3 ./rust/cxrs/tools/release_check.py --repo-root . --max-version-age-days 14
 ./scripts/compat_local.sh --quick
 ./scripts/compat_local.sh --full --out .cx/compat/latest.json

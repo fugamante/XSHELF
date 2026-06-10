@@ -16,6 +16,7 @@ cd rust/cxrs
 ./scripts/check_integration_guardrails.sh ../.. 500
 cargo check
 cargo test --test reliability_integration -- --test-threads=1
+python3 -m unittest tools.test_release_check
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 python3 tools/release_check.py --repo-root ../.. --max-version-age-days 14
 cd ../..

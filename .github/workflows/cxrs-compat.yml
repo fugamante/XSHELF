@@ -220,6 +220,11 @@ jobs:
           # Gate on stderr hygiene only; size caps are enforced by dedicated line guardrails.
           python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 
+      - name: Release Metadata Guard Tests
+        run: |
+          cd rust/cxrs
+          python3 -m unittest tools.test_release_check
+
       - name: Release Metadata Check
         run: |
           cd rust/cxrs

@@ -31,4 +31,7 @@ python3 ./scripts/check_test_naming.py --root ./tests --max-len 48 --max-segment
 echo "guardrails: cargo test --tests -- --test-threads=1"
 cargo test --tests -- --test-threads=1
 
+echo "guardrails: python3 -m unittest tools.test_release_check"
+python3 -m unittest tools.test_release_check
+
 echo "guardrails: PASS"
