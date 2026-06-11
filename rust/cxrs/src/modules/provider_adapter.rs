@@ -915,16 +915,29 @@ pub struct MlxPythonAdapter {
 
 impl MlxPythonAdapter {
     fn new() -> Result<Self, LlmRunError> {
-        let model_selector = llm_model();
+        let env_model_selector = env::var("CX_MLX_MODEL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+        let model_selector = env_model_selector.clone().unwrap_or_else(llm_model);
         let model = resolve_mlx_model_for_run().map_err(LlmRunError::message)?;
         let python = env::var("CX_MLX_PYTHON")
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "python3".to_string());
-        let preferred_args =
-            crate::local_models::selector_preferred_args("mlx", &model_selector)
-                .map_err(LlmRunError::message)?;
+        let preferred_args = crate::local_models::selector_preferred_args("mlx", &model_selector)
+            .map_err(LlmRunError::message)?
+            .or_else(|| {
+                if env_model_selector.is_some() {
+                    None
+                } else {
+                    crate::local_models::find_record_for_backend(&model, "mlx")
+                        .ok()
+                        .flatten()
+                        .and_then(|record| record.preferred_args)
+                }
+            });
         Ok(Self {
             model,
             python,

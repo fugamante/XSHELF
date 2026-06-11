@@ -11,8 +11,7 @@ use crate::analytics::quota_probe_for_backend_days;
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
 use crate::local_models::{
-    find_record_for_backend, resolve_model_for_backend, selector_preferred_args,
-    touch_model_record,
+    find_record_for_backend, resolve_model_for_backend, selector_preferred_args, touch_model_record,
 };
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;

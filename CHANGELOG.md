@@ -56,7 +56,7 @@ Notes:
     - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
     - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
     - registry-backed local model metadata now refreshes `last_used_at` on successful local smoke/verify runs and `last_smoke_status` on MLX smoke verification.
-    - MLX registry `preferred_args` now flow into `cxo` execution and `llm verify mlx`, with `CX_MLX_ARGS` preserved as the final explicit override layer.
+    - alias/id-backed MLX registry `preferred_args` are now active on process-backed `cxo` execution and `llm verify mlx --profile smoke`; `CX_MLX_ARGS` remains the final override layer and the benchmark harness stays explicit about not reinterpreting those CLI args.
   - completed resident-server opt-in slice:
     - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
     - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary only on the explicit local-MLX resident path (`CX_LLM_BACKEND=mlx`, `CX_HTTP_REQUEST_PROFILE=openai_json`, local provider URL).

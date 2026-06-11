@@ -286,6 +286,9 @@ Validation:
 - real MLX checks remain opt-in because local model availability varies
 - registry-backed verification and local smoke paths refresh `last_used_at`
   metadata; MLX smoke verification also records `last_smoke_status`
+- registry-backed MLX aliases and IDs may carry `preferred_args`; the
+  process-backed MLX runtime and smoke verification path apply them before
+  `CX_MLX_ARGS`, so explicit env args remain the final override layer
 
 ### Slice 6: Resident Server Opt-In
 
