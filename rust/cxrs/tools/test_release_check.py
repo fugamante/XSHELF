@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import importlib.util
 import os
 import pathlib
 import subprocess
@@ -9,6 +10,10 @@ from datetime import datetime, timedelta, timezone
 
 
 SCRIPT_PATH = pathlib.Path(__file__).resolve().parent / "release_check.py"
+MODULE_SPEC = importlib.util.spec_from_file_location("release_check", SCRIPT_PATH)
+assert MODULE_SPEC and MODULE_SPEC.loader
+release_check = importlib.util.module_from_spec(MODULE_SPEC)
+MODULE_SPEC.loader.exec_module(release_check)
 
 
 class ReleaseCheckTests(unittest.TestCase):
@@ -59,6 +64,26 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("release_cadence_ok", result.stdout)
             self.assertIn("cadence_exception_applied=true", result.stdout)
+
+    def test_version_at_exact_limit_still_passes(self) -> None:
+        now = datetime(2026, 6, 10, 12, 0, 0, tzinfo=timezone.utc)
+        updated_at = now - timedelta(days=14)
+        self.assertFalse(release_check.age_exceeds_limit(now, updated_at, 14))
+
+    def test_version_older_than_limit_by_seconds_fails(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo)
+            commit_all(
+                repo,
+                "stale boundary release metadata",
+                days_ago=14,
+                extra_seconds=5,
+            )
+
+            result = run_release_check(repo, max_version_age_days=14)
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("VERSION is stale for release cadence", result.stdout)
 
 
 def run_release_check(
@@ -122,8 +147,17 @@ def write_release_files(repo: pathlib.Path) -> None:
     (repo / "LICENSE").write_text("test license\n", encoding="utf-8")
 
 
-def commit_all(repo: pathlib.Path, message: str, *, days_ago: int) -> None:
-    when = (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(microsecond=0)
+def commit_all(
+    repo: pathlib.Path,
+    message: str,
+    *,
+    days_ago: int,
+    extra_seconds: int = 0,
+) -> None:
+    when = (
+        datetime.now(timezone.utc)
+        - timedelta(days=days_ago, seconds=extra_seconds)
+    ).replace(microsecond=0)
     timestamp = when.isoformat().replace("+00:00", "Z")
     env = os.environ.copy()
     env["GIT_AUTHOR_DATE"] = timestamp

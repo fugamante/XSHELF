@@ -34,6 +34,14 @@ def version_last_updated_at(repo_root: pathlib.Path) -> datetime:
     return parse_iso_datetime(out)
 
 
+def age_exceeds_limit(now: datetime, updated_at: datetime, max_age_days: int) -> bool:
+    if max_age_days <= 0:
+        return False
+    max_age_seconds = max_age_days * 24 * 60 * 60
+    age_seconds = (now - updated_at).total_seconds()
+    return age_seconds > max_age_seconds
+
+
 def has_pr_exception_label(label: str, event_name: str, event_path: str | None) -> bool:
     if event_name != "pull_request" or not event_path:
         return False
@@ -128,7 +136,7 @@ def main() -> int:
         override = has_pr_exception_label(
             args.cadence_exception_label, args.event_name, args.event_path
         )
-        if age_days > args.max_version_age_days and not override:
+        if age_exceeds_limit(now, updated_at, args.max_version_age_days) and not override:
             return fail(
                 "VERSION is stale for release cadence: "
                 f"{age_days}d > {args.max_version_age_days}d "

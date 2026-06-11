@@ -26,6 +26,7 @@ Notes:
   - added focused Python unit coverage for `rust/cxrs/tools/release_check.py` and wired it into local guardrails plus `cxrs-compat` CI so release-cadence enforcement is validated before it blocks merges.
   - `rust/cxrs/scripts/guardrails.sh` now runs `tools/release_check.py --max-version-age-days 14` directly, so the default local maintainer path catches stale `VERSION` metadata before CI.
   - `scripts/compat_local.sh --quick` now runs the same release metadata unit tests and cadence check, so local compatibility reports fail before CI when `VERSION` is stale or release metadata drifts.
+  - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
   - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.
 - Phase VIII local model substrate:
