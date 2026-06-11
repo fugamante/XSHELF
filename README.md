@@ -304,6 +304,9 @@ Maintainer validation:
 `./rust/cxrs/scripts/guardrails.sh` now includes the focused
 `release_check.py --max-version-age-days 14` cadence gate and its Python unit
 tests so the default local maintainer path matches `cxrs-compat` CI.
+`./scripts/compat_local.sh --quick` now runs those same release metadata checks
+before the broader entrypoint/reliability suite so local compat reports catch
+stale `VERSION` or metadata drift before CI.
 
 Rust maintainer path:
 
