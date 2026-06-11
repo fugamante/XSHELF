@@ -373,6 +373,8 @@ fn models_crud() {
         "mlx",
         "--size-bytes",
         "1234",
+        "--preferred-args",
+        "--temp 0 --top-p 0.9",
         "--trust-remote-code",
         "false",
     ]);
@@ -422,8 +424,25 @@ fn models_crud() {
         Some(1234)
     );
     assert_eq!(
+        inspected.get("preferred_args").and_then(Value::as_str),
+        Some("--temp 0 --top-p 0.9")
+    );
+    assert_eq!(
         inspected.get("trust_remote_code").and_then(Value::as_str),
         Some("false")
+    );
+
+    let inspect_text = repo.run(&["llm", "models", "inspect", "qwen-coder"]);
+    assert!(
+        inspect_text.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect_text),
+        stderr_str(&inspect_text)
+    );
+    assert!(
+        stdout_str(&inspect_text).contains("preferred_args: --temp 0 --top-p 0.9"),
+        "{}",
+        stdout_str(&inspect_text)
     );
 
     let stored = read_json(&repo.local_models_file());
@@ -656,6 +675,8 @@ fn models_inspect_reports_accounting_paths() {
 #[test]
 fn llm_verify_mlx_smoke_resolves_registry_alias() {
     let repo = TempRepo::new("cxrs-llm");
+    let args_file = repo.root.join("mlx_verify_args.txt");
+    let args_path = args_file.display().to_string();
     let add = repo.run(&[
         "llm",
         "models",
@@ -665,19 +686,26 @@ fn llm_verify_mlx_smoke_resolves_registry_alias() {
         "mlx",
         "--model",
         "mlx-community/Tiny-Resolved",
+        "--preferred-args",
+        "--temp 0 --top-p 0.8",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
 
     repo.write_mock(
         "mlx-python",
         r#"#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MLX_VERIFY_ARGS_FILE"
 printf 'OK'
 "#,
     );
     let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
     let out = repo.run_with_env(
         &["llm", "verify", "mlx", "--json"],
-        &[("CX_MLX_MODEL", "tiny"), ("CX_MLX_PYTHON", &mlx_python)],
+        &[
+            ("CX_MLX_MODEL", "tiny"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("MLX_VERIFY_ARGS_FILE", &args_path),
+        ],
     );
     assert!(
         out.status.success(),
@@ -707,11 +735,25 @@ printf 'OK'
     );
     assert_eq!(
         v.get("result")
+            .and_then(|v| v.get("model"))
+            .and_then(|v| v.get("preferred_args"))
+            .and_then(Value::as_str),
+        Some("--temp 0 --top-p 0.8")
+    );
+    assert_eq!(
+        v.get("result")
             .and_then(|v| v.get("correctness"))
             .and_then(|v| v.get("exact"))
             .and_then(Value::as_bool),
         Some(true)
     );
+    let verify_args = fs::read_to_string(&args_file).expect("read verify args");
+    assert!(
+        verify_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
+        "{verify_args}"
+    );
+    assert!(verify_args.contains("--temp\n0\n"), "{verify_args}");
+    assert!(verify_args.contains("--top-p\n0.8\n"), "{verify_args}");
 
     let inspect = repo.run(&["llm", "models", "inspect", "tiny", "--json"]);
     assert!(
@@ -857,6 +899,8 @@ fn llm_use_mlx_alias_shows_resolved_model() {
             "mlx",
             "--model",
             "mlx-community/Tiny-Resolved",
+            "--preferred-args",
+            "--temp 0.7 --top-p 0.9",
         ])
         .status
         .success()
@@ -1062,6 +1106,8 @@ fn mlx_alias_exec_resolution_env_override() {
             "mlx",
             "--model",
             "mlx-community/Tiny-Resolved",
+            "--preferred-args",
+            "--temp 0.7 --top-p 0.9",
         ])
         .status
         .success()
@@ -1085,6 +1131,7 @@ printf 'mlx ok'
             ("CX_LLM_BACKEND", "mlx"),
             ("CX_MLX_MODEL", "tiny"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 9"),
             ("MLX_ARGS_FILE", &alias_args_path),
         ],
     );
@@ -1099,6 +1146,11 @@ printf 'mlx ok'
         alias_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
         "{alias_args}"
     );
+    assert!(alias_args.contains("--top-p\n0.9\n"), "{alias_args}");
+    assert!(alias_args.contains("--seed\n9\n"), "{alias_args}");
+    let pref_pos = alias_args.find("--temp\n0.7\n").expect("preferred temp");
+    let env_pos = alias_args.find("--temp\n0.1\n").expect("env temp");
+    assert!(pref_pos < env_pos, "{alias_args}");
 
     let direct_args_file = repo.root.join("mlx_direct_args.txt");
     let direct_args_path = direct_args_file.display().to_string();
@@ -1106,8 +1158,9 @@ printf 'mlx ok'
         &["cxo", "echo", "hi"],
         &[
             ("CX_LLM_BACKEND", "mlx"),
-            ("CX_MLX_MODEL", "mlx-community/Direct-From-Env"),
+            ("CX_MLX_MODEL", "mlx-community/Tiny-Resolved"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 7"),
             ("MLX_ARGS_FILE", &direct_args_path),
         ],
     );
@@ -1119,9 +1172,13 @@ printf 'mlx ok'
     );
     let direct_args = fs::read_to_string(&direct_args_file).expect("read mlx direct args");
     assert!(
-        direct_args.contains("--model\nmlx-community/Direct-From-Env\n"),
+        direct_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
         "{direct_args}"
     );
+    assert!(!direct_args.contains("--top-p\n0.9\n"), "{direct_args}");
+    assert!(!direct_args.contains("--temp\n0.7\n"), "{direct_args}");
+    assert!(direct_args.contains("--temp\n0.1\n"), "{direct_args}");
+    assert!(direct_args.contains("--seed\n7\n"), "{direct_args}");
 }
 
 #[test]

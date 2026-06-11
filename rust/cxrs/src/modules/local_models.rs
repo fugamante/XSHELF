@@ -236,6 +236,22 @@ pub fn find_record_for_backend(
     Ok(None)
 }
 
+pub fn selector_preferred_args(backend: &str, query: &str) -> Result<Option<String>, String> {
+    let Some(canonical_backend) = normalize_backend(backend) else {
+        return Ok(None);
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(None);
+    }
+    for record in list_records()? {
+        if record.backend == canonical_backend && (record.id == q || record.alias == q) {
+            return Ok(record.preferred_args);
+        }
+    }
+    Ok(None)
+}
+
 pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String> {
     let alias = clean_token("alias", &input.alias)?;
     let Some(backend) = normalize_backend(&input.backend) else {

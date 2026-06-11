@@ -10,7 +10,10 @@ use crate::config::cli_app_name;
 use crate::analytics::quota_probe_for_backend_days;
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
-use crate::local_models::{find_record_for_backend, resolve_model_for_backend, touch_model_record};
+use crate::local_models::{
+    find_record_for_backend, resolve_model_for_backend, selector_preferred_args,
+    touch_model_record,
+};
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
@@ -657,7 +660,8 @@ fn resolve_mlx_model_for_verify() -> Result<Value, String> {
         "input": input,
         "resolved": resolved.resolved_model,
         "alias": resolved.alias,
-        "id": resolved.id
+        "id": resolved.id,
+        "preferred_args": selector_preferred_args("mlx", &input)?
     }))
 }
 
@@ -790,8 +794,10 @@ fn run_mlx_smoke_profile(prompt: &str, model_info: &Value) -> Result<Value, Stri
         .get("resolved")
         .and_then(Value::as_str)
         .ok_or_else(|| "resolved model missing".to_string())?;
+    let preferred_args = model_info.get("preferred_args").and_then(Value::as_str);
     let start = Instant::now();
-    let output = run_mlx_plain(prompt, resolved_model, &python).map_err(|e| e.to_string())?;
+    let output = run_mlx_plain(prompt, resolved_model, &python, preferred_args)
+        .map_err(|e| e.to_string())?;
     let wall_ms = start.elapsed().as_millis() as u64;
     let exact = output.trim() == "OK";
     Ok(json!({

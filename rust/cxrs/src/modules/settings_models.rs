@@ -408,6 +408,10 @@ fn llm_models_inspect(app_name: &str, args: &[String]) -> i32 {
                     "last_smoke_status: {}",
                     record.last_smoke_status.as_deref().unwrap_or("<unknown>")
                 );
+                println!(
+                    "preferred_args: {}",
+                    record.preferred_args.as_deref().unwrap_or("<unset>")
+                );
                 println!("trust_remote_code: {}", record.trust_remote_code);
                 0
             }

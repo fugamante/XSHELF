@@ -5,7 +5,7 @@ use crate::llm::{
 };
 use crate::process::run_command_output_with_timeout;
 use crate::runtime::{
-    llm_backend, resolve_llama_cpp_model_for_run, resolve_mlx_model_for_run,
+    llm_backend, llm_model, resolve_llama_cpp_model_for_run, resolve_mlx_model_for_run,
     resolve_ollama_model_for_run,
 };
 use base64::Engine;
@@ -910,23 +910,37 @@ pub struct LlamaCppCliAdapter {
 pub struct MlxPythonAdapter {
     model: String,
     python: String,
+    preferred_args: Option<String>,
 }
 
 impl MlxPythonAdapter {
     fn new() -> Result<Self, LlmRunError> {
+        let model_selector = llm_model();
         let model = resolve_mlx_model_for_run().map_err(LlmRunError::message)?;
         let python = env::var("CX_MLX_PYTHON")
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "python3".to_string());
-        Ok(Self { model, python })
+        let preferred_args =
+            crate::local_models::selector_preferred_args("mlx", &model_selector)
+                .map_err(LlmRunError::message)?;
+        Ok(Self {
+            model,
+            python,
+            preferred_args,
+        })
     }
 }
 
 impl ProviderAdapter for MlxPythonAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_mlx_plain(prompt, &self.model, &self.python)
+        run_mlx_plain(
+            prompt,
+            &self.model,
+            &self.python,
+            self.preferred_args.as_deref(),
+        )
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
