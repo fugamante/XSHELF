@@ -302,6 +302,7 @@ Maintainer validation:
 ./rust/cxrs/scripts/check_integration_guardrails.sh "$(pwd)" 500
 ./scripts/compat_local.sh --quick
 ./scripts/compat_local.sh --full --out .cx/compat/latest.json
+./scripts/compat_docker.sh --smoke
 ./scripts/compat_docker.sh --quick
 ./scripts/compat_docker.sh --full --out .cx/compat/docker_latest.json
 ./scripts/compat_all.sh --quick
@@ -315,6 +316,10 @@ tests so the default local maintainer path matches `cxrs-compat` CI.
 `./scripts/compat_local.sh --quick` now runs those same release metadata checks
 before the broader entrypoint/reliability suite so local compat reports catch
 stale `VERSION` or metadata drift before CI.
+`./scripts/compat_docker.sh --smoke` is the faster Linux-hosted path: it runs
+release metadata checks plus a bind-mounted runtime smoke (`bin/cx` / `bin/xshelf`
+version, schema registry, and `core --json`) without paying the full quick-suite
+cost.
 `./scripts/compat_docker.sh` builds a local Rust/JQ/Python container and
 bind-mounts the repo into `/work`, which lets Linux-hosted compat runs exercise
 the same scripts without adding a second contract surface.

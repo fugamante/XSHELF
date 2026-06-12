@@ -35,12 +35,15 @@ cargo check
 cargo test --tests -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 cd ../..
+./scripts/compat_docker.sh --smoke
 ./scripts/compat_docker.sh --quick
 ```
 
 `./scripts/guardrails.sh` includes the release-cadence gate
 (`tools/release_check.py --repo-root ../.. --max-version-age-days 14`) and its
 Python unit tests so the default local path matches `cxrs-compat` CI.
+Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
+signal before paying for the full quick compat suite.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
 
