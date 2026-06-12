@@ -1,3 +1,5 @@
+use std::fs;
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -27,6 +29,32 @@ fn bin_cx_version_reports_runtime() {
         .current_dir(&repo)
         .output()
         .expect("run bin/cx version");
+
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("execution_path:"), "{stdout}");
+}
+
+#[test]
+fn cx_target_dir() {
+    let repo = repo_root();
+    let temp = tempfile::tempdir().expect("tempdir");
+    let release_dir = temp.path().join("release");
+    fs::create_dir_all(&release_dir).expect("create release dir");
+    let linked_bin = release_dir.join("cxrs");
+    symlink(env!("CARGO_BIN_EXE_cxrs"), &linked_bin).expect("symlink cxrs");
+
+    let out = Command::new(repo.join("bin").join("cx"))
+        .arg("version")
+        .env("CARGO_TARGET_DIR", temp.path())
+        .current_dir(&repo)
+        .output()
+        .expect("run bin/cx version with CARGO_TARGET_DIR");
 
     assert!(
         out.status.success(),

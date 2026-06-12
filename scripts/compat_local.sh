@@ -8,6 +8,15 @@ MODE="quick"
 JSON_STDOUT=0
 OUT_FILE=".cx/compat/latest.json"
 
+if ! command -v cargo >/dev/null 2>&1; then
+  for cargo_bin in "$HOME/.cargo/bin" /usr/local/cargo/bin; do
+    if [[ -x "$cargo_bin/cargo" ]]; then
+      export PATH="$cargo_bin:$PATH"
+      break
+    fi
+  done
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --full)
@@ -60,7 +69,7 @@ run_step() {
   local start_ms end_ms dur_ms rc
   start_ms="$(now_ms)"
   set +e
-  bash -lc "$cmd" 1>&2 2>&2
+  bash -c "$cmd" 1>&2 2>&2
   rc=$?
   set -e
   end_ms="$(now_ms)"
