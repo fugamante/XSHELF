@@ -82,6 +82,11 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
         description: "Show/set broker policy and benchmark backend performance from local run logs",
     },
     CommandHelp {
+        name: "launch",
+        usage: "launch [--json] [--no-open] [--local|--remote] [--cxops-bin PATH]",
+        description: "Start the cxops UI/server companion and open the dashboard",
+    },
+    CommandHelp {
         name: "task",
         usage: "task <op> [...]",
         description: "Task graph management (add/list/claim/complete/fail/show/fanout)",

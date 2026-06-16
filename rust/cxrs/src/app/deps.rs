@@ -89,6 +89,7 @@ pub(super) fn native_deps() -> native_cmd::NativeDeps {
         cmd_llm: native_cmd_llm,
         cmd_policy: native_cmd_policy,
         cmd_broker: native_cmd_broker,
+        cmd_launch: native_cmd_launch,
         cmd_bench,
         print_metrics,
         cmd_quota,
