@@ -322,7 +322,10 @@ version, schema registry, and `core --json`) without paying the full quick-suite
 cost.
 `./scripts/compat_docker.sh` builds a local Rust/JQ/Python container and
 bind-mounts the repo into `/work`, which lets Linux-hosted compat runs exercise
-the same scripts without adding a second contract surface.
+the same scripts without adding a second contract surface. Use the wrapper for
+maintainer checks rather than direct `docker run`: it supplies the host UID/GID,
+`HOME`, `PATH`, workdir, and isolated Cargo target directory expected by the
+compat suite.
 
 Rust maintainer path:
 
