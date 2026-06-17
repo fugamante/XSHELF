@@ -105,7 +105,10 @@ def run_release_check(
         cmd.extend(["--event-name", event_name])
     if event_path is not None:
         cmd.extend(["--event-path", str(event_path)])
-    return subprocess.run(cmd, capture_output=True, text=True, check=False)
+    env = os.environ.copy()
+    env.pop("GITHUB_EVENT_NAME", None)
+    env.pop("GITHUB_EVENT_PATH", None)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
 
 
 class temp_repo:
