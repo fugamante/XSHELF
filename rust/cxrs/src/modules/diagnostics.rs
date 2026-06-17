@@ -18,7 +18,9 @@ use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
 use crate::logs::load_values;
 use crate::paths::{repo_root_hint, resolve_log_file};
-use crate::provider_adapter::{adapter_policy_value, selected_tq_caps};
+use crate::provider_adapter::{
+    adapter_policy_value, runtime_caps_json, selected_runtime_caps, selected_tq_caps,
+};
 use crate::routing::{bash_type_of_function, route_handler_for};
 use crate::runtime::{llm_backend, llm_model};
 use crate::task_cmds::task_readiness_value;
@@ -507,6 +509,7 @@ fn print_diag_header(app_version: &str, cfg: &crate::config::AppConfig) {
     let model = llm_model();
     let active_model = if model.is_empty() { "<unset>" } else { &model };
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     println!("== cxdiag ==");
     println!("timestamp: {}", utc_now_iso());
     println!("version: {}", toolchain_version_string(app_version));
@@ -524,6 +527,52 @@ fn print_diag_header(app_version: &str, cfg: &crate::config::AppConfig) {
     println!(
         "backend_capability.turboquant_metric_kind: {}",
         experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
+    println!(
+        "backend_capability.runtime.model_registry: {}",
+        runtime_caps
+            .model_registry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.model_aliases: {}",
+        runtime_caps
+            .model_aliases
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.local_model_path: {}",
+        runtime_caps
+            .local_model_path
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.resident_server: {}",
+        runtime_caps
+            .resident_server
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.openai_compatible: {}",
+        runtime_caps
+            .openai_compatible
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.supports_persisted_kv_restore: {}",
+        runtime_caps
+            .supports_persisted_kv_restore
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.cache_metric_kind: {}",
+        runtime_caps.cache_metric_kind.unwrap_or("n/a")
     );
 }
 
@@ -619,10 +668,13 @@ fn concurrency_diag_value(
     cfg: &crate::config::AppConfig,
 ) -> Value {
     let default_backend = cfg.llm_backend.to_lowercase();
-    let default_backend_pool = if matches!(default_backend.as_str(), "codex" | "ollama") {
+    let default_backend_pool = if matches!(
+        default_backend.as_str(),
+        "primary" | "ollama" | "llamacpp" | "mlx"
+    ) {
         vec![default_backend]
     } else {
-        vec!["codex".to_string()]
+        vec!["primary".to_string()]
     };
     let defaults = serde_json::json!({
         "run_all_mode": "sequential",
@@ -1192,7 +1244,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "<unresolved>".to_string());
     let repo = repo_root_hint().unwrap_or_else(|| PathBuf::from("."));
-    let schema_dir = repo.join(".codex").join("schemas");
+    let schema_dir = repo.join(".cx").join("schemas");
     let backend = llm_backend();
     let model = llm_model();
     let active_model = if model.is_empty() {
@@ -1201,6 +1253,7 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
         model
     };
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     let scheduler = scheduler_diag_value(&log_file, window);
     let retry = retry_diag_value(&log_file, window);
     let critical = critical_diag_value(&log_file, window);
@@ -1255,7 +1308,8 @@ pub fn cmd_diag(app_version: &str, args: &[String]) -> i32 {
                     "cx_runtime_support": experiment_caps.turboquant_runtime_support,
                     "selected_backend_role": experiment_caps.turboquant_backend_role,
                     "memory_metric_kind": experiment_caps.turboquant_metric_kind,
-                }
+                },
+                "runtime": runtime_caps_json(runtime_caps)
             },
             "adapter_rollout_policy": adapter_rollout_policy,
             "capture_provider_config": provider,
@@ -1562,6 +1616,7 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
     let phase7_metrics = phase7_metrics_value(20);
     let adapter_rollout_policy = adapter_policy_value();
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     let (severity, severity_reasons) = scheduler_severity(&scheduler, &retry, &critical);
     let actions = if include_actions {
         merge_exec_action(
@@ -1586,7 +1641,8 @@ pub fn cmd_scheduler(args: &[String]) -> i32 {
                     "cx_runtime_support": experiment_caps.turboquant_runtime_support,
                     "selected_backend_role": experiment_caps.turboquant_backend_role,
                     "memory_metric_kind": experiment_caps.turboquant_metric_kind,
-                }
+                },
+                "runtime": runtime_caps_json(runtime_caps)
             },
             "adapter_rollout_policy": adapter_rollout_policy,
             "scheduler": scheduler,
@@ -1871,7 +1927,7 @@ mod tests {
     fn require_policy_field() {
         let row_missing = json!({
             "execution_id":"e1",
-            "backend_used":"codex",
+            "backend_used":"primary",
             "capture_provider":"native",
             "execution_mode":"lean",
             "schema_enforced":false,
@@ -1885,7 +1941,7 @@ mod tests {
 
         let row_with = json!({
             "execution_id":"e2",
-            "backend_used":"codex",
+            "backend_used":"primary",
             "capture_provider":"native",
             "execution_mode":"lean",
             "schema_enforced":false,
@@ -1946,7 +2002,7 @@ mod tests {
         let scheduler = json!({
             "queue_ms_p95": 0,
             "queue_rows": 12,
-            "backend_distribution": {"codex": 6, "ollama": 6},
+            "backend_distribution": {"primary": 6, "ollama": 6},
             "workers_seen": ["w1", "w2"],
             "window_runs": 12,
             "rows_with_retry_attempt": 12,

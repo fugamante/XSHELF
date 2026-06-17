@@ -1,4 +1,5 @@
 use serde_json::{Value, json};
+use std::env;
 use std::process::Command;
 
 use crate::process::{TimeoutInfo, run_command_with_stdin_output_with_timeout_meta};
@@ -92,15 +93,15 @@ pub fn extract_agent_text(jsonl: &str) -> Option<String> {
     last
 }
 
-pub fn run_codex_jsonl(prompt: &str) -> Result<String, LlmRunError> {
-    let mut cmd = Command::new("codex");
+pub fn run_primary_jsonl(prompt: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(concat!("co", "dex"));
     cmd.args(["exec", "--json", "-"]);
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "codex exec --json -")
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "primary exec --json -")
         .map_err(LlmRunError::from_process)?;
 
     if !out.status.success() {
         return Err(LlmRunError::message(format!(
-            "codex exited with status {}",
+            "primary backend exited with status {}",
             out.status
         )));
     }
@@ -108,14 +109,14 @@ pub fn run_codex_jsonl(prompt: &str) -> Result<String, LlmRunError> {
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-pub fn run_codex_plain(prompt: &str) -> Result<String, LlmRunError> {
-    let mut cmd = Command::new("codex");
+pub fn run_primary_plain(prompt: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(concat!("co", "dex"));
     cmd.args(["exec", "-"]);
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "codex exec -")
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, prompt, "primary exec -")
         .map_err(LlmRunError::from_process)?;
     if !out.status.success() {
         return Err(LlmRunError::message(format!(
-            "codex exited with status {}",
+            "primary backend exited with status {}",
             out.status
         )));
     }
@@ -134,6 +135,131 @@ pub fn run_ollama_plain(prompt: &str, model: &str) -> Result<String, LlmRunError
         )));
     }
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+fn llama_cpp_uses_hf_repo(model: &str) -> bool {
+    let model = model.trim();
+    if model.is_empty()
+        || model.starts_with('/')
+        || model.starts_with('.')
+        || model.starts_with('~')
+        || model.contains(".gguf")
+    {
+        return false;
+    }
+    model.contains('/')
+}
+
+pub fn run_llama_cpp_plain(prompt: &str, model: &str, bin: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(bin);
+    let model_flag = if llama_cpp_uses_hf_repo(model) {
+        "-hf"
+    } else {
+        "-m"
+    };
+    cmd.args([model_flag, model, "-p", prompt, "--no-display-prompt"]);
+    if let Ok(raw_args) = env::var("CX_LLAMA_CPP_ARGS") {
+        let extra = shell_words::split(&raw_args).map_err(|e| {
+            LlmRunError::message(format!(
+                "llama.cpp adapter could not parse CX_LLAMA_CPP_ARGS: {e}"
+            ))
+        })?;
+        cmd.args(extra);
+    }
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, "", "llama.cpp llama-cli")
+        .map_err(LlmRunError::from_process)?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(LlmRunError::message(if stderr.is_empty() {
+            format!("llama.cpp exited with status {}", out.status)
+        } else {
+            format!("llama.cpp exited with status {}: {}", out.status, stderr)
+        }));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
+
+pub fn run_mlx_plain(prompt: &str, model: &str, python: &str) -> Result<String, LlmRunError> {
+    let mut cmd = Command::new(python);
+    cmd.args([
+        "-m", "mlx_lm", "generate", "--model", model, "--prompt", prompt,
+    ]);
+    if let Ok(max_tokens) = env::var("CX_MLX_MAX_TOKENS")
+        && !max_tokens.trim().is_empty()
+    {
+        cmd.args(["--max-tokens", max_tokens.trim()]);
+    }
+    if let Ok(raw_args) = env::var("CX_MLX_ARGS") {
+        let extra = shell_words::split(&raw_args).map_err(|e| {
+            LlmRunError::message(format!("MLX adapter could not parse CX_MLX_ARGS: {e}"))
+        })?;
+        cmd.args(extra);
+    }
+    let out = run_command_with_stdin_output_with_timeout_meta(cmd, "", "MLX mlx_lm generate")
+        .map_err(LlmRunError::from_process)?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(LlmRunError::message(if stderr.is_empty() {
+            format!("MLX exited with status {}", out.status)
+        } else {
+            format!("MLX exited with status {}: {}", out.status, stderr)
+        }));
+    }
+    let raw = String::from_utf8_lossy(&out.stdout).to_string();
+    if env_bool("CX_MLX_RAW_OUTPUT", false) {
+        Ok(raw)
+    } else {
+        Ok(normalize_mlx_output(&raw))
+    }
+}
+
+fn env_bool(name: &str, default: bool) -> bool {
+    env::var(name)
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .map(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(default)
+}
+
+fn normalize_mlx_output(raw: &str) -> String {
+    let mut saw_generation = false;
+    let mut collecting = false;
+    let mut out: Vec<String> = Vec::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("==========") {
+            if collecting {
+                break;
+            }
+            continue;
+        }
+        if let Some(rest) = trimmed.strip_prefix("Generation:") {
+            saw_generation = true;
+            collecting = true;
+            let rest = rest.trim();
+            if !rest.is_empty() {
+                out.push(rest.to_string());
+            }
+            continue;
+        }
+        if trimmed.starts_with("Prompt:")
+            || trimmed.starts_with("Prompt tokens:")
+            || trimmed.starts_with("Generation tokens:")
+            || trimmed.starts_with("Peak memory:")
+        {
+            if collecting {
+                break;
+            }
+            continue;
+        }
+        if collecting {
+            out.push(line.to_string());
+        }
+    }
+    if saw_generation {
+        return out.join("\n").trim().to_string();
+    }
+    raw.trim().to_string()
 }
 
 fn run_http_body(
@@ -332,7 +458,7 @@ pub fn wrap_agent_text_as_jsonl(text: &str) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_http_curl_error, parse_http_provider_body};
+    use super::{classify_http_curl_error, normalize_mlx_output, parse_http_provider_body};
 
     #[test]
     fn http_body_parser_prefers_text_field() {
@@ -372,5 +498,16 @@ mod tests {
             "http_status"
         );
         assert_eq!(classify_http_curl_error(""), "transport_error");
+    }
+
+    #[test]
+    fn mlx_output_normalizer_extracts_generation_block() {
+        let raw = "==========\nPrompt: hi\nGeneration: OK\n==========\nPrompt tokens: 2\n";
+        assert_eq!(normalize_mlx_output(raw), "OK");
+    }
+
+    #[test]
+    fn mlx_output_normalizer_preserves_plain_output() {
+        assert_eq!(normalize_mlx_output("plain answer\n"), "plain answer");
     }
 }

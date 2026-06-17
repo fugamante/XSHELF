@@ -37,7 +37,7 @@ Conclusion:
 ## Non-Goals
 
 - no attempt to "compress prompts" with TurboQuant
-- no direct modification of Codex CLI behavior
+- no direct modification of primary process backend behavior
 - no default-path change for existing XSHELF providers
 - no merge of backend-kernel experiments into main without backend isolation and parity evidence
 

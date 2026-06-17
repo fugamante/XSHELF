@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-03-05
+Last updated: 2026-05-25
 
 ## Scope
 
@@ -13,10 +13,12 @@ Covered JSON surfaces:
 - `xshelf optimize --json`
 - `xshelf logs stats --json` (and `xshelf telemetry --json`)
 - `xshelf broker benchmark --json`
+- `xshelf broker show --json`
 - `xshelf task check --json`
 - `xshelf task run-all --json`
 - `xshelf task list --json`
-- `xshelf task show <id>`
+- `xshelf task show <id> --json`
+- `xshelf task run <id> --json`
 
 ## Version Markers
 
@@ -28,9 +30,12 @@ Current versions:
 - `optimize.v1`
 - `telemetry.v1`
 - `broker-benchmark.v1`
+- `broker-show.v1`
 - `task-check.v1`
 - `task-run-all.v1`
 - `task-list.v1`
+- `task-show.v1`
+- `task-run.v1`
 - actions extension: `actions.v1` (`actions_contract_version`)
 
 ## Stability Rules

@@ -8,7 +8,7 @@ fn optimize_json_matches_contract_fixture() {
     let repo = TempRepo::new("cxrs-it");
     let row = serde_json::json!({
         "execution_id":"ofx1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":1000,"schema_enforced":false,"schema_valid":true,
         "retry_attempt":2,"timed_out":false
     });
@@ -78,13 +78,13 @@ fn optimize_json_actions_match_contract_fixture() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"oact1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":5000,"schema_enforced":true,"schema_valid":false,
             "input_tokens":1000,"cached_input_tokens":10
         }),
         serde_json::json!({
             "execution_id":"oact2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":4000,"schema_enforced":false,"schema_valid":true,
             "input_tokens":1000,"cached_input_tokens":5
         }),
@@ -103,7 +103,7 @@ fn optimize_actions_next() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"oexec1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"parallel","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":4,"run_all_failed":0,"run_all_critical_errors":0,
@@ -117,7 +117,7 @@ fn optimize_actions_next() {
         }),
         serde_json::json!({
             "execution_id":"oexec2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":5000,"schema_enforced":true,"schema_valid":false,
             "input_tokens":1000,"cached_input_tokens":10
         }),
@@ -148,7 +148,7 @@ fn optimize_actions_bias() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"obias1","timestamp":"2026-01-01T00:00:00Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
@@ -159,7 +159,7 @@ fn optimize_actions_bias() {
         }),
         serde_json::json!({
             "execution_id":"obias2","timestamp":"2026-01-01T00:00:01Z","command":"cxtask_runall","tool":"cxtask_runall",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":120,"schema_enforced":false,"schema_valid":true,
             "run_all_mode":"mixed","halt_on_critical":false,
             "run_all_scheduled":4,"run_all_complete":2,"run_all_failed":1,"run_all_critical_errors":0,
@@ -170,7 +170,7 @@ fn optimize_actions_bias() {
         }),
         serde_json::json!({
             "execution_id":"obias3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":5000,"schema_enforced":true,"schema_valid":false,
             "input_tokens":1000,"cached_input_tokens":10
         }),
@@ -203,7 +203,7 @@ fn optimize_actions_strict_gate_is_deterministic() {
     let repo = TempRepo::new("cxrs-it");
     let row = serde_json::json!({
         "execution_id":"ogate1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-        "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+        "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
         "duration_ms":5000,"schema_enforced":false,"schema_valid":true,
         "input_tokens":1000,"cached_input_tokens":0
     });

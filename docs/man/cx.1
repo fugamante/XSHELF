@@ -144,11 +144,11 @@ Validate run-log JSONL contract.
 Telemetry health/contract drift summary.
 .SH BACKEND AND STATE
 .TP
-.B llm show|use|unset|set-backend|set-model|clear-model
-Manage backend/model selection.
+.B llm show|check|smoke|use|unset|set-backend|set-model|clear-model
+Manage and verify backend/model selection.
 .TP
 .B state show|get|set
-Read/write repo state in \fB.codex/state.json\fR.
+Read/write repo state in \fB.cx/state.json\fR.
 .TP
 .B quota ...
 Quota probing/catalog/guard controls.
@@ -161,16 +161,16 @@ Show active command safety policy.
 Classify a command as safe/dangerous.
 .SH FILES
 .TP
-.I .codex/cxlogs/runs.jsonl
+.I .cx/cxlogs/runs.jsonl
 Execution telemetry log.
 .TP
-.I .codex/cxlogs/schema_failures.jsonl
+.I .cx/cxlogs/schema_failures.jsonl
 Schema failure ledger.
 .TP
-.I .codex/quarantine/
+.I .cx/quarantine/
 Quarantined malformed structured outputs.
 .TP
-.I .codex/schemas/
+.I .cx/schemas/
 Schema registry.
 .SH ENVIRONMENT
 .TP
@@ -178,7 +178,7 @@ Schema registry.
 Execution mode (for example: lean, deterministic, verbose).
 .TP
 .B CX_LLM_BACKEND
-Backend selection (for example: codex, ollama, llamacpp, mlx).
+Backend selection (for example: primary, ollama, llamacpp, mlx).
 .TP
 .B CX_OLLAMA_MODEL
 Model used when backend is ollama.

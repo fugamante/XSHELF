@@ -15,6 +15,53 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Repository governance:
+  - added `branch-protection-audit` workflow for solo-maintainer mode.
+  - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
+  - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
+- Phase VIII local model substrate:
+  - added repo-scoped local model registry at `.cx/local_models.json`.
+  - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
+  - completed alias-resolution slice:
+    - `llm use <ollama|llamacpp|mlx> <alias-or-id>` now canonicalizes registry tokens for the selected backend.
+    - runtime execution resolves backend-scoped aliases/IDs to `resolved_model` while preserving direct model strings.
+    - `llm show` now prints alias and resolved model fields when a registry token is active.
+    - task model overrides can use backend-scoped aliases without changing direct-string behavior.
+    - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
+    - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
+  - completed inspection/accounting slice:
+    - `llm models inspect <alias-or-id>` now emits typed cheap accounting status for local/cache paths in text and JSON output.
+    - default inspect mode performs cheap path checks only and avoids recursive disk scans.
+    - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
+    - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
+  - completed capability envelope slice:
+    - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
+    - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
+    - added backend capability mapping coverage for `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants.
+  - completed MLX verification slice:
+    - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
+    - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
+    - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
+  - completed resident-server opt-in slice:
+    - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
+    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
+    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
+  - closed the planned Phase VIII slice set after local resident probe validation through `llm-resident.v1`.
+- Phase X token-compression planning corpus:
+  - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
+  - added work queue: `docs/orchestration/PHASE_X_WORK.json`.
+  - roadmap now tracks Phase X as active implementation with explicit non-goals for generic storage/assembly compression paths.
+  - completed Slice 1 by documenting reducer acceptance gates, fixture manifest fields, and initial recall-focused fixture classes.
+  - completed Slice 2 by adding private reducer metadata behind the existing capture reducer while preserving the string-only reducer API.
+  - completed Slice 3 by strengthening test-output reduction with fixture-backed recall gates for failing tests, assertion context, final summaries, and repeated warning collapse.
+  - completed Slice 4 by strengthening diff reduction with fixture-backed recall gates for file modes, rename/copy markers, binary markers, hunk headers, changed lines, and touched paths.
+  - completed Slice 5 by adding an internal budget-aware section assembler with priority ordering, omission records, and high-uncertainty fallback behavior.
+  - closed the planned Phase X slice set while preserving normal command capture and public telemetry contracts.
+- Phase XI token-compression runtime wiring:
+  - added planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`.
+  - added work queue: `docs/orchestration/PHASE_XI_WORK.json`.
+  - completed Slice 1 by documenting the shadow-first rollout contract, acceptance gates, rollback rule, and public-surface boundaries.
+  - completed Slice 2 with a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate without changing returned capture output or public telemetry.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
@@ -54,6 +101,8 @@ Notes:
 - Task runner UX:
   - `task run-all` adds `--summary text|json` for deterministic operator summaries without enabling full `--json` mode.
   - text summaries now include compact failure reason counts and failed task IDs.
+  - `task run-all --events-jsonl` emits additive `task-events.v1` progress events to stderr and `.codex/cxlogs/task_events.jsonl` while preserving stdout contracts.
+  - added `task events [--limit N] [--json|--jsonl] [--follow]` to read persisted task event streams.
 - Diagnostics severity/actions:
   - `diag` / `scheduler` now classify low timing-attribution coverage (`timing_coverage_low`) and emit an explicit corrective action in `--actions` mode.
 - HTTP adapter TLS enforcement:
@@ -75,11 +124,11 @@ Notes:
   - added `scripts/compat_local.sh` at repo root with unified runner contract:
     - `--quick|--full`
     - `--json`
-    - `--out <path>` (default `.codex/compat/latest.json`)
+    - `--out <path>` (default `.cx/compat/latest.json`)
   - added `scripts/compat_all.sh` aggregate runner for multi-repo local checks:
     - auto-discovers sibling `cx` and `cx-eval-lab` repos when present
     - supports `--repo <path>` repeatable override
-    - emits aggregate JSON report (`.codex/compat/all_latest.json` by default)
+    - emits aggregate JSON report (`.cx/compat/all_latest.json` by default)
   - added wrapper `bin/cx-compat-local`.
   - standardized report schema to align with `cx-eval-lab` local compat artifacts (`status`, `mode`, `summary`, `steps`, host/toolchain/git metadata).
 - Adaptive output-mode resolution and introspection:
@@ -116,6 +165,7 @@ Notes:
   - added README `jq` one-liners to extract `diag/scheduler` `concurrency.defaults` and `concurrency.observed` for CI/operator checks.
   - `cxrs-compat` CI now includes a command-surface gate that fails when command entrypoints are changed without corresponding docs/changelog updates.
   - refined command-surface CI gate to require `CHANGELOG.md` whenever command entrypoint files change (README/docs updates remain optional but recommended).
+  - added workflow action pin guardrail in `cxrs-compat` to require third-party GitHub Actions to be pinned to full 40-character commit SHAs (`scripts/check_action_pins.sh`).
   - `cxrs-compat` now captures and uploads failure artifacts (`rust_check`, `compat_check`, `shell_regression` logs) per OS job to speed up CI triage.
   - `cxrs-compat` failure artifacts now include a compact `summary_<os>.txt` with error-pattern extracts and tail context for faster diagnosis.
 - Phase VI execution lane (explicit, non-default):
@@ -186,11 +236,11 @@ Notes:
   - added shared JSON mode resolver precedence:
     - `--json` / `--text` CLI override
     - `CX_JSON_DEFAULT` env
-    - `.codex/state.json` at `preferences.default_json_output`
+    - `.cx/state.json` at `preferences.default_json_output`
     - command default fallback
   - wired into `task run-all`, `diag`, `scheduler`, `optimize`, and `logs stats`/`telemetry`.
 - Provider quota catalog commands:
-  - added `cx quota catalog refresh` to seed `.codex/quota_catalog.json` from curated official-source references.
+  - added `cx quota catalog refresh` to seed `.cx/quota_catalog.json` from curated official-source references.
   - added `cx quota catalog show [--json]` for tier/source inspection.
   - added opt-in automatic refresh controls:
     - `cx quota catalog auto on --interval-hours N`
@@ -216,7 +266,7 @@ Notes:
   - supports configured totals via:
     - `CX_QUOTA_<BACKEND>_TOTAL_TOKENS`
     - `CX_QUOTA_TOTAL_TOKENS`
-    - `.codex/state.json` at `preferences.quota.<backend>_total_tokens`
+    - `.cx/state.json` at `preferences.quota.<backend>_total_tokens`
   - `ollama` is reported as `service_kind=local_unmetered`.
 - Lean-session behavior hardening:
   - `bin/cx-lean-session` no longer sets broker policy implicitly.
@@ -308,9 +358,9 @@ Notes:
   - introduced `bin/xshelf` alias entrypoint delegating to canonical `bin/cx`.
   - updated top-level docs to `XSHELF (formerly CX)` while preserving all `cx` commands and `CX_*` environment compatibility.
   - added integration coverage for `bin/xshelf version`.
-- Provider adapter Phase 1 substrate (experimental branch `codex/provider-adapter-phase1`):
+- Provider adapter Phase 1 substrate (experimental branch `primary/provider-adapter-phase1`):
   - introduced `ProviderAdapter` interface under `rust/cxrs/src/modules/provider_adapter.rs`.
-  - added `CodexCliAdapter` and `OllamaCliAdapter` implementations.
+  - added `PrimaryProcessAdapter` and `OllamaCliAdapter` implementations.
   - execution core now resolves a provider adapter and routes plain/JSONL calls through the adapter contract (no behavior change intended).
   - added adapter-focused unit coverage for backend normalization and Ollama JSONL wrapping.
   - added centralized adapter invocation helpers for current backend selection.
@@ -320,7 +370,7 @@ Notes:
     - `provider_transport`
     - `provider_status`
   - strict log contract, migration, and integration assertions updated for the new fields.
-  - added adapter telemetry parity smoke tests covering codex and ollama run paths.
+  - added adapter telemetry parity smoke tests covering primary and ollama run paths.
   - added mock-adapter integration tests for schema success and schema-failure quarantine paths without provider binaries.
   - provider capability surface added (`jsonl_native`, `schema_strict`, `transport`) and exposed in `cxversion`/`cxcore`.
   - added `CX_PROVIDER_ADAPTER=http-stub` fail-fast path for future HTTP transport work:
@@ -352,7 +402,7 @@ Notes:
     - `cxdiffsum`
     - `cxfix_run`
   - `logs validate` and `ci validate` now default to legacy-compatible validation (strict contract still available with `--strict`).
-  - added structured-command parity coverage for `next` between `codex-cli` and `mock` adapters.
+  - added structured-command parity coverage for `next` between `primary-cli` and `mock` adapters.
 - `broker benchmark` strict severity tiers for CI policies:
   - new flag: `--severity warn|critical` (default `critical`).
   - violation classification:
@@ -372,7 +422,7 @@ Notes:
   - added integration coverage to validate `broker benchmark --json` top-level and summary item key contract.
   - added CI gate step `Broker Benchmark Contract Gate` in `.github/workflows/cxrs-compat.yml`.
 - `broker benchmark` command for local backend telemetry comparison:
-  - `cx broker benchmark [--backend codex|ollama]... [--window N] [--json]`
+  - `cx broker benchmark [--backend primary|ollama]... [--window N] [--json]`
   - computes per-backend run count, average duration, p95 duration, average effective input tokens, and average output tokens from `runs.jsonl`.
   - supports deterministic machine-readable output for operator/CI tooling.
 - integration test coverage for broker benchmark JSON output and metric aggregation.
@@ -465,9 +515,9 @@ Notes:
   - high-load mixed-mode least-loaded fairness stress test validating backend spread, worker spread, and queue telemetry under cap pressure.
   - explicit mixed-mode failure path test for zero-available backend pools (`task run-all` returns non-zero with clear scheduler error).
 - Phase IV broker + mixed routing controls:
-  - `cx broker set --policy latency|quality|cost|balanced` persisted to `.codex/state.json`.
+  - `cx broker set --policy latency|quality|cost|balanced` persisted to `.cx/state.json`.
   - `cx task run-all --mode mixed` now accepts:
-    - `--backend-pool codex,ollama`
+    - `--backend-pool primary,ollama`
     - `--backend-cap backend=limit`
     - `--max-workers N` (planner metadata; single-worker execution remains current behavior)
   - deterministic backend selection per scheduled task using task backend preference + broker policy fallback.
@@ -499,10 +549,10 @@ Notes:
   - score factors: success status, execution id presence, and error-size penalty.
   - deterministic tie-break: lowest replica index.
 - mixed-mode scheduler reliability coverage expanded:
-  - backend cap enforcement test for codex-limited worker scheduling.
+  - backend cap enforcement test for primary-limited worker scheduling.
   - dependency-wave ordering test with queue telemetry assertions.
-  - balanced backend-pool fairness test (codex + ollama) to ensure no backend starvation.
-  - queue growth stress test under strict backend cap (`codex=1`) validating deferred-task `queue_ms`.
+  - balanced backend-pool fairness test (primary + ollama) to ensure no backend starvation.
+  - queue growth stress test under strict backend cap (`primary=1`) validating deferred-task `queue_ms`.
 - `cxdiag` scheduler diagnostics section:
   - reports recent-window queue telemetry (`scheduler_queue_ms_avg`, `scheduler_queue_ms_p95`),
   - worker distribution (`scheduler_workers_seen`, `scheduler_worker_distribution`),
@@ -641,8 +691,8 @@ Notes:
   - expanded failure-matrix coverage:
     - missing schema file in partial registry scenarios
     - corrupted quarantine record handling (`quarantine show`)
-    - unwritable `.codex/quarantine` error surfacing during schema failure handling
-    - unwritable `.codex/cxlogs` resilience (command execution remains functional)
+    - unwritable `.cx/quarantine` error surfacing during schema failure handling
+    - unwritable `.cx/cxlogs` resilience (command execution remains functional)
     - timeout override end-to-end coverage for `CX_TIMEOUT_LLM_SECS`, `CX_TIMEOUT_GIT_SECS`, and `CX_TIMEOUT_SHELL_SECS`
   - expanded Ollama backend coverage:
     - unset/set model transition enforcement with persisted state verification
@@ -698,7 +748,7 @@ Notes:
   - added policy tests for `/usr` vs `/usr/local` behavior, repo-root writes, and symlink escape scenarios
 - Expanded `cxparity` overlap coverage and invariants:
   - widened shared-command matrix from a minimal subset to include `cx`, `cxj`, `cxol`, `cxcopy`, `cxnext`, `cxdiffsum_staged`, `cxcommitmsg`, and `cxcommitjson`
-  - added deterministic local parity mocks (`codex` + clipboard backend) so parity runs are stable and backend-independent
+  - added deterministic local parity mocks (`primary` + clipboard backend) so parity runs are stable and backend-independent
   - parity temp repos now receive schema registry fixtures, enabling structured-command checks without ambient machine state
   - tightened parity log invariant checks via required-field validation (`schema_enforced`, `duration_ms` included)
 - Replaced string-parsed timeout telemetry with structured timeout propagation:
@@ -773,6 +823,7 @@ Notes:
 - CI now runs dedicated reliability suite job step (`cargo test --test reliability_integration`).
 
 ### Fixed
+- Repository root resolution now ignores inherited Git hook environment variables when resolving from the current working directory.
 - Reduced fragile parsing and error suppression in run-log and schema paths via explicit error propagation and quarantining (`2600d21`, `4106410`, `3390c14`).
 - Improved deterministic schema-path reliability by consolidating schema helpers and validators (`c1072e6`, `1380d5c`).
 

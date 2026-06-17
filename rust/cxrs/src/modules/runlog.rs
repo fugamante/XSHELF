@@ -122,7 +122,7 @@ fn base_execution_log(
             "ollama_selected".to_string()
         }
     } else {
-        "codex_selected".to_string()
+        "primary_selected".to_string()
     };
     let replica_index = env::var("CX_TASK_REPLICA_INDEX")
         .ok()
@@ -249,7 +249,7 @@ fn finalize_and_append_run(run_log: &std::path::Path, row: ExecutionLog) -> Resu
     append_jsonl(run_log, &value)
 }
 
-pub fn log_codex_run(input: RunLogInput<'_>) -> Result<(), String> {
+pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
     let run_log = resolve_log_file().ok_or_else(|| "unable to resolve run log file".to_string())?;
     let (cwd, root, scope) = cwd_scope_root();
 

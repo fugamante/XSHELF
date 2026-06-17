@@ -19,7 +19,7 @@ This walkthrough follows one realistic loop: \emph{capture context} \textrightar
   \item \textbf{bin/xshelf}: the canonical entrypoint. \texttt{bin/cx} remains the compatibility alias.
   \item \textbf{cxrs}: the canonical Rust engine. It owns capture, budgeting, schemas, quarantine, logging.
   \item \textbf{Bash}: compatibility/bootstrap only (\texttt{lib/cx/*.sh}).
-  \item \textbf{.codex/}: the repo-local memory: schemas, logs, quarantine, tasks, state.
+  \item \textbf{.cx/}: the repo-local memory: schemas, logs, quarantine, tasks, state.
 \end{itemize}
 
 \section{Scene 1: You Enter the Repo}
@@ -35,7 +35,7 @@ cd <repo-root>
 What you should notice:
 \begin{itemize}
   \item \texttt{execution\_path} reports Rust when cxrs is available.
-  \item \texttt{log\_file} points at \texttt{.codex/cxlogs/runs.jsonl}.
+  \item \texttt{log\_file} points at \texttt{.cx/cxlogs/runs.jsonl}.
   \item Budgets are explicit (chars/lines/clip\_mode).
 \end{itemize}
 
@@ -89,7 +89,7 @@ When the objective is bigger than a single prompt, you fan out into small, role-
 You run a task (or run all pending tasks) through the same engine, and logs link the run to the task.
 
 \begin{lstlisting}[style=cx]
-./bin/xshelf task run task_001 --mode deterministic --backend codex
+./bin/xshelf task run task_001 --mode deterministic --backend primary
 ./bin/xshelf task run-all --status pending
 \end{lstlisting}
 

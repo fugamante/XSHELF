@@ -49,6 +49,8 @@ mod introspect;
 mod json_mode;
 #[path = "modules/llm.rs"]
 mod llm;
+#[path = "modules/local_models.rs"]
+mod local_models;
 #[path = "modules/log_contract.rs"]
 mod log_contract;
 #[path = "modules/logs.rs"]
@@ -107,6 +109,8 @@ mod structured_fixrun;
 mod structured_replay;
 #[path = "modules/task_cmds.rs"]
 mod task_cmds;
+#[path = "modules/task_events.rs"]
+mod task_events;
 #[path = "modules/taskrun.rs"]
 mod taskrun;
 #[path = "modules/tasks.rs"]

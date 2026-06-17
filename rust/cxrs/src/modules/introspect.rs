@@ -8,8 +8,9 @@ use crate::execmeta::toolchain_version_string;
 use crate::paths::{resolve_log_file, resolve_quarantine_dir, resolve_state_file};
 use crate::provider_adapter::{
     current_provider_capabilities, http_auth_head, http_auth_mode, http_auth_src, http_profile,
-    selected_adapter_name, selected_http_provider_format, selected_provider_status_kind,
-    selected_tq_caps, tls_posture_json, tls_posture_opt,
+    runtime_caps_json, selected_adapter_name, selected_http_provider_format,
+    selected_provider_status_kind, selected_runtime_caps, selected_tq_caps, tls_posture_json,
+    tls_posture_opt,
 };
 use crate::runtime::{llm_backend, llm_model, logging_enabled};
 use crate::state::{read_state_value, value_at_path};
@@ -142,6 +143,7 @@ fn core_payload(app_version: &str) -> serde_json::Value {
     let caps = current_provider_capabilities()
         .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     let capture_prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE")
         .ok()
         .map(|v| v.trim() != "0")
@@ -203,7 +205,8 @@ fn core_payload(app_version: &str) -> serde_json::Value {
                 "cx_runtime_support": experiment_caps.turboquant_runtime_support,
                 "selected_backend_role": experiment_caps.turboquant_backend_role,
                 "memory_metric_kind": experiment_caps.turboquant_metric_kind,
-            }
+            },
+            "runtime": runtime_caps_json(runtime_caps)
         },
         "capture": {
             "provider": capture_provider,
@@ -261,6 +264,7 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
         .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
     let provider_status = selected_provider_status_kind().as_str();
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     let native_reduce = env::var("CX_NATIVE_REDUCE").unwrap_or_else(|_| "1".to_string());
     let prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE").unwrap_or_else(|_| "1".to_string());
     let mut provider = json!({
@@ -319,7 +323,8 @@ fn version_payload(app_name: &str, app_version: &str) -> serde_json::Value {
                 "cx_runtime_support": experiment_caps.turboquant_runtime_support,
                 "selected_backend_role": experiment_caps.turboquant_backend_role,
                 "memory_metric_kind": experiment_caps.turboquant_metric_kind,
-            }
+            },
+            "runtime": runtime_caps_json(runtime_caps)
         },
         "capture": {
             "provider": cfg.capture_provider,
@@ -385,6 +390,7 @@ pub fn print_version(app_name: &str, app_version: &str, args: &[String]) {
     print_version_capture(&cfg.capture_provider, &native_reduce, &prefer_native);
 
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     println!(
         "backend_capability.turboquant_runtime_support: {}",
         experiment_caps.turboquant_runtime_support
@@ -396,6 +402,52 @@ pub fn print_version(app_name: &str, app_version: &str, args: &[String]) {
     println!(
         "backend_capability.turboquant_metric_kind: {}",
         experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
+    println!(
+        "backend_capability.runtime.model_registry: {}",
+        runtime_caps
+            .model_registry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.model_aliases: {}",
+        runtime_caps
+            .model_aliases
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.local_model_path: {}",
+        runtime_caps
+            .local_model_path
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.resident_server: {}",
+        runtime_caps
+            .resident_server
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.openai_compatible: {}",
+        runtime_caps
+            .openai_compatible
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.supports_persisted_kv_restore: {}",
+        runtime_caps
+            .supports_persisted_kv_restore
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.cache_metric_kind: {}",
+        runtime_caps.cache_metric_kind.unwrap_or("n/a")
     );
     println!("budget_chars: {}", cfg.budget_chars);
     println!("budget_lines: {}", cfg.budget_lines);
@@ -426,6 +478,7 @@ pub fn cmd_core(app_version: &str, args: &[String]) -> i32 {
     let caps = current_provider_capabilities()
         .unwrap_or_else(|_| crate::provider_adapter::selected_provider_capabilities());
     let experiment_caps = selected_tq_caps();
+    let runtime_caps = selected_runtime_caps();
     let capture_prefer_native = env::var("CX_CAPTURE_PREFER_NATIVE")
         .ok()
         .map(|v| v.trim() != "0")
@@ -512,6 +565,52 @@ pub fn cmd_core(app_version: &str, args: &[String]) -> i32 {
     println!(
         "backend_capability.turboquant_metric_kind: {}",
         experiment_caps.turboquant_metric_kind.unwrap_or("n/a")
+    );
+    println!(
+        "backend_capability.runtime.model_registry: {}",
+        runtime_caps
+            .model_registry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.model_aliases: {}",
+        runtime_caps
+            .model_aliases
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.local_model_path: {}",
+        runtime_caps
+            .local_model_path
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.resident_server: {}",
+        runtime_caps
+            .resident_server
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.openai_compatible: {}",
+        runtime_caps
+            .openai_compatible
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.supports_persisted_kv_restore: {}",
+        runtime_caps
+            .supports_persisted_kv_restore
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    );
+    println!(
+        "backend_capability.runtime.cache_metric_kind: {}",
+        runtime_caps.cache_metric_kind.unwrap_or("n/a")
     );
     println!("active_model: {active_model}");
     println!("execution_mode: {mode}");

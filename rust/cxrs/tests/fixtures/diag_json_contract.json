@@ -37,12 +37,28 @@
     "reason"
   ],
   "backend_capabilities_keys": [
-    "turboquant"
+    "turboquant",
+    "runtime"
   ],
   "backend_capabilities_turboquant_keys": [
     "cx_runtime_support",
     "selected_backend_role",
     "memory_metric_kind"
+  ],
+  "backend_capabilities_runtime_keys": [
+    "model_registry",
+    "model_aliases",
+    "local_model_path",
+    "resident_server",
+    "openai_compatible",
+    "anthropic_compatible",
+    "supports_batching",
+    "supports_tool_calling",
+    "supports_vlm",
+    "supports_embeddings",
+    "supports_reranking",
+    "cache_metric_kind",
+    "supports_persisted_kv_restore"
   ],
   "scheduler_keys": [
     "window_runs",

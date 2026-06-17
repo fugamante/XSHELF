@@ -24,7 +24,7 @@ Deliverables:
 
 Acceptance:
 - deterministic adapter identity for equivalent config inputs
-- parity tests pass across codex/ollama/mock/http modes
+- parity tests pass across primary/ollama/mock/http modes
 
 ## P5-02 HTTP Adapter Deterministic Envelope Handling
 Status: complete

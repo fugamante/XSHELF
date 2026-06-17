@@ -1,9 +1,26 @@
-# Documentation Layout
+# Documentation Index
 
-- `project/`: roadmap, release cadence, repository policy, migration notes, and project-level planning.
-- `orchestration/`: multi-model and execution orchestration phase plans, work queues, and milestone notes.
-- `providers/`: provider adapter, compatibility, and TLS/operator guidance.
-- `contributing/`: contributor onboarding and starter issue guidance.
-- `turboquant/`: TurboQuant experiment notes, runbooks, measurement artifacts, and prompt fixtures.
-- `manuals/`: generated manuals, source files, build outputs, and legacy root manual artifacts.
-- `man/`: installed command man pages.
+Start here:
+- [../README.md](../README.md) - product overview and first commands
+- [manuals/00_README.md](manuals/00_README.md) - operator manuals and rebuild notes
+
+Operate XSHELF:
+- [manuals/01_pdf/CX_MANUAL_MASTER.pdf](manuals/01_pdf/CX_MANUAL_MASTER.pdf) - generated master manual PDF
+- [manuals/02_web/CX_MANUAL_MASTER.html](manuals/02_web/CX_MANUAL_MASTER.html) - tracked HTML reader mirror
+- [providers/HTTP_PROVIDER_TLS.md](providers/HTTP_PROVIDER_TLS.md) - HTTP provider TLS guidance
+- [providers/CONTRACT_COMPATIBILITY.md](providers/CONTRACT_COMPATIBILITY.md) - adapter contract compatibility
+- [man/](man/) - installed command man pages
+
+Maintain XSHELF:
+- [project/README.md](project/README.md) - project docs classification
+- [project/REPO_ROLE_CONTRACT.md](project/REPO_ROLE_CONTRACT.md) - repository role and boundaries
+- [project/ROADMAP.md](project/ROADMAP.md) - roadmap and active planning context
+- [project/RELEASE_CADENCE.md](project/RELEASE_CADENCE.md) - release process
+- [contributing/](contributing/) - contributor walkthroughs and starter issues
+- [providers/PROVIDER_ADAPTER_PLAN.md](providers/PROVIDER_ADAPTER_PLAN.md) - provider adapter planning
+
+Planning and history:
+- [orchestration/](orchestration/) - execution, orchestration, and phase planning notes
+- [turboquant/](turboquant/) - TurboQuant experiments, runbooks, and measurement artifacts
+- [project/RUST_FIRST_MIGRATION.md](project/RUST_FIRST_MIGRATION.md) - Rust-first migration history
+- [project/SECURITY_HISTORY_REWRITE.md](project/SECURITY_HISTORY_REWRITE.md) - security history rewrite record

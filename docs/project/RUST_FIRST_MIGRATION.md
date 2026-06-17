@@ -8,27 +8,27 @@ Scope: entire `XSHELF` project
 - New feature work is implemented in `rust/cxrs` first.
 - Bash (`lib/cx.sh`) is compatibility/bootstrap only.
 - Root `cx.sh` is a deprecated compatibility anchor retained for transition.
-- Codex remains default backend; Ollama remains optional alternative.
+- Primary process backend remains default; Ollama remains optional alternative.
 - No automatic checks on shell startup.
 - Preserve stdout pipeline safety; diagnostics to stderr.
 
 ## 2) Branch strategy
 
 - `main`: stable operational branch for incremental Rust-first rollout.
-- `codex/*`: feature branches for scoped migration phases.
-- use short `codex/*` scope slugs for active work.
+- Use scoped feature branches for migration phases.
+- Use short neutral scope slugs for active work.
 
 Flow:
-1. Branch from `main` into a scoped `codex/*` feature branch.
+1. Branch from `main` into a scoped feature branch.
 2. Promote to `main` only after parity + smoke checks pass.
 3. Keep branch READMEs branch-specific.
 4. Prefer concise names that stay within `3` segments total.
 
 Examples:
-- good: `codex/contract-bundle`, `codex/task-guidance`
-- avoid: `codex/session-token-pairing-integration`
+- good: `orchestration/contracts`, `runtime/task-guidance`
+- avoid: `runtime/session-token-pairing-integration`
 
-Current branch focus:
+Historical branch focus:
 - define and stage Phase III orchestration contracts before enabling concurrency by default
 - preserve deterministic schema/policy/logging guarantees during scheduler changes
 - keep Rust tests/parity checks green on every iteration slice
@@ -78,7 +78,7 @@ Recommended smoke:
 ## 7) LLM backend contract
 
 Defaults:
-- `CX_LLM_BACKEND=codex`
+- `CX_LLM_BACKEND=primary`
 - Ollama is opt-in.
 
 Requirements:
@@ -147,14 +147,14 @@ Objective:
 
 Planned first-step contract:
 1. Extend task metadata:
-   - `backend` (`codex|ollama|auto`)
+   - `backend` (`primary|ollama|auto`)
    - `model` (nullable)
    - `profile` (`fast|balanced|quality|schema_strict`)
 2. Add broker command surface:
    - `xshelf broker show`
    - `xshelf broker set --policy latency|quality|cost|balanced`
 3. Extend run-all mixed mode:
-   - `xshelf task run-all --mode mixed --backend-pool codex,ollama --max-workers <n>`
+   - `xshelf task run-all --mode mixed --backend-pool primary,ollama --max-workers <n>`
 4. Add tandem convergence modes:
    - `first_valid`, `majority`, `judge`, `score`
 5. Extend telemetry:

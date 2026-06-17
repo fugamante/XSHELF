@@ -6,11 +6,9 @@ use serde_json::Value;
 #[test]
 fn run_all_retry_timeout_then_succeeds_logs() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
-state_file=".codex/mock_retry_once_state"
+state_file=".cx/mock_retry_once_state"
 count=0
 if [ -f "$state_file" ]; then
   count="$(cat "$state_file" 2>/dev/null || printf '0')"
@@ -33,7 +31,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--max-retries",
         "1",
     ]);
@@ -94,9 +92,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn judge_convergence_uses_model_path_logs_source() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 prompt="$(cat)"
 if printf '%s' "$prompt" | grep -q "Select the best candidate index"; then
   printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"{\"winner_index\":1,\"reason\":\"prefer success\"}"}}'
@@ -115,7 +111,7 @@ fi
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--converge",
         "judge",
         "--replicas",
@@ -152,9 +148,7 @@ fi
 #[test]
 fn judge_convergence_falls_back_on_bad_output() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 prompt="$(cat)"
 if printf '%s' "$prompt" | grep -q "Select the best candidate index"; then
   printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"not-json"}}'
@@ -173,7 +167,7 @@ fi
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--converge",
         "judge",
         "--replicas",
@@ -213,31 +207,31 @@ fn diag_json_strict_fails_on_retry_degradation() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"rr1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1",
             "retry_attempt":1,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"rr2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1",
             "retry_attempt":2,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"rr3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1",
             "retry_attempt":2,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"rr4","timestamp":"2026-01-01T00:00:03Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1",
             "retry_attempt":2,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"rr5","timestamp":"2026-01-01T00:00:04Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","backend_selected":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":11,"schema_enforced":false,"schema_valid":true,"queue_ms":50,"worker_id":"w1",
             "retry_attempt":2,"timed_out":false
         }),
@@ -274,25 +268,25 @@ fn optimize_json_includes_retry_health_metrics() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"o1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1000,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_001","retry_attempt":1,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"o2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":800,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_001","retry_attempt":2,"timed_out":false
         }),
         serde_json::json!({
             "execution_id":"o3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":700,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_002","retry_attempt":1,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"o4","timestamp":"2026-01-01T00:00:03Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":650,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_002","retry_attempt":2,"timed_out":true
         }),
@@ -331,25 +325,25 @@ fn optimize_reco_has_retry_actions_recovery_low() {
     let rows = vec![
         serde_json::json!({
             "execution_id":"or1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1200,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_101","retry_attempt":1,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"or2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1100,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_101","retry_attempt":2,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"or3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1050,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_102","retry_attempt":1,"timed_out":true
         }),
         serde_json::json!({
             "execution_id":"or4","timestamp":"2026-01-01T00:00:03Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":1000,"schema_enforced":false,"schema_valid":true,
             "task_id":"task_102","retry_attempt":2,"timed_out":true
         }),

@@ -3,7 +3,7 @@
 Status: complete
 
 Completion note:
-- contract drift, duplicated guidance logic, stale task-surface coverage, and compatibility-policy drift were reviewed and corrected on `cx/tq-mlx-followon`
+- contract drift, duplicated guidance logic, stale task-surface coverage, and compatibility-policy drift were reviewed and corrected during the Phase VI follow-on pass
 
 ## Goal
 
