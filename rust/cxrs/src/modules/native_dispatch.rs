@@ -178,6 +178,7 @@ fn dispatch_meta_commands(
         "llm" => (deps.cmd_llm)(&args[2..]),
         "policy" => (deps.cmd_policy)(&args[2..]),
         "broker" => (deps.cmd_broker)(&args[2..]),
+        "launch" => (deps.cmd_launch)(&args[2..]),
         _ => return None,
     };
     Some(out)

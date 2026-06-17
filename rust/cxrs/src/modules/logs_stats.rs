@@ -114,10 +114,21 @@ struct StatsComputed {
     new_in_second: Vec<String>,
     missing_in_second: Vec<String>,
     severity: &'static str,
+    capture_prompt: CapturePromptStats,
     retry: RetryStats,
     critical: CriticalStats,
     timing: TimingStats,
     http_mode_stats: Vec<HttpModeStat>,
+}
+
+#[derive(Debug, Default, Clone)]
+struct CapturePromptStats {
+    rows_with_explicit_profile: usize,
+    shadow_narrow_configured_runs: usize,
+    shadow_narrow_applied_runs: usize,
+    shadow_narrow_fallback_runs: usize,
+    applied_reducer_kinds: BTreeMap<String, usize>,
+    fallback_reasons: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -202,6 +213,7 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
         new_in_second.len(),
         missing_in_second.len(),
     );
+    let capture_prompt = compute_prompt_stats(rows);
     let retry = compute_retry_stats(rows);
     let critical = compute_critical_stats(rows);
     let timing = compute_timing_stats(rows);
@@ -212,11 +224,62 @@ fn compute_stats(rows: &[Value]) -> StatsComputed {
         new_in_second,
         missing_in_second,
         severity,
+        capture_prompt,
         retry,
         critical,
         timing,
         http_mode_stats,
     }
+}
+
+fn compute_prompt_stats(rows: &[Value]) -> CapturePromptStats {
+    let mut out = CapturePromptStats::default();
+    for r in rows {
+        let Some(obj) = r.as_object() else {
+            continue;
+        };
+        let profile = obj
+            .get("capture_prompt_profile")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let Some(profile) = profile else {
+            continue;
+        };
+        out.rows_with_explicit_profile += 1;
+        if profile != "shadow_narrow" {
+            continue;
+        }
+        out.shadow_narrow_configured_runs += 1;
+        let applied = obj
+            .get("capture_prompt_profile_applied")
+            .and_then(Value::as_bool)
+            == Some(true);
+        if applied {
+            out.shadow_narrow_applied_runs += 1;
+            if let Some(kind) = obj
+                .get("capture_prompt_reducer_kind")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                *out.applied_reducer_kinds
+                    .entry(kind.to_string())
+                    .or_insert(0) += 1;
+            }
+            continue;
+        }
+        out.shadow_narrow_fallback_runs += 1;
+        if let Some(reason) = obj
+            .get("capture_prompt_fallback_reason")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            *out.fallback_reasons.entry(reason.to_string()).or_insert(0) += 1;
+        }
+    }
+    out
 }
 
 fn compute_timing_stats(rows: &[Value]) -> TimingStats {
@@ -472,6 +535,47 @@ fn print_stats_human(
     if severity_only {
         return;
     }
+    println!("capture_prompt_telemetry:");
+    println!(
+        "- rows_with_explicit_profile: {}",
+        stats.capture_prompt.rows_with_explicit_profile
+    );
+    println!(
+        "- shadow_narrow_configured_runs: {}",
+        stats.capture_prompt.shadow_narrow_configured_runs
+    );
+    println!(
+        "- shadow_narrow_applied_runs: {}",
+        stats.capture_prompt.shadow_narrow_applied_runs
+    );
+    println!(
+        "- shadow_narrow_fallback_runs: {}",
+        stats.capture_prompt.shadow_narrow_fallback_runs
+    );
+    let applied_kinds = if stats.capture_prompt.applied_reducer_kinds.is_empty() {
+        "<none>".to_string()
+    } else {
+        stats
+            .capture_prompt
+            .applied_reducer_kinds
+            .iter()
+            .map(|(kind, count)| format!("{kind}:{count}"))
+            .collect::<Vec<String>>()
+            .join(",")
+    };
+    println!("- applied_reducer_kinds: {}", applied_kinds);
+    let fallback_reasons = if stats.capture_prompt.fallback_reasons.is_empty() {
+        "<none>".to_string()
+    } else {
+        stats
+            .capture_prompt
+            .fallback_reasons
+            .iter()
+            .map(|(reason, count)| format!("{reason}:{count}"))
+            .collect::<Vec<String>>()
+            .join(",")
+    };
+    println!("- fallback_reasons: {}", fallback_reasons);
     println!("retry_telemetry:");
     println!(
         "- rows_with_retry_metadata: {}",
@@ -636,6 +740,24 @@ fn print_stats_json(log_file: &Path, rows: &[Value], stats: &StatsComputed) -> i
         "contract_drift": {
             "new_keys_second_half": stats.new_in_second,
             "missing_keys_second_half": stats.missing_in_second
+        },
+        "capture_prompt_telemetry": {
+            "rows_with_explicit_profile": stats.capture_prompt.rows_with_explicit_profile,
+            "shadow_narrow_configured_runs": stats.capture_prompt.shadow_narrow_configured_runs,
+            "shadow_narrow_applied_runs": stats.capture_prompt.shadow_narrow_applied_runs,
+            "shadow_narrow_fallback_runs": stats.capture_prompt.shadow_narrow_fallback_runs,
+            "applied_reducer_kinds": stats.capture_prompt.applied_reducer_kinds.iter().map(|(reducer_kind, runs)| {
+                json!({
+                    "reducer_kind": reducer_kind,
+                    "runs": runs
+                })
+            }).collect::<Vec<Value>>(),
+            "fallback_reasons": stats.capture_prompt.fallback_reasons.iter().map(|(reason, runs)| {
+                json!({
+                    "reason": reason,
+                    "runs": runs
+                })
+            }).collect::<Vec<Value>>()
         },
         "retry_telemetry": {
             "rows_with_retry_metadata": stats.retry.rows_with_retry_metadata,

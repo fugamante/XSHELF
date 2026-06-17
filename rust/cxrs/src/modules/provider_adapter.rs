@@ -5,7 +5,7 @@ use crate::llm::{
 };
 use crate::process::run_command_output_with_timeout;
 use crate::runtime::{
-    llm_backend, resolve_llama_cpp_model_for_run, resolve_mlx_model_for_run,
+    llm_backend, llm_model, resolve_llama_cpp_model_for_run, resolve_mlx_model_for_run,
     resolve_ollama_model_for_run,
 };
 use base64::Engine;
@@ -628,20 +628,19 @@ pub fn backend_runtime_caps_for(
     backend_raw: &str,
     adapter_name: &str,
     http_profile_name: Option<&str>,
+    provider_url: Option<&str>,
 ) -> BackendRuntimeCapabilities {
     let backend = normalized_backend_name(backend_raw);
     let local_backend = matches!(backend, "ollama" | "llamacpp" | "mlx");
     let is_http = provider_transport_for_adapter(adapter_name) == "http";
     let openai_profile = http_profile_name == Some("openai_json");
+    let resident_server =
+        resident_capability_for(backend_raw, adapter_name, http_profile_name, provider_url);
     BackendRuntimeCapabilities {
         model_registry: Some(local_backend),
         model_aliases: Some(local_backend),
         local_model_path: Some(local_backend),
-        resident_server: if is_http {
-            Some(openai_profile)
-        } else {
-            Some(false)
-        },
+        resident_server: Some(resident_server),
         openai_compatible: if is_http {
             Some(openai_profile)
         } else {
@@ -659,7 +658,13 @@ pub fn backend_runtime_caps_for(
 }
 
 pub fn selected_runtime_caps() -> BackendRuntimeCapabilities {
-    backend_runtime_caps_for(&llm_backend(), selected_adapter_name(), http_profile_opt())
+    let provider_url = env_nonempty("CX_HTTP_PROVIDER_URL");
+    backend_runtime_caps_for(
+        &llm_backend(),
+        selected_adapter_name(),
+        http_profile_opt(),
+        provider_url.as_deref(),
+    )
 }
 
 pub fn runtime_caps_json(caps: BackendRuntimeCapabilities) -> Value {
@@ -700,7 +705,74 @@ fn models_probe_url(url: &str) -> Result<String, LlmRunError> {
     Ok(format!("{scheme}{authority}/v1/models"))
 }
 
+pub fn resident_boundary_reason(
+    backend_raw: &str,
+    adapter_name: &str,
+    http_profile_name: Option<&str>,
+    provider_url: Option<&str>,
+) -> &'static str {
+    if provider_transport_for_adapter(adapter_name) != "http" {
+        return "transport_not_http";
+    }
+    if normalized_backend_name(backend_raw) != "mlx" {
+        return "backend_not_mlx";
+    }
+    if http_profile_name != Some("openai_json") {
+        return "http_profile_not_openai_json";
+    }
+    let Some(url) = provider_url.map(str::trim).filter(|v| !v.is_empty()) else {
+        return "provider_url_missing";
+    };
+    if !is_local_url(url) {
+        return "provider_url_not_local";
+    }
+    "eligible"
+}
+
+fn resident_capability_for(
+    backend_raw: &str,
+    adapter_name: &str,
+    http_profile_name: Option<&str>,
+    provider_url: Option<&str>,
+) -> bool {
+    resident_boundary_reason(backend_raw, adapter_name, http_profile_name, provider_url)
+        == "eligible"
+}
+
+pub fn selected_resident_json() -> Value {
+    let backend = llm_backend();
+    let adapter = selected_adapter_name();
+    let profile = http_profile_opt();
+    let provider_url = env_nonempty("CX_HTTP_PROVIDER_URL");
+    let local_endpoint = provider_url.as_deref().map(is_local_url);
+    let reason = resident_boundary_reason(&backend, adapter, profile, provider_url.as_deref());
+    json!({
+        "required_backend": "mlx",
+        "required_transport": "http",
+        "required_http_profile": "openai_json",
+        "required_local_endpoint": true,
+        "selected_backend": normalized_backend_name(&backend),
+        "selected_adapter": adapter,
+        "selected_transport": selected_provider_transport(),
+        "selected_http_profile": profile,
+        "provider_url_local": local_endpoint,
+        "eligible": reason == "eligible",
+        "reason": reason
+    })
+}
+
 pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
+    let backend = llm_backend();
+    let adapter = selected_adapter_name();
+    let profile = http_profile_opt();
+    let provider_url = env_nonempty("CX_HTTP_PROVIDER_URL");
+    let boundary_reason =
+        resident_boundary_reason(&backend, adapter, profile, provider_url.as_deref());
+    if boundary_reason != "eligible" {
+        return Err(LlmRunError::message(format!(
+            "http models probe requires the local MLX resident boundary (reason: {boundary_reason})"
+        )));
+    }
     if selected_provider_transport() != "http" {
         return Err(LlmRunError::message(
             "http models probe requires CX_PROVIDER_ADAPTER=http-curl|http-stub".to_string(),
@@ -711,7 +783,7 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
             "http models probe requires CX_HTTP_REQUEST_PROFILE=openai_json".to_string(),
         ));
     }
-    let url = env_nonempty("CX_HTTP_PROVIDER_URL").ok_or_else(|| {
+    let url = provider_url.ok_or_else(|| {
         LlmRunError::message("http models probe requires CX_HTTP_PROVIDER_URL".to_string())
     })?;
     validate_http_url(&url)?;
@@ -838,23 +910,50 @@ pub struct LlamaCppCliAdapter {
 pub struct MlxPythonAdapter {
     model: String,
     python: String,
+    preferred_args: Option<String>,
 }
 
 impl MlxPythonAdapter {
     fn new() -> Result<Self, LlmRunError> {
+        let env_model_selector = env::var("CX_MLX_MODEL")
+            .ok()
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty());
+        let model_selector = env_model_selector.clone().unwrap_or_else(llm_model);
         let model = resolve_mlx_model_for_run().map_err(LlmRunError::message)?;
         let python = env::var("CX_MLX_PYTHON")
             .ok()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "python3".to_string());
-        Ok(Self { model, python })
+        let preferred_args = crate::local_models::selector_preferred_args("mlx", &model_selector)
+            .map_err(LlmRunError::message)?
+            .or_else(|| {
+                if env_model_selector.is_some() {
+                    None
+                } else {
+                    crate::local_models::find_record_for_backend(&model, "mlx")
+                        .ok()
+                        .flatten()
+                        .and_then(|record| record.preferred_args)
+                }
+            });
+        Ok(Self {
+            model,
+            python,
+            preferred_args,
+        })
     }
 }
 
 impl ProviderAdapter for MlxPythonAdapter {
     fn run_plain(&self, prompt: &str) -> Result<String, LlmRunError> {
-        run_mlx_plain(prompt, &self.model, &self.python)
+        run_mlx_plain(
+            prompt,
+            &self.model,
+            &self.python,
+            self.preferred_args.as_deref(),
+        )
     }
 
     fn run_jsonl(&self, prompt: &str) -> Result<String, LlmRunError> {
@@ -1423,7 +1522,7 @@ mod tests {
 
     #[test]
     fn runtime_caps_typed_for_local_and_http_profile() {
-        let mlx_process = super::backend_runtime_caps_for("mlx", "mlx-python", None);
+        let mlx_process = super::backend_runtime_caps_for("mlx", "mlx-python", None, None);
         assert_eq!(mlx_process.model_registry, Some(true));
         assert_eq!(mlx_process.model_aliases, Some(true));
         assert_eq!(mlx_process.local_model_path, Some(true));
@@ -1432,30 +1531,53 @@ mod tests {
         assert_eq!(mlx_process.cache_metric_kind, Some("cache_nbytes"));
         assert_eq!(mlx_process.supports_persisted_kv_restore, Some(false));
 
-        let llama_process = super::backend_runtime_caps_for("llamacpp", "llama.cpp-cli", None);
+        let llama_process =
+            super::backend_runtime_caps_for("llamacpp", "llama.cpp-cli", None, None);
         assert_eq!(llama_process.cache_metric_kind, Some("raw_ratio"));
         assert_eq!(llama_process.model_registry, Some(true));
 
-        let ollama_process = super::backend_runtime_caps_for("ollama", "ollama-cli", None);
+        let ollama_process = super::backend_runtime_caps_for("ollama", "ollama-cli", None, None);
         assert_eq!(ollama_process.model_registry, Some(true));
         assert_eq!(ollama_process.cache_metric_kind, None);
 
         let http_plain =
-            super::backend_runtime_caps_for("primary", "http-curl", Some("plain_text"));
+            super::backend_runtime_caps_for("primary", "http-curl", Some("plain_text"), None);
         assert_eq!(http_plain.model_registry, Some(false));
         assert_eq!(http_plain.model_aliases, Some(false));
         assert_eq!(http_plain.local_model_path, Some(false));
         assert_eq!(http_plain.resident_server, Some(false));
         assert_eq!(http_plain.openai_compatible, Some(false));
 
-        let http_openai =
-            super::backend_runtime_caps_for("primary", "http-curl", Some("openai_json"));
+        let http_openai = super::backend_runtime_caps_for(
+            "primary",
+            "http-curl",
+            Some("openai_json"),
+            Some("http://127.0.0.1:11434/v1/chat/completions"),
+        );
         assert_eq!(http_openai.openai_compatible, Some(true));
-        assert_eq!(http_openai.resident_server, Some(true));
+        assert_eq!(http_openai.resident_server, Some(false));
         assert_eq!(http_openai.supports_batching, None);
         assert_eq!(http_openai.supports_tool_calling, None);
         assert_eq!(http_openai.supports_embeddings, None);
         assert_eq!(http_openai.supports_reranking, None);
+
+        let mlx_http_remote = super::backend_runtime_caps_for(
+            "mlx",
+            "http-curl",
+            Some("openai_json"),
+            Some("https://example.com/v1/chat/completions"),
+        );
+        assert_eq!(mlx_http_remote.openai_compatible, Some(true));
+        assert_eq!(mlx_http_remote.resident_server, Some(false));
+
+        let mlx_http_local = super::backend_runtime_caps_for(
+            "mlx",
+            "http-curl",
+            Some("openai_json"),
+            Some("http://127.0.0.1:11434/v1/chat/completions"),
+        );
+        assert_eq!(mlx_http_local.openai_compatible, Some(true));
+        assert_eq!(mlx_http_local.resident_server, Some(true));
     }
 
     #[test]

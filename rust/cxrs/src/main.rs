@@ -47,6 +47,8 @@ mod help;
 mod introspect;
 #[path = "modules/json_mode.rs"]
 mod json_mode;
+#[path = "modules/launch.rs"]
+mod launch;
 #[path = "modules/llm.rs"]
 mod llm;
 #[path = "modules/local_models.rs"]

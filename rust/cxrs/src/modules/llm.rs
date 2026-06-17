@@ -179,7 +179,12 @@ pub fn run_llama_cpp_plain(prompt: &str, model: &str, bin: &str) -> Result<Strin
     Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
-pub fn run_mlx_plain(prompt: &str, model: &str, python: &str) -> Result<String, LlmRunError> {
+pub fn run_mlx_plain(
+    prompt: &str,
+    model: &str,
+    python: &str,
+    preferred_args: Option<&str>,
+) -> Result<String, LlmRunError> {
     let mut cmd = Command::new(python);
     cmd.args([
         "-m", "mlx_lm", "generate", "--model", model, "--prompt", prompt,
@@ -188,6 +193,16 @@ pub fn run_mlx_plain(prompt: &str, model: &str, python: &str) -> Result<String, 
         && !max_tokens.trim().is_empty()
     {
         cmd.args(["--max-tokens", max_tokens.trim()]);
+    }
+    if let Some(raw_args) = preferred_args
+        && !raw_args.trim().is_empty()
+    {
+        let extra = shell_words::split(raw_args).map_err(|e| {
+            LlmRunError::message(format!(
+                "MLX adapter could not parse registry preferred_args: {e}"
+            ))
+        })?;
+        cmd.args(extra);
     }
     if let Ok(raw_args) = env::var("CX_MLX_ARGS") {
         let extra = shell_words::split(&raw_args).map_err(|e| {

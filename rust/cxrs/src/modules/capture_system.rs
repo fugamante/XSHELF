@@ -48,6 +48,32 @@ fn shadow_enabled() -> bool {
         == 1
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CapturePromptProfile {
+    Legacy,
+    ShadowNarrow,
+}
+
+impl CapturePromptProfile {
+    fn as_log_field(self) -> Option<&'static str> {
+        match self {
+            Self::Legacy => None,
+            Self::ShadowNarrow => Some("shadow_narrow"),
+        }
+    }
+}
+
+fn capture_prompt_profile() -> CapturePromptProfile {
+    match env::var("CX_CAPTURE_PROMPT_PROFILE")
+        .ok()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("shadow_narrow") => CapturePromptProfile::ShadowNarrow,
+        _ => CapturePromptProfile::Legacy,
+    }
+}
+
 fn command_section(cmd: &[String], status: i32) -> String {
     let command = shell_words::join(cmd.iter().map(String::as_str));
     format!("command: {command}\nexit_status: {status}")
@@ -146,6 +172,7 @@ fn process_capture(
     raw_out: String,
     native_reduce: bool,
     run_shadow: bool,
+    prompt_profile: CapturePromptProfile,
     cfg: &BudgetConfig,
 ) -> (String, CaptureStats) {
     let processed = raw_out.clone();
@@ -154,13 +181,68 @@ fn process_capture(
     } else {
         passthrough_result(processed)
     };
-    if run_shadow {
-        let _ = assemble_capture_shadow(cmd, status, &reduction, cfg);
-    }
-    let (clipped_text, mut stats) = clip_text_with_config(&reduction.text, cfg);
+    let use_shadow_prompt = native_reduce
+        && prompt_profile == CapturePromptProfile::ShadowNarrow
+        && matches!(reduction.metadata.reducer_kind, "git_diff" | "test_output");
+    let shadow = if run_shadow || use_shadow_prompt {
+        Some(assemble_capture_shadow(cmd, status, &reduction, cfg))
+    } else {
+        None
+    };
+    let shadow_safe = shadow.as_ref().map(prompt_shadow_safe);
+    let prompt_text = shadow
+        .as_ref()
+        .filter(|_| use_shadow_prompt && shadow_safe == Some(true))
+        .map(|shadow| shadow.text.as_str())
+        .unwrap_or(&reduction.text);
+    let (clipped_text, mut stats) = clip_text_with_config(prompt_text, cfg);
     stats.rtk_used = Some(false);
     stats.capture_provider = Some("native".to_string());
+    stats.capture_prompt_profile = prompt_profile.as_log_field().map(str::to_string);
+    stats.capture_prompt_profile_applied = prompt_profile
+        .as_log_field()
+        .map(|_| use_shadow_prompt && shadow_safe == Some(true));
+    stats.capture_prompt_reducer_kind = prompt_profile
+        .as_log_field()
+        .map(|_| reduction.metadata.reducer_kind.to_string());
+    stats.capture_prompt_fallback_reason = prompt_fallback_reason(
+        prompt_profile,
+        native_reduce,
+        reduction.metadata.reducer_kind,
+        shadow_safe,
+    )
+    .map(str::to_string);
     (clipped_text, stats)
+}
+
+fn prompt_shadow_safe(shadow: &ShadowAssembly) -> bool {
+    shadow.text.contains("exit_status:")
+        && shadow.text.contains("output.")
+        && !shadow
+            .omitted_section_ids
+            .iter()
+            .any(|id| id == "command.exit_status" || id.starts_with("output."))
+}
+
+fn prompt_fallback_reason(
+    prompt_profile: CapturePromptProfile,
+    native_reduce: bool,
+    reducer_kind: &str,
+    shadow_safe: Option<bool>,
+) -> Option<&'static str> {
+    if prompt_profile != CapturePromptProfile::ShadowNarrow {
+        return None;
+    }
+    if !native_reduce {
+        return Some("native_reduce_disabled");
+    }
+    if !matches!(reducer_kind, "git_diff" | "test_output") {
+        return Some("unsupported_reducer");
+    }
+    if shadow_safe == Some(false) {
+        return Some("missing_required_evidence");
+    }
+    None
 }
 
 pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, CaptureStats), String> {
@@ -174,8 +256,15 @@ pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, Captur
         .unwrap_or(1)
         == 1;
     let cfg = budget_config_from_env();
-    let (clipped_text, stats) =
-        process_capture(cmd, status, raw_out, native_reduce, shadow_enabled(), &cfg);
+    let (clipped_text, stats) = process_capture(
+        cmd,
+        status,
+        raw_out,
+        native_reduce,
+        shadow_enabled(),
+        capture_prompt_profile(),
+        &cfg,
+    );
     Ok((clipped_text, status, stats))
 }
 
@@ -183,6 +272,7 @@ pub fn run_system_command_capture(cmd: &[String]) -> Result<(String, i32, Captur
 mod tests {
     use super::super::capture_reduce::native_reduce_output_with_metadata;
     use super::*;
+    use serde_json::Value;
 
     fn test_budget(chars: usize, lines: usize) -> BudgetConfig {
         BudgetConfig {
@@ -192,7 +282,6 @@ mod tests {
             clip_footer: false,
         }
     }
-
     #[test]
     fn shadow_keeps_core() {
         let cmd = vec!["test".to_string()];
@@ -208,7 +297,6 @@ mod tests {
         assert!(shadow.omitted_section_ids.is_empty());
         assert!(!shadow.clipped);
     }
-
     #[test]
     fn shadow_promotes_uncertain() {
         let reduction = ReductionResult {
@@ -242,19 +330,270 @@ mod tests {
         assert!(output < metadata);
         assert!(shadow.text.contains("uncertainty: high"));
     }
-
     #[test]
     fn shadow_does_not_change_result() {
         let cmd = vec!["test".to_string()];
         let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
         let cfg = test_budget(1000, 80);
-        let without_shadow = process_capture(&cmd, 101, raw.to_string(), true, false, &cfg);
-        let with_shadow = process_capture(&cmd, 101, raw.to_string(), true, true, &cfg);
+        let without_shadow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let with_shadow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            true,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
 
         assert_eq!(without_shadow.0, with_shadow.0);
         assert_eq!(
             format!("{:?}", without_shadow.1),
             format!("{:?}", with_shadow.1)
         );
+    }
+    #[test]
+    fn shadow_narrow_assembles() {
+        let cmd = vec!["test".to_string()];
+        let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
+        let cfg = test_budget(1000, 80);
+        let (captured, stats) = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert!(captured.contains("[critical] command.exit_status"));
+        assert!(captured.contains("[high] output.reduced"));
+        assert!(captured.contains("api_error"));
+        assert_eq!(
+            stats.system_output_len_raw,
+            Some(captured.chars().count() as u64)
+        );
+    }
+    #[test]
+    fn shadow_narrow_unsupported() {
+        let cmd = vec!["git".to_string(), "status".to_string()];
+        let raw = "On branch main\nChanges not staged for commit:\n  modified: README.md\n";
+        let cfg = test_budget(1000, 80);
+        let legacy = process_capture(
+            &cmd,
+            0,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let shadow_narrow = process_capture(
+            &cmd,
+            0,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert_eq!(legacy.0, shadow_narrow.0);
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_profile.as_deref(),
+            Some("shadow_narrow")
+        );
+        assert_eq!(shadow_narrow.1.capture_prompt_profile_applied, Some(false));
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_reducer_kind.as_deref(),
+            Some("git_status")
+        );
+        assert_eq!(
+            shadow_narrow.1.capture_prompt_fallback_reason.as_deref(),
+            Some("unsupported_reducer")
+        );
+        let mut expected = shadow_narrow.1.clone();
+        expected.capture_prompt_profile = legacy.1.capture_prompt_profile.clone();
+        expected.capture_prompt_profile_applied = legacy.1.capture_prompt_profile_applied;
+        expected.capture_prompt_reducer_kind = legacy.1.capture_prompt_reducer_kind.clone();
+        expected.capture_prompt_fallback_reason = legacy.1.capture_prompt_fallback_reason.clone();
+        assert_eq!(format!("{:?}", legacy.1), format!("{:?}", expected));
+    }
+    #[test]
+    fn shadow_prompt_guard() {
+        let cmd = vec!["test".to_string()];
+        let raw = "running 1 test\ntest api_error ... FAILED\nthread 'api_error' panicked\nerror: root cause\n";
+        let cfg = test_budget(40, 2);
+        let legacy = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::Legacy,
+            &cfg,
+        );
+        let shadow_narrow = process_capture(
+            &cmd,
+            101,
+            raw.to_string(),
+            true,
+            false,
+            CapturePromptProfile::ShadowNarrow,
+            &cfg,
+        );
+
+        assert_eq!(legacy.0, shadow_narrow.0);
+    }
+
+    fn parse_fixture_manifest(json: &str) -> Value {
+        serde_json::from_str(json).expect("parse fixture manifest")
+    }
+    fn manifest_command(manifest: &Value) -> Vec<String> {
+        manifest
+            .get("command")
+            .and_then(Value::as_array)
+            .expect("command")
+            .iter()
+            .map(|value| value.as_str().expect("command string").to_string())
+            .collect()
+    }
+    fn manifest_exit_status(manifest: &Value) -> i32 {
+        manifest
+            .get("exit_status")
+            .and_then(Value::as_i64)
+            .expect("exit status") as i32
+    }
+
+    fn shadow_budget(cmd: &[String], status: i32, reduction: &ReductionResult) -> BudgetConfig {
+        let command = command_section(cmd, status);
+        let output_id = if reduction.metadata.uncertainty == "high" {
+            "output.uncertain_fallback"
+        } else {
+            "output.reduced"
+        };
+        let output_block = format!("[high] {output_id}\n{}\n", reduction.text.trim_end());
+        let command_block = format!("[critical] command.exit_status\n{}\n", command.trim_end());
+        let metadata_block = format!(
+            "[medium] reducer.metadata\n{}\n",
+            metadata_section(&reduction.metadata).trim_end()
+        );
+
+        test_budget(
+            command_block.chars().count() + output_block.chars().count() + 16,
+            command_block.lines().count() + output_block.lines().count() + 2,
+        )
+        .with_metadata_ceiling(
+            metadata_block.chars().count(),
+            metadata_block.lines().count(),
+        )
+    }
+
+    fn required_spans(manifest: &Value) -> Vec<&str> {
+        manifest
+            .get("required_spans")
+            .and_then(Value::as_array)
+            .expect("required spans")
+            .iter()
+            .map(|value| value.as_str().expect("required span"))
+            .collect()
+    }
+
+    trait BudgetExt {
+        fn with_metadata_ceiling(
+            self,
+            metadata_chars: usize,
+            metadata_lines: usize,
+        ) -> BudgetConfig;
+    }
+
+    impl BudgetExt for BudgetConfig {
+        fn with_metadata_ceiling(
+            self,
+            metadata_chars: usize,
+            metadata_lines: usize,
+        ) -> BudgetConfig {
+            BudgetConfig {
+                budget_chars: self
+                    .budget_chars
+                    .max(1)
+                    .saturating_sub(metadata_chars.min(8)),
+                budget_lines: self
+                    .budget_lines
+                    .max(1)
+                    .saturating_sub(metadata_lines.min(1)),
+                ..self
+            }
+        }
+    }
+
+    fn assert_shadow_measurements(manifest: &Value, input: &str) {
+        let command = manifest_command(manifest);
+        let status = manifest_exit_status(manifest);
+        let reduction = native_reduce_output_with_metadata(&command, input);
+        let cfg = shadow_budget(&command, status, &reduction);
+        let shadow = assemble_capture_shadow(&command, status, &reduction, &cfg);
+        let shadow_chars = shadow.text.chars().count();
+        let shadow_reduction_ratio = (reduction.metadata.raw_chars.saturating_sub(shadow_chars))
+            as f64
+            / reduction.metadata.raw_chars as f64;
+
+        assert!(shadow.text.contains("[critical] command.exit_status"));
+        assert!(
+            shadow.text.contains("exit_status:")
+                && !shadow
+                    .omitted_section_ids
+                    .iter()
+                    .any(|id| id == "command.exit_status")
+        );
+        assert!(
+            shadow.text.contains("output.")
+                && !shadow
+                    .omitted_section_ids
+                    .iter()
+                    .any(|id| id.starts_with("output."))
+        );
+        for span in required_spans(manifest) {
+            assert!(
+                shadow.text.contains(span),
+                "missing required shadow span: {span}"
+            );
+        }
+        assert!(
+            shadow.omitted_section_ids.len() <= 1,
+            "unexpected shadow omissions: {:?}",
+            shadow.omitted_section_ids
+        );
+        assert!(
+            shadow_reduction_ratio >= 0.05,
+            "shadow reduction ratio {shadow_reduction_ratio} below floor"
+        );
+    }
+
+    #[test]
+    fn shadow_measurements_test() {
+        let manifest = parse_fixture_manifest(include_str!(
+            "../../tests/fixtures/phase_x/test_output_reducer_manifest.json"
+        ));
+        let input = include_str!("../../tests/fixtures/phase_x/cargo_test_failure.txt");
+        assert_shadow_measurements(&manifest, input);
+    }
+
+    #[test]
+    fn shadow_measurements_diff() {
+        let manifest = parse_fixture_manifest(include_str!(
+            "../../tests/fixtures/phase_x/diff_reducer_manifest.json"
+        ));
+        let input = include_str!("../../tests/fixtures/phase_x/git_diff_mixed.txt");
+        assert_shadow_measurements(&manifest, input);
     }
 }

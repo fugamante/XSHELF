@@ -10,12 +10,14 @@ use crate::config::cli_app_name;
 use crate::analytics::quota_probe_for_backend_days;
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
-use crate::local_models::{find_record_for_backend, resolve_model_for_backend};
+use crate::local_models::{
+    find_record_for_backend, resolve_model_for_backend, selector_preferred_args, touch_model_record,
+};
 use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
     http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
-    selected_provider_transport, selected_runtime_caps,
+    selected_provider_transport, selected_resident_json, selected_runtime_caps,
 };
 use crate::runtime::{
     llama_cpp_model_preference, llm_backend, llm_model, mlx_model_preference,
@@ -580,7 +582,23 @@ fn llm_smoke(args: &[String]) -> i32 {
     );
     println!("smoke_output:");
     println!("{}", text.trim());
+    if matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx") && !model.trim().is_empty() {
+        let _ = note_model_usage(&backend, &model, None);
+    }
     0
+}
+
+fn note_model_usage(backend: &str, model: &str, smoke_status: Option<&str>) -> Option<()> {
+    match touch_model_record(backend, model, Some(&utc_now_iso()), smoke_status) {
+        Ok(_) => Some(()),
+        Err(e) => {
+            crate::cx_eprintln!(
+                "{} llm: unable to update local model registry metadata: {e}",
+                cli_app_name()
+            );
+            None
+        }
+    }
 }
 
 fn has_flag(args: &[String], flag: &str) -> bool {
@@ -641,7 +659,8 @@ fn resolve_mlx_model_for_verify() -> Result<Value, String> {
         "input": input,
         "resolved": resolved.resolved_model,
         "alias": resolved.alias,
-        "id": resolved.id
+        "id": resolved.id,
+        "preferred_args": selector_preferred_args("mlx", &input)?
     }))
 }
 
@@ -678,6 +697,15 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         .get("resolved")
         .and_then(Value::as_str)
         .ok_or_else(|| "resolved model missing".to_string())?;
+    let preferred_args = model_info
+        .get("preferred_args")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let env_args = env::var("CX_MLX_ARGS")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
 
     let script_arg = script.display().to_string();
     let out_arg = out_file.display().to_string();
@@ -695,6 +723,12 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         "--python",
         python.as_str(),
     ]);
+    if let Some(raw_args) = preferred_args {
+        cmd.args(["--preferred-args", raw_args]);
+    }
+    if let Some(raw_args) = env_args.as_deref() {
+        cmd.args(["--mlx-args", raw_args]);
+    }
     let out = run_command_output_with_timeout(cmd, "llm verify mlx benchmark")
         .map_err(|e| format!("benchmark runner failed: {e}"))?;
     if !out.status.success() {
@@ -774,8 +808,10 @@ fn run_mlx_smoke_profile(prompt: &str, model_info: &Value) -> Result<Value, Stri
         .get("resolved")
         .and_then(Value::as_str)
         .ok_or_else(|| "resolved model missing".to_string())?;
+    let preferred_args = model_info.get("preferred_args").and_then(Value::as_str);
     let start = Instant::now();
-    let output = run_mlx_plain(prompt, resolved_model, &python).map_err(|e| e.to_string())?;
+    let output = run_mlx_plain(prompt, resolved_model, &python, preferred_args)
+        .map_err(|e| e.to_string())?;
     let wall_ms = start.elapsed().as_millis() as u64;
     let exact = output.trim() == "OK";
     Ok(json!({
@@ -865,6 +901,24 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
             return 2;
         }
     };
+    if let Some(model_input) = model_info.get("input").and_then(Value::as_str) {
+        let smoke_status = if profile == "smoke" {
+            match result
+                .as_ref()
+                .ok()
+                .and_then(|v| v.get("correctness"))
+                .and_then(|v| v.get("exact"))
+                .and_then(Value::as_bool)
+            {
+                Some(true) => Some("pass"),
+                Some(false) => Some("fail"),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let _ = note_model_usage("mlx", model_input, smoke_status);
+    }
     let payload = match result {
         Ok(v) => json!({
             "contract_version": "llm-verify.v1",
@@ -967,6 +1021,7 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
         "selected_adapter": selected_adapter_name(),
         "selected_transport": selected_provider_transport(),
         "http_request_profile": http_profile_opt(),
+        "boundary": selected_resident_json(),
         "runtime_capability": {
             "resident_server": runtime_caps.resident_server,
             "openai_compatible": runtime_caps.openai_compatible,
@@ -1006,6 +1061,23 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
             .map(|v| v.to_string())
             .unwrap_or_else(|| "null".to_string())
     );
+    if let Some(boundary) = payload.get("boundary") {
+        println!(
+            "resident_boundary_eligible: {}",
+            boundary
+                .get("eligible")
+                .and_then(Value::as_bool)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "false".to_string())
+        );
+        println!(
+            "resident_boundary_reason: {}",
+            boundary
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+        );
+    }
     println!(
         "openai_compatible: {}",
         runtime_caps

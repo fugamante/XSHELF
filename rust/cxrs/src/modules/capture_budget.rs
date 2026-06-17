@@ -92,6 +92,10 @@ pub fn clip_text_with_config(input: &str, cfg: &BudgetConfig) -> (String, Captur
             clip_footer: Some(cfg.clip_footer),
             rtk_used: None,
             capture_provider: None,
+            capture_prompt_profile: None,
+            capture_prompt_profile_applied: None,
+            capture_prompt_reducer_kind: None,
+            capture_prompt_fallback_reason: None,
         },
     )
 }

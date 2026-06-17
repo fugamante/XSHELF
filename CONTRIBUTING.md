@@ -27,11 +27,25 @@
 
 ```bash
 cd rust/cxrs
+./scripts/guardrails.sh
+./scripts/check_rs_max_lines.sh 600 "$(pwd)/../.."
+./scripts/check_integration_guardrails.sh "$(pwd)/../.." 500
 cargo fmt
 cargo check
 cargo test --tests -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
+cd ../..
+./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --quick
 ```
+
+`./scripts/guardrails.sh` includes the release-cadence gate
+(`tools/release_check.py --repo-root ../.. --max-version-age-days 14`) and its
+Python unit tests so the default local path matches `cxrs-compat` CI.
+Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
+signal before paying for the full quick compat suite.
+Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
+compat pass without changing the host-native `scripts/compat_local.sh` contract.
 
 ## Pull Request Requirements
 
@@ -39,6 +53,9 @@ python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --ma
 - Preserve stdout pipeline behavior; diagnostics go to stderr.
 - Do not introduce startup side effects.
 - Update `README.md`/`CHANGELOG.md` when behavior or contracts change.
+- When command entrypoints or command-facing Rust routing/help surfaces change, update `README.md`, `CHANGELOG.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md` together.
+- Keep release cadence current: CI fails when `VERSION` is older than 14 days unless the PR is explicitly labeled `release-exception`.
+- Keep Rust/file/integration guardrails green locally before push: `./scripts/guardrails.sh`, `./scripts/check_rs_max_lines.sh`, and `./scripts/check_integration_guardrails.sh`.
 - Keep third-party GitHub Actions pinned to full 40-character commit SHAs; validate with `./scripts/check_action_pins.sh .`.
 
 ## Commit Guidance

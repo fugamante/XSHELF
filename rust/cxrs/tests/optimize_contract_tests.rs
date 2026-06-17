@@ -62,6 +62,15 @@ fn optimize_json_matches_contract_fixture() {
         &timing_keys,
         "optimize.scoreboard.timing_attribution_coverage",
     );
+    let capture_prompt_keys = fixture_keys(&fixture, "capture_prompt_rollout_keys");
+    assert_has_keys(
+        payload
+            .get("scoreboard")
+            .and_then(|v| v.get("capture_prompt_profile_rollout"))
+            .expect("capture_prompt_profile_rollout"),
+        &capture_prompt_keys,
+        "optimize.scoreboard.capture_prompt_profile_rollout",
+    );
     assert_eq!(
         payload
             .get("backend_capabilities")
@@ -70,6 +79,77 @@ fn optimize_json_matches_contract_fixture() {
             .and_then(Value::as_str),
         Some("none")
     );
+}
+
+#[test]
+fn optimize_capture_prompt() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"ocp1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":900,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":true,
+            "capture_prompt_reducer_kind":"test_output"
+        }),
+        serde_json::json!({
+            "execution_id":"ocp2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":950,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":false,
+            "capture_prompt_reducer_kind":"git_status",
+            "capture_prompt_fallback_reason":"unsupported_reducer"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["optimize", "10", "--json", "--actions"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("optimize json");
+    let rollout = payload
+        .get("scoreboard")
+        .and_then(|v| v.get("capture_prompt_profile_rollout"))
+        .expect("capture_prompt_profile_rollout");
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_configured_runs")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_applied_runs")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_fallback_runs")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_fallback_rate")
+            .and_then(Value::as_f64),
+        Some(0.5)
+    );
+    let recommendations = payload
+        .get("recommendations")
+        .and_then(Value::as_array)
+        .expect("recommendations");
+    assert!(recommendations.iter().any(|item| {
+        item.as_str()
+            .is_some_and(|v| v.contains("shadow_narrow fallback observed"))
+    }));
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions");
+    assert!(actions.iter().any(|action| {
+        action.get("id").and_then(Value::as_str) == Some("capture_prompt_rollout_followup")
+            && action.get("command").and_then(Value::as_str) == Some("xshelf telemetry 200 --json")
+    }));
 }
 
 #[test]

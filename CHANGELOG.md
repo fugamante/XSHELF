@@ -19,6 +19,18 @@ Notes:
   - added `branch-protection-audit` workflow for solo-maintainer mode.
   - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
   - documented required `BRANCH_PROTECTION_TOKEN` setup in `docs/project/BRANCH_PROTECTION_AUDIT.md`.
+  - added release-cadence staleness gate to `rust/cxrs/tools/release_check.py` with CI enforcement in `cxrs-compat`.
+  - cadence gate now fails when `VERSION` is older than 14 days unless pull requests carry explicit `release-exception` label.
+  - refreshed `VERSION` to `2026.06.03` so the cadence gate reflects current active branch state.
+  - aligned maintainer docs/checklists with the active local guardrail path (`rust/cxrs/scripts/guardrails.sh`, Rust line/integration guardrails, and `release_check.py` cadence validation).
+  - added focused Python unit coverage for `rust/cxrs/tools/release_check.py` and wired it into local guardrails plus `cxrs-compat` CI so release-cadence enforcement is validated before it blocks merges.
+  - `rust/cxrs/scripts/guardrails.sh` now runs `tools/release_check.py --max-version-age-days 14` directly, so the default local maintainer path catches stale `VERSION` metadata before CI.
+  - `scripts/compat_local.sh --quick` now runs the same release metadata unit tests and cadence check, so local compatibility reports fail before CI when `VERSION` is stale or release metadata drifts.
+  - added containerized compat bootstrap via `Dockerfile`, `.dockerignore`, and `scripts/compat_docker.sh` so maintainers can run the existing `scripts/compat_local.sh` contract inside Docker on a bind-mounted repo.
+  - added `scripts/compat_docker.sh --smoke` as a faster Linux-hosted report path that checks release metadata and core runtime compatibility without running the full quick suite.
+  - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
+  - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
+  - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.
 - Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.
@@ -28,12 +40,15 @@ Notes:
     - `llm show` now prints alias and resolved model fields when a registry token is active.
     - task model overrides can use backend-scoped aliases without changing direct-string behavior.
     - `llm use` stores resolved backend model strings in state when aliases/IDs are supplied.
+    - backend-scoped alias resolution no longer falls through when another backend reuses the same alias.
+    - ambiguous `llm models inspect/remove <alias>` selectors now fail with backend-scoped ID guidance instead of picking the first sorted match.
     - command-style `task run` objectives now apply `--model` overrides through the effective backend path, including auto backend selection.
   - completed inspection/accounting slice:
     - `llm models inspect <alias-or-id>` now emits typed cheap accounting status for local/cache paths in text and JSON output.
     - default inspect mode performs cheap path checks only and avoids recursive disk scans.
     - explicit `--disk-usage` enables recursive directory-size accounting for local/cache paths.
     - missing local paths remain non-fatal and are surfaced as explicit inspect status fields.
+    - inspect now surfaces registry `last_used_at` / `last_smoke_status` fields in text mode when present.
   - completed capability envelope slice:
     - added typed `backend_capabilities.runtime` envelope with explicit nullable lanes for registry/alias/path, resident-server, compatibility, batching/tooling, multimodal, embedding, reranking, cache metric kind, and persisted-KV-restore support.
     - exposed runtime capability envelope on `core --json`, `version --json`, `diag --json`, and `scheduler --json` while preserving additive JSON contracts.
@@ -42,10 +57,13 @@ Notes:
     - added `llm verify mlx` with `--profile smoke|benchmark` and JSON contract `llm-verify.v1`.
     - verify resolves model input through local registry aliases before execution and reports both input and resolved model metadata.
     - benchmark profile emits typed correctness/runtime and memory envelope fields aligned to TurboQuant metric naming (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`).
+    - registry-backed local model metadata now refreshes `last_used_at` on successful local smoke/verify runs and `last_smoke_status` on MLX smoke verification.
+    - alias/id-backed MLX registry `preferred_args` are now active on process-backed `cxo` execution and `llm verify mlx --profile smoke`; `CX_MLX_ARGS` remains the final override layer and the benchmark harness stays explicit about not reinterpreting those CLI args.
   - completed resident-server opt-in slice:
     - added `llm resident show|probe-models` with JSON contract `llm-resident.v1`.
-    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is active.
-    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`.
+    - `probe-models` now probes `/v1/models` through the existing `http-curl` adapter boundary only on the explicit local-MLX resident path (`CX_LLM_BACKEND=mlx`, `CX_HTTP_REQUEST_PROFILE=openai_json`, local provider URL).
+    - `llm resident show --json` now includes additive machine-readable boundary eligibility/reason fields for the resident path.
+    - runtime capability mapping now marks `resident_server=true` only on that explicit local-MLX boundary; process adapters and remote OpenAI-compatible endpoints remain explicit `false`.
   - closed the planned Phase VIII slice set after local resident probe validation through `llm-resident.v1`.
 - Phase X token-compression planning corpus:
   - added planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`.
@@ -62,6 +80,12 @@ Notes:
   - added work queue: `docs/orchestration/PHASE_XI_WORK.json`.
   - completed Slice 1 by documenting the shadow-first rollout contract, acceptance gates, rollback rule, and public-surface boundaries.
   - completed Slice 2 with a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate without changing returned capture output or public telemetry.
+  - completed Slice 3 with an explicit `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` opt-in that uses typed assembly only for the fixture-backed `test_output` and `git_diff` reducer classes, with legacy fallback when assembly would omit command/status or output evidence.
+  - completed Slice 4 with fixture-backed shadow measurement gates for test-output and diff corpora, covering bounded omissions, critical-span recall, replay-style evidence retention, and size deltas without changing runtime defaults.
+  - completed Slice 5 by recording the rollout decision to keep runtime wiring opt-in only, preserve the default `run -> reduce -> clip` path, and defer broader reducer expansion and public omission surfaces to later additive contract work.
+  - added additive `capture_prompt_telemetry` on `telemetry --json` / `logs stats --json`, plus nullable run-log fields for explicit prompt-profile runs (`capture_prompt_profile`, applied flag, reducer kind, fallback reason).
+  - added additive `optimize --json` capture-prompt rollout guidance via `scoreboard.capture_prompt_profile_rollout`, recommendations, and a follow-up action when explicit `shadow_narrow` runs are falling back or never applying.
+  - added additive `diag --json` capture-prompt rollout guidance via `capture_prompt_profile_rollout`, including latest explicit-profile fallback context and a follow-up action when the latest `shadow_narrow` run fell back or never applied.
 - XSHELF command migration:
   - README quick-start and common command examples now lead with `bin/xshelf`.
   - added `bin/xs` as a supported short alias for `xshelf`.
@@ -157,6 +181,7 @@ Notes:
   - `scheduler --json` now includes matching `concurrency` shape (`defaults` + `observed`) so operator/CI consumers can use a shared schema across diag/scheduler surfaces.
 - Planning/docs updates:
   - finalized Provider Adapter Phase 6 rollout policy + merge checklist.
+  - aligned `docs/orchestration/PHASE_VII_BUDGET_AWARE_ORCHESTRATION.md` status with completed Phase VII milestone state.
   - added Phase VI kickoff guidance in roadmap.
   - added `docs/project/REPO_ROLE_CONTRACT.md` to formalize runtime-vs-operator repo boundaries and selective-upstream policy.
   - added `docs/project/REPO_SYNC_PLAN.md` to track cross-repo phase execution (5A/5B/5C/5D) and ongoing promotion gates.

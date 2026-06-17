@@ -59,6 +59,9 @@ man xshelf
 man cx
 ```
 
+Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
+`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
+
 Then check backend health:
 
 ```bash
@@ -92,6 +95,7 @@ Current compatibility storage path:
 - logs: `.cx/cxlogs/`
 - quarantine: `.cx/quarantine/`
 - state/tasks/runtime metadata: `.cx/`
+- task-event progress stream: `.codex/cxlogs/task_events.jsonl`
 
 ## Capabilities
 
@@ -133,6 +137,10 @@ Policy and telemetry:
 ./bin/xshelf quota probe 30 --json | jq .
 ```
 
+`telemetry --json` / `logs stats --json` now include additive
+`capture_prompt_telemetry` summary fields for the explicit
+`CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` rollout path.
+
 Structured output:
 
 ```bash
@@ -159,6 +167,7 @@ Structured output:
 ./bin/xshelf llm verify mlx --profile smoke --json | jq .
 ./bin/xshelf llm verify mlx --profile benchmark --ctx 8192 --json | jq .
 ./bin/xshelf llm resident show --json | jq .
+CX_LLM_BACKEND=mlx \
 CX_PROVIDER_ADAPTER=http-curl \
 CX_HTTP_REQUEST_PROFILE=openai_json \
 CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
@@ -170,10 +179,25 @@ CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
 When the selected model token matches a local-model registry alias or ID for the
 active backend, runtime execution resolves it to the record's `resolved_model`.
 `llm show` prints both alias and resolved model when applicable.
+If the same alias exists on multiple backends, `llm models inspect/remove`
+now require a backend-scoped ID such as `mlx:local_mlx` instead of guessing.
 `llm models inspect` uses cheap path checks by default; recursive directory
-accounting runs only when `--disk-usage` is provided.
+accounting runs only when `--disk-usage` is provided. Inspect also surfaces
+the registry record's latest `last_used_at` and `last_smoke_status` metadata
+when a registered local model has been exercised through `llm smoke` or
+`llm verify mlx`. For MLX registry records, optional `preferred_args` are
+applied to `mlx_lm generate` for `cxo` execution and `llm verify mlx --profile smoke`
+after the built-in `--model`/`--prompt` arguments and before `CX_MLX_ARGS`.
+The MLX benchmark profile maps the supported sampling subset of
+`preferred_args` plus `CX_MLX_ARGS` into the direct probe harness and records
+that runtime config in `raw_probe.runtime_config`, with `CX_*` environment
+overrides still winning when both specify the same knob.
 `llm resident` exposes explicit resident-server capability state and an optional
-`/v1/models` probe on opt-in HTTP adapter profiles.
+`/v1/models` probe on opt-in HTTP adapter profiles. The resident capability is
+only considered eligible for the Phase VIII local substrate when all hold:
+selected backend `mlx`, adapter transport `http`, request profile
+`openai_json`, and a local HTTP provider URL such as `127.0.0.1` or
+`localhost`.
 
 `llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
 specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a
@@ -273,12 +297,35 @@ Runtime-facing validation:
 Maintainer validation:
 
 ```bash
+./rust/cxrs/scripts/guardrails.sh
+./rust/cxrs/scripts/check_rs_max_lines.sh 600 "$(pwd)"
+./rust/cxrs/scripts/check_integration_guardrails.sh "$(pwd)" 500
 ./scripts/compat_local.sh --quick
 ./scripts/compat_local.sh --full --out .cx/compat/latest.json
+./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --quick
+./scripts/compat_docker.sh --full --out .cx/compat/docker_latest.json
 ./scripts/compat_all.sh --quick
 ./scripts/compat_all.sh --full --out .cx/compat/all_latest.json
 ./bin/cx-compat-local --quick
 ```
+
+`./rust/cxrs/scripts/guardrails.sh` now includes the focused
+`release_check.py --max-version-age-days 14` cadence gate and its Python unit
+tests so the default local maintainer path matches `cxrs-compat` CI.
+`./scripts/compat_local.sh --quick` now runs those same release metadata checks
+before the broader entrypoint/reliability suite so local compat reports catch
+stale `VERSION` or metadata drift before CI.
+`./scripts/compat_docker.sh --smoke` is the faster Linux-hosted path: it runs
+release metadata checks plus a bind-mounted runtime smoke (`bin/cx` / `bin/xshelf`
+version, schema registry, and `core --json`) without paying the full quick-suite
+cost.
+`./scripts/compat_docker.sh` builds a local Rust/JQ/Python container and
+bind-mounts the repo into `/work`, which lets Linux-hosted compat runs exercise
+the same scripts without adding a second contract surface. Use the wrapper for
+maintainer checks rather than direct `docker run`: it supplies the host UID/GID,
+`HOME`, `PATH`, workdir, and isolated Cargo target directory expected by the
+compat suite.
 
 Rust maintainer path:
 
