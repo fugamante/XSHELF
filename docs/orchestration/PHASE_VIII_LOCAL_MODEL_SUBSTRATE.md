@@ -289,6 +289,10 @@ Validation:
 - registry-backed MLX aliases and IDs may carry `preferred_args`; the
   process-backed MLX runtime and smoke verification path apply them before
   `CX_MLX_ARGS`, so explicit env args remain the final override layer
+- the optional MLX benchmark profile now maps the supported sampler/runtime
+  subset from registry `preferred_args` plus `CX_MLX_ARGS` into the direct
+  probe harness and records the resulting `raw_probe.runtime_config` for
+  provenance rather than guessing about unsupported CLI flags
 
 ### Slice 6: Resident Server Opt-In
 

@@ -186,10 +186,12 @@ accounting runs only when `--disk-usage` is provided. Inspect also surfaces
 the registry record's latest `last_used_at` and `last_smoke_status` metadata
 when a registered local model has been exercised through `llm smoke` or
 `llm verify mlx`. For MLX registry records, optional `preferred_args` are
-applied to `mlx_lm generate` for both `cxo` execution and `llm verify mlx`
-after the built-in `--model`/`--prompt` arguments and before `CX_MLX_ARGS`,
-so per-model defaults remain explicit while `CX_*` environment overrides still
-win.
+applied to `mlx_lm generate` for `cxo` execution and `llm verify mlx --profile smoke`
+after the built-in `--model`/`--prompt` arguments and before `CX_MLX_ARGS`.
+The MLX benchmark profile maps the supported sampling subset of
+`preferred_args` plus `CX_MLX_ARGS` into the direct probe harness and records
+that runtime config in `raw_probe.runtime_config`, with `CX_*` environment
+overrides still winning when both specify the same knob.
 `llm resident` exposes explicit resident-server capability state and an optional
 `/v1/models` probe on opt-in HTTP adapter profiles. The resident capability is
 only considered eligible for the Phase VIII local substrate when all hold:

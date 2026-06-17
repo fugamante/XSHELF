@@ -779,6 +779,8 @@ printf 'OK'
 #[test]
 fn llm_verify_mlx_benchmark_emits_typed_metrics() {
     let repo = TempRepo::new("cxrs-llm");
+    let args_file = repo.root.join("mlx_benchmark_args.txt");
+    let args_path = args_file.display().to_string();
     let add = repo.run(&[
         "llm",
         "models",
@@ -788,6 +790,8 @@ fn llm_verify_mlx_benchmark_emits_typed_metrics() {
         "mlx",
         "--model",
         "mlx-community/BenchResolved",
+        "--preferred-args",
+        "--temp 0.4 --top-p 0.85",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
 
@@ -797,6 +801,7 @@ fn llm_verify_mlx_benchmark_emits_typed_metrics() {
 set -euo pipefail
 OUT=""
 PREV=""
+printf '%s\n' "$@" > "$MLX_BENCH_ARGS_FILE"
 for ARG in "$@"; do
   if [ "$PREV" = "--out" ]; then
     OUT="$ARG"
@@ -810,6 +815,14 @@ cat > "$OUT" <<'JSON'
   "backend": "mlx",
   "model": "mlx-community/BenchResolved",
   "context_target": 8192,
+  "runtime_config": {
+    "temperature": 0.1,
+    "top_p": 0.85,
+    "min_p": 0.0,
+    "top_k": 0,
+    "seed": 7,
+    "ignored_args": []
+  },
   "runs": [
     {
       "prompt_name": "smoke",
@@ -839,7 +852,12 @@ JSON
     let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
     let out = repo.run_with_env(
         &["llm", "verify", "mlx", "--profile", "benchmark", "--json"],
-        &[("CX_MLX_MODEL", "bench"), ("CX_MLX_PYTHON", &mlx_python)],
+        &[
+            ("CX_MLX_MODEL", "bench"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 7"),
+            ("MLX_BENCH_ARGS_FILE", &args_path),
+        ],
     );
     assert!(
         out.status.success(),
@@ -883,6 +901,39 @@ JSON
             .and_then(|v| v.get("peak_memory_gb_max"))
             .and_then(Value::as_f64),
         Some(1.5)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("temperature"))
+            .and_then(Value::as_f64),
+        Some(0.1)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("top_p"))
+            .and_then(Value::as_f64),
+        Some(0.85)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("seed"))
+            .and_then(Value::as_i64),
+        Some(7)
+    );
+    let bench_args = fs::read_to_string(&args_file).expect("read benchmark args");
+    assert!(
+        bench_args.contains("--preferred-args\n--temp 0.4 --top-p 0.85\n"),
+        "{bench_args}"
+    );
+    assert!(
+        bench_args.contains("--mlx-args\n--temp 0.1 --seed 7\n"),
+        "{bench_args}"
     );
 }
 

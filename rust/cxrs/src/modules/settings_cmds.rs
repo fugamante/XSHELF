@@ -697,6 +697,15 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         .get("resolved")
         .and_then(Value::as_str)
         .ok_or_else(|| "resolved model missing".to_string())?;
+    let preferred_args = model_info
+        .get("preferred_args")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
+    let env_args = env::var("CX_MLX_ARGS")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
 
     let script_arg = script.display().to_string();
     let out_arg = out_file.display().to_string();
@@ -714,6 +723,12 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         "--python",
         python.as_str(),
     ]);
+    if let Some(raw_args) = preferred_args {
+        cmd.args(["--preferred-args", raw_args]);
+    }
+    if let Some(raw_args) = env_args.as_deref() {
+        cmd.args(["--mlx-args", raw_args]);
+    }
     let out = run_command_output_with_timeout(cmd, "llm verify mlx benchmark")
         .map_err(|e| format!("benchmark runner failed: {e}"))?;
     if !out.status.success() {
