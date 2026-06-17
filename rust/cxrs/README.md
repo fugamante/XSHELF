@@ -76,7 +76,7 @@ End users do not need the full test suite for normal product usage.
 
 - Normal runtime usage: `xshelf`, `xs`, `cxrs`, `doctor`, `health`, schema commands, task commands
 - Lightweight runtime verification: `xshelf doctor`, `xshelf health`
-- Maintainer-only validation: `cargo test`, `compat-check`, `parity-check`, CI guardrails
+- Maintainer-only validation: `cargo test`, `compat-check`, `parity-check`, `cargo outdated`, CI guardrails
 
 The shipped runtime does not run the full test suite during normal command execution.
 Tests and guardrails are for development, CI, and release confidence.
@@ -110,8 +110,8 @@ cargo build
 
 | Dependency | Minimum | Validated in this repo | Notes |
 |---|---:|---:|---|
-| `rustc` | 1.93.1 | 1.93.1 | Build/runtime implementation |
-| `cargo` | 1.93.1 | 1.93.1 | Build/test tooling |
+| `rustc` | 1.95.0 | 1.95.0 | Build/runtime implementation |
+| `cargo` | 1.95.0 | 1.95.0 | Build/test tooling |
 | `python3` | 3.10+ | 3.14.3 | Quality gate + support scripts |
 | `make` | 3.81+ | 3.81 | Convenience build/check targets |
 
@@ -122,6 +122,7 @@ Platform notes:
 - Shell examples assume POSIX `bash`.
 - System capture provider is internal native only.
 - Native reduction can be toggled with `CX_NATIVE_REDUCE=1|0` (default `1`) and tuned with `CX_CAPTURE_PROFILE=fast|balanced|deep` (default `balanced`).
+- Phase XI runtime wiring stays opt-in: `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` lets fixture-backed `test` and `git diff` command classes use typed assembly as prompt text, while unsupported or unsafe tight-budget cases fall back to the legacy reduced-text path.
 
 ## Install
 
@@ -176,7 +177,7 @@ GitHub Actions:
 
 Capture provider:
 - Native internal capture/reduction path only.
-- Optional tuning: `CX_NATIVE_REDUCE=1|0` and `CX_CAPTURE_PROFILE=fast|balanced|deep`.
+- Optional tuning: `CX_NATIVE_REDUCE=1|0`, `CX_CAPTURE_PROFILE=fast|balanced|deep`, and `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` for the narrow Phase XI opt-in path.
 
 ## Development vs Runtime Requirements
 

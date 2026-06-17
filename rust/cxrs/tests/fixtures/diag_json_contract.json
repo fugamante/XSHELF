@@ -26,6 +26,7 @@
     "retry",
     "critical",
     "concurrency",
+    "capture_prompt_profile_rollout",
     "scheduler_window_requested",
     "severity",
     "severity_reasons",
@@ -193,6 +194,21 @@
   "concurrency_keys": [
     "defaults",
     "observed"
+  ],
+  "capture_prompt_profile_rollout_keys": [
+    "window_runs",
+    "rows_with_explicit_profile",
+    "shadow_narrow_configured_runs",
+    "shadow_narrow_applied_runs",
+    "shadow_narrow_fallback_runs",
+    "latest_execution_id",
+    "latest_timestamp",
+    "latest_command",
+    "latest_profile",
+    "latest_profile_applied",
+    "latest_reducer_kind",
+    "latest_fallback_reason",
+    "recommendation"
   ],
   "adapter_rollout_policy_keys": [
     "default_transport",

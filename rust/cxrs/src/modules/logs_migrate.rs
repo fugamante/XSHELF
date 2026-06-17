@@ -142,6 +142,15 @@ fn fill_optional_fields(obj: &serde_json::Map<String, Value>, row: &mut Executio
     row.clip_footer = get_opt_bool(obj, "clip_footer");
     row.rtk_used = get_opt_bool(obj, "rtk_used");
     row.prompt_sha256 = get_opt_str(obj, "prompt_sha256");
+    row.prompt_sha256_raw = get_opt_str(obj, "prompt_sha256_raw");
+    row.prompt_sha256_filtered = get_opt_str(obj, "prompt_sha256_filtered");
+    row.prompt_len_raw = get_opt_u64(obj, "prompt_len_raw");
+    row.prompt_len_filtered = get_opt_u64(obj, "prompt_len_filtered");
+    row.prompt_filter_applied = get_opt_bool(obj, "prompt_filter_applied");
+    row.capture_prompt_profile = get_opt_str(obj, "capture_prompt_profile");
+    row.capture_prompt_profile_applied = get_opt_bool(obj, "capture_prompt_profile_applied");
+    row.capture_prompt_reducer_kind = get_opt_str(obj, "capture_prompt_reducer_kind");
+    row.capture_prompt_fallback_reason = get_opt_str(obj, "capture_prompt_fallback_reason");
     row.schema_prompt_sha256 = get_opt_str(obj, "schema_prompt_sha256");
     row.schema_sha256 = get_opt_str(obj, "schema_sha256");
     row.schema_attempt = get_opt_u64(obj, "schema_attempt");

@@ -373,6 +373,8 @@ fn models_crud() {
         "mlx",
         "--size-bytes",
         "1234",
+        "--preferred-args",
+        "--temp 0 --top-p 0.9",
         "--trust-remote-code",
         "false",
     ]);
@@ -422,8 +424,25 @@ fn models_crud() {
         Some(1234)
     );
     assert_eq!(
+        inspected.get("preferred_args").and_then(Value::as_str),
+        Some("--temp 0 --top-p 0.9")
+    );
+    assert_eq!(
         inspected.get("trust_remote_code").and_then(Value::as_str),
         Some("false")
+    );
+
+    let inspect_text = repo.run(&["llm", "models", "inspect", "qwen-coder"]);
+    assert!(
+        inspect_text.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect_text),
+        stderr_str(&inspect_text)
+    );
+    assert!(
+        stdout_str(&inspect_text).contains("preferred_args: --temp 0 --top-p 0.9"),
+        "{}",
+        stdout_str(&inspect_text)
     );
 
     let stored = read_json(&repo.local_models_file());
@@ -656,6 +675,8 @@ fn models_inspect_reports_accounting_paths() {
 #[test]
 fn llm_verify_mlx_smoke_resolves_registry_alias() {
     let repo = TempRepo::new("cxrs-llm");
+    let args_file = repo.root.join("mlx_verify_args.txt");
+    let args_path = args_file.display().to_string();
     let add = repo.run(&[
         "llm",
         "models",
@@ -665,19 +686,26 @@ fn llm_verify_mlx_smoke_resolves_registry_alias() {
         "mlx",
         "--model",
         "mlx-community/Tiny-Resolved",
+        "--preferred-args",
+        "--temp 0 --top-p 0.8",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
 
     repo.write_mock(
         "mlx-python",
         r#"#!/usr/bin/env bash
+printf '%s\n' "$@" > "$MLX_VERIFY_ARGS_FILE"
 printf 'OK'
 "#,
     );
     let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
     let out = repo.run_with_env(
         &["llm", "verify", "mlx", "--json"],
-        &[("CX_MLX_MODEL", "tiny"), ("CX_MLX_PYTHON", &mlx_python)],
+        &[
+            ("CX_MLX_MODEL", "tiny"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("MLX_VERIFY_ARGS_FILE", &args_path),
+        ],
     );
     assert!(
         out.status.success(),
@@ -707,16 +735,52 @@ printf 'OK'
     );
     assert_eq!(
         v.get("result")
+            .and_then(|v| v.get("model"))
+            .and_then(|v| v.get("preferred_args"))
+            .and_then(Value::as_str),
+        Some("--temp 0 --top-p 0.8")
+    );
+    assert_eq!(
+        v.get("result")
             .and_then(|v| v.get("correctness"))
             .and_then(|v| v.get("exact"))
             .and_then(Value::as_bool),
         Some(true)
+    );
+    let verify_args = fs::read_to_string(&args_file).expect("read verify args");
+    assert!(
+        verify_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
+        "{verify_args}"
+    );
+    assert!(verify_args.contains("--temp\n0\n"), "{verify_args}");
+    assert!(verify_args.contains("--top-p\n0.8\n"), "{verify_args}");
+
+    let inspect = repo.run(&["llm", "models", "inspect", "tiny", "--json"]);
+    assert!(
+        inspect.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect),
+        stderr_str(&inspect)
+    );
+    let inspected = serde_json::from_str::<Value>(&stdout_str(&inspect)).expect("inspect json");
+    assert_eq!(
+        inspected.get("last_smoke_status").and_then(Value::as_str),
+        Some("pass")
+    );
+    assert!(
+        inspected
+            .get("last_used_at")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{inspected}"
     );
 }
 
 #[test]
 fn llm_verify_mlx_benchmark_emits_typed_metrics() {
     let repo = TempRepo::new("cxrs-llm");
+    let args_file = repo.root.join("mlx_benchmark_args.txt");
+    let args_path = args_file.display().to_string();
     let add = repo.run(&[
         "llm",
         "models",
@@ -726,6 +790,8 @@ fn llm_verify_mlx_benchmark_emits_typed_metrics() {
         "mlx",
         "--model",
         "mlx-community/BenchResolved",
+        "--preferred-args",
+        "--temp 0.4 --top-p 0.85",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
 
@@ -735,6 +801,7 @@ fn llm_verify_mlx_benchmark_emits_typed_metrics() {
 set -euo pipefail
 OUT=""
 PREV=""
+printf '%s\n' "$@" > "$MLX_BENCH_ARGS_FILE"
 for ARG in "$@"; do
   if [ "$PREV" = "--out" ]; then
     OUT="$ARG"
@@ -748,6 +815,14 @@ cat > "$OUT" <<'JSON'
   "backend": "mlx",
   "model": "mlx-community/BenchResolved",
   "context_target": 8192,
+  "runtime_config": {
+    "temperature": 0.1,
+    "top_p": 0.85,
+    "min_p": 0.0,
+    "top_k": 0,
+    "seed": 7,
+    "ignored_args": []
+  },
   "runs": [
     {
       "prompt_name": "smoke",
@@ -777,7 +852,12 @@ JSON
     let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
     let out = repo.run_with_env(
         &["llm", "verify", "mlx", "--profile", "benchmark", "--json"],
-        &[("CX_MLX_MODEL", "bench"), ("CX_MLX_PYTHON", &mlx_python)],
+        &[
+            ("CX_MLX_MODEL", "bench"),
+            ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 7"),
+            ("MLX_BENCH_ARGS_FILE", &args_path),
+        ],
     );
     assert!(
         out.status.success(),
@@ -822,6 +902,39 @@ JSON
             .and_then(Value::as_f64),
         Some(1.5)
     );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("temperature"))
+            .and_then(Value::as_f64),
+        Some(0.1)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("top_p"))
+            .and_then(Value::as_f64),
+        Some(0.85)
+    );
+    assert_eq!(
+        v.get("result")
+            .and_then(|v| v.get("raw_probe"))
+            .and_then(|v| v.get("runtime_config"))
+            .and_then(|v| v.get("seed"))
+            .and_then(Value::as_i64),
+        Some(7)
+    );
+    let bench_args = fs::read_to_string(&args_file).expect("read benchmark args");
+    assert!(
+        bench_args.contains("--preferred-args\n--temp 0.4 --top-p 0.85\n"),
+        "{bench_args}"
+    );
+    assert!(
+        bench_args.contains("--mlx-args\n--temp 0.1 --seed 7\n"),
+        "{bench_args}"
+    );
 }
 
 #[test]
@@ -837,6 +950,8 @@ fn llm_use_mlx_alias_shows_resolved_model() {
             "mlx",
             "--model",
             "mlx-community/Tiny-Resolved",
+            "--preferred-args",
+            "--temp 0.7 --top-p 0.9",
         ])
         .status
         .success()
@@ -884,6 +999,152 @@ fn llm_use_mlx_alias_shows_resolved_model() {
 }
 
 #[test]
+fn backend_alias_collision() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let use_out = repo.run(&["llm", "use", "mlx", "shared"]);
+    assert!(
+        use_out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&use_out),
+        stderr_str(&use_out)
+    );
+    let text = stdout_str(&use_out);
+    assert!(
+        text.contains("mlx_model: mlx-community/Shared-Resolved"),
+        "{text}"
+    );
+    let show = repo.run(&["llm", "show"]);
+    assert!(
+        show.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&show),
+        stderr_str(&show)
+    );
+    assert!(stdout_str(&show).contains("mlx_model_alias: shared"));
+}
+
+#[test]
+fn inspect_ambiguous_alias() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "shared"]);
+    assert!(!inspect.status.success(), "stdout={}", stdout_str(&inspect));
+    assert!(
+        stderr_str(&inspect).contains("local model selector 'shared' is ambiguous"),
+        "{}",
+        stderr_str(&inspect)
+    );
+    assert!(
+        stderr_str(&inspect).contains("llamacpp:shared"),
+        "{}",
+        stderr_str(&inspect)
+    );
+    assert!(
+        stderr_str(&inspect).contains("mlx:shared"),
+        "{}",
+        stderr_str(&inspect)
+    );
+}
+
+#[test]
+fn remove_ambiguous_alias() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "llamacpp",
+            "--model",
+            "/models/shared.gguf",
+        ])
+        .status
+        .success()
+    );
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "shared",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Shared-Resolved",
+        ])
+        .status
+        .success()
+    );
+
+    let remove = repo.run(&["llm", "models", "remove", "shared"]);
+    assert!(!remove.status.success(), "stdout={}", stdout_str(&remove));
+    assert!(
+        stderr_str(&remove).contains("local model selector 'shared' is ambiguous"),
+        "{}",
+        stderr_str(&remove)
+    );
+}
+
+#[test]
 fn mlx_alias_exec_resolution_env_override() {
     let repo = TempRepo::new("cxrs-llm");
     assert!(
@@ -896,6 +1157,8 @@ fn mlx_alias_exec_resolution_env_override() {
             "mlx",
             "--model",
             "mlx-community/Tiny-Resolved",
+            "--preferred-args",
+            "--temp 0.7 --top-p 0.9",
         ])
         .status
         .success()
@@ -919,6 +1182,7 @@ printf 'mlx ok'
             ("CX_LLM_BACKEND", "mlx"),
             ("CX_MLX_MODEL", "tiny"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 9"),
             ("MLX_ARGS_FILE", &alias_args_path),
         ],
     );
@@ -933,6 +1197,11 @@ printf 'mlx ok'
         alias_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
         "{alias_args}"
     );
+    assert!(alias_args.contains("--top-p\n0.9\n"), "{alias_args}");
+    assert!(alias_args.contains("--seed\n9\n"), "{alias_args}");
+    let pref_pos = alias_args.find("--temp\n0.7\n").expect("preferred temp");
+    let env_pos = alias_args.find("--temp\n0.1\n").expect("env temp");
+    assert!(pref_pos < env_pos, "{alias_args}");
 
     let direct_args_file = repo.root.join("mlx_direct_args.txt");
     let direct_args_path = direct_args_file.display().to_string();
@@ -940,8 +1209,9 @@ printf 'mlx ok'
         &["cxo", "echo", "hi"],
         &[
             ("CX_LLM_BACKEND", "mlx"),
-            ("CX_MLX_MODEL", "mlx-community/Direct-From-Env"),
+            ("CX_MLX_MODEL", "mlx-community/Tiny-Resolved"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_ARGS", "--temp 0.1 --seed 7"),
             ("MLX_ARGS_FILE", &direct_args_path),
         ],
     );
@@ -953,9 +1223,13 @@ printf 'mlx ok'
     );
     let direct_args = fs::read_to_string(&direct_args_file).expect("read mlx direct args");
     assert!(
-        direct_args.contains("--model\nmlx-community/Direct-From-Env\n"),
+        direct_args.contains("--model\nmlx-community/Tiny-Resolved\n"),
         "{direct_args}"
     );
+    assert!(!direct_args.contains("--top-p\n0.9\n"), "{direct_args}");
+    assert!(!direct_args.contains("--temp\n0.7\n"), "{direct_args}");
+    assert!(direct_args.contains("--temp\n0.1\n"), "{direct_args}");
+    assert!(direct_args.contains("--seed\n7\n"), "{direct_args}");
 }
 
 #[test]
@@ -1080,6 +1354,68 @@ printf 'smoke ok'
 }
 
 #[test]
+fn smoke_updates_usage() {
+    let repo = TempRepo::new("cxrs-llm");
+    assert!(
+        repo.run(&[
+            "llm",
+            "models",
+            "add",
+            "tiny",
+            "--backend",
+            "mlx",
+            "--model",
+            "mlx-community/Tiny-Resolved",
+        ])
+        .status
+        .success()
+    );
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf 'smoke ok'
+"#,
+    );
+    let mlx_python = repo.mock_bin.join("mlx-python").display().to_string();
+    let out = repo.run_with_env(
+        &["llm", "smoke", "say", "ok"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_MLX_MODEL", "tiny"),
+            ("CX_MLX_PYTHON", &mlx_python),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "tiny", "--json"]);
+    assert!(
+        inspect.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect),
+        stderr_str(&inspect)
+    );
+    let inspected = serde_json::from_str::<Value>(&stdout_str(&inspect)).expect("inspect json");
+    assert!(
+        inspected
+            .get("last_used_at")
+            .and_then(Value::as_str)
+            .is_some(),
+        "{inspected}"
+    );
+    assert!(
+        inspected
+            .get("last_smoke_status")
+            .is_some_and(Value::is_null),
+        "{inspected}"
+    );
+}
+
+#[test]
 fn llm_resident_show_json_contract() {
     let repo = TempRepo::new("cxrs-llm");
     let out = repo.run(&["llm", "resident", "show", "--json"]);
@@ -1097,6 +1433,20 @@ fn llm_resident_show_json_contract() {
     assert_eq!(
         payload.get("selected_transport").and_then(Value::as_str),
         Some("process")
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("eligible"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("transport_not_http")
     );
     assert_eq!(
         payload
@@ -1121,6 +1471,7 @@ JSON
     let out = repo.run_with_env(
         &["llm", "resident", "probe-models", "--json"],
         &[
+            ("CX_LLM_BACKEND", "mlx"),
             ("CX_PROVIDER_ADAPTER", "http-curl"),
             ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
             (
@@ -1147,6 +1498,20 @@ JSON
     );
     assert_eq!(
         payload
+            .get("boundary")
+            .and_then(|v| v.get("eligible"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("eligible")
+    );
+    assert_eq!(
+        payload
             .get("runtime_capability")
             .and_then(|v| v.get("resident_server"))
             .and_then(Value::as_bool),
@@ -1165,6 +1530,89 @@ JSON
             .and_then(|v| v.get("model_count"))
             .and_then(Value::as_u64),
         Some(2)
+    );
+}
+
+#[test]
+fn resident_probe_boundary() {
+    let repo = TempRepo::new("cxrs-llm");
+    repo.write_mock(
+        "curl",
+        r#"#!/usr/bin/env bash
+cat <<'JSON'
+{"data":[{"id":"mlx-local"}]}
+JSON
+"#,
+    );
+    let out = repo.run_with_env(
+        &["llm", "resident", "probe-models", "--json"],
+        &[
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            (
+                "CX_HTTP_PROVIDER_URL",
+                "http://127.0.0.1:11434/v1/chat/completions",
+            ),
+            ("CX_HTTP_REQUIRE_HTTPS", "0"),
+        ],
+    );
+    assert!(!out.status.success(), "stdout={}", stdout_str(&out));
+    assert!(
+        stderr_str(&out).contains("reason: backend_not_mlx"),
+        "stderr={}",
+        stderr_str(&out)
+    );
+}
+
+#[test]
+fn resident_show_remote() {
+    let repo = TempRepo::new("cxrs-llm");
+    let out = repo.run_with_env(
+        &["llm", "resident", "show", "--json"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            (
+                "CX_HTTP_PROVIDER_URL",
+                "https://api.example.com/v1/chat/completions",
+            ),
+        ],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload = serde_json::from_str::<Value>(&stdout_str(&out)).expect("resident show json");
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("provider_url_local"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("boundary")
+            .and_then(|v| v.get("reason"))
+            .and_then(Value::as_str),
+        Some("provider_url_not_local")
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("resident_server"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("openai_compatible"))
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }
 

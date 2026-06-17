@@ -6,7 +6,7 @@
   "completed_at": "2026-05-29",
   "completion_evidence": [
     "all planned slices are done",
-    "resident-server probe path validated locally through llm-resident.v1 with model_count=1",
+    "resident-server probe path validated locally through llm-resident.v1 with model_count=1 on the explicit local-MLX HTTP boundary",
     "process adapters remain defaults and HTTP remains explicit opt-in"
   ],
   "constraints": [
@@ -45,7 +45,7 @@
     {
       "id": "p8_resident_server",
       "status": "done",
-      "goal": "support optional OpenAI-compatible resident local MLX servers through explicit HTTP adapter configuration"
+      "goal": "support optional OpenAI-compatible resident local MLX servers through explicit HTTP adapter configuration with a local-only resident boundary"
     }
   ],
   "initial_registry_fields": [

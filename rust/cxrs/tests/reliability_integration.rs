@@ -167,6 +167,54 @@ exit 0
 }
 
 #[test]
+fn shadow_narrow_logfields() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        "test",
+        format!(
+            "#!/usr/bin/env bash\ncat <<'EOF'\n{}\nEOF\n",
+            include_str!("fixtures/phase_x/cargo_test_failure.txt")
+        )
+        .as_str(),
+    );
+    repo.write_mock(concat!("co", "dex"), &primary_agent_text("ok"));
+
+    let out = repo.run_with_env(
+        &["cxo", "test"],
+        &[("CX_CAPTURE_PROMPT_PROFILE", "shadow_narrow")],
+    );
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let runs = parse_jsonl(&repo.runs_log());
+    let last = runs.last().expect("last run");
+    assert_eq!(
+        last.get("capture_prompt_profile").and_then(Value::as_str),
+        Some("shadow_narrow")
+    );
+    assert_eq!(
+        last.get("capture_prompt_profile_applied")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        last.get("capture_prompt_reducer_kind")
+            .and_then(Value::as_str),
+        Some("test_output")
+    );
+    assert!(
+        last.get("capture_prompt_fallback_reason")
+            .map(Value::is_null)
+            .unwrap_or(true),
+        "unexpected fallback reason: {last}"
+    );
+}
+
+#[test]
 fn schema_injection_creates_quarantine_run_flags() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(

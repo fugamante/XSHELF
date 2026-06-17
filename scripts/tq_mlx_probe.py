@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import pathlib
+import shlex
 import time
 
 
@@ -31,7 +32,65 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("CX_TQ_MLX_PYTHON", "/tmp/cx_mlx_env/bin/python"),
         help="Kept for artifact provenance; the script itself should already be running under the desired interpreter.",
     )
+    run.add_argument(
+        "--preferred-args",
+        default="",
+        help="Registry-backed MLX args applied before CX_MLX_ARGS override parsing.",
+    )
+    run.add_argument(
+        "--mlx-args",
+        default="",
+        help="Explicit CX_MLX_ARGS override string for the benchmark harness.",
+    )
     return ap.parse_args()
+
+
+def parse_runtime_args(*raw_values: str) -> dict[str, object]:
+    config: dict[str, object] = {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "min_p": 0.0,
+        "top_k": 0,
+        "seed": None,
+    }
+    ignored: list[str] = []
+    tokens: list[str] = []
+    for raw in raw_values:
+        if raw.strip():
+            tokens.extend(shlex.split(raw))
+
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in {"--temp", "--temperature"} and i + 1 < len(tokens):
+            config["temperature"] = float(tokens[i + 1])
+            i += 2
+            continue
+        if token == "--top-p" and i + 1 < len(tokens):
+            config["top_p"] = float(tokens[i + 1])
+            i += 2
+            continue
+        if token == "--min-p" and i + 1 < len(tokens):
+            config["min_p"] = float(tokens[i + 1])
+            i += 2
+            continue
+        if token == "--top-k" and i + 1 < len(tokens):
+            config["top_k"] = int(tokens[i + 1])
+            i += 2
+            continue
+        if token == "--seed" and i + 1 < len(tokens):
+            config["seed"] = int(tokens[i + 1])
+            i += 2
+            continue
+        ignored.append(token)
+        if i + 1 < len(tokens) and not tokens[i + 1].startswith("--"):
+            ignored.append(tokens[i + 1])
+            i += 2
+            continue
+        i += 1
+
+    config["ignored_args"] = ignored
+    return config
 
 
 def judge(prompt_name: str, response: str) -> tuple[bool, str]:
@@ -64,13 +123,16 @@ def main() -> int:
     from mlx_lm.models import cache
     from mlx_lm.sample_utils import make_sampler
 
+    runtime_config = parse_runtime_args(ns.preferred_args, ns.mlx_args)
+    if runtime_config["seed"] is not None:
+        mx.random.seed(runtime_config["seed"])
     model, tokenizer = load(ns.model)
     sampler = make_sampler(
-        0.0,
-        1.0,
-        0.0,
+        runtime_config["temperature"],
+        runtime_config["top_p"],
+        runtime_config["min_p"],
         1,
-        top_k=0,
+        top_k=runtime_config["top_k"],
         xtc_probability=0.0,
         xtc_threshold=0.0,
         xtc_special_tokens=tokenizer.encode("\n") + list(tokenizer.eos_token_ids),
@@ -131,6 +193,7 @@ def main() -> int:
         "python": ns.python,
         "model": ns.model,
         "context_target": ns.ctx,
+        "runtime_config": runtime_config,
         "runs": results,
         "passes": sum(1 for r in results if r["passed"]),
         "total": len(results),

@@ -15,8 +15,9 @@ subcommand="$1"
 # Rust runtime is authoritative.
 CXRS_WRAPPER="$REPO_ROOT/rust/cxrs/bin/cxrs"
 CXRS_MANIFEST="$REPO_ROOT/rust/cxrs/Cargo.toml"
-CXRS_BIN_RELEASE="$REPO_ROOT/rust/cxrs/target/release/cxrs"
-CXRS_BIN_DEBUG="$REPO_ROOT/rust/cxrs/target/debug/cxrs"
+CXRS_TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/rust/cxrs/target}"
+CXRS_BIN_RELEASE="$CXRS_TARGET_DIR/release/cxrs"
+CXRS_BIN_DEBUG="$CXRS_TARGET_DIR/debug/cxrs"
 
 _cx_needs_build() {
   local bin="$1"

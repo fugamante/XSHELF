@@ -239,3 +239,4 @@ Required before merge discussion:
   - resident-server operator slice on existing HTTP boundary:
     - `xshelf llm resident show|probe-models`
     - OpenAI-compatible `/v1/models` probe with existing TLS/auth controls
+    - local-MLX resident boundary reasons so remote OpenAI-compatible endpoints are not reported as the Phase VIII resident path

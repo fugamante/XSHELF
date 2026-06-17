@@ -22,6 +22,7 @@
     "retry_health",
     "timing_attribution_coverage",
     "capture_provider_compression",
+    "capture_prompt_profile_rollout",
     "budget_clipping_frequency"
   ],
   "backend_capabilities_keys": [
@@ -53,5 +54,15 @@
     "task_started_at_rate",
     "task_finished_at_rate",
     "min_coverage_rate"
+  ],
+  "capture_prompt_rollout_keys": [
+    "rows_with_explicit_profile",
+    "shadow_narrow_configured_runs",
+    "shadow_narrow_applied_runs",
+    "shadow_narrow_fallback_runs",
+    "shadow_narrow_applied_rate",
+    "shadow_narrow_fallback_rate",
+    "applied_reducer_kinds",
+    "fallback_reasons"
   ]
 }

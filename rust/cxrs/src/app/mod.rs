@@ -26,6 +26,7 @@ use crate::help::{render_help, render_task_help};
 use crate::introspect::{
     cmd_core as introspect_cmd_core, print_version as introspect_print_version,
 };
+use crate::launch::cmd_launch;
 use crate::logs::cmd_logs;
 use crate::logview::{cmd_budget, cmd_log_tail};
 use crate::mode_cmd::cmd_mode;
@@ -217,6 +218,10 @@ fn compat_cmd_scheduler(args: &[String]) -> i32 {
 
 fn compat_cmd_core(args: &[String]) -> i32 {
     introspect_cmd_core(APP_VERSION, args)
+}
+
+fn native_cmd_launch(args: &[String]) -> i32 {
+    cmd_launch(&cli_app_name(), args)
 }
 
 fn compat_cmd_mode(args: &[String]) -> i32 {
