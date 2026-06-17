@@ -9,9 +9,7 @@ use std::time::{Duration, Instant};
 #[test]
 fn run_all_enforces_backend_cap_records_queue() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 1
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -27,7 +25,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
         ]);
@@ -43,9 +41,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--mode",
         "mixed",
         "--backend-pool",
-        "codex",
+        "primary",
         "--backend-cap",
-        "codex=1",
+        "primary=1",
         "--max-workers",
         "3",
     ]);
@@ -96,9 +94,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn parallel_lane_runs() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 2
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -114,7 +110,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
         ]);
@@ -130,7 +126,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--mode",
         "parallel",
         "--backend-pool",
-        "codex",
+        "primary",
         "--max-workers",
         "2",
         "--json",
@@ -179,9 +175,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn strict_plan_blocks() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -195,7 +189,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
     ]);
@@ -209,7 +203,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
         "--depends-on",
@@ -226,7 +220,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "parallel",
         "--strict-plan",
         "--backend-pool",
-        "codex",
+        "primary",
         "--max-workers",
         "2",
     ]);
@@ -247,9 +241,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn strict_plan_allows() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -264,7 +256,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
             "--resource-keys",
@@ -282,7 +274,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "parallel",
         "--strict-plan",
         "--backend-pool",
-        "codex",
+        "primary",
         "--max-workers",
         "2",
         "--json",
@@ -304,9 +296,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_summary_includes_failure_taxonomy_fields() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 prompt="$(cat)"
 if printf '%s' "$prompt" | grep -q "fail-case"; then
   exit 1
@@ -323,7 +313,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
@@ -348,9 +338,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_halt_on_critical_first_failure() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 2
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -365,7 +353,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
@@ -417,9 +405,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_continue_on_critical_remaining_tasks() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 2
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -437,7 +423,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
@@ -484,9 +470,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_respects_dependency_waves_concurrency() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 1
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -501,7 +485,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "sequential",
     ]);
@@ -516,7 +500,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
             "--depends-on",
@@ -534,9 +518,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--mode",
         "mixed",
         "--backend-pool",
-        "codex",
+        "primary",
         "--backend-cap",
-        "codex=2",
+        "primary=2",
         "--max-workers",
         "2",
     ]);
@@ -624,9 +608,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_queue_increases_for_later_tasks() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 sleep 1
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
@@ -642,7 +624,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
         ]);
@@ -657,9 +639,9 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--mode",
         "mixed",
         "--backend-pool",
-        "codex",
+        "primary",
         "--backend-cap",
-        "codex=1",
+        "primary=1",
         "--max-workers",
         "4",
     ]);
@@ -705,7 +687,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     );
 
     for i in 1..=2 {
-        let backend = if i == 1 { "codex" } else { "ollama" };
+        let backend = if i == 1 { "primary" } else { "ollama" };
         let add = repo.run(&[
             "task",
             "add",
@@ -726,7 +708,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--status",
             "pending",
             "--backend-pool",
-            "codex,ollama",
+            "primary,ollama",
             "--json",
         ],
         &[("PATH", mock_path.as_str())],
@@ -753,7 +735,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     );
     assert_eq!(
         v.get("backend_fallbacks")
-            .and_then(|v| v.get("codex->ollama"))
+            .and_then(|v| v.get("primary->ollama"))
             .and_then(Value::as_u64),
         Some(1)
     );
@@ -772,7 +754,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
     assert!(
         tasks.iter().any(|t| {
             t.get("used_backend_fallback").and_then(Value::as_bool) == Some(true)
-                && t.get("requested_backend").and_then(Value::as_str) == Some("codex")
+                && t.get("requested_backend").and_then(Value::as_str) == Some("primary")
                 && t.get("backend").and_then(Value::as_str) == Some("ollama")
         }),
         "{v}"
@@ -782,9 +764,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_all_dry() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -799,7 +779,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
@@ -894,7 +874,7 @@ fn run_strict_dry() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
     ]);
@@ -908,7 +888,7 @@ fn run_strict_dry() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
         "--depends-on",
@@ -978,9 +958,7 @@ fn run_strict_dry() {
 #[test]
 fn run_all_contract() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -995,7 +973,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
@@ -1116,18 +1094,120 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 }
 
 #[test]
+fn run_events_contract() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        concat!("co", "dex"),
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+
+    for i in 1..=2 {
+        let add = repo.run(&[
+            "task",
+            "add",
+            &format!("cxo echo run-all-events-{i}"),
+            "--role",
+            "implementer",
+            "--backend",
+            "primary",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--events-jsonl",
+        "--json",
+    ]);
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("task-run-all.v1")
+    );
+
+    let events: Vec<Value> = stderr_str(&out)
+        .lines()
+        .filter(|line| line.trim_start().starts_with('{'))
+        .map(|line| serde_json::from_str::<Value>(line).expect("valid event jsonl"))
+        .collect();
+    assert!(
+        events.len() >= 5,
+        "expected queued/started/result/summary events, got {events:?}"
+    );
+    assert!(
+        events.iter().all(
+            |event| event.get("contract_version").and_then(Value::as_str) == Some("task-events.v1")
+        ),
+        "{events:?}"
+    );
+    let event_names: Vec<&str> = events
+        .iter()
+        .filter_map(|event| event.get("event").and_then(Value::as_str))
+        .collect();
+    assert!(event_names.contains(&"queued"), "{event_names:?}");
+    assert!(event_names.contains(&"started"), "{event_names:?}");
+    assert!(event_names.contains(&"completed"), "{event_names:?}");
+    assert_eq!(event_names.last().copied(), Some("summary"));
+    let summary = events.last().expect("summary event");
+    assert_eq!(summary.get("scheduled").and_then(Value::as_u64), Some(2));
+    assert_eq!(summary.get("complete").and_then(Value::as_u64), Some(2));
+    assert_eq!(summary.get("failed").and_then(Value::as_u64), Some(0));
+
+    let persisted = common::parse_jsonl(&repo.task_events_log());
+    assert_eq!(persisted.len(), events.len());
+    assert_eq!(
+        persisted
+            .last()
+            .and_then(|event| event.get("event"))
+            .and_then(Value::as_str),
+        Some("summary")
+    );
+
+    let events_out = repo.run(&["task", "events", "--limit", "3", "--json"]);
+    assert!(
+        events_out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&events_out),
+        stderr_str(&events_out)
+    );
+    let recent: Value = serde_json::from_str(&stdout_str(&events_out)).expect("events json");
+    let recent_rows = recent.as_array().expect("events array");
+    assert_eq!(recent_rows.len(), 3, "{recent}");
+    assert_eq!(
+        recent_rows
+            .last()
+            .and_then(|event| event.get("event"))
+            .and_then(Value::as_str),
+        Some("summary")
+    );
+}
+
+#[test]
 fn run_wave_preflight() {
     let repo = TempRepo::new("cxrs-it");
     let rows = vec![
         serde_json::json!({
             "execution_id":"pw1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":12,"schema_enforced":false,"schema_valid":true,
             "task_id":"t1","wave_index":1,"wave_mode":"parallel","wave_size":2,"queue_ms":250
         }),
         serde_json::json!({
             "execution_id":"pw2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
-            "backend_used":"codex","capture_provider":"native","execution_mode":"lean",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
             "duration_ms":14,"schema_enforced":false,"schema_valid":true,
             "task_id":"t2","wave_index":3,"wave_mode":"mixed","wave_size":1,"queue_ms":2400
         }),
@@ -1142,7 +1222,7 @@ fn run_wave_preflight() {
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
         ]);
@@ -1224,7 +1304,7 @@ fn plan_json_dry() {
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
             "--resource-keys",
@@ -1298,7 +1378,7 @@ fn plan_json_strict() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
     ]);
@@ -1312,7 +1392,7 @@ fn plan_json_strict() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
         "--depends-on",
@@ -1372,7 +1452,7 @@ fn plan_json_contract() {
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
         ]);
@@ -1429,7 +1509,7 @@ fn task_check_json() {
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
             "--mode",
             "parallel",
             "--resource-keys",
@@ -1488,7 +1568,7 @@ fn task_check_strict() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
     ]);
@@ -1502,7 +1582,7 @@ fn task_check_strict() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
         "--depends-on",
@@ -1559,7 +1639,7 @@ fn task_check_contract() {
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
         "--mode",
         "parallel",
         "--resource-keys",
@@ -1675,7 +1755,7 @@ fn check_no_mutation() {
             "--role",
             "implementer",
             "--backend",
-            "codex",
+            "primary",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }

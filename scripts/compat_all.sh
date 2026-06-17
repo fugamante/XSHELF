@@ -3,7 +3,7 @@ set -euo pipefail
 
 MODE="quick"
 JSON=0
-OUT_FILE=".codex/compat/all_latest.json"
+OUT_FILE=".cx/compat/all_latest.json"
 declare -a REPOS=()
 
 usage() {

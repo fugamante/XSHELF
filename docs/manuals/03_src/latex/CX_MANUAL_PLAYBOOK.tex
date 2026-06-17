@@ -21,7 +21,7 @@ This playbook is a set of reproducible procedures. It is intentionally low-prose
 \section{P1: Confirm Schemas Exist}
 \begin{lstlisting}[style=cx]
 ./bin/xshelf schema list
-ls .codex/schemas
+ls .cx/schemas
 \end{lstlisting}
 
 \section{P2: Validate Structured Output (Schema Commands)}
@@ -77,7 +77,7 @@ CX_CONTEXT_BUDGET_CHARS=2000 CX_CONTEXT_BUDGET_LINES=40 ./bin/xshelf cxo git sta
 \section{P7: Telemetry Contract Validation}
 \begin{lstlisting}[style=cx]
 ./bin/xshelf logs validate --fix=false
-tail -n 1 .codex/cxlogs/runs.jsonl | jq .
+tail -n 1 .cx/cxlogs/runs.jsonl | jq .
 \end{lstlisting}
 
 \section{P8: Self-Optimization}

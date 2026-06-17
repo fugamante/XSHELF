@@ -8,9 +8,11 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use crate::config::cli_app_name;
+use crate::local_models::resolve_model_for_backend;
 use crate::logs::file_len;
 use crate::paths::resolve_log_file;
-use crate::runlog::{RunLogInput, log_codex_run};
+use crate::runlog::{RunLogInput, log_primary_run};
+use crate::runtime::llm_backend;
 use crate::types::{ExecutionResult, LlmOutputKind, TaskInput, TaskRecord, TaskSpec};
 
 #[derive(Debug, Clone)]
@@ -93,7 +95,8 @@ fn task_prompt(task: &TaskRecord) -> String {
 fn task_backend_override(task: &TaskRecord) -> Option<String> {
     let backend = task.backend.trim().to_lowercase();
     match backend.as_str() {
-        "codex" | "ollama" | "llamacpp" | "mlx" => Some(backend),
+        "primary" => Some("primary".to_string()),
+        "ollama" | "llamacpp" | "mlx" => Some(backend),
         "llama.cpp" | "llama_cpp" => Some("llamacpp".to_string()),
         _ => None,
     }
@@ -116,6 +119,36 @@ fn task_model_override(task: &TaskRecord) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+fn normalize_model_backend(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "ollama" => "ollama".to_string(),
+        "llamacpp" | "llama.cpp" | "llama_cpp" => "llamacpp".to_string(),
+        "mlx" => "mlx".to_string(),
+        _ => "primary".to_string(),
+    }
+}
+
+fn resolved_task_model_override(
+    backend_override: Option<&str>,
+    model: Option<&str>,
+) -> Result<Option<(String, String)>, String> {
+    let raw_model = match model.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(v) => v,
+        None => return Ok(None),
+    };
+    let backend_raw = backend_override
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(llm_backend);
+    let backend = normalize_model_backend(&backend_raw);
+    if matches!(backend.as_str(), "ollama" | "llamacpp" | "mlx") {
+        let resolved = resolve_model_for_backend(&backend, raw_model)?.resolved_model;
+        return Ok(Some((backend, resolved)));
+    }
+    Ok(Some((backend, raw_model.to_string())))
+}
+
 fn set_optional_env(name: &str, value: Option<String>) {
     match value {
         Some(v) => unsafe { env::set_var(name, v) },
@@ -136,6 +169,7 @@ fn run_task_prompt(
     let prev_ollama_model = env::var("CX_OLLAMA_MODEL").ok();
     let prev_llama_cpp_model = env::var("CX_LLAMA_CPP_MODEL").ok();
     let prev_mlx_model = env::var("CX_MLX_MODEL").ok();
+    let prev_primary_model = env::var("CX_MODEL").ok();
     if let Some(mode) = mode_override {
         // scoped overrides for prompt-based task execution.
         unsafe { env::set_var("CX_MODE", mode) };
@@ -143,13 +177,25 @@ fn run_task_prompt(
     if let Some(backend) = backend_override {
         unsafe { env::set_var("CX_LLM_BACKEND", backend) };
     }
-    if let Some(model) = model_override {
-        if backend_override == Some("llamacpp") {
-            unsafe { env::set_var("CX_LLAMA_CPP_MODEL", model) };
-        } else if backend_override == Some("mlx") {
-            unsafe { env::set_var("CX_MLX_MODEL", model) };
-        } else {
-            unsafe { env::set_var("CX_OLLAMA_MODEL", model) };
+    let resolved_model_override =
+        match resolved_task_model_override(backend_override, model_override) {
+            Ok(v) => v,
+            Err(e) => {
+                set_optional_env("CX_MODE", prev_mode);
+                set_optional_env("CX_LLM_BACKEND", prev_backend);
+                set_optional_env("CX_OLLAMA_MODEL", prev_ollama_model);
+                set_optional_env("CX_LLAMA_CPP_MODEL", prev_llama_cpp_model);
+                set_optional_env("CX_MLX_MODEL", prev_mlx_model);
+                set_optional_env("CX_MODEL", prev_primary_model);
+                return Err(e);
+            }
+        };
+    if let Some((backend, model)) = resolved_model_override {
+        match backend.as_str() {
+            "llamacpp" => unsafe { env::set_var("CX_LLAMA_CPP_MODEL", model) },
+            "mlx" => unsafe { env::set_var("CX_MLX_MODEL", model) },
+            "primary" => unsafe { env::set_var("CX_MODEL", model) },
+            _ => unsafe { env::set_var("CX_OLLAMA_MODEL", model) },
         }
     }
     let exec_result = (runner.execute_task)(TaskSpec {
@@ -166,6 +212,7 @@ fn run_task_prompt(
     set_optional_env("CX_OLLAMA_MODEL", prev_ollama_model);
     set_optional_env("CX_LLAMA_CPP_MODEL", prev_llama_cpp_model);
     set_optional_env("CX_MLX_MODEL", prev_mlx_model);
+    set_optional_env("CX_MODEL", prev_primary_model);
     let res = exec_result?;
     if emit_output {
         println!("{}", res.stdout);
@@ -193,13 +240,27 @@ fn run_objective_subprocess(
     if let Some(backend) = backend_override {
         cmd.env("CX_LLM_BACKEND", backend);
     }
-    if let Some(model) = model_override {
-        if backend_override == Some("llamacpp") {
-            cmd.env("CX_LLAMA_CPP_MODEL", model);
-        } else if backend_override == Some("mlx") {
-            cmd.env("CX_MLX_MODEL", model);
-        } else {
-            cmd.env("CX_OLLAMA_MODEL", model);
+    let resolved_model_override = resolved_task_model_override(backend_override, model_override)
+        .map_err(|e| {
+            format!(
+                "{} task run: model override resolution failed: {e}",
+                cli_app_name()
+            )
+        })?;
+    if let Some((backend, model)) = resolved_model_override {
+        match backend.as_str() {
+            "llamacpp" => {
+                cmd.env("CX_LLAMA_CPP_MODEL", model);
+            }
+            "mlx" => {
+                cmd.env("CX_MLX_MODEL", model);
+            }
+            "primary" => {
+                cmd.env("CX_MODEL", model);
+            }
+            _ => {
+                cmd.env("CX_OLLAMA_MODEL", model);
+            }
         }
     }
     if emit_output {
@@ -278,7 +339,7 @@ fn dispatch_task_command(
         )?;
         return Ok((code, None));
     }
-    if mode_override.is_some() || backend_override.is_some() {
+    if mode_override.is_some() || backend_override.is_some() || model_override.is_some() {
         match cmd0 {
             "cxcommitjson" | "commitjson" | "cxcommitmsg" | "commitmsg" | "cxdiffsum"
             | "diffsum" | "cxdiffsum_staged" | "diffsum-staged" | "cxnext" | "next"
@@ -619,7 +680,7 @@ fn log_convergence_summary(
     set_optional_env("CX_TASK_CONVERGE_VOTES", Some(votes_json));
     let usage = crate::types::UsageStats::default();
     let capture = crate::types::CaptureStats::default();
-    let _ = log_codex_run(RunLogInput {
+    let _ = log_primary_run(RunLogInput {
         tool: "cxtask_converge",
         prompt: &task.objective,
         prompt_raw: None,

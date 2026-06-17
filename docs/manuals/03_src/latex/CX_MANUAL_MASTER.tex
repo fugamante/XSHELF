@@ -9,10 +9,10 @@
 \maketitle
 \vspace{-0.6em}
 
-\section*{Intent}
+\section*{Operator Promise}
 XSHELF is built for one outcome: \textbf{predictable LLM-assisted work under load}.
-That means bounded context, schema-validated structured outputs, strict telemetry, and safe
-automation boundaries.
+It wraps repository commands with bounded capture, schema-validated structured outputs,
+explicit execution policy, and telemetry that operators can replay later.
 
 If you only remember one thing: XSHELF is a runtime substrate, not a chat transcript.
 It captures relevant repository output, enforces budgets before that output reaches the model,
@@ -22,6 +22,14 @@ XSHELF is designed to fail differently from loose LLM tooling. When it cannot pr
 deterministic contract, it should stop, show the broken boundary, store replayable evidence,
 and keep stdout/stderr behavior predictable for automation.
 
+The operator path is intentionally short:
+\begin{enumerate}
+  \item verify the active runtime and backend state,
+  \item inspect the policy and task graph before execution,
+  \item run only bounded commands,
+  \item validate telemetry and quarantine evidence after failure.
+\end{enumerate}
+
 This master manual synthesizes three viewpoints:
 \begin{itemize}
   \item a story-first walkthrough (to build the mental model),
@@ -29,14 +37,25 @@ This master manual synthesizes three viewpoints:
   \item an operator playbook (to validate and execute safely).
 \end{itemize}
 
+\section*{First Operator Scan}
+\begin{lstlisting}[style=cx]
+./bin/xshelf version
+./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20
+\end{lstlisting}
+
+Expected result: the operator can see runtime identity, task readiness, backend state,
+recent diagnostics, and parseable JSON before any backend execution is attempted.
+
 \section*{Architecture Overview}
 \begin{itemize}
   \item Canonical engine: \texttt{cxrs} (Rust). Bash is fallback only.
   \item Canonical entrypoint: \texttt{bin/xshelf}. \texttt{bin/cx} remains the compatibility alias.
   \item Capture pipeline applies to \emph{system output} only (internal native reduction, then budgets).
   \item Structured commands are schema-enforced (JSON-only, validated, replayable).
-  \item Schema failures are quarantined (\texttt{.codex/quarantine/}) and logged with \texttt{quarantine\_id}.
-  \item Run telemetry is append-only JSONL (\texttt{.codex/cxlogs/runs.jsonl}).
+  \item Schema failures are quarantined (\texttt{.cx/quarantine/}) and logged with \texttt{quarantine\_id}.
+  \item Run telemetry is append-only JSONL (\texttt{.cx/cxlogs/runs.jsonl}).
   \item Policy engine blocks destructive/out-of-repo writes by default.
 \end{itemize}
 
@@ -64,27 +83,43 @@ execute_llm_command(..., LlmMode)
   \item Quality gate per extraction slice: \texttt{cargo fmt} + \texttt{cargo test} must pass.
 \end{itemize}
 
-\section*{Quickstart (Backend-Safe)}
+\section*{Install and Verify}
 \begin{lstlisting}[style=cx]
-cd <repo-root>
 ./bin/xshelf version
 ./bin/xshelf task check --json
 ./bin/xshelf core --json
-./bin/xshelf diag --json --window 20
+./bin/xshelf llm check
+./bin/xshelf doctor
+./bin/xshelf health
 \end{lstlisting}
 
-\section*{Common Workflows (Copy/Paste)}
+Run \texttt{cxo} only after readiness and backend checks are healthy:
 \begin{lstlisting}[style=cx]
-# Structured outputs:
+./bin/xshelf cxo git status
+\end{lstlisting}
+
+\section*{Core Capability Groups}
+\subsection*{Runtime state}
+\begin{lstlisting}[style=cx]
+./bin/xshelf core --json
+./bin/xshelf mode --json | jq .
+./bin/xshelf broker show --json | jq .
+\end{lstlisting}
+
+\subsection*{Task graph}
+\begin{lstlisting}[style=cx]
+./bin/xshelf task fanout "Objective..." --from staged-diff
+./bin/xshelf task check --json | jq .
+./bin/xshelf task run-all --status pending --events-jsonl --json
+\end{lstlisting}
+
+\subsection*{Policy and telemetry}
+\begin{lstlisting}[style=cx]
 ./bin/xshelf diffsum-staged | jq .
 ./bin/xshelf commitjson | jq .
-
-# Task graph:
-./bin/xshelf task fanout "Objective..." --from staged-diff
-./bin/xshelf task run-all --status pending
-
-# Optimization:
-./bin/xshelf optimize 200
+./bin/xshelf policy show --json | jq .
+./bin/xshelf logs validate --fix=false
+./bin/xshelf telemetry 50 --json | jq .
 \end{lstlisting}
 
 \section*{Installation / Prereqs}
@@ -92,7 +127,7 @@ cd <repo-root>
   \item Required: \texttt{bash}
   \item Required: \texttt{git}
   \item Required: \texttt{jq}
-  \item Required for default backend: \texttt{codex} CLI
+  \item Required for default backend: \texttt{primary} CLI
   \item Development: Rust toolchain (\texttt{cargo}, \texttt{rustc})
 \end{itemize}
 
@@ -173,7 +208,7 @@ Schema commands always force deterministic mode by default. Override with \textt
 
 \section{Structured Outputs (Schemas, Quarantine, Replay)}
 \subsection{Schema Registry}
-Schemas live under \texttt{.codex/schemas/}:
+Schemas live under \texttt{.cx/schemas/}:
 \begin{itemize}
   \item \texttt{commitjson.schema.json}
   \item \texttt{diffsum.schema.json}
@@ -228,15 +263,15 @@ Tasks are the unit of migration to parallel work: small, role-tagged, log-linked
 
 \subsection{Run tasks}
 \begin{lstlisting}[style=cx]
-./bin/xshelf task run task_001 --mode deterministic --backend codex
+./bin/xshelf task run task_001 --mode deterministic --backend primary
 ./bin/xshelf task run-all --status pending
 \end{lstlisting}
 
 \section{Telemetry (Contract, Validation, Interpretation)}
 \subsection{Log locations}
 \begin{itemize}
-  \item runs: \texttt{.codex/cxlogs/runs.jsonl}
-  \item schema failures: \texttt{.codex/cxlogs/schema\_failures.jsonl}
+  \item runs: \texttt{.cx/cxlogs/runs.jsonl}
+  \item schema failures: \texttt{.cx/cxlogs/schema\_failures.jsonl}
 \end{itemize}
 
 \subsection{Validate}

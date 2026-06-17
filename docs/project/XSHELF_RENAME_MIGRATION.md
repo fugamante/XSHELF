@@ -6,7 +6,7 @@ Move project identity from `CX` to `XSHELF` without breaking the working runtime
 
 - `bin/cx`
 - `CX_*` environment variables
-- `.codex/` repo-local state
+- `.cx/` repo-local state
 - `cx`-named examples and compatibility surfaces
 
 This is a staged compatibility migration, not a flag-day rename.
@@ -20,7 +20,7 @@ What is already true:
 - `bin/xs` is available as the short alias
 - `bin/cx` remains the supported compatibility command surface
 - `CX_*` env vars remain the stable runtime configuration contract
-- `.codex/` remains the runtime state directory
+- `.cx/` remains the runtime state directory
 
 What that means:
 
@@ -38,7 +38,7 @@ What that means:
 ## Non-Goals
 
 - do not break `bin/cx` in the first migration
-- do not rename `.codex/` in the first migration
+- do not rename `.cx/` in the first migration
 - do not remove `CX_*` env compatibility in the first migration
 - do not silently mutate machine-readable contract keys just for branding
 - do not perform repo-wide search-and-replace without a compatibility plan
@@ -65,7 +65,7 @@ The rename affects multiple layers.
 ### 3. Runtime Configuration and State
 
 - `CX_*` env vars
-- `.codex/` paths
+- `.cx/` paths
 - telemetry/log strings mentioning `cx`
 - shell compatibility shims
 
@@ -102,7 +102,7 @@ Do not do now:
 
 - do not remove `cx` examples wholesale
 - do not rename env vars
-- do not rename `.codex/`
+- do not rename `.cx/`
 
 Exit criteria:
 
@@ -155,7 +155,7 @@ Goal:
 Review targets:
 
 - `CX_*` env vars
-- `.codex/`
+- `.cx/`
 - telemetry field names
 - shell function names
 - contract labels and examples
@@ -179,7 +179,7 @@ These rules apply unless a later approved phase explicitly changes them.
 - `bin/cx` remains supported
 - `bin/xs` remains a short alias, not the canonical product name
 - `CX_*` environment variables remain supported
-- `.codex/` remains the runtime state location
+- `.cx/` remains the runtime state location
 - machine-readable JSON contracts are not renamed purely for branding
 - downstream repos may continue consuming `cx` compatibility surfaces
 
@@ -195,7 +195,7 @@ These rules apply unless a later approved phase explicitly changes them.
 
 - `bin/cx`
 - `CX_*`
-- `.codex/`
+- `.cx/`
 - machine contract keys and compatibility fixtures
 - most shell/test/runtime file names unless they already have a clear `xshelf` alias path
 

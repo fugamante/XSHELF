@@ -39,7 +39,7 @@ Acceptance:
 
 Tasks:
 - define `ProviderAdapter` interface
-- implement `CodexCliAdapter`
+- implement `PrimaryProcessAdapter`
 - implement `OllamaCliAdapter`
 - add adapter resolver from backend config/state
 
@@ -236,3 +236,6 @@ Required before merge discussion:
     - telemetry breakdown by HTTP format/parser mode
 - In progress:
   - Phase 6 rollout criteria + merge policy.
+  - resident-server operator slice on existing HTTP boundary:
+    - `xshelf llm resident show|probe-models`
+    - OpenAI-compatible `/v1/models` probe with existing TLS/auth controls

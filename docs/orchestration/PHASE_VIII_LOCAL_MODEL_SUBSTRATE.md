@@ -1,12 +1,18 @@
 # Phase VIII: Local Model Substrate
 
-Status: active implementation
+Status: complete
 
 ## Objective
 
 Give XSHELF a firmer base for Apple-local and other local models by turning local model selection from a string preference into a typed lifecycle substrate.
 
 Phase VIII is inspired by oMLX's model-management approach, but it is not a plan to clone oMLX or move inference internals into XSHELF. The goal is to make XSHELF better at discovering, selecting, validating, and routing local models while preserving its provider-adapter boundary.
+
+Completion evidence:
+
+- all six planned slices are implemented and covered by focused Rust tests
+- resident-server probing was validated locally on 2026-05-29 through `llm-resident.v1` with `model_count=1`
+- process adapters remain the default path; HTTP resident behavior remains explicit opt-in
 
 ## Problem Statement
 
@@ -85,7 +91,7 @@ Introduce a typed registry that can feed existing backend model preferences.
 
 Candidate path:
 
-- `.codex/local_models.json`
+- `.cx/local_models.json`
 
 Initial commands:
 
@@ -225,6 +231,8 @@ Deliver:
 - `llm show` surfaces both alias and resolved model when applicable
 - task model overrides can use aliases without breaking direct model strings
 
+Current status: done.
+
 Validation:
 
 - env vars still win over state
@@ -237,6 +245,8 @@ Deliver:
 - `llm models inspect <alias-or-id>`
 - cheap path existence and size reporting
 - optional expensive disk accounting flag
+
+Current status: done.
 
 Validation:
 
@@ -251,6 +261,8 @@ Deliver:
 - diagnostics/core/version exposure
 - backend capability tests for `mlx`, `llamacpp`, `ollama`, and `http-curl`
 
+Current status: done.
+
 Validation:
 
 - no existing JSON contracts lose fields
@@ -264,6 +276,8 @@ Deliver:
 - optional MLX benchmark profile
 - typed metrics aligned with TurboQuant metric contract
 
+Current status: done.
+
 Validation:
 
 - small fixture-backed tests for parser/contract behavior
@@ -276,6 +290,14 @@ Deliver:
 - local OpenAI-compatible HTTP profile recipe
 - `/v1/models` probe when configured
 - capability mapping for resident server features
+
+Current status: done.
+
+Implementation notes:
+
+- `xshelf llm resident show` now emits a typed `llm-resident.v1` contract with selected adapter/transport/profile and resident capability lanes.
+- `xshelf llm resident probe-models` now probes `/v1/models` through the existing `http-curl` adapter controls and returns typed model ID/count evidence when configured.
+- runtime capabilities now report `resident_server=true` only for HTTP + `openai_json` profile; process adapters stay explicit `false`.
 
 Validation:
 
@@ -293,7 +315,7 @@ Validation:
 
 ## Open Questions
 
-- Should `.codex/local_models.json` be repo-scoped only, or should XSHELF also support a user-level registry?
+- Should `.cx/local_models.json` be repo-scoped only, or should XSHELF also support a user-level registry?
 - Should `pull` be implemented through `huggingface_hub`, `mlx-lm`, or remain a documented external step at first?
 - Should resident-server support be modeled as `backend=mlx` with `adapter=http-curl`, or as a separate backend name such as `mlx-server`?
 - Should aliases be backend-scoped (`mlx:qwen-coder`) or global (`qwen-coder`) with collision checks?

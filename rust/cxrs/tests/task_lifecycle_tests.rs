@@ -48,9 +48,7 @@ fn task_lifecycle_add_claim_complete() {
 #[test]
 fn show_latest_run() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -64,7 +62,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
     let id = stdout_str(&add).trim().to_string();
@@ -113,9 +111,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 #[test]
 fn run_json_contract() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_mock(
-        "codex",
-        r#"#!/usr/bin/env bash
+    repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
@@ -129,7 +125,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--role",
         "implementer",
         "--backend",
-        "codex",
+        "primary",
     ]);
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
     let id = stdout_str(&add).trim().to_string();

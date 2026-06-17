@@ -56,7 +56,7 @@ pub fn render_task_help(app_name: &str) -> String {
     }
     out.push_str("\nExamples:\n");
     out.push_str(&format!(
-        "  {app_name} task run task_001 --mode deterministic --backend codex\n"
+        "  {app_name} task run task_001 --mode deterministic --backend primary\n"
     ));
     out.push_str(&format!(
         "  {app_name} task run-all --status pending --mode mixed\n"
@@ -81,7 +81,7 @@ mod tests {
     fn task_help_examples() {
         let text = render_task_help("xshelf");
         assert!(text.contains("Examples:"));
-        assert!(text.contains("xshelf task run task_001 --mode deterministic --backend codex"));
+        assert!(text.contains("xshelf task run task_001 --mode deterministic --backend primary"));
         assert!(text.contains("xshelf task run-all --status pending --mode mixed"));
         assert!(text.contains(
             "xshelf task run-all --status pending --mode parallel --strict-plan --max-workers 2"

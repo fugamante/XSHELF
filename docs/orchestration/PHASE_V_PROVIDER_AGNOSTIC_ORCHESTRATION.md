@@ -33,7 +33,7 @@ Evolve XSHELF runtime orchestration from backend-specific execution paths into a
 
 - finalize provider capabilities contract (`jsonl_native`, `schema_strict`, `transport`)
 - complete HTTP adapter envelope normalization and structured error taxonomy
-- enforce parity invariants across `codex-cli`, `ollama-cli`, `http-curl`, and `mock` adapters
+- enforce parity invariants across `primary-cli`, `ollama-cli`, `http-curl`, and `mock` adapters
 - keep backend experiment claims outside the adapter contract unless the backend capability is explicitly typed and proven
 
 Acceptance:

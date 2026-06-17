@@ -43,14 +43,14 @@
   - `core` / `version` now expose auth secret source (`env|file|off`) without exposing secret values
   - Unix secret files now require restrictive permissions
 - Prefer request-profile expansion over broad adapter proliferation:
-  - keep `codex-cli` and `ollama-cli` as stable process defaults
+  - keep `primary-cli` and `ollama-cli` as stable process defaults
   - keep `http-curl` behind explicit opt-in rollout policy
   - require telemetry + reliability coverage before any broader adapter matrix growth
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
 
 ## Later (2+ months)
 
-- Pluggable backend adapters beyond Codex/Ollama.
+- Pluggable backend adapters beyond primary/Ollama.
 - Incremental CLI packaging/distribution improvements (Homebrew-ready metadata).
 - Optional distributed execution backends (multi-process/remote workers) while preserving current log/schema contracts.
 - Backend capability experiments for local inference optimization must stay isolated from core XSHELF until they prove value and preserve adapter boundaries.
@@ -65,11 +65,15 @@
   - Phase 3B `MLX` capability follow-on is closed as `mlx_comparative_only`
   - post-closeout optimization on `llama.cpp` should stay optional and secondary
 
-## Phase VIII (active implementation)
+## Phase VIII (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md`
 - Work queue: `docs/orchestration/PHASE_VIII_WORK.json`
 - Goal: turn local model selection into a typed lifecycle substrate for MLX and other local backends.
+- Milestone result:
+  - all six planned slices are complete
+  - a live local `llm resident probe-models --json` run validated the explicit HTTP resident path with `model_count=1`
+  - resident support remains bounded to explicit OpenAI-compatible HTTP profile evidence
 - Discovery basis:
   - oMLX shows the value of treating Apple-local models as lifecycle objects rather than one-off model strings.
   - XSHELF already supports `mlx` through `mlx-lm`, but model management is currently limited to a selected model string.
@@ -82,17 +86,41 @@
   - explicit resident-server opt-in through existing adapter boundaries
 - Current implementation state:
   - Slice 1 landed:
-    - `.codex/local_models.json` registry
+    - `.cx/local_models.json` registry
     - `xshelf llm models list|add|inspect|remove`
     - deterministic JSON/text outputs with focused integration coverage
+  - Slice 2 landed:
+    - `llm use <ollama|llamacpp|mlx> <alias-or-id>` resolves registry tokens to `resolved_model`
+    - `llm show` surfaces alias and resolved model fields when applicable
+    - task model overrides resolve aliases against the effective backend, including auto backend selection
+  - Slice 3 landed:
+    - `llm models inspect <alias-or-id>` now reports typed cheap path/accounting status in both text and JSON output
+    - explicit `--disk-usage` enables recursive directory-size accounting; default inspect path avoids slow scans
+    - missing local paths remain non-fatal and visible through `resolved_model_status` and path status fields
+  - Slice 4 landed:
+    - `core --json`, `version --json`, `diag --json`, and `scheduler --json` now expose a typed `backend_capabilities.runtime` envelope
+    - runtime capability fields are explicit and nullable where unknown (`resident_server`, batching/tooling/VLM/embedding/reranking, compatibility lanes)
+    - backend capability mapping coverage now includes `mlx`, `llamacpp`, `ollama`, and `http-curl` profile variants
+  - Slice 5 landed:
+    - added `llm verify mlx` with `--profile smoke|benchmark` and typed verification output (`contract_version=llm-verify.v1`)
+    - verification model resolution is registry-aware (`input`, `resolved`, optional alias/id metadata)
+    - benchmark profile reports typed runtime/correctness and memory envelope fields (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`)
+  - Slice 6 landed:
+    - added `llm resident show|probe-models` with typed resident contract output (`contract_version=llm-resident.v1`)
+    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is configured
+    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
-## Phase X (active planning)
+## Phase X (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_X_TOKEN_COMPRESSION_LAYER.md`
 - Work queue: `docs/orchestration/PHASE_X_WORK.json`
 - Goal: reduce model-visible context through typed semantic and structural reduction while preserving task-critical evidence.
+- Milestone result:
+  - all five planned slices are complete
+  - internal reducer metadata, test-output recall, diff recall, and budget-aware section assembly are implemented
+  - runtime wiring remains an explicit future decision because public prompt/log contracts were intentionally preserved
 - Discovery basis:
   - the current capture reducer and budget clipper already reduce obvious prompt bloat
   - the next gain is command-specific reduction metadata, recall gates, and priority-based prompt assembly
@@ -104,8 +132,54 @@
   - test-output reducer recall
   - diff reducer recall
   - budget-aware prompt assembly
+- Current implementation state:
+  - Slice 1 landed:
+    - planning spec and work queue are active
+    - reducer acceptance gates are documented (`critical_span_recall`, lossiness labels, safe fallback, replay recovery, contract neutrality, bounded cost)
+    - fixture manifest fields and initial fixture classes are documented before runtime behavior changes
+  - Slice 2 landed:
+    - added private reducer metadata behind the existing capture reducer path
+    - preserved `native_reduce_output` string behavior through a compatibility wrapper
+    - no public CLI, log, schema, or telemetry contract changed
+  - Slice 3 landed:
+    - strengthened the test-output reducer to retain failing-test names, panic/assertion context, final summaries, and distinct warnings
+    - added fixture-backed recall gates for required and forbidden spans
+    - public telemetry remains unchanged; savings are available through internal reducer metadata
+  - Slice 4 landed:
+    - strengthened the diff reducer to retain file mode, rename/copy, binary, hunk, and changed-line markers
+    - added fixture-backed recall gates for mixed rename, binary, new-file, deleted-file, and unchanged-context omission cases
+    - public telemetry remains unchanged; savings are available through internal reducer metadata
+  - Slice 5 landed:
+    - added an internal budget-aware section assembler with stable priority ordering and omission records
+    - high-uncertainty sections are promoted ahead of ordinary context, and oversized critical sections are clipped explicitly
+    - normal command capture and public telemetry remain unchanged until runtime wiring is explicit
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
+
+## Phase XI (active)
+
+- Planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`
+- Work queue: `docs/orchestration/PHASE_XI_WORK.json`
+- Goal: wire token-compression primitives through shadow-first runtime gates without changing default capture contracts.
+- Discovery basis:
+  - Phase X left reducer metadata and budget-aware assembly as internal primitives.
+  - Runtime wiring is the next decision point, but default command capture and public telemetry must remain stable until fixture-backed gates prove safety.
+- First contract focus:
+  - opt-in shadow assembly
+  - default-output compatibility
+  - private omission evidence
+  - rollback simplicity
+  - additive-only public surfaces if a later slice promotes telemetry or diagnostics
+- Current implementation state:
+  - Slice 1 landed:
+    - added the Phase XI rollout contract and work queue.
+    - documented acceptance gates for default compatibility, recall, lossiness labels, safe fallback, bounded cost, contract neutrality, and rollback.
+  - Slice 2 landed:
+    - added a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate from command/status, reducer metadata, and reduced output.
+    - focused tests cover command/status retention and high-uncertainty output promotion while keeping reducer metadata as contextual evidence.
+    - normal command capture output, public telemetry, schemas, quarantine, and replay artifacts remain unchanged by default.
+- Guardrail:
+  - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 
 ## Phase VI (stabilized substrate)
 

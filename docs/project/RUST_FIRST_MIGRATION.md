@@ -8,7 +8,7 @@ Scope: entire `XSHELF` project
 - New feature work is implemented in `rust/cxrs` first.
 - Bash (`lib/cx.sh`) is compatibility/bootstrap only.
 - Root `cx.sh` is a deprecated compatibility anchor retained for transition.
-- Codex remains default backend; Ollama remains optional alternative.
+- Primary process backend remains default; Ollama remains optional alternative.
 - No automatic checks on shell startup.
 - Preserve stdout pipeline safety; diagnostics to stderr.
 
@@ -78,7 +78,7 @@ Recommended smoke:
 ## 7) LLM backend contract
 
 Defaults:
-- `CX_LLM_BACKEND=codex`
+- `CX_LLM_BACKEND=primary`
 - Ollama is opt-in.
 
 Requirements:
@@ -147,14 +147,14 @@ Objective:
 
 Planned first-step contract:
 1. Extend task metadata:
-   - `backend` (`codex|ollama|auto`)
+   - `backend` (`primary|ollama|auto`)
    - `model` (nullable)
    - `profile` (`fast|balanced|quality|schema_strict`)
 2. Add broker command surface:
    - `xshelf broker show`
    - `xshelf broker set --policy latency|quality|cost|balanced`
 3. Extend run-all mixed mode:
-   - `xshelf task run-all --mode mixed --backend-pool codex,ollama --max-workers <n>`
+   - `xshelf task run-all --mode mixed --backend-pool primary,ollama --max-workers <n>`
 4. Add tandem convergence modes:
    - `first_valid`, `majority`, `judge`, `score`
 5. Extend telemetry:

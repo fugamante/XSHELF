@@ -78,7 +78,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     },
     CommandHelp {
         name: "broker",
-        usage: "broker <show [--json] | set --policy latency|quality|cost|balanced|quota_saver | benchmark [--backend codex|ollama|llamacpp|mlx]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]>",
+        usage: "broker <show [--json] | set --policy latency|quality|cost|balanced|quota_saver | benchmark [--backend primary|ollama|llamacpp|mlx]... [--window N] [--json] [--strict] [--min-runs N] [--severity warn|warning|critical]>",
         description: "Show/set broker policy and benchmark backend performance from local run logs",
     },
     CommandHelp {
@@ -99,7 +99,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "llm",
         usage: "llm <op> [...]",
-        description: "Manage and verify LLM backend/model defaults (show|check|smoke|use|unset|set-backend|set-model|clear-model|models list|models add|models inspect|models remove)",
+        description: "Manage and verify LLM backend/model defaults (show|check|smoke|verify|resident show|resident probe-models|use|unset|set-backend|set-model|clear-model|models list|models add|models inspect|models remove)",
     },
     CommandHelp {
         name: "state",
@@ -214,7 +214,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "prompt",
         usage: "prompt <mode> <request>",
-        description: "Generate Codex-ready prompt block",
+        description: "Generate agent-ready prompt block",
     },
     CommandHelp {
         name: "roles",
@@ -316,7 +316,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
 pub const TASK_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "task add",
-        usage: "{APP} task add \"<objective>\" [--role <architect|implementer|reviewer|tester|doc>] [--backend <auto|codex|ollama|llamacpp|mlx>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>]",
+        usage: "{APP} task add \"<objective>\" [--role <architect|implementer|reviewer|tester|doc>] [--backend <auto|primary|ollama|llamacpp|mlx>] [--model <name>] [--profile <fast|balanced|quality|schema_strict>] [--converge <none|first_valid|majority|judge|score>] [--replicas <n>] [--max-concurrency <n>] [--mode <sequential|parallel>] [--depends-on <id1,id2>] [--resource <key>]",
         description: "Create a task with role, routing, and orchestration metadata",
     },
     CommandHelp {
@@ -355,18 +355,23 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
         description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
     },
     CommandHelp {
+        name: "task events",
+        usage: "{APP} task events [--limit N] [--json|--jsonl] [--follow]",
+        description: "Read task-events.v1 progress events emitted by run-all",
+    },
+    CommandHelp {
         name: "task run-plan",
         usage: "{APP} task run-plan [--status pending|in_progress|complete|failed] [--json]",
         description: "Preview deterministic execution waves before run-all",
     },
     CommandHelp {
         name: "task run",
-        usage: "{APP} task run <id> [--mode lean|deterministic|verbose] [--backend codex|ollama|llamacpp|mlx] [--json|--text]",
+        usage: "{APP} task run <id> [--mode lean|deterministic|verbose] [--backend primary|ollama|llamacpp|mlx] [--json|--text]",
         description: "Run one task objective",
     },
     CommandHelp {
         name: "task run-all",
-        usage: "{APP} task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool codex,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--summary text|json] [--json|--text]",
+        usage: "{APP} task run-all [--status pending] [--mode sequential|mixed|parallel] [--strict-plan] [--plan-json] [--dry-run] [--backend-pool primary,ollama,llamacpp,mlx] [--backend-cap backend=limit] [--max-workers N] [--fairness round_robin|least_loaded] [--halt-on-critical|--continue-on-critical] [--events-jsonl] [--summary text|json] [--json|--text]",
         description: "Run tasks by status (sequential default; mixed uses run-plan waves and broker-aware backend routing)",
     },
 ];

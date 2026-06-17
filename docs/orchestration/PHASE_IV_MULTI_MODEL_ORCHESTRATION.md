@@ -22,7 +22,7 @@ Phase IV extends this into backend/model tandem execution.
 ## Core Requirements
 
 1. Backend/model assignment at task level:
-- `backend`: `codex|ollama|auto`
+- `backend`: `primary|ollama|auto`
 - `model`: explicit model or `null`
 - `profile`: `fast|balanced|quality|schema_strict`
 
@@ -45,7 +45,7 @@ Phase IV extends this into backend/model tandem execution.
 
 Add optional fields to task records:
 
-- `backend`: `codex|ollama|auto`
+- `backend`: `primary|ollama|auto`
 - `model`: string|null
 - `profile`: `fast|balanced|quality|schema_strict`
 - `converge`: `none|first_valid|majority|judge|score`
@@ -61,12 +61,12 @@ New/extended commands:
 
 - `xshelf task add "<objective>" --backend auto --profile balanced`
 - `xshelf task add "<objective>" --backend ollama --model llama3.1 --mode parallel`
-- `xshelf task run <id> --backend codex --model <name>`
-- `xshelf task run-all --mode mixed --backend-pool codex,ollama --max-workers 4`
+- `xshelf task run <id> --backend primary --model <name>`
+- `xshelf task run-all --mode mixed --backend-pool primary,ollama --max-workers 4`
 - `xshelf task run-plan --status pending --json` (includes backend/model assignments when resolvable)
 - `xshelf broker show`
 - `xshelf broker set --policy latency|quality|cost|balanced`
-- `xshelf broker benchmark --backend codex --backend ollama`
+- `xshelf broker benchmark --backend primary --backend ollama`
 
 ## Logging Contract Additions
 
