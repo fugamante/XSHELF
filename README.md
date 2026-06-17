@@ -1,4 +1,4 @@
-# XSHELF (formerly CX)
+# XSHELF
 
 `XSHELF` is a deterministic Rust runtime for LLM-assisted repository work. It
 wraps repo commands with bounded capture, schema-checked outputs, explicit
