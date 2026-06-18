@@ -132,6 +132,12 @@ struct Agg {
     timing_with_queue_started_at: u64,
     timing_with_task_started_at: u64,
     timing_with_task_finished_at: u64,
+    capture_prompt_rows_with_profile: u64,
+    capture_prompt_shadow_narrow_configured: u64,
+    capture_prompt_shadow_narrow_applied: u64,
+    capture_prompt_shadow_narrow_fallback: u64,
+    capture_prompt_applied_reducer_kinds: HashMap<String, u64>,
+    capture_prompt_fallback_reasons: HashMap<String, u64>,
 }
 
 impl Agg {
@@ -236,6 +242,44 @@ impl Agg {
             entry.1 += r.system_output_len_processed.unwrap_or(0);
             entry.2 += r.system_output_len_clipped.unwrap_or(0);
             entry.3 += 1;
+        }
+        if let Some(profile) = r
+            .capture_prompt_profile
+            .as_ref()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+        {
+            self.capture_prompt_rows_with_profile += 1;
+            if profile == "shadow_narrow" {
+                self.capture_prompt_shadow_narrow_configured += 1;
+                if r.capture_prompt_profile_applied == Some(true) {
+                    self.capture_prompt_shadow_narrow_applied += 1;
+                    if let Some(kind) = r
+                        .capture_prompt_reducer_kind
+                        .as_ref()
+                        .map(|value| value.trim())
+                        .filter(|value| !value.is_empty())
+                    {
+                        *self
+                            .capture_prompt_applied_reducer_kinds
+                            .entry(kind.to_string())
+                            .or_insert(0) += 1;
+                    }
+                } else {
+                    self.capture_prompt_shadow_narrow_fallback += 1;
+                    if let Some(reason) = r
+                        .capture_prompt_fallback_reason
+                        .as_ref()
+                        .map(|value| value.trim())
+                        .filter(|value| !value.is_empty())
+                    {
+                        *self
+                            .capture_prompt_fallback_reasons
+                            .entry(reason.to_string())
+                            .or_insert(0) += 1;
+                    }
+                }
+            }
         }
         self.sum_in += r.input_tokens.unwrap_or(0);
         self.sum_cached += r.cached_input_tokens.unwrap_or(0);
@@ -371,6 +415,10 @@ struct Derived {
     timing_task_started_at_rate: Option<f64>,
     timing_task_finished_at_rate: Option<f64>,
     timing_min_coverage_rate: Option<f64>,
+    capture_prompt_applied_reducer_kinds: Vec<(String, u64)>,
+    capture_prompt_fallback_reasons: Vec<(String, u64)>,
+    capture_prompt_shadow_narrow_applied_rate: Option<f64>,
+    capture_prompt_shadow_narrow_fallback_rate: Option<f64>,
 }
 
 fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
@@ -424,6 +472,28 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
     .flatten()
     .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let compression = compression_rows(agg.provider_stats.clone());
+    let mut capture_prompt_applied_reducer_kinds: Vec<(String, u64)> = agg
+        .capture_prompt_applied_reducer_kinds
+        .clone()
+        .into_iter()
+        .collect();
+    capture_prompt_applied_reducer_kinds.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let mut capture_prompt_fallback_reasons: Vec<(String, u64)> = agg
+        .capture_prompt_fallback_reasons
+        .clone()
+        .into_iter()
+        .collect();
+    capture_prompt_fallback_reasons.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let capture_prompt_shadow_narrow_applied_rate =
+        (agg.capture_prompt_shadow_narrow_configured > 0).then_some(
+            agg.capture_prompt_shadow_narrow_applied as f64
+                / agg.capture_prompt_shadow_narrow_configured as f64,
+        );
+    let capture_prompt_shadow_narrow_fallback_rate =
+        (agg.capture_prompt_shadow_narrow_configured > 0).then_some(
+            agg.capture_prompt_shadow_narrow_fallback as f64
+                / agg.capture_prompt_shadow_narrow_configured as f64,
+        );
     (
         agg,
         Derived {
@@ -448,6 +518,10 @@ fn derive_metrics(runs: &[RunEntry], agg: Agg) -> (Agg, Derived) {
             timing_task_started_at_rate,
             timing_task_finished_at_rate,
             timing_min_coverage_rate,
+            capture_prompt_applied_reducer_kinds,
+            capture_prompt_fallback_reasons,
+            capture_prompt_shadow_narrow_applied_rate,
+            capture_prompt_shadow_narrow_fallback_rate,
         },
     )
 }
@@ -509,6 +583,16 @@ fn build_scoreboard(total: u64, agg: &Agg, d: &Derived) -> Value {
             "min_coverage_rate": d.timing_min_coverage_rate
         },
         "capture_provider_compression": d.compression,
+        "capture_prompt_profile_rollout": {
+            "rows_with_explicit_profile": agg.capture_prompt_rows_with_profile,
+            "shadow_narrow_configured_runs": agg.capture_prompt_shadow_narrow_configured,
+            "shadow_narrow_applied_runs": agg.capture_prompt_shadow_narrow_applied,
+            "shadow_narrow_fallback_runs": agg.capture_prompt_shadow_narrow_fallback,
+            "shadow_narrow_applied_rate": d.capture_prompt_shadow_narrow_applied_rate,
+            "shadow_narrow_fallback_rate": d.capture_prompt_shadow_narrow_fallback_rate,
+            "applied_reducer_kinds": d.capture_prompt_applied_reducer_kinds,
+            "fallback_reasons": d.capture_prompt_fallback_reasons
+        },
         "budget_clipping_frequency": {
             "captured_runs": agg.clipped_total,
             "clipped_runs": agg.clipped_count,
@@ -638,6 +722,40 @@ pub fn build_optimize_actions(report: &Value) -> Vec<Value> {
             "command": crate::config::command_with_cli("promptlint 200")
         }));
     }
+    let capture_prompt_rollout = scoreboard.get("capture_prompt_profile_rollout");
+    let capture_prompt_fallback_rate = capture_prompt_rollout
+        .and_then(|v| v.get("shadow_narrow_fallback_rate"))
+        .and_then(Value::as_f64)
+        .unwrap_or(0.0);
+    let capture_prompt_configured_runs = capture_prompt_rollout
+        .and_then(|v| v.get("shadow_narrow_configured_runs"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let capture_prompt_applied_runs = capture_prompt_rollout
+        .and_then(|v| v.get("shadow_narrow_applied_runs"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    if capture_prompt_configured_runs > 0
+        && (capture_prompt_fallback_rate > 0.0 || capture_prompt_applied_runs == 0)
+    {
+        let rationale = if capture_prompt_applied_runs == 0 {
+            format!(
+                "shadow_narrow was configured for {} runs but never applied; review reducer eligibility and fallback reasons.",
+                capture_prompt_configured_runs
+            )
+        } else {
+            format!(
+                "shadow_narrow fell back in {}% of configured runs; inspect reducer mix and fallback reasons.",
+                (capture_prompt_fallback_rate * 100.0).round() as i64
+            )
+        };
+        actions.push(json!({
+            "id": "capture_prompt_rollout_followup",
+            "severity": "warning",
+            "rationale": rationale,
+            "command": crate::config::command_with_cli("telemetry 200 --json")
+        }));
+    }
     if actions.len() > 1 {
         sort_actions_by_phase7(&mut actions[1..]);
     }
@@ -711,6 +829,26 @@ pub fn optimize_report(n: usize) -> Result<Value, String> {
         retry_recovery_rate: d.retry_tasks_recovery_rate,
         timing_coverage_min: d.timing_min_coverage_rate,
     });
+    let mut recommendations = recommendations;
+    if agg.capture_prompt_shadow_narrow_configured > 0 {
+        if agg.capture_prompt_shadow_narrow_applied == 0 {
+            recommendations.push(format!(
+                "shadow_narrow is configured but never applied across {} runs; inspect capture_prompt_telemetry before widening rollout.",
+                agg.capture_prompt_shadow_narrow_configured
+            ));
+        } else if agg.capture_prompt_shadow_narrow_fallback > 0 {
+            recommendations.push(format!(
+                "shadow_narrow fallback observed in {} of {} configured runs; review fallback reasons and reducer eligibility in capture_prompt_telemetry.",
+                agg.capture_prompt_shadow_narrow_fallback,
+                agg.capture_prompt_shadow_narrow_configured
+            ));
+        } else {
+            recommendations.push(format!(
+                "shadow_narrow applied cleanly across {} configured runs; use capture_prompt_profile_rollout to decide whether more reducer classes need fixture coverage.",
+                agg.capture_prompt_shadow_narrow_configured
+            ));
+        }
+    }
 
     let total = runs.len() as u64;
     let scoreboard = build_scoreboard(total, &agg, &d);

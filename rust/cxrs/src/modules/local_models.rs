@@ -186,14 +186,33 @@ pub fn list_records() -> Result<Vec<LocalModelRecord>, String> {
     Ok(records)
 }
 
+fn ambiguous_query_error(query: &str, records: &[LocalModelRecord]) -> String {
+    let mut ids = records
+        .iter()
+        .map(|record| record.id.as_str())
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    ids.dedup();
+    format!(
+        "local model selector '{}' is ambiguous across backends; use a backend-scoped id ({})",
+        query,
+        ids.join(", ")
+    )
+}
+
 pub fn find_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
     let q = query.trim();
-    for record in list_records()? {
-        if record.id == q || record.alias == q {
-            return Ok(Some(record));
-        }
+    if q.is_empty() {
+        return Ok(None);
     }
-    Ok(None)
+    let matches = list_records()?
+        .into_iter()
+        .filter(|record| record.id == q || record.alias == q)
+        .collect::<Vec<_>>();
+    if matches.len() > 1 {
+        return Err(ambiguous_query_error(q, &matches));
+    }
+    Ok(matches.into_iter().next())
 }
 
 pub fn find_record_for_backend(
@@ -212,6 +231,22 @@ pub fn find_record_for_backend(
             && (record.id == q || record.alias == q || record.resolved_model == q)
         {
             return Ok(Some(record));
+        }
+    }
+    Ok(None)
+}
+
+pub fn selector_preferred_args(backend: &str, query: &str) -> Result<Option<String>, String> {
+    let Some(canonical_backend) = normalize_backend(backend) else {
+        return Ok(None);
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(None);
+    }
+    for record in list_records()? {
+        if record.backend == canonical_backend && (record.id == q || record.alias == q) {
+            return Ok(record.preferred_args);
         }
     }
     Ok(None)
@@ -289,20 +324,70 @@ pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String>
 }
 
 pub fn remove_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
+    let selected = match find_record(query)? {
+        Some(record) => record,
+        None => return Ok(None),
+    };
+    let mut registry = registry_value()?;
+    let models = registry
+        .get_mut("models")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "local model registry has invalid models array".to_string())?;
+    let Some(idx) = models
+        .iter()
+        .position(|item| item.get("id").and_then(Value::as_str) == Some(selected.id.as_str()))
+    else {
+        return Ok(None);
+    };
+    let removed = record_from_value(&models.remove(idx))?;
+    write_registry(&registry)?;
+    Ok(Some(removed))
+}
+
+pub fn touch_model_record(
+    backend: &str,
+    query: &str,
+    last_used_at: Option<&str>,
+    last_smoke_status: Option<&str>,
+) -> Result<Option<LocalModelRecord>, String> {
+    let Some(canonical_backend) = normalize_backend(backend) else {
+        return Err("backend must be ollama|llamacpp|mlx".to_string());
+    };
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(None);
+    }
+
     let mut registry = registry_value()?;
     let models = registry
         .get_mut("models")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "local model registry has invalid models array".to_string())?;
     let Some(idx) = models.iter().position(|item| {
-        item.get("id").and_then(Value::as_str) == Some(query)
-            || item.get("alias").and_then(Value::as_str) == Some(query)
+        item.get("backend").and_then(Value::as_str) == Some(canonical_backend)
+            && (item.get("id").and_then(Value::as_str) == Some(q)
+                || item.get("alias").and_then(Value::as_str) == Some(q)
+                || item.get("resolved_model").and_then(Value::as_str) == Some(q))
     }) else {
         return Ok(None);
     };
-    let removed = record_from_value(&models.remove(idx))?;
+
+    let item = models
+        .get_mut(idx)
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "local model registry has invalid model record".to_string())?;
+    if let Some(ts) = last_used_at {
+        item.insert("last_used_at".to_string(), Value::String(ts.to_string()));
+    }
+    if let Some(status) = last_smoke_status {
+        item.insert(
+            "last_smoke_status".to_string(),
+            Value::String(status.to_string()),
+        );
+    }
+    let record = record_from_value(&Value::Object(item.clone()))?;
     write_registry(&registry)?;
-    Ok(Some(removed))
+    Ok(Some(record))
 }
 
 pub fn registry_json() -> Result<Value, String> {
@@ -329,9 +414,7 @@ pub fn resolve_model_for_backend(backend: &str, query: &str) -> Result<ModelReso
         return Err("model cannot be empty".to_string());
     }
 
-    if let Some(record) = find_record(q)?
-        && record.backend == normalized_backend
-    {
+    if let Some(record) = find_record_for_backend(q, normalized_backend)? {
         return Ok(ModelResolution {
             resolved_model: record.resolved_model,
             alias: Some(record.alias),

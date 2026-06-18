@@ -5,6 +5,9 @@
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
+- Landed additive Phase XI operator visibility on `telemetry --json` / `logs stats --json` through `capture_prompt_telemetry` for explicit `shadow_narrow` prompt-profile runs.
+- Landed additive `optimize --json` capture-prompt rollout guidance using the same run-log fields for configured/applied/fallback visibility and follow-up actions.
+- Landed additive `diag --json` capture-prompt rollout guidance with latest explicit-profile fallback context and follow-up action support.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
@@ -73,7 +76,7 @@
 - Milestone result:
   - all six planned slices are complete
   - a live local `llm resident probe-models --json` run validated the explicit HTTP resident path with `model_count=1`
-  - resident support remains bounded to explicit OpenAI-compatible HTTP profile evidence
+  - resident support remains bounded to the explicit local-MLX HTTP path (`backend=mlx`, HTTP transport, `openai_json` profile, local provider URL)
 - Discovery basis:
   - oMLX shows the value of treating Apple-local models as lifecycle objects rather than one-off model strings.
   - XSHELF already supports `mlx` through `mlx-lm`, but model management is currently limited to a selected model string.
@@ -107,8 +110,8 @@
     - benchmark profile reports typed runtime/correctness and memory envelope fields (`cache_metric_kind=cache_nbytes`, `cache_metric_unit=bytes`, `peak_memory_gb_max`)
   - Slice 6 landed:
     - added `llm resident show|probe-models` with typed resident contract output (`contract_version=llm-resident.v1`)
-    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_HTTP_REQUEST_PROFILE=openai_json` is configured
-    - runtime capability mapping now marks `resident_server=true` only for HTTP + OpenAI-compatible profile; process adapters remain explicit `false`
+    - `probe-models` now performs an explicit `/v1/models` probe on the existing `http-curl` boundary when `CX_LLM_BACKEND=mlx` and `CX_HTTP_REQUEST_PROFILE=openai_json` are configured against a local provider URL
+    - runtime capability mapping now marks `resident_server=true` only on that explicit local-MLX resident boundary; process adapters and remote HTTP endpoints remain explicit `false`
 - Guardrail:
   - do not claim persisted KV-cache restore, batching, VLM, embedding, or reranker support unless the selected backend exposes evidence for those capabilities.
 
@@ -156,7 +159,7 @@
 - Guardrail:
   - keep assembly/SIMD out of capture, prompt, schema, policy, replay, telemetry, and orchestration paths; use storage compression only for storage/replay artifacts, not prompt-token reduction.
 
-## Phase XI (active)
+## Phase XI (milestone complete)
 
 - Planning spec: `docs/orchestration/PHASE_XI_TOKEN_COMPRESSION_RUNTIME_WIRING.md`
 - Work queue: `docs/orchestration/PHASE_XI_WORK.json`
@@ -178,6 +181,27 @@
     - added a private `CX_CAPTURE_ASSEMBLY_SHADOW=1` path that builds and discards a typed assembly candidate from command/status, reducer metadata, and reduced output.
     - focused tests cover command/status retention and high-uncertainty output promotion while keeping reducer metadata as contextual evidence.
     - normal command capture output, public telemetry, schemas, quarantine, and replay artifacts remain unchanged by default.
+  - Slice 4 landed:
+    - added fixture-backed shadow measurements for the existing test-output and diff corpora under constrained budgets.
+    - measurement gates now assert bounded omissions, critical-span recall, replay-style evidence retention, and positive size deltas without changing runtime defaults.
+    - shadow measurements remain test-only and do not write public telemetry, quarantine records, or replay artifacts.
+  - Slice 3 landed:
+    - added explicit `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` opt-in runtime wiring for the fixture-backed `test_output` and `git_diff` reducer classes.
+    - unsupported command classes stay on the legacy reduced-text path.
+    - tight-budget cases fall back to legacy reduced text when typed assembly would omit command/status or output evidence.
+  - Slice 5 landed:
+    - rollout decision is to keep Phase XI runtime wiring opt-in only for now.
+    - default capture remains on the existing `run -> reduce -> clip` path.
+    - broader reducer eligibility and any public omission/diagnostic surfaces are deferred to later additive contract work.
+  - Milestone result:
+    - all five planned slices are complete.
+    - typed assembly is now exercised in shadow mode and narrow opt-in mode without changing default capture behavior.
+    - the documented decision is to stop at opt-in-only runtime wiring until broader fixture evidence exists.
+  - Follow-on additive visibility:
+    - `telemetry --json` / `logs stats --json` now expose `capture_prompt_telemetry` for explicit `shadow_narrow` runs.
+    - run logs now carry nullable prompt-profile fields for configured profile, applied status, reducer kind, and fallback reason.
+    - `optimize --json` now exposes `scoreboard.capture_prompt_profile_rollout` and follow-up guidance when explicit prompt-profile runs are falling back or never applying.
+    - `diag --json` now exposes `capture_prompt_profile_rollout` with latest explicit-profile fallback context and a follow-up action when the latest `shadow_narrow` run fell back or never applied.
 - Guardrail:
   - do not feed the model from typed assembly or expose omission metadata publicly until additive fixtures and rollout notes land.
 

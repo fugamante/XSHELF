@@ -237,6 +237,8 @@ Validation:
 
 - env vars still win over state
 - direct model strings still work
+- cross-backend alias collisions do not break backend-scoped resolution
+- ambiguous global inspect/remove selectors fail with backend-scoped guidance
 
 ### Slice 3: Inspection And Accounting
 
@@ -282,6 +284,15 @@ Validation:
 
 - small fixture-backed tests for parser/contract behavior
 - real MLX checks remain opt-in because local model availability varies
+- registry-backed verification and local smoke paths refresh `last_used_at`
+  metadata; MLX smoke verification also records `last_smoke_status`
+- registry-backed MLX aliases and IDs may carry `preferred_args`; the
+  process-backed MLX runtime and smoke verification path apply them before
+  `CX_MLX_ARGS`, so explicit env args remain the final override layer
+- the optional MLX benchmark profile now maps the supported sampler/runtime
+  subset from registry `preferred_args` plus `CX_MLX_ARGS` into the direct
+  probe harness and records the resulting `raw_probe.runtime_config` for
+  provenance rather than guessing about unsupported CLI flags
 
 ### Slice 6: Resident Server Opt-In
 
@@ -297,13 +308,13 @@ Implementation notes:
 
 - `xshelf llm resident show` now emits a typed `llm-resident.v1` contract with selected adapter/transport/profile and resident capability lanes.
 - `xshelf llm resident probe-models` now probes `/v1/models` through the existing `http-curl` adapter controls and returns typed model ID/count evidence when configured.
-- runtime capabilities now report `resident_server=true` only for HTTP + `openai_json` profile; process adapters stay explicit `false`.
+- runtime capabilities now report `resident_server=true` only when the selected backend is `mlx`, the adapter transport is HTTP, the request profile is `openai_json`, and the provider URL is local; process adapters and remote HTTP endpoints stay explicit `false`.
 
 Validation:
 
 - process adapters remain defaults
 - HTTP remains explicit opt-in
-- local-only HTTP behavior follows current TLS posture rules
+- local-only HTTP behavior follows current TLS posture rules and the resident contract now reports explicit machine-readable boundary reasons when the configuration falls outside the local MLX path
 
 ## Contract Principles
 
@@ -311,6 +322,7 @@ Validation:
 - Registry entries must be deterministic and stable under repeated list/inspect calls.
 - Model aliases must not silently shadow direct local paths.
 - A selected alias must resolve to a concrete backend model string before execution.
+- Global alias selectors must fail when multiple backend records match.
 - Capability fields must say `unknown` or `false` instead of implying support.
 
 ## Open Questions

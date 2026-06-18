@@ -78,6 +78,19 @@ fn logs_stats_alias_reports_population_drift() {
     assert!(retry.get("rows_with_retry_metadata").is_some());
     assert!(retry.get("rows_after_retry_success_rate").is_some());
     assert!(retry.get("attempt_histogram").is_some());
+    let capture_prompt = v
+        .get("capture_prompt_telemetry")
+        .expect("capture_prompt_telemetry");
+    assert!(capture_prompt.get("rows_with_explicit_profile").is_some());
+    assert!(
+        capture_prompt
+            .get("shadow_narrow_configured_runs")
+            .is_some()
+    );
+    assert!(capture_prompt.get("shadow_narrow_applied_runs").is_some());
+    assert!(capture_prompt.get("shadow_narrow_fallback_runs").is_some());
+    assert!(capture_prompt.get("applied_reducer_kinds").is_some());
+    assert!(capture_prompt.get("fallback_reasons").is_some());
     let critical = v.get("critical_telemetry").expect("critical_telemetry");
     assert!(critical.get("summary_rows").is_some());
     assert!(critical.get("halted_rows").is_some());
@@ -225,6 +238,40 @@ fn telemetry_json_matches_contract_fixture() {
         &drift_keys,
         "telemetry.contract_drift",
     );
+    let capture_prompt_keys = fixture_keys(&fixture, "capture_prompt_keys");
+    assert_has_keys(
+        payload
+            .get("capture_prompt_telemetry")
+            .expect("capture_prompt_telemetry"),
+        &capture_prompt_keys,
+        "telemetry.capture_prompt_telemetry",
+    );
+    let reducer_item_keys = fixture_keys(&fixture, "capture_prompt_reducer_item_keys");
+    let reducer_items = payload
+        .get("capture_prompt_telemetry")
+        .and_then(|v| v.get("applied_reducer_kinds"))
+        .and_then(Value::as_array)
+        .expect("capture_prompt_telemetry.applied_reducer_kinds");
+    for item in reducer_items {
+        assert_has_keys(
+            item,
+            &reducer_item_keys,
+            "telemetry.capture_prompt_telemetry.applied_reducer_kinds[*]",
+        );
+    }
+    let fallback_item_keys = fixture_keys(&fixture, "capture_prompt_fallback_item_keys");
+    let fallback_items = payload
+        .get("capture_prompt_telemetry")
+        .and_then(|v| v.get("fallback_reasons"))
+        .and_then(Value::as_array)
+        .expect("capture_prompt_telemetry.fallback_reasons");
+    for item in fallback_items {
+        assert_has_keys(
+            item,
+            &fallback_item_keys,
+            "telemetry.capture_prompt_telemetry.fallback_reasons[*]",
+        );
+    }
     let retry_keys = fixture_keys(&fixture, "retry_keys");
     assert_has_keys(
         payload.get("retry_telemetry").expect("retry_telemetry"),
@@ -260,6 +307,92 @@ fn telemetry_json_matches_contract_fixture() {
             .and_then(|v| v.get("cx_runtime_support"))
             .and_then(Value::as_str),
         Some("none")
+    );
+}
+
+#[test]
+fn telemetry_capture_prompt() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"cp1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":10,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":true,
+            "capture_prompt_reducer_kind":"test_output"
+        }),
+        serde_json::json!({
+            "execution_id":"cp2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":11,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":true,
+            "capture_prompt_reducer_kind":"git_diff"
+        }),
+        serde_json::json!({
+            "execution_id":"cp3","timestamp":"2026-01-01T00:00:02Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":12,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":false,
+            "capture_prompt_reducer_kind":"git_status",
+            "capture_prompt_fallback_reason":"unsupported_reducer"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["telemetry", "10", "--json"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("telemetry json");
+    let telemetry = payload
+        .get("capture_prompt_telemetry")
+        .expect("capture_prompt_telemetry");
+    assert_eq!(
+        telemetry
+            .get("rows_with_explicit_profile")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        telemetry
+            .get("shadow_narrow_configured_runs")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        telemetry
+            .get("shadow_narrow_applied_runs")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        telemetry
+            .get("shadow_narrow_fallback_runs")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    let reducer_items = telemetry
+        .get("applied_reducer_kinds")
+        .and_then(Value::as_array)
+        .expect("applied_reducer_kinds");
+    assert!(reducer_items.iter().any(|item| {
+        item.get("reducer_kind").and_then(Value::as_str) == Some("git_diff")
+            && item.get("runs").and_then(Value::as_u64) == Some(1)
+    }));
+    assert!(reducer_items.iter().any(|item| {
+        item.get("reducer_kind").and_then(Value::as_str) == Some("test_output")
+            && item.get("runs").and_then(Value::as_u64) == Some(1)
+    }));
+    let fallback_items = telemetry
+        .get("fallback_reasons")
+        .and_then(Value::as_array)
+        .expect("fallback_reasons");
+    assert_eq!(fallback_items.len(), 1);
+    assert_eq!(
+        fallback_items[0].get("reason").and_then(Value::as_str),
+        Some("unsupported_reducer")
+    );
+    assert_eq!(
+        fallback_items[0].get("runs").and_then(Value::as_u64),
+        Some(1)
     );
 }
 
@@ -493,6 +626,11 @@ fn diag_json_matches_contract_fixture() {
             ("retry", "retry_keys", "diag.retry"),
             ("critical", "critical_keys", "diag.critical"),
             ("concurrency", "concurrency_keys", "diag.concurrency"),
+            (
+                "capture_prompt_profile_rollout",
+                "capture_prompt_profile_rollout_keys",
+                "diag.capture_prompt_profile_rollout",
+            ),
         ],
     );
 
@@ -641,6 +779,89 @@ fn diag_json_matches_contract_fixture() {
         .expect("diag.backend_capabilities.runtime");
     let runtime_keys = fixture_keys(&fixture, "backend_capabilities_runtime_keys");
     assert_has_keys(runtime, &runtime_keys, "diag.backend_capabilities.runtime");
+}
+
+#[test]
+fn diag_capture_prompt() {
+    let repo = TempRepo::new("cxrs-it");
+    let rows = vec![
+        serde_json::json!({
+            "execution_id":"dcp1","timestamp":"2026-01-01T00:00:00Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":10,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":true,
+            "capture_prompt_reducer_kind":"test_output"
+        }),
+        serde_json::json!({
+            "execution_id":"dcp2","timestamp":"2026-01-01T00:00:01Z","command":"cxo","tool":"cxo",
+            "backend_used":"primary","backend_selected":"primary","capture_provider":"native","execution_mode":"lean",
+            "duration_ms":11,"schema_enforced":false,"schema_valid":true,
+            "capture_prompt_profile":"shadow_narrow","capture_prompt_profile_applied":false,
+            "capture_prompt_reducer_kind":"git_status",
+            "capture_prompt_fallback_reason":"unsupported_reducer"
+        }),
+    ];
+    write_runs_log_rows(&repo, &rows);
+
+    let out = repo.run(&["diag", "--json", "--actions", "--window", "4"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let payload: Value = serde_json::from_str(&stdout_str(&out)).expect("diag json");
+    let rollout = payload
+        .get("capture_prompt_profile_rollout")
+        .expect("capture prompt rollout");
+    assert_eq!(
+        rollout
+            .get("rows_with_explicit_profile")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_configured_runs")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_applied_runs")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        rollout
+            .get("shadow_narrow_fallback_runs")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        rollout.get("latest_execution_id").and_then(Value::as_str),
+        Some("dcp2")
+    );
+    assert_eq!(
+        rollout
+            .get("latest_fallback_reason")
+            .and_then(Value::as_str),
+        Some("unsupported_reducer")
+    );
+    assert!(
+        rollout
+            .get("recommendation")
+            .and_then(Value::as_str)
+            .is_some_and(|value| value.contains("fell back to legacy reduction")),
+        "{rollout}"
+    );
+    let actions = payload
+        .get("actions")
+        .and_then(Value::as_array)
+        .expect("actions array");
+    assert!(
+        actions.iter().any(|action| {
+            action.get("id").and_then(Value::as_str) == Some("capture_prompt_rollout_followup")
+                && action.get("command").and_then(Value::as_str)
+                    == Some("xshelf telemetry 200 --json")
+        }),
+        "missing capture prompt rollout action in {actions:?}"
+    );
 }
 
 #[test]

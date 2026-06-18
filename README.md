@@ -60,6 +60,9 @@ man xs
 man cx
 ```
 
+Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
+`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
+
 ## Quick Start
 
 Start with read-only checks. These commands inspect the runtime without changing
@@ -121,6 +124,10 @@ Inspect telemetry and contract health:
 ./bin/xshelf logs stats 200 --json | jq .
 ./bin/xshelf logs validate --fix=false
 ```
+
+Task-event progress can be streamed to `.codex/cxlogs/task_events.jsonl`.
+Telemetry and log stats also expose additive rollout summaries for capture
+prompt telemetry when `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` is enabled.
 
 For the full command catalog, use the operator manuals:
 - [docs/manuals/00_README.md](docs/manuals/00_README.md)
@@ -201,6 +208,26 @@ Common runtime knobs:
 HTTP/TLS operator guidance:
 [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md)
 
+## Validation
+
+Runtime-facing checks:
+
+```bash
+./bin/xshelf doctor
+./bin/xshelf health
+./bin/xshelf logs validate --fix=false
+```
+
+Maintainer checks:
+
+```bash
+./scripts/compat_local.sh --quick
+cd rust/cxrs
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
+cargo test --tests -- --test-threads=1
+```
+
 ## Development
 
 Runtime entrypoints:
@@ -212,16 +239,6 @@ Runtime entrypoints:
 | `bin/cx` | Compatibility runtime alias |
 | `rust/cxrs` | Authoritative Rust runtime |
 | `lib/cx.sh` | Shell compatibility shim |
-
-Maintainer validation:
-
-```bash
-./scripts/compat_local.sh --quick
-cd rust/cxrs
-cargo fmt --check
-cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
-cargo test --tests -- --test-threads=1
-```
 
 Design discipline:
 - Rust is authoritative for runtime behavior, contracts, and telemetry.

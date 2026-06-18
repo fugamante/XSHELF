@@ -8,6 +8,15 @@ MODE="quick"
 JSON_STDOUT=0
 OUT_FILE=".cx/compat/latest.json"
 
+if ! command -v cargo >/dev/null 2>&1; then
+  for cargo_bin in "$HOME/.cargo/bin" /usr/local/cargo/bin; do
+    if [[ -x "$cargo_bin/cargo" ]]; then
+      export PATH="$cargo_bin:$PATH"
+      break
+    fi
+  done
+fi
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --full)
@@ -60,7 +69,7 @@ run_step() {
   local start_ms end_ms dur_ms rc
   start_ms="$(now_ms)"
   set +e
-  bash -lc "$cmd" 1>&2 2>&2
+  bash -c "$cmd" 1>&2 2>&2
   rc=$?
   set -e
   end_ms="$(now_ms)"
@@ -72,6 +81,8 @@ run_step() {
 }
 
 run_step "cargo_check_tests" "cd rust/cxrs && cargo check --tests"
+run_step "release_metadata_guard_tests" "cd rust/cxrs && python3 -m unittest tools.test_release_check"
+run_step "release_metadata_check" "cd rust/cxrs && python3 tools/release_check.py --repo-root \"$ROOT_DIR\" --max-version-age-days 14"
 run_step "entrypoint_tests" "cd rust/cxrs && cargo test --test entrypoint_integration -- --test-threads=1"
 run_step "reliability_tests" "cd rust/cxrs && cargo test --test reliability_integration -- --test-threads=1"
 run_step "scheduler_tests" "cd rust/cxrs && cargo test --test scheduler_tests -- --test-threads=1"

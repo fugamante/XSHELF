@@ -2282,7 +2282,7 @@ fn backend_available(name: &str) -> bool {
         other => other.to_string(),
     };
     let mut cmd = Command::new("bash");
-    cmd.args(["-lc", &format!("command -v {bin} >/dev/null 2>&1")]);
+    cmd.args(["-c", &format!("command -v {bin} >/dev/null 2>&1")]);
     run_command_status_with_timeout(cmd, "command -v")
         .ok()
         .is_some_and(|s| s.success())
