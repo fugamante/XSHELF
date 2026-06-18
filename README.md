@@ -1,22 +1,72 @@
 # XSHELF
 
-`XSHELF` is a deterministic Rust runtime for LLM-assisted repository work. It
-wraps repo commands with bounded capture, schema-checked outputs, explicit
-execution policy, and replayable telemetry.
+Deterministic runtime tooling for LLM-assisted repository work.
 
-Use it when free-form agent output is too loose for automation, CI, or operator
-workflows that need stable JSON contracts and inspectable failure paths.
+`XSHELF` turns repository operations into bounded, inspectable, and
+automation-safe workflows. It captures command output, reduces context,
+enforces execution policy, validates structured responses, and keeps telemetry
+replayable.
 
-Trust and naming:
-- `XSHELF/CX` is an independent open-source project and is not affiliated with
-  or endorsed by OpenAI.
-- `XSHELF` is the primary project name.
-- `CX` remains a supported compatibility command surface during migration
-  (`./bin/cx ...`).
+Use it when a free-form assistant loop is too loose for CI, automation, or
+operator workflows that need stable JSON contracts.
 
-## Try It
+`CX` remains a supported compatibility command surface during the rename
+migration. `XSHELF/CX` is an independent open-source project and is not
+affiliated with or endorsed by OpenAI.
 
-Start with read-only checks. They do not change repository configuration.
+## What It Provides
+
+| Need | XSHELF surface |
+| --- | --- |
+| Safe first inspection | `version`, `doctor`, `health`, `diag --json` |
+| Stable runtime state | `core --json`, `mode --json`, `broker show --json` |
+| Bounded command execution | `cxo ...` |
+| Task orchestration | `task add`, `task run`, `task run-all`, `task events` |
+| Contract hygiene | schema validation, quarantine, replay, contract bundles |
+| Backend selection | primary, Ollama, llama.cpp, MLX, HTTP adapter profiles |
+| Operator compatibility | local and multi-repo compatibility checks |
+
+Pipeline contract:
+
+```text
+capture -> reduce -> budget -> run backend -> validate -> quarantine -> telemetry
+```
+
+Diagnostics go to stderr. Machine-readable stdout stays parseable.
+
+## Requirements
+
+Minimum local tools:
+- `bash`
+- `git`
+- `jq` for JSON examples
+- Rust toolchain for development and validation: `cargo`, `rustfmt`, `clippy`
+
+Optional backend tools:
+
+| Backend | Tool |
+| --- | --- |
+| Ollama | `ollama` |
+| llama.cpp | `llama-cli` |
+| MLX on macOS | `mlx-lm` in a Python environment |
+
+Install shell functions and man pages:
+
+```bash
+./bin/xshelf-install
+./bin/xs-install
+man xshelf
+man xs
+man cx
+```
+
+Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
+`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
+
+## Quick Start
+
+Start with read-only checks. These commands inspect the runtime without changing
+repository configuration.
 
 ```bash
 ./bin/xshelf version
@@ -25,44 +75,7 @@ Start with read-only checks. They do not change repository configuration.
 ./bin/xshelf diag --json --window 20
 ```
 
-What should be visible:
-- `version` prints the XSHELF runtime version.
-- `task check --json` reports task orchestration readiness.
-- `core --json` prints machine-readable runtime and backend state.
-- `diag --json` prints recent machine-readable diagnostics.
-- JSON output remains parseable by automation.
-
-The short alias is available as `./bin/xs ...`; the compatibility alias remains
-available as `./bin/cx ...`.
-
-## Requirements
-
-Minimum local requirements:
-- `bash`
-- `git`
-- `jq` for JSON inspection in examples
-- Rust toolchain for development and local validation: `cargo`, `rustfmt`,
-  `clippy`
-
-Optional backend tools:
-- `ollama` for the optional local backend path
-- `llama-cli` from llama.cpp for the optional `llamacpp` local backend
-- `mlx-lm` in a Python environment for the optional macOS `mlx` backend
-
-Install shell functions and man pages:
-
-```bash
-./bin/xshelf-install
-./bin/xs-install
-man xs
-man xshelf
-man cx
-```
-
-Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
-`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
-
-Then check backend health:
+Then check readiness:
 
 ```bash
 ./bin/xshelf llm check
@@ -70,223 +83,134 @@ Then check backend health:
 ./bin/xshelf health
 ```
 
-Run `cxo` only after readiness and backend checks are healthy. A safe first
-command is a read-only repository inspection:
+After readiness checks pass, run a read-only repository command through the
+bounded execution path:
 
 ```bash
 ./bin/xshelf cxo git status
 ```
 
-## Operator Pipeline
+Command aliases:
 
-The Rust pipeline is intentionally strict:
+| Command | Role |
+| --- | --- |
+| `./bin/xshelf ...` | Canonical runtime command |
+| `./bin/xs ...` | Short alias |
+| `./bin/cx ...` | Compatibility alias during migration |
 
-1. Capture repository output.
-2. Reduce context.
-3. Enforce budget.
-4. Run the selected backend.
-5. Validate structured output.
-6. Quarantine invalid results.
-7. Append telemetry.
+## Everyday Operator Flow
 
-Current compatibility storage path:
-- repo-scoped runtime state currently lives under `.cx/`
-- schemas: `.cx/schemas/`
-- logs: `.cx/cxlogs/`
-- quarantine: `.cx/quarantine/`
-- state/tasks/runtime metadata: `.cx/`
-- task-event progress stream: `.codex/cxlogs/task_events.jsonl`
-
-## Capabilities
-
-Runtime state:
+Inspect runtime state:
 
 ```bash
-./bin/xshelf core --json
+./bin/xshelf core --json | jq .
 ./bin/xshelf mode --json | jq .
 ./bin/xshelf broker show --json | jq .
 ```
 
-`core/version/diag/scheduler` JSON surfaces now include
-`backend_capabilities.runtime`, a typed capability envelope with explicit nulls
-for unknown support lanes.
-
-Task graph:
+Work with tasks:
 
 ```bash
 ./bin/xshelf task add "Implement parser hardening" --role implementer
-./bin/xshelf task fanout "Ship release notes improvements" --from staged-diff
 ./bin/xshelf task check --json | jq .
 ./bin/xshelf task run-all --status pending --mode mixed
-./bin/xshelf task run-all --status pending --mode parallel --max-workers 2
-./bin/xshelf task run-all --status pending --events-jsonl --json
 ./bin/xshelf task events --limit 20 --json
 ```
 
-`--events-jsonl` writes additive `task-events.v1` progress events to stderr and
-`.codex/cxlogs/task_events.jsonl`, so final stdout JSON remains parseable.
-
-Policy and telemetry:
+Inspect telemetry and contract health:
 
 ```bash
-./bin/xshelf policy show --json | jq .
 ./bin/xshelf telemetry 50 --json | jq .
 ./bin/xshelf logs stats 200 --json | jq .
 ./bin/xshelf logs validate --fix=false
-./bin/xshelf optimize 200 --json | jq .
-./bin/xshelf quota probe 30 --json | jq .
 ```
 
-`telemetry --json` / `logs stats --json` now include additive
-`capture_prompt_telemetry` summary fields for the explicit
-`CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` rollout path.
+Task-event progress can be streamed to `.codex/cxlogs/task_events.jsonl`.
+Telemetry and log stats also expose additive rollout summaries for capture
+prompt telemetry when `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` is enabled.
 
-Structured output:
-
-```bash
-./bin/xshelf schema list
-./bin/xshelf schema list --json | jq .
-./bin/xshelf next git status
-./bin/xshelf diffsum-staged | jq .
-./bin/xshelf commitjson | jq .
-```
+For the full command catalog, use the operator manuals:
+- [docs/manuals/00_README.md](docs/manuals/00_README.md)
+- [docs/manuals/02_web/index.html](docs/manuals/02_web/index.html)
 
 ## Backend Selection
+
+Choose and inspect the active backend:
 
 ```bash
 ./bin/xshelf llm show
 ./bin/xshelf llm check
 ./bin/xshelf llm use primary
 ./bin/xshelf llm use ollama llama3.1
-./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
-./bin/xshelf llm use mlx local_mlx
+./bin/xshelf llm smoke "Respond with OK only."
+```
+
+Local model registry support lets a backend-scoped alias or ID resolve to the
+registered `resolved_model`. Inspect uses cheap path checks by default;
+`--disk-usage` enables recursive directory accounting.
+
+```bash
 ./bin/xshelf llm models list --json | jq .
 ./bin/xshelf llm models add local_mlx --backend mlx --model "$MLX_MODEL_ID"
 ./bin/xshelf llm models inspect local_mlx --json | jq .
-./bin/xshelf llm models inspect local_mlx --disk-usage --json | jq .
-./bin/xshelf llm verify mlx --profile smoke --json | jq .
-./bin/xshelf llm verify mlx --profile benchmark --ctx 8192 --json | jq .
-./bin/xshelf llm resident show --json | jq .
-CX_LLM_BACKEND=mlx \
-CX_PROVIDER_ADAPTER=http-curl \
-CX_HTTP_REQUEST_PROFILE=openai_json \
-CX_HTTP_PROVIDER_URL=http://127.0.0.1:11434/v1/chat/completions \
-  ./bin/xshelf llm resident probe-models --json | jq .
-./bin/xshelf llm smoke "Respond with OK only."
-./bin/xshelf llm unset model
 ```
 
-When the selected model token matches a local-model registry alias or ID for the
-active backend, runtime execution resolves it to the record's `resolved_model`.
-`llm show` prints both alias and resolved model when applicable.
-If the same alias exists on multiple backends, `llm models inspect/remove`
-now require a backend-scoped ID such as `mlx:local_mlx` instead of guessing.
-`llm models inspect` uses cheap path checks by default; recursive directory
-accounting runs only when `--disk-usage` is provided. Inspect also surfaces
-the registry record's latest `last_used_at` and `last_smoke_status` metadata
-when a registered local model has been exercised through `llm smoke` or
-`llm verify mlx`. For MLX registry records, optional `preferred_args` are
-applied to `mlx_lm generate` for `cxo` execution and `llm verify mlx --profile smoke`
-after the built-in `--model`/`--prompt` arguments and before `CX_MLX_ARGS`.
-The MLX benchmark profile maps the supported sampling subset of
-`preferred_args` plus `CX_MLX_ARGS` into the direct probe harness and records
-that runtime config in `raw_probe.runtime_config`, with `CX_*` environment
-overrides still winning when both specify the same knob.
-`llm resident` exposes explicit resident-server capability state and an optional
-`/v1/models` probe on opt-in HTTP adapter profiles. The resident capability is
-only considered eligible for the Phase VIII local substrate when all hold:
-selected backend `mlx`, adapter transport `http`, request profile
-`openai_json`, and a local HTTP provider URL such as `127.0.0.1` or
-`localhost`.
+Backend-specific entry points:
+- llama.cpp smoke path: `./scripts/llamacpp_smoke.sh`
+- MLX verification: `./bin/xshelf llm verify mlx --profile smoke --json`
+- local HTTP resident probe: `./bin/xshelf llm resident probe-models --json`
 
-`llamacpp` accepts either a local `.gguf` path or a llama.cpp Hugging Face repo
-specifier. The default smoke recipe uses `ggml-org/Qwen3-0.6B-GGUF:Q4_0`, a
-small Apache-2.0 GGUF model whose Q4_0 file is about 429 MB.
+Backend planning and contract notes live in
+[docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md).
+
+## Operations Layer
+
+XSHELF is the runtime substrate. The operator/control-plane layer lives in the
+separate `cx-ops` repository, currently named `cx-eval-lab`.
+
+The boundary is intentional:
+- XSHELF owns command execution, schema enforcement, telemetry contracts,
+  quarantine/replay, safety policy, and task orchestration.
+- The operations layer consumes those stable JSON contracts and owns
+  operator-facing control-plane UX.
+
+Export and validate the contract bundle used by the operations layer:
 
 ```bash
-brew install llama.cpp
-./scripts/llamacpp_smoke.sh
-
-# Equivalent manual smoke:
-./bin/xshelf llm use llamacpp ggml-org/Qwen3-0.6B-GGUF:Q4_0
-CX_CMD_TIMEOUT_SECS=600 \
-CX_LLAMA_CPP_ARGS="-n 64 --temp 0 -c 2048 --simple-io" \
-  ./bin/xshelf cxo printf 'xshelf llamacpp smoke\n'
+./bin/xshelf contracts export --profile eval-lab --json
+./bin/xshelf contracts validate --profile eval-lab --json
 ```
 
-## Configuration Essentials
+Local multi-repo compatibility checks auto-discover sibling `cx` and
+`cx-eval-lab` repositories when present:
 
-Important runtime knobs:
+```bash
+./scripts/compat_all.sh --quick
+```
+
+The repo boundary and promotion rules are documented in
+[docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md).
+
+## Configuration
+
+Common runtime knobs:
 - budgeting: `CX_CONTEXT_BUDGET_CHARS`, `CX_CONTEXT_BUDGET_LINES`,
   `CX_CONTEXT_CLIP_MODE`, `CX_CONTEXT_CLIP_FOOTER`
 - timeout: `CX_CMD_TIMEOUT_SECS`
-- backend/model: `CX_LLM_BACKEND`, `CX_OLLAMA_MODEL`,
-  `CX_LLAMA_CPP_MODEL`, `CX_LLAMA_CPP_BIN`, `CX_LLAMA_CPP_ARGS`,
-  `CX_MLX_MODEL`, `CX_MLX_PYTHON`, `CX_MLX_ARGS`, `CX_MLX_MAX_TOKENS`,
-  `CX_MODEL`
+- backend/model: `CX_LLM_BACKEND`, `CX_MODEL`, `CX_OLLAMA_MODEL`,
+  `CX_LLAMA_CPP_MODEL`, `CX_MLX_MODEL`
 - output mode: `CX_JSON_DEFAULT`, `CX_JSON_AUTO`
 - execution mode: `CX_MODE`, `CX_SCHEMA_RELAXED`
-- HTTP adapter policy: `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`,
-  `CX_HTTP_AUTH_PROFILE`, `CX_HTTP_AUTH_HEADER`, `CX_HTTP_AUTH_VALUE`,
-  `CX_HTTP_AUTH_VALUE_FILE`, `CX_HTTP_AUTH_USERNAME`,
-  `CX_HTTP_AUTH_PASSWORD`, `CX_HTTP_AUTH_PASSWORD_FILE`,
-  `CX_HTTP_PROVIDER_TOKEN_FILE`, `CX_HTTP_REQUEST_PROFILE`,
-  `CX_HTTP_PROVIDER_MODEL`, `CX_HTTP_PROVIDER_FORMAT`,
-  `CX_HTTP_REQUIRE_HTTPS`, `CX_HTTP_ALLOW_LOCAL_HTTP`,
-  `CX_HTTP_ALLOWED_HOSTS`, `CX_HTTP_CA_BUNDLE`, `CX_HTTP_CLIENT_CERT`,
-  `CX_HTTP_CLIENT_KEY`, `CX_HTTP_TLS_PINNEDPUBKEY`,
-  `CX_HTTP_TLS_MIN_VERSION`, `CX_HTTP_FOLLOW_REDIRECTS`,
-  `CX_HTTP_MAX_REDIRECTS`
+- HTTP adapter: `CX_HTTP_PROVIDER_URL`, `CX_HTTP_PROVIDER_TOKEN`,
+  `CX_HTTP_REQUEST_PROFILE`, `CX_HTTP_PROVIDER_MODEL`,
+  `CX_HTTP_ALLOWED_HOSTS`, `CX_HTTP_REQUIRE_HTTPS`
 
-Useful state/config commands:
-
-```bash
-./bin/xshelf mode
-./bin/xshelf broker show --json | jq .
-./bin/xshelf quota guard show
-./bin/xshelf quota catalog show --json | jq .
-```
-
-## Entrypoints
-
-Canonical runtime:
-- engine: `rust/cxrs`
-- primary entrypoint: `bin/xshelf`
-- short alias: `bin/xs`
-- compatibility alias: `bin/cx`
-- compatibility shell shim: `lib/cx.sh`
-
-Runtime vs development:
-- end users should use `doctor`, `health`, and command JSON surfaces
-- maintainers and CI run the Rust suite, compat checks, and guardrails
-
-## Documentation
-
-Operator docs:
-- [docs/README.md](docs/README.md) - documentation index
-- [docs/manuals/00_README.md](docs/manuals/00_README.md) - manual entrypoint
-- [docs/manuals/02_web/index.html](docs/manuals/02_web/index.html) - web manual index
-- [docs/manuals/02_web/CX_MANUAL_MASTER.html](docs/manuals/02_web/CX_MANUAL_MASTER.html) - tracked HTML reader mirror
-- [docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf](docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf) - generated master manual PDF
-- [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md) - HTTP/TLS operator guidance
-
-Maintainer docs:
-- [docs/project/REPO_ROLE_CONTRACT.md](docs/project/REPO_ROLE_CONTRACT.md)
-- [docs/project/ROADMAP.md](docs/project/ROADMAP.md)
-- [docs/project/RELEASE_CADENCE.md](docs/project/RELEASE_CADENCE.md)
-- [docs/project/PUBLIC_SURFACES.md](docs/project/PUBLIC_SURFACES.md)
-- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-
-Planning and history:
-- [docs/orchestration/](docs/orchestration/) - phase plans, work queues, and milestone notes
-- [docs/turboquant/](docs/turboquant/) - TurboQuant experiment archive
-- [docs/project/RUST_FIRST_MIGRATION.md](docs/project/RUST_FIRST_MIGRATION.md)
-- [docs/project/SECURITY_HISTORY_REWRITE.md](docs/project/SECURITY_HISTORY_REWRITE.md)
+HTTP/TLS operator guidance:
+[docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md)
 
 ## Validation
 
-Runtime-facing validation:
+Runtime-facing checks:
 
 ```bash
 ./bin/xshelf doctor
@@ -294,75 +218,49 @@ Runtime-facing validation:
 ./bin/xshelf logs validate --fix=false
 ```
 
-Maintainer validation:
+Maintainer checks:
 
 ```bash
-./rust/cxrs/scripts/guardrails.sh
-./rust/cxrs/scripts/check_rs_max_lines.sh 600 "$(pwd)"
-./rust/cxrs/scripts/check_integration_guardrails.sh "$(pwd)" 500
 ./scripts/compat_local.sh --quick
-./scripts/compat_local.sh --full --out .cx/compat/latest.json
-./scripts/compat_docker.sh --smoke
-./scripts/compat_docker.sh --quick
-./scripts/compat_docker.sh --full --out .cx/compat/docker_latest.json
-./scripts/compat_all.sh --quick
-./scripts/compat_all.sh --full --out .cx/compat/all_latest.json
-./bin/cx-compat-local --quick
-```
-
-`./rust/cxrs/scripts/guardrails.sh` now includes the focused
-`release_check.py --max-version-age-days 14` cadence gate and its Python unit
-tests so the default local maintainer path matches `cxrs-compat` CI.
-`./scripts/compat_local.sh --quick` now runs those same release metadata checks
-before the broader entrypoint/reliability suite so local compat reports catch
-stale `VERSION` or metadata drift before CI.
-`./scripts/compat_docker.sh --smoke` is the faster Linux-hosted path: it runs
-release metadata checks plus a bind-mounted runtime smoke (`bin/cx` / `bin/xshelf`
-version, schema registry, and `core --json`) without paying the full quick-suite
-cost.
-`./scripts/compat_docker.sh` builds a local Rust/JQ/Python container and
-bind-mounts the repo into `/work`, which lets Linux-hosted compat runs exercise
-the same scripts without adding a second contract surface. Use the wrapper for
-maintainer checks rather than direct `docker run`: it supplies the host UID/GID,
-`HOME`, `PATH`, workdir, and isolated Cargo target directory expected by the
-compat suite.
-
-Rust maintainer path:
-
-```bash
 cd rust/cxrs
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
 cargo test --tests -- --test-threads=1
 ```
 
-Git hook guardrails:
+## Development
 
-```bash
-./bin/cx-enable-githooks
-git push
-```
+Runtime entrypoints:
 
-## Development Notes
+| Path | Purpose |
+| --- | --- |
+| `bin/xshelf` | Canonical runtime entrypoint |
+| `bin/xs` | Short runtime alias |
+| `bin/cx` | Compatibility runtime alias |
+| `rust/cxrs` | Authoritative Rust runtime |
+| `lib/cx.sh` | Shell compatibility shim |
 
-Repository layout:
-- `bin/xshelf` - canonical runtime entrypoint
-- `bin/xs` - short runtime alias
-- `bin/cx` - compatibility runtime alias
-- `rust/cxrs/src/main.rs` - Rust binary entry
-- `rust/cxrs/src/app/mod.rs` - routing/orchestration
-- `rust/cxrs/src/modules/*.rs` - runtime modules
-- `lib/cx.sh` - shell compatibility shim
+Design discipline:
+- Rust is authoritative for runtime behavior, contracts, and telemetry.
+- Shell remains compatibility/bootstrap only.
+- Startup should not run automatic checks.
+- Diagnostics go to stderr; pipeline output stays on stdout.
+- Capture is internal-native only.
 
-Current design discipline:
-- Rust is authoritative for runtime behavior, contracts, and telemetry
-- no automatic checks during shell startup
-- diagnostics go to stderr; pipeline output stays on stdout
-- capture is internal-native only
+## Documentation
 
-Versioning:
-- machine-readable current version: `VERSION`
-- release history: `CHANGELOG.md`, tags, and `VERSION_HISTORY.md`
+Start here:
+- [docs/README.md](docs/README.md) - documentation index
+- [docs/manuals/00_README.md](docs/manuals/00_README.md) - manual entrypoint
+- [docs/providers/CONTRACT_COMPATIBILITY.md](docs/providers/CONTRACT_COMPATIBILITY.md) - adapter contract compatibility
+- [docs/project/ROADMAP.md](docs/project/ROADMAP.md) - roadmap and planning context
+- [docs/project/PUBLIC_SURFACES.md](docs/project/PUBLIC_SURFACES.md) - public surface ownership
+- [docs/project/XSHELF_RENAME_MIGRATION.md](docs/project/XSHELF_RENAME_MIGRATION.md) - rename policy
+- [CHANGELOG.md](CHANGELOG.md) - release history
+
+Generated manuals:
+- [docs/manuals/02_web/CX_MANUAL_MASTER.html](docs/manuals/02_web/CX_MANUAL_MASTER.html)
+- [docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf](docs/manuals/01_pdf/CX_MANUAL_MASTER.pdf)
 
 ## Contributing And Security
 
@@ -370,3 +268,8 @@ Versioning:
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - [SECURITY.md](SECURITY.md)
 - [docs/contributing/GOOD_FIRST_ISSUES.md](docs/contributing/GOOD_FIRST_ISSUES.md)
+
+Versioning:
+- current machine-readable version: [VERSION](VERSION)
+- release history: [CHANGELOG.md](CHANGELOG.md), tags, and
+  [VERSION_HISTORY.md](VERSION_HISTORY.md)
