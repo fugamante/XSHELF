@@ -221,12 +221,24 @@ Runtime-facing checks:
 Maintainer checks:
 
 ```bash
+./scripts/compat_docker.sh --smoke
 ./scripts/compat_local.sh --quick
 cd rust/cxrs
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
 cargo test --tests -- --test-threads=1
 ```
+
+`./scripts/compat_docker.sh --smoke` is the fast Linux-hosted preflight path.
+Use it only when:
+- Docker is installed and the local daemon is available.
+- the compat image can be built from `Dockerfile` or reused from cache.
+- the repo can be bind-mounted read-write because Docker cache state is written
+  under `.cx/compat/`.
+
+`--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick`,
+`./scripts/compat_docker.sh --quick`, or fuller validation when you need actual
+compat or release confidence.
 
 ## Development
 

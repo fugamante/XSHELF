@@ -44,6 +44,12 @@ cd ../..
 Python unit tests so the default local path matches `cxrs-compat` CI.
 Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
 signal before paying for the full quick compat suite.
+Smoke prerequisites:
+- Docker daemon available locally.
+- local image build/cache usable from `Dockerfile`.
+- repo bind-mounted read-write so `.cx/compat/` cache state can be written.
+Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
+`--full` for that bar.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
 
