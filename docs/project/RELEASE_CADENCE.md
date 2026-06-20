@@ -31,6 +31,10 @@ Validation preference for maintainers:
 - use `./scripts/compat_docker.sh --smoke` only as a cheaper Linux-hosted
   preflight when you want early runtime drift detection before paying for the
   fuller compat suite.
+- use `./scripts/compat_docker.sh --ci` when you want the closest local mirror
+  of the Linux `cxrs-compat` job before pushing, while remembering that
+  event-specific PR metadata gates still live in GitHub Actions and the Docker
+  parity path currently skips `test/task_run.sh`.
 
 - Validate `CHANGELOG.md` has release notes.
 - If command entrypoints or command-facing help/routing changed, validate `README.md` and `docs/project/XSHELF_RENAME_MIGRATION.md` were updated in the same bundle.

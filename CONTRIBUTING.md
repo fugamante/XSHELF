@@ -36,6 +36,7 @@ cargo test --tests -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 cd ../..
 ./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --ci
 ./scripts/compat_docker.sh --quick
 ```
 
@@ -50,6 +51,10 @@ Smoke prerequisites:
 - repo bind-mounted read-write so `.cx/compat/` cache state can be written.
 Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
 `--full` for that bar.
+Use `./scripts/compat_docker.sh --ci` when you want the closest local answer to
+the Linux `cxrs-compat` workflow before pushing. The Docker parity path
+currently skips `test/task_run.sh`; task lifecycle coverage stays with Rust
+tests and the host/CI validation paths.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
 

@@ -48,6 +48,14 @@ Scope:
 - align local Docker checks with the Linux `cxrs-compat` workflow where sensible
 - keep host-native validation authoritative for non-Linux environments
 
+Current floor:
+- `scripts/compat_docker.sh --ci`
+- Linux-hosted guardrails/tests/stable shell regression subset that mirrors the
+  `cxrs-compat` job without depending on GitHub event payload context
+- documented exception: `test/task_run.sh` stays outside the Docker parity path
+  for now, with task lifecycle coverage preserved by Rust tests and host/CI
+  validation
+
 Guardrail:
 - do not create a second contract surface with Docker-only semantics
 

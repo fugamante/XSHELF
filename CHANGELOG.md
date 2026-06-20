@@ -28,6 +28,9 @@ Notes:
   - `scripts/compat_local.sh --quick` now runs the same release metadata unit tests and cadence check, so local compatibility reports fail before CI when `VERSION` is stale or release metadata drifts.
   - added containerized compat bootstrap via `Dockerfile`, `.dockerignore`, and `scripts/compat_docker.sh` so maintainers can run the existing `scripts/compat_local.sh` contract inside Docker on a bind-mounted repo.
   - added `scripts/compat_docker.sh --smoke` as a faster Linux-hosted report path that checks release metadata and core runtime compatibility without running the full quick suite.
+  - added `scripts/compat_docker.sh --ci` as a local Linux CI-parity path that runs the core `cxrs-compat` guardrails and stable shell regression subset inside Docker.
+  - added `scripts/mock_codex_jsonl.sh` so the Docker CI-parity shell subset can validate CLI routing without requiring a locally installed Codex backend in the container.
+  - documented that Docker `--ci` currently skips `test/task_run.sh`; task lifecycle coverage remains with Rust tests plus the host/CI validation paths.
   - documented `--smoke` prerequisites and its preflight-only boundary so maintainers do not mistake it for `--quick`, `--full`, or release-signoff validation.
   - documented the preference to use host-native `compat_local --quick` for the normal compat bar and Docker `--smoke` only for cheaper Linux-hosted preflight checks.
   - added `docs/project/DOCKER_STRATEGY.md` to order the Docker follow-on work as maintainer parity, CI parity, opt-in task sandboxing, provider sidecars, and cache/distribution.

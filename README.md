@@ -222,6 +222,7 @@ Maintainer checks:
 
 ```bash
 ./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --ci
 ./scripts/compat_local.sh --quick
 cd rust/cxrs
 cargo fmt --check
@@ -242,6 +243,12 @@ compat or release confidence.
 Prefer `./scripts/compat_local.sh --quick` when you want the normal compat bar
 for the current machine. Use Docker `--smoke` when the goal is a faster
 Linux-hosted preflight, not a substitute for the fuller check.
+`./scripts/compat_docker.sh --ci` is the local Linux CI-parity path. It runs
+the same core Linux guardrails used by `cxrs-compat` where local Docker can
+reasonably mirror them, including fmt/check/clippy/tests, guardrails, release
+metadata, `compat_check.sh`, and the stable shell regression subset. The
+current Docker parity path skips `test/task_run.sh`; task lifecycle behavior
+remains covered by Rust tests and the host/CI paths.
 
 ## Development
 
