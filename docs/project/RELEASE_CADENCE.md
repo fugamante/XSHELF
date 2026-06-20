@@ -25,6 +25,13 @@ cd ../..
 `tools.test_release_check`, so local pre-release validation matches the default
 CI metadata gate before the broader checklist runs.
 
+Validation preference for maintainers:
+- prefer `./scripts/compat_local.sh --quick` when you need the real compat bar
+  for the current machine or are preparing release-signoff evidence.
+- use `./scripts/compat_docker.sh --smoke` only as a cheaper Linux-hosted
+  preflight when you want early runtime drift detection before paying for the
+  fuller compat suite.
+
 - Validate `CHANGELOG.md` has release notes.
 - If command entrypoints or command-facing help/routing changed, validate `README.md` and `docs/project/XSHELF_RENAME_MIGRATION.md` were updated in the same bundle.
 - Validate README requirements/version notes still match tested environment.

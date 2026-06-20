@@ -29,6 +29,7 @@ Notes:
   - added containerized compat bootstrap via `Dockerfile`, `.dockerignore`, and `scripts/compat_docker.sh` so maintainers can run the existing `scripts/compat_local.sh` contract inside Docker on a bind-mounted repo.
   - added `scripts/compat_docker.sh --smoke` as a faster Linux-hosted report path that checks release metadata and core runtime compatibility without running the full quick suite.
   - documented `--smoke` prerequisites and its preflight-only boundary so maintainers do not mistake it for `--quick`, `--full`, or release-signoff validation.
+  - documented the preference to use host-native `compat_local --quick` for the normal compat bar and Docker `--smoke` only for cheaper Linux-hosted preflight checks.
   - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
   - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.

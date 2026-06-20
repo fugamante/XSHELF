@@ -239,6 +239,9 @@ Use it only when:
 `--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick`,
 `./scripts/compat_docker.sh --quick`, or fuller validation when you need actual
 compat or release confidence.
+Prefer `./scripts/compat_local.sh --quick` when you want the normal compat bar
+for the current machine. Use Docker `--smoke` when the goal is a faster
+Linux-hosted preflight, not a substitute for the fuller check.
 
 ## Development
 
