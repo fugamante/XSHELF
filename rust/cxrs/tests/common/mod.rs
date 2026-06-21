@@ -148,6 +148,24 @@ impl TempRepo {
         self.write_mock(concat!("co", "dex"), body);
     }
 
+    pub fn write_local_cx_wrapper(&self) {
+        let bin_dir = self.root.join("bin");
+        fs::create_dir_all(&bin_dir).expect("create bin dir");
+        let body = format!(
+            "#!/usr/bin/env bash\nexec \"{}\" \"$@\"\n",
+            env!("CARGO_BIN_EXE_cxrs")
+        );
+        let path = bin_dir.join("cx");
+        fs::write(&path, body).expect("write cx wrapper");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&path).expect("wrapper metadata").permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&path, perms).expect("set wrapper executable");
+        }
+    }
+
     pub fn run(&self, args: &[&str]) -> Output {
         self.run_with_env(args, &[])
     }

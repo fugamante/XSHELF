@@ -360,6 +360,11 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
         description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
     },
     CommandHelp {
+        name: "task sandbox",
+        usage: "{APP} task sandbox <show|enable|disable|set-image|clear-image> [--json|--text|<image>]",
+        description: "Inspect or configure the repo-scoped Docker task sandbox",
+    },
+    CommandHelp {
         name: "task events",
         usage: "{APP} task events [--limit N] [--json|--jsonl] [--follow]",
         description: "Read task-events.v1 progress events emitted by run-all",

@@ -706,6 +706,8 @@ fn task_run_latest(id: &str) -> Value {
             "timestamp": v.get("timestamp").and_then(Value::as_str),
             "tool": v.get("tool").and_then(Value::as_str),
             "backend_used": v.get("backend_used").and_then(Value::as_str),
+            "execution_lane": v.get("execution_lane").and_then(Value::as_str),
+            "execution_lane_detail": v.get("execution_lane_detail").and_then(Value::as_str),
             "execution_mode": v.get("execution_mode").and_then(Value::as_str),
             "duration_ms": v.get("duration_ms").and_then(Value::as_u64),
             "schema_valid": v.get("schema_valid").and_then(Value::as_bool),

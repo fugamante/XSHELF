@@ -267,8 +267,8 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "compat_check" \
       "cd /work/rust/cxrs && ./scripts/compat_check.sh 50"
     run_report_step \
-      "shell_regression_subset" \
-      "cd /work && mockdir=\"\$(mktemp -d)\" && trap 'rm -rf \"\$mockdir\"' EXIT && cp ./scripts/mock_codex_jsonl.sh \"\$mockdir/codex\" && chmod +x \"\$mockdir/codex\" && PATH=\"\$mockdir:\$PATH\" && for t in test/*.sh; do [[ \"\$(basename \"\$t\")\" == 'task_run.sh' ]] && continue; bash \"\$t\"; done"
+      "shell_regression_suite" \
+      "cd /work && mockdir=\"\$(mktemp -d)\" && trap 'rm -rf \"\$mockdir\"' EXIT && cp ./scripts/mock_codex_jsonl.sh \"\$mockdir/codex\" && chmod +x \"\$mockdir/codex\" && PATH=\"\$mockdir:\$PATH\" && for t in test/*.sh; do bash \"\$t\"; done"
   fi
 
   emit_report "$MODE" "$OUT_FILE" "$TSV_FILE" "$OVERALL_RC" "$IMAGE_TAG"

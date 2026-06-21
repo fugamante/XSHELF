@@ -49,14 +49,29 @@ Smoke prerequisites:
 - Docker daemon available locally.
 - local image build/cache usable from `Dockerfile`.
 - repo bind-mounted read-write so `.cx/compat/` cache state can be written.
+- expect the first run to pay image-build and Cargo-cache warmup cost; reruns
+  should be materially faster unless `--rebuild` is used.
+- if the image or cache state looks stale, prefer `./scripts/compat_docker.sh --rebuild ...`
+  and prune unused Docker builder/image state before retrying.
 Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
 `--full` for that bar.
 Use `./scripts/compat_docker.sh --ci` when you want the closest local answer to
-the Linux `cxrs-compat` workflow before pushing. The Docker parity path
-currently skips `test/task_run.sh`; task lifecycle coverage stays with Rust
-tests and the host/CI validation paths.
+the Linux `cxrs-compat` workflow before pushing.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
+
+Project task sandboxing is also opt-in and repo-scoped:
+
+```bash
+./bin/xshelf task sandbox set-image xshelf-compat:local
+./bin/xshelf task sandbox enable
+./bin/xshelf task sandbox show --json
+```
+
+`task run` and `task run-all` will then launch the inner task inside the
+configured Docker image on the bind-mounted repo while preserving `.cx/` state
+and additive execution-lane provenance. The image must provide `xshelf`/`cx`
+on `PATH` or a repo-local `./bin/xshelf` / `./bin/cx` entrypoint.
 
 ## Pull Request Requirements
 

@@ -21,7 +21,7 @@ affiliated with or endorsed by OpenAI.
 | Safe first inspection | `version`, `doctor`, `health`, `diag --json` |
 | Stable runtime state | `core --json`, `mode --json`, `broker show --json` |
 | Bounded command execution | `cxo ...` |
-| Task orchestration | `task add`, `task run`, `task run-all`, `task events` |
+| Task orchestration | `task add`, `task run`, `task run-all`, `task sandbox`, `task events` |
 | Contract hygiene | schema validation, quarantine, replay, contract bundles |
 | Backend selection | primary, Ollama, llama.cpp, MLX, HTTP adapter profiles |
 | Operator compatibility | local and multi-repo compatibility checks |
@@ -114,8 +114,23 @@ Work with tasks:
 ./bin/xshelf task add "Implement parser hardening" --role implementer
 ./bin/xshelf task check --json | jq .
 ./bin/xshelf task run-all --status pending --mode mixed
+./bin/xshelf task sandbox show --json | jq .
 ./bin/xshelf task events --limit 20 --json
 ```
+
+Project task sandboxing is opt-in. Configure it per repo with:
+
+```bash
+./bin/xshelf task sandbox set-image xshelf-compat:local
+./bin/xshelf task sandbox enable
+```
+
+When enabled, `task run` and `task run-all` execute the inner task inside the
+configured Docker image on the bind-mounted repo and stamp additive
+`execution_lane=container` provenance into run logs. The container image must
+provide `xshelf`/`cx` on `PATH` or expose a repo-local `./bin/xshelf` or
+`./bin/cx` entrypoint. `CX_TASK_SANDBOX_ENABLED` and `CX_TASK_SANDBOX_IMAGE`
+remain supported as transient overrides.
 
 Inspect telemetry and contract health:
 
@@ -236,6 +251,14 @@ Use it only when:
 - the compat image can be built from `Dockerfile` or reused from cache.
 - the repo can be bind-mounted read-write because Docker cache state is written
   under `.cx/compat/`.
+- expect the first run to spend most of its time building the image and filling
+  the Cargo target cache under `.cx/compat/`; warm-cache reruns should be much
+  faster unless `--rebuild` is used.
+
+If the image or bind-mounted cache gets stale:
+- force a fresh image build with `./scripts/compat_docker.sh --rebuild ...`
+- prune unused Docker state with `docker image prune` / `docker builder prune`
+  before retrying if cache corruption or disk pressure is suspected
 
 `--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick`,
 `./scripts/compat_docker.sh --quick`, or fuller validation when you need actual
@@ -246,9 +269,7 @@ Linux-hosted preflight, not a substitute for the fuller check.
 `./scripts/compat_docker.sh --ci` is the local Linux CI-parity path. It runs
 the same core Linux guardrails used by `cxrs-compat` where local Docker can
 reasonably mirror them, including fmt/check/clippy/tests, guardrails, release
-metadata, `compat_check.sh`, and the stable shell regression subset. The
-current Docker parity path skips `test/task_run.sh`; task lifecycle behavior
-remains covered by Rust tests and the host/CI paths.
+metadata, `compat_check.sh`, and the shell regression suite.
 
 ## Development
 

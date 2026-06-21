@@ -50,11 +50,8 @@ Scope:
 
 Current floor:
 - `scripts/compat_docker.sh --ci`
-- Linux-hosted guardrails/tests/stable shell regression subset that mirrors the
+- Linux-hosted guardrails/tests/shell regression steps that mirror the
   `cxrs-compat` job without depending on GitHub event payload context
-- documented exception: `test/task_run.sh` stays outside the Docker parity path
-  for now, with task lifecycle coverage preserved by Rust tests and host/CI
-  validation
 
 Guardrail:
 - do not create a second contract surface with Docker-only semantics
@@ -82,6 +79,14 @@ Likely shape:
 - project config points XSHELF at a container image or compose service
 - `task run` / `task run-all` can choose host or container execution lanes
 - runtime records whether execution happened on host or in container
+
+Current floor:
+- repo-scoped task sandbox config via `.cx/state.json`
+- `task sandbox show|set-image|enable|disable|clear-image`
+- Docker-backed inner task execution for `task run` / `task run-all`
+- container image must provide `xshelf`/`cx` on `PATH` or a repo-local
+  `./bin/xshelf` / `./bin/cx` entrypoint
+- additive execution-lane provenance in run logs and `task show`
 
 Guardrails:
 - no automatic Docker requirement for normal XSHELF use
