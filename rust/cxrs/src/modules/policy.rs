@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::config::cli_app_name;
 
 use crate::config::app_config;
+use crate::contract_versions::POLICY_SHOW_JSON_CONTRACT_VERSION;
 use crate::paths::repo_root;
 
 #[derive(Debug, Clone)]
@@ -253,7 +254,7 @@ fn show_policy_text() {
 fn show_policy_json() -> i32 {
     let cfg = app_config();
     let value = serde_json::json!({
-        "contract_version": "policy-show.v1",
+        "contract_version": POLICY_SHOW_JSON_CONTRACT_VERSION,
         "rules": policy_rules(),
         "overrides": {
             "unsafe_enabled": cfg.cx_unsafe,

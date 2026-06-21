@@ -11,7 +11,7 @@ use crate::config::{app_config, cli_app_name, command_with_cli};
 use crate::contract_versions::{
     TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
     TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
-    TASK_SANDBOX_READINESS_JSON_CONTRACT_VERSION,
+    TASK_RUN_PLAN_JSON_CONTRACT_VERSION, TASK_SANDBOX_READINESS_JSON_CONTRACT_VERSION,
 };
 use crate::doctor::{
     exec_context_value, exec_recommendations_value, latest_wave_sum, next_cost_class,
@@ -1272,7 +1272,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             println!(
                 "{}",
                 serde_json::json!({
-                    "contract_version": "task-run-all.v1",
+                    "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
                     "status_filter": options.status_filter,
                     "mode": options.run_mode,
                     "summary_format": options.summary_format,
@@ -2049,7 +2049,7 @@ fn plan_json_out(
     };
     let can_execute = plan.blocked.is_empty() && (!options.strict_plan || strict_ok);
     let payload = serde_json::json!({
-        "contract_version": "task-run-plan.v1",
+        "contract_version": TASK_RUN_PLAN_JSON_CONTRACT_VERSION,
         "status_filter": options.status_filter,
         "requested_mode": options.run_mode,
         "strict_plan": options.strict_plan,
@@ -2311,7 +2311,7 @@ fn dry_run_out(
         }));
     }
     let payload = serde_json::json!({
-        "contract_version": "task-run-all.v1",
+        "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
         "status_filter": options.status_filter,
         "mode": options.run_mode,
         "strict_plan": options.strict_plan,
