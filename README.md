@@ -306,6 +306,8 @@ Design discipline:
 - Startup should not run automatic checks.
 - Diagnostics go to stderr; pipeline output stays on stdout.
 - Capture is internal-native only.
+- `contracts export --profile full --json` is the declared machine-readable
+  compatibility manifest for covered JSON surfaces.
 
 ## Documentation
 

@@ -148,6 +148,9 @@ Current status:
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift
+- CI also treats covered JSON contract producer/version/fixture changes as
+  compatibility-surface changes that must update `CHANGELOG.md` and
+  `docs/providers/CONTRACT_COMPATIBILITY.md`
 
 Exit criteria:
 
