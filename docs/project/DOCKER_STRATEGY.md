@@ -122,6 +122,13 @@ Current decision:
 - start with a written local-service contract and fixture/mock validation before
   adding Docker Compose or service startup code
 
+Current floor:
+- `docs/providers/LOCAL_PROVIDER_SIDECARS.md` defines the local
+  OpenAI-compatible MLX HTTP sidecar contract
+- fixture-backed `llm resident probe-models --json` coverage validates the
+  `/v1/models` readiness path and visible HTTP boundary fields without live
+  provider services
+
 Guardrails:
 - process adapters remain stable defaults unless explicitly overridden
 - Docker sidecars must not blur transport boundaries in diagnostics or telemetry

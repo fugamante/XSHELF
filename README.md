@@ -183,6 +183,8 @@ Backend-specific entry points:
 
 Backend planning and contract notes live in
 [docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md).
+Optional local provider sidecar requirements live in
+[docs/providers/LOCAL_PROVIDER_SIDECARS.md](docs/providers/LOCAL_PROVIDER_SIDECARS.md).
 
 ## Operations Layer
 

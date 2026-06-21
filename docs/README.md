@@ -9,6 +9,7 @@ Operate XSHELF:
 - [manuals/02_web/CX_MANUAL_MASTER.html](manuals/02_web/CX_MANUAL_MASTER.html) - tracked HTML reader mirror
 - [providers/HTTP_PROVIDER_TLS.md](providers/HTTP_PROVIDER_TLS.md) - HTTP provider TLS guidance
 - [providers/CONTRACT_COMPATIBILITY.md](providers/CONTRACT_COMPATIBILITY.md) - adapter contract compatibility
+- [providers/LOCAL_PROVIDER_SIDECARS.md](providers/LOCAL_PROVIDER_SIDECARS.md) - optional local provider sidecar contract
 - [man/](man/) - installed command man pages
 
 Maintain XSHELF:

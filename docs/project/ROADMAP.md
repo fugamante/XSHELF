@@ -23,7 +23,9 @@
     explicit report deltas for GitHub-event/hosted-runner behavior
   - 3. landed the first opt-in project task sandbox floor with readiness
     diagnostics, container execution, and execution-lane provenance
-  - 4. provider sidecars and local services
+  - 4. landed provider sidecar contract floor with local-service requirements
+    and fixture-backed resident `/v1/models` validation; Compose/service
+    recipes remain future opt-in work
   - 5. prebuilt cache and distribution
 - Landed richer command-level JSON outputs for diagnostics tools, including contract-backed `broker show --json`.
 - Landed CI-level artifact reports for reliability suite failures.

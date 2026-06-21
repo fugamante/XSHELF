@@ -66,6 +66,8 @@ Major releases:
 Contract stability is enforced by:
 - fixture-backed integration tests under `rust/cxrs/tests/fixtures/*_contract.json` for the fixture-locked surfaces
 - targeted integration assertions for typed JSON surfaces that do not yet have standalone fixture manifests (`policy show`, `llm verify`, `llm resident`)
+- fixture-backed local sidecar assertions for `llm resident probe-models --json`
+  to preserve the loopback `/v1/models` path and visible HTTP boundary fields
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`
 - `cargo test --tests -- --test-threads=1`
 
