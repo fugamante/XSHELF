@@ -54,6 +54,20 @@ pub struct TaskSandboxConfig {
     pub image: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct TaskSandboxReadiness {
+    pub enabled: bool,
+    pub active: bool,
+    pub image: Option<String>,
+    pub ready: bool,
+    pub docker_available: bool,
+    pub image_available: bool,
+    pub repo_mount_writable: bool,
+    pub entrypoint_available: bool,
+    pub issues: Vec<String>,
+    pub recommended_action: Option<String>,
+}
+
 fn env_bool_override(name: &str) -> Option<bool> {
     env::var(name)
         .ok()
@@ -121,25 +135,7 @@ fn sandbox_execution_lane_detail(image: &str) -> String {
     format!("docker:{image}")
 }
 
-fn run_task_in_sandbox(
-    id: &str,
-    mode_override: Option<&str>,
-    backend_override: Option<&str>,
-    emit_output: bool,
-) -> Result<(i32, Option<String>), String> {
-    let cfg = task_sandbox_config();
-    let image = cfg.image.ok_or_else(|| {
-        format!(
-            "{} task sandbox: image is required when sandbox is enabled",
-            cli_app_name()
-        )
-    })?;
-    let root = repo_root().ok_or_else(|| {
-        format!(
-            "{} task sandbox: not inside a git repository",
-            cli_app_name()
-        )
-    })?;
+fn current_uid_gid() -> Result<(String, String), String> {
     let uid = crate::process::run_command_output_with_timeout(
         {
             let mut cmd = Command::new("id");
@@ -166,6 +162,169 @@ fn run_task_in_sandbox(
             cli_app_name()
         ));
     }
+    Ok((uid, gid))
+}
+
+fn command_success(cmd: Command, label: &str) -> bool {
+    crate::process::run_command_output_with_timeout(cmd, label)
+        .map(|out| out.status.success())
+        .unwrap_or(false)
+}
+
+fn sandbox_probe_success(root: &Path, image: &str) -> bool {
+    let Ok((uid, gid)) = current_uid_gid() else {
+        return false;
+    };
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    cmd.arg("--rm");
+    cmd.arg("--user");
+    cmd.arg(format!("{uid}:{gid}"));
+    cmd.arg("--workdir");
+    cmd.arg("/work");
+    cmd.arg("-v");
+    cmd.arg(format!("{}:/work", root.display()));
+    cmd.arg(image);
+    cmd.arg("bash");
+    cmd.arg("-lc");
+    cmd.arg(
+        "test -d .cx && test -w .cx && \
+if [[ -x ./bin/xshelf || -x ./bin/cx ]]; then exit 0; fi && \
+if command -v xshelf >/dev/null 2>&1 || command -v cx >/dev/null 2>&1; then exit 0; fi && \
+exit 127",
+    );
+    command_success(cmd, "task sandbox readiness docker run")
+}
+
+pub fn task_sandbox_readiness() -> TaskSandboxReadiness {
+    let cfg = task_sandbox_config();
+    let active = task_sandbox_active();
+    let mut issues: Vec<String> = Vec::new();
+    if !cfg.enabled {
+        issues.push("sandbox_disabled".to_string());
+    }
+    if cfg.image.is_none() {
+        issues.push("image_unset".to_string());
+    }
+    let docker_available = {
+        let mut cmd = Command::new("docker");
+        cmd.arg("--version");
+        command_success(cmd, "docker --version")
+    };
+    if !docker_available {
+        issues.push("docker_unavailable".to_string());
+    }
+    let image_available = if docker_available {
+        if let Some(image) = cfg.image.as_deref() {
+            let mut cmd = Command::new("docker");
+            cmd.arg("image");
+            cmd.arg("inspect");
+            cmd.arg(image);
+            command_success(cmd, "docker image inspect")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if cfg.image.is_some() && !image_available {
+        issues.push("image_unavailable".to_string());
+    }
+    let root = repo_root();
+    let repo_mount_writable = root
+        .as_ref()
+        .map(|p| {
+            p.join(".cx").is_dir()
+                && !p
+                    .join(".cx")
+                    .metadata()
+                    .map(|m| m.permissions().readonly())
+                    .unwrap_or(true)
+        })
+        .unwrap_or(false);
+    if root.is_none() {
+        issues.push("repo_unavailable".to_string());
+    } else if !repo_mount_writable {
+        issues.push("repo_state_not_writable".to_string());
+    }
+    let entrypoint_available = if docker_available && image_available && repo_mount_writable {
+        if let (Some(root), Some(image)) = (root.as_ref(), cfg.image.as_deref()) {
+            sandbox_probe_success(root, image)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if cfg.enabled
+        && cfg.image.is_some()
+        && docker_available
+        && image_available
+        && !entrypoint_available
+    {
+        issues.push("entrypoint_unavailable".to_string());
+    }
+    let ready = cfg.enabled
+        && cfg.image.is_some()
+        && docker_available
+        && image_available
+        && repo_mount_writable
+        && entrypoint_available
+        && issues.is_empty();
+    let recommended_action = if ready {
+        None
+    } else if issues.iter().any(|i| i == "sandbox_disabled") {
+        Some("run `xshelf task sandbox enable`".to_string())
+    } else if issues.iter().any(|i| i == "image_unset") {
+        Some("run `xshelf task sandbox set-image <image>`".to_string())
+    } else if issues.iter().any(|i| i == "docker_unavailable") {
+        Some("start Docker and make `docker --version` work".to_string())
+    } else if issues.iter().any(|i| i == "image_unavailable") {
+        Some("build or pull the configured sandbox image".to_string())
+    } else if issues.iter().any(|i| i == "repo_state_not_writable") {
+        Some("ensure repo-local `.cx/` state is writable from the container user".to_string())
+    } else if issues.iter().any(|i| i == "entrypoint_unavailable") {
+        Some(
+            "install xshelf/cx in the image or expose repo-local ./bin/xshelf or ./bin/cx"
+                .to_string(),
+        )
+    } else {
+        Some("inspect sandbox configuration".to_string())
+    };
+    TaskSandboxReadiness {
+        enabled: cfg.enabled,
+        active,
+        image: cfg.image,
+        ready,
+        docker_available,
+        image_available,
+        repo_mount_writable,
+        entrypoint_available,
+        issues,
+        recommended_action,
+    }
+}
+
+fn run_task_in_sandbox(
+    id: &str,
+    mode_override: Option<&str>,
+    backend_override: Option<&str>,
+    emit_output: bool,
+) -> Result<(i32, Option<String>), String> {
+    let cfg = task_sandbox_config();
+    let image = cfg.image.ok_or_else(|| {
+        format!(
+            "{} task sandbox: image is required when sandbox is enabled",
+            cli_app_name()
+        )
+    })?;
+    let root = repo_root().ok_or_else(|| {
+        format!(
+            "{} task sandbox: not inside a git repository",
+            cli_app_name()
+        )
+    })?;
+    let (uid, gid) = current_uid_gid()?;
 
     let log_cursor = capture_log_cursor();
     let mut docker = Command::new("docker");

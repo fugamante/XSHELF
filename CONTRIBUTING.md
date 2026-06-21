@@ -66,12 +66,16 @@ Project task sandboxing is also opt-in and repo-scoped:
 ./bin/xshelf task sandbox set-image xshelf-compat:local
 ./bin/xshelf task sandbox enable
 ./bin/xshelf task sandbox show --json
+./bin/xshelf task sandbox check --json
 ```
 
 `task run` and `task run-all` will then launch the inner task inside the
 configured Docker image on the bind-mounted repo while preserving `.cx/` state
 and additive execution-lane provenance. The image must provide `xshelf`/`cx`
-on `PATH` or a repo-local `./bin/xshelf` / `./bin/cx` entrypoint.
+on `PATH` or a repo-local `./bin/xshelf` / `./bin/cx` entrypoint. Treat
+`task sandbox check --json` as the readiness gate before relying on the
+container lane; it verifies Docker, the configured image, writable `.cx/`
+state, and the entrypoint contract.
 
 ## Pull Request Requirements
 

@@ -6,7 +6,7 @@ CLI_NAME="${CX_CLI_NAME:-$(basename "$0")}"
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $CLI_NAME <subcommand> [args...]" >&2
-  echo "Example: $CLI_NAME cxversion" >&2
+  echo "Example: $CLI_NAME version" >&2
   exit 2
 fi
 

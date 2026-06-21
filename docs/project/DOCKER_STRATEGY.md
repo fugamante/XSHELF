@@ -25,6 +25,7 @@ Current floor:
 - `Dockerfile`
 - `scripts/compat_docker.sh --smoke`
 - `scripts/compat_docker.sh --quick`
+- local-build image default: `xshelf-compat:local`
 
 Next additions:
 - document first-run and warm-cache expectations
@@ -52,6 +53,8 @@ Current floor:
 - `scripts/compat_docker.sh --ci`
 - Linux-hosted guardrails/tests/shell regression steps that mirror the
   `cxrs-compat` job without depending on GitHub event payload context
+- JSON report metadata under `ci_parity` records the local-vs-CI deltas that
+  Docker does not claim to reproduce
 
 Guardrail:
 - do not create a second contract surface with Docker-only semantics
@@ -83,6 +86,9 @@ Likely shape:
 Current floor:
 - repo-scoped task sandbox config via `.cx/state.json`
 - `task sandbox show|set-image|enable|disable|clear-image`
+- `task sandbox check --json` readiness diagnostics for Docker availability,
+  image availability, writable `.cx/` state, and `xshelf`/`cx` entrypoint
+  availability
 - Docker-backed inner task execution for `task run` / `task run-all`
 - container image must provide `xshelf`/`cx` on `PATH` or a repo-local
   `./bin/xshelf` / `./bin/cx` entrypoint
@@ -112,6 +118,10 @@ Scope:
 - no silent background service management
 - keep provider configuration inspectable
 
+Current decision:
+- start with a written local-service contract and fixture/mock validation before
+  adding Docker Compose or service startup code
+
 Guardrails:
 - process adapters remain stable defaults unless explicitly overridden
 - Docker sidecars must not blur transport boundaries in diagnostics or telemetry
@@ -132,6 +142,12 @@ Scope:
 - optional prebuilt maintainer image
 - optional cached dependency layers
 - possibly publish versioned image tags for release lines
+
+Current decision:
+- keep local-build-only as the default until a prebuilt image policy defines
+  source Dockerfile, update cadence, tag/digest reporting, and multi-arch
+  expectations
+- any future remote image must be opt-in instead of pulled by default
 
 Guardrails:
 - no hidden freshness claims

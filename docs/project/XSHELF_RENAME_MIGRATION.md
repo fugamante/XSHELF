@@ -139,8 +139,11 @@ Current status:
 - uninstall flow now supports `bin/xs-uninstall`
 - man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
-- task orchestration docs/examples now include `xshelf task sandbox ...` while
-  keeping `cx task ...` compatibility intact
+- task orchestration docs/examples now include `xshelf task sandbox ...`,
+  including `task sandbox check --json` readiness diagnostics, while keeping
+  `cx task ...` compatibility intact
+- shell helpers preserve canonical `xshelf`, short `xs`, and compatibility
+  `cx` invocation names
 - `cx` remains fully supported as the compatibility path
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and

@@ -17,9 +17,12 @@
 - Stage the `XSHELF` rename as a compatibility migration, not a breaking command/env/state rename.
 - Land dual-surface command docs/install defaults so `xshelf` is documented first while `cx` stays fully supported.
 - Use the staged Docker plan in `docs/project/DOCKER_STRATEGY.md`:
-  - 1. maintainer parity and onboarding
-  - 2. Linux CI parity harness
-  - 3. opt-in project task sandbox
+  - 1. landed maintainer parity and onboarding through local-build Docker
+    smoke/quick paths
+  - 2. landed Linux CI parity harness through `compat_docker.sh --ci` with
+    explicit report deltas for GitHub-event/hosted-runner behavior
+  - 3. landed the first opt-in project task sandbox floor with readiness
+    diagnostics, container execution, and execution-lane provenance
   - 4. provider sidecars and local services
   - 5. prebuilt cache and distribution
 - Landed richer command-level JSON outputs for diagnostics tools, including contract-backed `broker show --json`.

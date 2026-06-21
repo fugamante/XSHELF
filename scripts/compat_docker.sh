@@ -163,6 +163,14 @@ with open(tsv, "r", encoding="utf-8") as fh:
 report = {
     "status": "ok" if overall_rc == 0 else "failed",
     "mode": mode,
+    "ci_parity": {
+        "scope": "linux-guardrail-parity" if mode == "ci" else "not-ci-parity",
+        "workflow": ".github/workflows/cxrs-compat.yml",
+        "intentional_deltas": [
+            "github-event-payload-dependent command-surface diff checks",
+            "hosted-runner setup and cache action behavior",
+        ] if mode == "ci" else [],
+    },
     "generated_at": datetime.now(timezone.utc).isoformat(),
     "host": {
         "os": platform.system(),

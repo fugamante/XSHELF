@@ -55,6 +55,7 @@ Install shell functions and man pages:
 ```bash
 ./bin/xshelf-install
 ./bin/xs-install
+./bin/cx-install
 man xshelf
 man xs
 man cx
@@ -115,6 +116,7 @@ Work with tasks:
 ./bin/xshelf task check --json | jq .
 ./bin/xshelf task run-all --status pending --mode mixed
 ./bin/xshelf task sandbox show --json | jq .
+./bin/xshelf task sandbox check --json | jq .
 ./bin/xshelf task events --limit 20 --json
 ```
 
@@ -123,14 +125,18 @@ Project task sandboxing is opt-in. Configure it per repo with:
 ```bash
 ./bin/xshelf task sandbox set-image xshelf-compat:local
 ./bin/xshelf task sandbox enable
+./bin/xshelf task sandbox check --json
 ```
 
 When enabled, `task run` and `task run-all` execute the inner task inside the
 configured Docker image on the bind-mounted repo and stamp additive
 `execution_lane=container` provenance into run logs. The container image must
 provide `xshelf`/`cx` on `PATH` or expose a repo-local `./bin/xshelf` or
-`./bin/cx` entrypoint. `CX_TASK_SANDBOX_ENABLED` and `CX_TASK_SANDBOX_IMAGE`
-remain supported as transient overrides.
+`./bin/cx` entrypoint. Use `task sandbox check --json` as the readiness gate:
+it verifies Docker availability, configured image availability, writable
+repo-local `.cx/` state, and an available `xshelf`/`cx` entrypoint before
+returning success. `CX_TASK_SANDBOX_ENABLED` and `CX_TASK_SANDBOX_IMAGE` remain
+supported as transient overrides.
 
 Inspect telemetry and contract health:
 
@@ -269,7 +275,9 @@ Linux-hosted preflight, not a substitute for the fuller check.
 `./scripts/compat_docker.sh --ci` is the local Linux CI-parity path. It runs
 the same core Linux guardrails used by `cxrs-compat` where local Docker can
 reasonably mirror them, including fmt/check/clippy/tests, guardrails, release
-metadata, `compat_check.sh`, and the shell regression suite.
+metadata, `compat_check.sh`, and the shell regression suite. The JSON report
+includes `ci_parity.intentional_deltas` for GitHub-event and hosted-runner
+behavior that local Docker does not claim to reproduce.
 
 ## Development
 

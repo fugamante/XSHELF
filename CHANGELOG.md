@@ -35,6 +35,8 @@ Notes:
   - documented first-run Docker warm-cache expectations plus rebuild/prune guidance for stale image or bind-mounted cache state.
   - added `docs/project/DOCKER_STRATEGY.md` to order the Docker follow-on work as maintainer parity, CI parity, opt-in task sandboxing, provider sidecars, and cache/distribution.
   - added the first opt-in project task sandbox slice: repo-scoped `task sandbox` config in `.cx/state.json`, Docker-backed inner execution for `task run` / `task run-all`, and additive `execution_lane` provenance in run logs and `task show`.
+  - added `task sandbox check --json` readiness diagnostics so Docker task sandbox users can verify Docker availability, configured image availability, writable `.cx/` state, and `xshelf`/`cx` entrypoint availability before relying on the container lane.
+  - added Docker CI-parity report metadata for intentional local-vs-GitHub deltas and documented local-build-only/prebuilt-image and provider-sidecar decision boundaries.
   - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
   - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.

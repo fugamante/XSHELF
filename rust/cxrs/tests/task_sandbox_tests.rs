@@ -58,6 +58,119 @@ fn task_sandbox_show_and_mutate() {
 }
 
 #[test]
+fn task_sandbox_check_reports_not_ready() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "docker",
+        r#"#!/usr/bin/env bash
+case "${1:-}" in
+  --version)
+    printf '%s\n' 'Docker version 99.0.0'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+"#,
+    );
+
+    let check = repo.run(&["task", "sandbox", "check", "--json"]);
+    assert!(
+        !check.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&check),
+        stderr_str(&check)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&check)).expect("valid json");
+    assert_eq!(
+        out.get("contract_version").and_then(Value::as_str),
+        Some("task-sandbox-readiness.v1")
+    );
+    assert_eq!(out.get("ready").and_then(Value::as_bool), Some(false));
+    let issues = out.get("issues").and_then(Value::as_array).expect("issues");
+    assert!(
+        issues
+            .iter()
+            .any(|v| v.as_str() == Some("sandbox_disabled"))
+    );
+    assert!(issues.iter().any(|v| v.as_str() == Some("image_unset")));
+    assert_eq!(
+        out.get("recommended_action").and_then(Value::as_str),
+        Some("run `xshelf task sandbox enable`")
+    );
+}
+
+#[test]
+fn task_sandbox_check_reports_ready() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_local_cx_wrapper();
+    repo.write_mock(
+        "docker",
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+  --version)
+    printf '%s\n' 'Docker version 99.0.0'
+    ;;
+  image)
+    test "${2:-}" = "inspect"
+    test "${3:-}" = "xshelf-compat:local"
+    ;;
+  run)
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+"#,
+    );
+
+    let set_image = repo.run(&["task", "sandbox", "set-image", "xshelf-compat:local"]);
+    assert!(
+        set_image.status.success(),
+        "stderr={}",
+        stderr_str(&set_image)
+    );
+    let enable = repo.run(&["task", "sandbox", "enable"]);
+    assert!(enable.status.success(), "stderr={}", stderr_str(&enable));
+
+    let check = repo.run(&["task", "sandbox", "check", "--json"]);
+    assert!(
+        check.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&check),
+        stderr_str(&check)
+    );
+    let out: Value = serde_json::from_str(&stdout_str(&check)).expect("valid json");
+    assert_eq!(
+        out.get("contract_version").and_then(Value::as_str),
+        Some("task-sandbox-readiness.v1")
+    );
+    assert_eq!(out.get("ready").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        out.get("docker_available").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("image_available").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("repo_mount_writable").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("entrypoint_available").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        out.get("issues").and_then(Value::as_array).unwrap().len(),
+        0
+    );
+}
+
+#[test]
 fn task_run_uses_container_lane() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_local_cx_wrapper();
