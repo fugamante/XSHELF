@@ -36,10 +36,10 @@ Exit criteria:
 - maintainers have one documented Linux parity path
 - `--smoke` and `--quick` roles stay explicit and non-overlapping
 
-### 2. CI Parity Harness
+### 2. CI Guardrail Harness
 
 Objective:
-- make local Docker validation mirror the Linux CI surface more directly
+- make local Docker validation mirror the core Linux CI guardrails more directly
 
 Why second:
 - it turns the maintainer image into a real push-preflight tool
@@ -51,8 +51,8 @@ Scope:
 
 Current floor:
 - `scripts/compat_docker.sh --ci`
-- Linux-hosted guardrails/tests/shell regression steps that mirror the
-  `cxrs-compat` job without depending on GitHub event payload context
+- Linux-hosted guardrails/tests/shell regression steps that mirror the core
+  `cxrs-compat` checks without depending on GitHub event payload context
 - JSON report metadata under `ci_parity` records the local-vs-CI deltas that
   Docker does not claim to reproduce
 
@@ -60,7 +60,7 @@ Guardrail:
 - do not create a second contract surface with Docker-only semantics
 
 Exit criteria:
-- maintainers can answer “what will Linux CI do?” locally with one command
+- maintainers can run the core Linux guardrail subset locally with one command
 - differences between local Docker parity and CI are documented and intentional
 
 ### 3. Opt-In Project Task Sandbox
@@ -155,6 +155,16 @@ Current decision:
   source Dockerfile, update cadence, tag/digest reporting, and multi-arch
   expectations
 - any future remote image must be opt-in instead of pulled by default
+
+Current floor:
+- `scripts/compat_docker.sh --image <tag>` and `CX_COMPAT_IMAGE=<tag>` allow
+  an explicit already-available image override
+- default remains `xshelf-compat:local`, which auto-builds from the repo
+  Dockerfile when missing
+- override tags never pull automatically; missing override images fail unless
+  `--rebuild` is used to build the repo Dockerfile into that tag
+- JSON reports include `docker.image_source`, `docker.pull_policy=never`, and
+  `docker.image_id` for local provenance
 
 Guardrails:
 - no hidden freshness claims

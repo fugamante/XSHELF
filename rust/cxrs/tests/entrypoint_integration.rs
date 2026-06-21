@@ -86,6 +86,25 @@ fn bin_xshelf_version_reports_runtime() {
 }
 
 #[test]
+fn bin_xs_version_reports_runtime() {
+    let repo = repo_root();
+    let out = Command::new(repo.join("bin").join("xs"))
+        .arg("version")
+        .current_dir(&repo)
+        .output()
+        .expect("run bin/xs version");
+
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("execution_path:"), "{stdout}");
+}
+
+#[test]
 fn xshelf_launch() {
     let repo = repo_root();
     let temp = tempfile::tempdir().expect("tempdir");
@@ -135,7 +154,7 @@ fn xshelf_launch() {
 fn lib_cx_sh_exports_functions() {
     let repo = repo_root();
     let script = format!(
-        "source '{}' >/dev/null 2>&1; declare -F cx >/dev/null && declare -F cxversion >/dev/null",
+        "source '{}' >/dev/null 2>&1; declare -F cx >/dev/null && declare -F xshelf >/dev/null && declare -F xs >/dev/null && declare -F cxversion >/dev/null",
         repo.join("lib").join("cx.sh").display()
     );
     let out = Command::new("bash")

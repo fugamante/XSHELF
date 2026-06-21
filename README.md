@@ -1,6 +1,7 @@
 # XSHELF
 
-Deterministic runtime tooling for LLM-assisted repository work.
+XSHELF (formerly CX) is deterministic runtime tooling for LLM-assisted
+repository work.
 
 `XSHELF` turns repository operations into bounded, inspectable, and
 automation-safe workflows. It captures command output, reduces context,
@@ -268,18 +269,24 @@ If the image or bind-mounted cache gets stale:
 - prune unused Docker state with `docker image prune` / `docker builder prune`
   before retrying if cache corruption or disk pressure is suspected
 
+The default image tag is `xshelf-compat:local`. Advanced users can select an
+already available image with `./scripts/compat_docker.sh --image <tag> ...` or
+`CX_COMPAT_IMAGE=<tag>`; the script never pulls remote images automatically.
+When an override tag is missing, use `--rebuild` to build the repo Dockerfile
+into that tag or pull/build the image explicitly yourself.
+
 `--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick`,
 `./scripts/compat_docker.sh --quick`, or fuller validation when you need actual
 compat or release confidence.
 Prefer `./scripts/compat_local.sh --quick` when you want the normal compat bar
 for the current machine. Use Docker `--smoke` when the goal is a faster
 Linux-hosted preflight, not a substitute for the fuller check.
-`./scripts/compat_docker.sh --ci` is the local Linux CI-parity path. It runs
-the same core Linux guardrails used by `cxrs-compat` where local Docker can
-reasonably mirror them, including fmt/check/clippy/tests, guardrails, release
-metadata, `compat_check.sh`, and the shell regression suite. The JSON report
-includes `ci_parity.intentional_deltas` for GitHub-event and hosted-runner
-behavior that local Docker does not claim to reproduce.
+`./scripts/compat_docker.sh --ci` is the local Linux core guardrail subset. It
+runs the core checks from `cxrs-compat` that local Docker can reasonably mirror,
+including fmt/check/clippy/tests, guardrails, release metadata,
+`compat_check.sh`, and the shell regression suite. The JSON report includes
+`ci_parity.intentional_deltas` for workflow-only, hosted-runner, artifact, and
+dependency-security gates that local Docker does not claim to reproduce.
 
 ## Development
 

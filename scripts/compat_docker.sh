@@ -4,7 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-IMAGE_TAG="xshelf-compat:local"
+DEFAULT_IMAGE_TAG="xshelf-compat:local"
+IMAGE_TAG="${CX_COMPAT_IMAGE:-$DEFAULT_IMAGE_TAG}"
+IMAGE_OVERRIDDEN=0
+if [[ "${IMAGE_TAG}" != "$DEFAULT_IMAGE_TAG" ]]; then
+  IMAGE_OVERRIDDEN=1
+fi
 MODE="quick"
 JSON_STDOUT=0
 OUT_FILE=""
@@ -14,10 +19,13 @@ declare -a EXTRA_ARGS=()
 
 usage() {
   cat >&2 <<'USAGE'
-usage: ./scripts/compat_docker.sh [--smoke|--quick|--full|--ci] [--json] [--out <path>] [--rebuild] [--tty] [--docker-arg <arg>]
+usage: ./scripts/compat_docker.sh [--smoke|--quick|--full|--ci] [--json] [--out <path>] [--image <tag>] [--rebuild] [--tty] [--docker-arg <arg>]
 
 Builds the local compat image when needed, bind-mounts the current repository,
 and runs either a Docker smoke report or scripts/compat_local.sh inside Docker.
+The default image is xshelf-compat:local. --image or CX_COMPAT_IMAGE selects an
+explicit existing image and never pulls remotely; use --rebuild to build the
+repo Dockerfile into the selected tag.
 USAGE
 }
 
@@ -46,6 +54,12 @@ while [[ $# -gt 0 ]]; do
     --out)
       OUT_FILE="${2:-}"
       [[ -n "$OUT_FILE" ]] || { echo "compat-docker: --out requires a path" >&2; exit 2; }
+      shift 2
+      ;;
+    --image)
+      IMAGE_TAG="${2:-}"
+      [[ -n "$IMAGE_TAG" ]] || { echo "compat-docker: --image requires a tag" >&2; exit 2; }
+      IMAGE_OVERRIDDEN=1
       shift 2
       ;;
     --rebuild)
@@ -78,7 +92,14 @@ command -v docker >/dev/null 2>&1 || {
   exit 2
 }
 
-if [[ "$REBUILD" -eq 1 ]] || ! docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+if [[ "$REBUILD" -eq 1 ]]; then
+  echo "compat-docker: building $IMAGE_TAG" >&2
+  docker build -t "$IMAGE_TAG" "$ROOT_DIR" >&2
+elif ! docker image inspect "$IMAGE_TAG" >/dev/null 2>&1; then
+  if [[ "$IMAGE_OVERRIDDEN" -eq 1 ]]; then
+    echo "compat-docker: image '$IMAGE_TAG' not found; pull/build it explicitly or rerun with --rebuild to build the repo Dockerfile into that tag" >&2
+    exit 2
+  fi
   echo "compat-docker: building $IMAGE_TAG" >&2
   docker build -t "$IMAGE_TAG" "$ROOT_DIR" >&2
 fi
@@ -116,6 +137,7 @@ emit_report() {
   local tsv_file="$3"
   local overall_rc="$4"
   local image_tag="$5"
+  local image_overridden="$6"
   mkdir -p "$(dirname "$out_file")"
   COMPAT_MODE="$mode" \
   COMPAT_ROOT="$ROOT_DIR" \
@@ -123,6 +145,7 @@ emit_report() {
   COMPAT_TSV="$tsv_file" \
   COMPAT_RC="$overall_rc" \
   COMPAT_IMAGE_TAG="$image_tag" \
+  COMPAT_IMAGE_OVERRIDDEN="$image_overridden" \
   python3 - <<'PY'
 import json
 import os
@@ -136,10 +159,17 @@ mode = os.environ["COMPAT_MODE"]
 root = os.environ["COMPAT_ROOT"]
 overall_rc = int(os.environ["COMPAT_RC"])
 image_tag = os.environ["COMPAT_IMAGE_TAG"]
+image_overridden = os.environ["COMPAT_IMAGE_OVERRIDDEN"] == "1"
 
 def sh(cmd):
     try:
         return subprocess.check_output(cmd, shell=True, text=True, cwd=root).strip()
+    except Exception:
+        return ""
+
+def run_args(args):
+    try:
+        return subprocess.check_output(args, text=True, cwd=root).strip()
     except Exception:
         return ""
 
@@ -164,11 +194,16 @@ report = {
     "status": "ok" if overall_rc == 0 else "failed",
     "mode": mode,
     "ci_parity": {
-        "scope": "linux-guardrail-parity" if mode == "ci" else "not-ci-parity",
+        "scope": "linux-core-guardrail-subset" if mode == "ci" else "not-ci-parity",
         "workflow": ".github/workflows/cxrs-compat.yml",
         "intentional_deltas": [
             "github-event-payload-dependent command-surface diff checks",
             "hosted-runner setup and cache action behavior",
+            "workflow inline contract smoke snippets",
+            "artifact upload/download behavior",
+            "cargo-audit install and advisory gate",
+            "cargo-deny install and advisory gate",
+            "cargo-outdated drift report",
         ] if mode == "ci" else [],
     },
     "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -179,6 +214,9 @@ report = {
     },
     "docker": {
         "image_tag": image_tag,
+        "image_source": "explicit_image" if image_overridden else "local_default",
+        "pull_policy": "never",
+        "image_id": run_args(["docker", "image", "inspect", image_tag, "--format", "{{.Id}}"]),
         "docker_version": sh("docker --version"),
     },
     "git": {
@@ -279,7 +317,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "cd /work && mockdir=\"\$(mktemp -d)\" && trap 'rm -rf \"\$mockdir\"' EXIT && cp ./scripts/mock_codex_jsonl.sh \"\$mockdir/codex\" && chmod +x \"\$mockdir/codex\" && PATH=\"\$mockdir:\$PATH\" && for t in test/*.sh; do bash \"\$t\"; done"
   fi
 
-  emit_report "$MODE" "$OUT_FILE" "$TSV_FILE" "$OVERALL_RC" "$IMAGE_TAG"
+  emit_report "$MODE" "$OUT_FILE" "$TSV_FILE" "$OVERALL_RC" "$IMAGE_TAG" "$IMAGE_OVERRIDDEN"
   if [[ "$JSON_STDOUT" -eq 1 ]]; then
     cat "$OUT_FILE"
   else

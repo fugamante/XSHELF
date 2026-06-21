@@ -53,10 +53,16 @@ Smoke prerequisites:
   should be materially faster unless `--rebuild` is used.
 - if the image or cache state looks stale, prefer `./scripts/compat_docker.sh --rebuild ...`
   and prune unused Docker builder/image state before retrying.
+The default image is `xshelf-compat:local`. `--image <tag>` or
+`CX_COMPAT_IMAGE=<tag>` is an explicit trust/latency tradeoff for already
+available images; Docker compat never pulls remote images by default, and a
+missing override tag fails unless `--rebuild` is used to build the repo
+Dockerfile into that tag.
 Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
 `--full` for that bar.
-Use `./scripts/compat_docker.sh --ci` when you want the closest local answer to
-the Linux `cxrs-compat` workflow before pushing.
+Use `./scripts/compat_docker.sh --ci` when you want the local Linux core
+guardrail subset before pushing; inspect `ci_parity.intentional_deltas` in the
+JSON report for workflow-only gates it does not reproduce.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
 
