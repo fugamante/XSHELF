@@ -28,6 +28,18 @@ Notes:
   - `scripts/compat_local.sh --quick` now runs the same release metadata unit tests and cadence check, so local compatibility reports fail before CI when `VERSION` is stale or release metadata drifts.
   - added containerized compat bootstrap via `Dockerfile`, `.dockerignore`, and `scripts/compat_docker.sh` so maintainers can run the existing `scripts/compat_local.sh` contract inside Docker on a bind-mounted repo.
   - added `scripts/compat_docker.sh --smoke` as a faster Linux-hosted report path that checks release metadata and core runtime compatibility without running the full quick suite.
+  - added `scripts/compat_docker.sh --ci` as a local Linux core guardrail subset that runs the core `cxrs-compat` guardrails and shell regression suite inside Docker.
+  - added `scripts/mock_codex_jsonl.sh` so the Docker CI guardrail shell suite can validate CLI routing without requiring a locally installed Codex backend in the container.
+  - documented `--smoke` prerequisites and its preflight-only boundary so maintainers do not mistake it for `--quick`, `--full`, or release-signoff validation.
+  - documented the preference to use host-native `compat_local --quick` for the normal compat bar and Docker `--smoke` only for cheaper Linux-hosted preflight checks.
+  - documented first-run Docker warm-cache expectations plus rebuild/prune guidance for stale image or bind-mounted cache state.
+  - added `docs/project/DOCKER_STRATEGY.md` to order the Docker follow-on work as maintainer parity, CI parity, opt-in task sandboxing, provider sidecars, and cache/distribution.
+  - added the first opt-in project task sandbox slice: repo-scoped `task sandbox` config in `.cx/state.json`, Docker-backed inner execution for `task run` / `task run-all`, and additive `execution_lane` provenance in run logs and `task show`.
+  - added `task sandbox check --json` readiness diagnostics so Docker task sandbox users can verify Docker availability, configured image availability, writable `.cx/` state, and `xshelf`/`cx` entrypoint availability before relying on the container lane.
+  - added Docker CI guardrail report metadata for intentional local-vs-GitHub deltas and documented local-build-only/prebuilt-image and provider-sidecar decision boundaries.
+  - added `docs/providers/LOCAL_PROVIDER_SIDECARS.md` and fixture-backed resident probe coverage for the local OpenAI-compatible MLX HTTP sidecar contract before adding Docker Compose/service orchestration.
+  - added explicit Docker compat image selection through `compat_docker.sh --image <tag>` / `CX_COMPAT_IMAGE=<tag>` with pull policy `never` and image provenance in JSON reports while preserving local-build default behavior.
+  - expanded `contracts export --profile full` coverage for the declared compatibility surfaces (`broker benchmark`, `policy show`, `task run-plan`, `llm verify`, and `llm resident`) and added contract producer/fixture files to the command-surface docs gate.
   - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
   - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.

@@ -8,6 +8,9 @@ use std::time::Instant;
 use crate::config::cli_app_name;
 
 use crate::analytics::quota_probe_for_backend_days;
+use crate::contract_versions::{
+    LLM_RESIDENT_JSON_CONTRACT_VERSION, LLM_VERIFY_JSON_CONTRACT_VERSION,
+};
 use crate::execmeta::utc_now_iso;
 use crate::llm::run_mlx_plain;
 use crate::local_models::{
@@ -921,7 +924,7 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
     }
     let payload = match result {
         Ok(v) => json!({
-            "contract_version": "llm-verify.v1",
+            "contract_version": LLM_VERIFY_JSON_CONTRACT_VERSION,
             "timestamp": utc_now_iso(),
             "backend": "mlx",
             "profile": profile,
@@ -1016,7 +1019,7 @@ fn llm_resident(app_name: &str, args: &[String]) -> i32 {
     let json_out = has_flag(args, "--json");
     let runtime_caps = selected_runtime_caps();
     let mut payload = json!({
-        "contract_version": "llm-resident.v1",
+        "contract_version": LLM_RESIDENT_JSON_CONTRACT_VERSION,
         "timestamp": utc_now_iso(),
         "selected_adapter": selected_adapter_name(),
         "selected_transport": selected_provider_transport(),

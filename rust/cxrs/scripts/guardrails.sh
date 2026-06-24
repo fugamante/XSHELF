@@ -28,8 +28,12 @@ python3 ./scripts/check_fn_name_length.py --root ./tests --max-len 52 --max-segm
 echo "guardrails: #[test] naming convention (max_len=48, max_segments=7)"
 python3 ./scripts/check_test_naming.py --root ./tests --max-len 48 --max-segments 7
 
-echo "guardrails: cargo test --tests -- --test-threads=1"
-cargo test --tests -- --test-threads=1
+if [[ "${CX_GUARDRAILS_SKIP_TESTS:-0}" == "1" ]]; then
+  echo "guardrails: cargo test --tests -- --test-threads=1 (skipped by CX_GUARDRAILS_SKIP_TESTS=1)"
+else
+  echo "guardrails: cargo test --tests -- --test-threads=1"
+  cargo test --tests -- --test-threads=1
+fi
 
 echo "guardrails: python3 -m unittest tools.test_release_check"
 python3 -m unittest tools.test_release_check

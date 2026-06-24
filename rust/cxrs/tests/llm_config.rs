@@ -1,6 +1,6 @@
 mod common;
 
-use common::{TempRepo, read_json, stderr_str, stdout_str};
+use common::{TempRepo, read_json, run_fixture_http_server_once, stderr_str, stdout_str};
 use serde_json::Value;
 use std::fs;
 
@@ -1530,6 +1530,63 @@ JSON
             .and_then(|v| v.get("model_count"))
             .and_then(Value::as_u64),
         Some(2)
+    );
+}
+
+#[test]
+fn sidecar_probe_boundary() {
+    let repo = TempRepo::new("cxrs-llm");
+    let (url, captured, handle) =
+        run_fixture_http_server_once(r#"{"data":[{"id":"sidecar-mock"}]}"#);
+    let out = repo.run_with_env(
+        &["llm", "resident", "probe-models", "--json"],
+        &[
+            ("CX_LLM_BACKEND", "mlx"),
+            ("CX_PROVIDER_ADAPTER", "http-curl"),
+            ("CX_HTTP_REQUEST_PROFILE", "openai_json"),
+            ("CX_HTTP_PROVIDER_URL", url.as_str()),
+            ("CX_HTTP_REQUIRE_HTTPS", "0"),
+        ],
+    );
+    handle.join().expect("fixture http server joined");
+    assert!(
+        out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+
+    let request = captured.lock().expect("captured request").clone();
+    let request = request.expect("captured fixture request");
+    assert_eq!(request.method, "GET");
+    assert_eq!(request.path, "/v1/models");
+
+    let payload = serde_json::from_str::<Value>(&stdout_str(&out)).expect("resident probe json");
+    assert_eq!(
+        payload.get("selected_adapter").and_then(Value::as_str),
+        Some("http-curl")
+    );
+    assert_eq!(
+        payload.get("selected_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        payload.get("http_request_profile").and_then(Value::as_str),
+        Some("openai_json")
+    );
+    assert_eq!(
+        payload
+            .get("runtime_capability")
+            .and_then(|v| v.get("resident_server"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        payload
+            .get("probe")
+            .and_then(|v| v.get("model_count"))
+            .and_then(Value::as_u64),
+        Some(1)
     );
 }
 

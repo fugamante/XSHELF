@@ -4,10 +4,13 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::contract_versions::{
-    ACTIONS_JSON_CONTRACT_VERSION, BROKER_SHOW_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION,
-    OPTIMIZE_JSON_CONTRACT_VERSION, SCHEDULER_JSON_CONTRACT_VERSION,
-    TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
-    TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
+    ACTIONS_JSON_CONTRACT_VERSION, BROKER_BENCHMARK_JSON_CONTRACT_VERSION,
+    BROKER_SHOW_JSON_CONTRACT_VERSION, DIAG_JSON_CONTRACT_VERSION,
+    LLM_RESIDENT_JSON_CONTRACT_VERSION, LLM_VERIFY_JSON_CONTRACT_VERSION,
+    OPTIMIZE_JSON_CONTRACT_VERSION, POLICY_SHOW_JSON_CONTRACT_VERSION,
+    SCHEDULER_JSON_CONTRACT_VERSION, TASK_CHECK_JSON_CONTRACT_VERSION,
+    TASK_LIST_JSON_CONTRACT_VERSION, TASK_RUN_ALL_JSON_CONTRACT_VERSION,
+    TASK_RUN_JSON_CONTRACT_VERSION, TASK_RUN_PLAN_JSON_CONTRACT_VERSION,
     TASK_SHOW_JSON_CONTRACT_VERSION, TELEMETRY_JSON_CONTRACT_VERSION,
 };
 use crate::execmeta::utc_now_iso;
@@ -31,6 +34,18 @@ const BROKER_SHOW_REQUIRED_KEYS: &[&str] = &[
     "availability",
     "adapter_rollout_policy",
 ];
+const BROKER_BENCH_REQUIRED_KEYS: &[&str] = &[
+    "contract_version",
+    "window",
+    "log_file",
+    "summary",
+    "strict",
+    "min_runs",
+    "severity",
+    "violations",
+    "violation_counts",
+];
+const POLICY_SHOW_REQUIRED_KEYS: &[&str] = &["contract_version", "rules", "overrides"];
 const TASK_CHECK_REQUIRED_KEYS: &[&str] = &[
     "contract_version",
     "status_filter",
@@ -64,6 +79,35 @@ const TASK_SHOW_REQUIRED_KEYS: &[&str] = &[
     "run_readiness",
 ];
 const TASK_RUN_REQUIRED_KEYS: &[&str] = &["contract_version", "task_id", "status", "execution_id"];
+const TASK_RUN_PLAN_REQUIRED_KEYS: &[&str] = &[
+    "contract_version",
+    "status_filter",
+    "requested_mode",
+    "strict_plan",
+    "strict_plan_ok",
+    "can_execute",
+    "wave_count",
+    "selected",
+    "waves",
+    "blocked",
+];
+const LLM_VERIFY_REQUIRED_KEYS: &[&str] = &[
+    "contract_version",
+    "timestamp",
+    "backend",
+    "profile",
+    "context_target",
+    "result",
+];
+const LLM_RESIDENT_REQUIRED_KEYS: &[&str] = &[
+    "contract_version",
+    "timestamp",
+    "selected_adapter",
+    "selected_transport",
+    "http_request_profile",
+    "boundary",
+    "runtime_capability",
+];
 
 const FULL_SPECS: &[ContractSpec] = &[
     ContractSpec {
@@ -90,6 +134,16 @@ const FULL_SPECS: &[ContractSpec] = &[
         action: "cx.broker.show",
         contract_version: BROKER_SHOW_JSON_CONTRACT_VERSION,
         required_keys: BROKER_SHOW_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.broker.benchmark",
+        contract_version: BROKER_BENCHMARK_JSON_CONTRACT_VERSION,
+        required_keys: BROKER_BENCH_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.policy.show",
+        contract_version: POLICY_SHOW_JSON_CONTRACT_VERSION,
+        required_keys: POLICY_SHOW_REQUIRED_KEYS,
     },
     ContractSpec {
         action: "cx.task.check",
@@ -120,6 +174,21 @@ const FULL_SPECS: &[ContractSpec] = &[
         action: "cx.task.run",
         contract_version: TASK_RUN_JSON_CONTRACT_VERSION,
         required_keys: TASK_RUN_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.task.run_plan",
+        contract_version: TASK_RUN_PLAN_JSON_CONTRACT_VERSION,
+        required_keys: TASK_RUN_PLAN_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.llm.verify",
+        contract_version: LLM_VERIFY_JSON_CONTRACT_VERSION,
+        required_keys: LLM_VERIFY_REQUIRED_KEYS,
+    },
+    ContractSpec {
+        action: "cx.llm.resident",
+        contract_version: LLM_RESIDENT_JSON_CONTRACT_VERSION,
+        required_keys: LLM_RESIDENT_REQUIRED_KEYS,
     },
 ];
 
@@ -409,7 +478,10 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
 #[cfg(test)]
 mod tests {
     use super::{bundle_value, load_fixture_manifest, manifest_value, validate_manifest};
-    use crate::contract_versions::TASK_RUN_JSON_CONTRACT_VERSION;
+    use crate::contract_versions::{
+        LLM_RESIDENT_JSON_CONTRACT_VERSION, POLICY_SHOW_JSON_CONTRACT_VERSION,
+        TASK_RUN_JSON_CONTRACT_VERSION, TASK_RUN_PLAN_JSON_CONTRACT_VERSION,
+    };
 
     #[test]
     fn eval_bundle_ok() {
@@ -430,6 +502,29 @@ mod tests {
             contracts["cx.task.run"]["contract_version"].as_str(),
             Some(TASK_RUN_JSON_CONTRACT_VERSION)
         );
+    }
+
+    #[test]
+    fn bundle_includes_contracts() {
+        let bundle = bundle_value("0.0.0-test", "full", &super::profile_specs("full").unwrap());
+        let contracts = bundle
+            .get("contracts")
+            .and_then(serde_json::Value::as_object)
+            .unwrap();
+        assert_eq!(
+            contracts["cx.policy.show"]["contract_version"].as_str(),
+            Some(POLICY_SHOW_JSON_CONTRACT_VERSION)
+        );
+        assert_eq!(
+            contracts["cx.task.run_plan"]["contract_version"].as_str(),
+            Some(TASK_RUN_PLAN_JSON_CONTRACT_VERSION)
+        );
+        assert_eq!(
+            contracts["cx.llm.resident"]["contract_version"].as_str(),
+            Some(LLM_RESIDENT_JSON_CONTRACT_VERSION)
+        );
+        assert!(contracts.contains_key("cx.broker.benchmark"));
+        assert!(contracts.contains_key("cx.llm.verify"));
     }
 
     #[test]

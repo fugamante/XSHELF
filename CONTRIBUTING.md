@@ -36,6 +36,7 @@ cargo test --tests -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 cd ../..
 ./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --ci
 ./scripts/compat_docker.sh --quick
 ```
 
@@ -44,8 +45,43 @@ cd ../..
 Python unit tests so the default local path matches `cxrs-compat` CI.
 Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
 signal before paying for the full quick compat suite.
+Smoke prerequisites:
+- Docker daemon available locally.
+- local image build/cache usable from `Dockerfile`.
+- repo bind-mounted read-write so `.cx/compat/` cache state can be written.
+- expect the first run to pay image-build and Cargo-cache warmup cost; reruns
+  should be materially faster unless `--rebuild` is used.
+- if the image or cache state looks stale, prefer `./scripts/compat_docker.sh --rebuild ...`
+  and prune unused Docker builder/image state before retrying.
+The default image is `xshelf-compat:local`. `--image <tag>` or
+`CX_COMPAT_IMAGE=<tag>` is an explicit trust/latency tradeoff for already
+available images; Docker compat never pulls remote images by default, and a
+missing override tag fails unless `--rebuild` is used to build the repo
+Dockerfile into that tag.
+Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
+`--full` for that bar.
+Use `./scripts/compat_docker.sh --ci` when you want the local Linux core
+guardrail subset before pushing; inspect `ci_parity.intentional_deltas` in the
+JSON report for workflow-only gates it does not reproduce.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
+
+Project task sandboxing is also opt-in and repo-scoped:
+
+```bash
+./bin/xshelf task sandbox set-image xshelf-compat:local
+./bin/xshelf task sandbox enable
+./bin/xshelf task sandbox show --json
+./bin/xshelf task sandbox check --json
+```
+
+`task run` and `task run-all` will then launch the inner task inside the
+configured Docker image on the bind-mounted repo while preserving `.cx/` state
+and additive execution-lane provenance. The image must provide `xshelf`/`cx`
+on `PATH` or a repo-local `./bin/xshelf` / `./bin/cx` entrypoint. Treat
+`task sandbox check --json` as the readiness gate before relying on the
+container lane; it verifies Docker, the configured image, writable `.cx/`
+state, and the entrypoint contract.
 
 ## Pull Request Requirements
 

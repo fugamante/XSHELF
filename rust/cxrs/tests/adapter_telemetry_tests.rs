@@ -445,6 +445,18 @@ fn openai_live_cov() {
         .last()
         .expect("last run row");
     assert_eq!(
+        run_last.get("adapter_type").and_then(Value::as_str),
+        Some("http-curl")
+    );
+    assert_eq!(
+        run_last.get("provider_transport").and_then(Value::as_str),
+        Some("http")
+    );
+    assert_eq!(
+        run_last.get("provider_status").and_then(Value::as_str),
+        Some("experimental")
+    );
+    assert_eq!(
         run_last.get("http_request_profile").and_then(Value::as_str),
         Some("openai_json")
     );

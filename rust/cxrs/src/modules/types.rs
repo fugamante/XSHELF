@@ -102,6 +102,10 @@ pub struct RunEntry {
     #[serde(default)]
     pub provider_status: Option<String>,
     #[serde(default)]
+    pub execution_lane: Option<String>,
+    #[serde(default)]
+    pub execution_lane_detail: Option<String>,
+    #[serde(default)]
     pub http_request_profile: Option<String>,
     #[serde(default)]
     pub http_provider_format: Option<String>,
@@ -308,6 +312,8 @@ pub struct ExecutionLog {
     pub adapter_type: Option<String>,
     pub provider_transport: Option<String>,
     pub provider_status: Option<String>,
+    pub execution_lane: Option<String>,
+    pub execution_lane_detail: Option<String>,
     pub http_request_profile: Option<String>,
     pub http_provider_format: Option<String>,
     pub http_parser_mode: Option<String>,

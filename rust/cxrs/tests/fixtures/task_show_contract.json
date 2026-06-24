@@ -28,6 +28,8 @@
     "timestamp",
     "tool",
     "backend_used",
+    "execution_lane",
+    "execution_lane_detail",
     "execution_mode",
     "duration_ms",
     "schema_valid",

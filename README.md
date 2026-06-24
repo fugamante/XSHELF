@@ -1,6 +1,7 @@
 # XSHELF
 
-Deterministic runtime tooling for LLM-assisted repository work.
+XSHELF (formerly CX) is deterministic runtime tooling for LLM-assisted
+repository work.
 
 `XSHELF` turns repository operations into bounded, inspectable, and
 automation-safe workflows. It captures command output, reduces context,
@@ -21,7 +22,7 @@ affiliated with or endorsed by OpenAI.
 | Safe first inspection | `version`, `doctor`, `health`, `diag --json` |
 | Stable runtime state | `core --json`, `mode --json`, `broker show --json` |
 | Bounded command execution | `cxo ...` |
-| Task orchestration | `task add`, `task run`, `task run-all`, `task events` |
+| Task orchestration | `task add`, `task run`, `task run-all`, `task sandbox`, `task events` |
 | Contract hygiene | schema validation, quarantine, replay, contract bundles |
 | Backend selection | primary, Ollama, llama.cpp, MLX, HTTP adapter profiles |
 | Operator compatibility | local and multi-repo compatibility checks |
@@ -55,6 +56,7 @@ Install shell functions and man pages:
 ```bash
 ./bin/xshelf-install
 ./bin/xs-install
+./bin/cx-install
 man xshelf
 man xs
 man cx
@@ -114,8 +116,28 @@ Work with tasks:
 ./bin/xshelf task add "Implement parser hardening" --role implementer
 ./bin/xshelf task check --json | jq .
 ./bin/xshelf task run-all --status pending --mode mixed
+./bin/xshelf task sandbox show --json | jq .
+./bin/xshelf task sandbox check --json | jq .
 ./bin/xshelf task events --limit 20 --json
 ```
+
+Project task sandboxing is opt-in. Configure it per repo with:
+
+```bash
+./bin/xshelf task sandbox set-image xshelf-compat:local
+./bin/xshelf task sandbox enable
+./bin/xshelf task sandbox check --json
+```
+
+When enabled, `task run` and `task run-all` execute the inner task inside the
+configured Docker image on the bind-mounted repo and stamp additive
+`execution_lane=container` provenance into run logs. The container image must
+provide `xshelf`/`cx` on `PATH` or expose a repo-local `./bin/xshelf` or
+`./bin/cx` entrypoint. Use `task sandbox check --json` as the readiness gate:
+it verifies Docker availability, configured image availability, writable
+repo-local `.cx/` state, and an available `xshelf`/`cx` entrypoint before
+returning success. `CX_TASK_SANDBOX_ENABLED` and `CX_TASK_SANDBOX_IMAGE` remain
+supported as transient overrides.
 
 Inspect telemetry and contract health:
 
@@ -162,6 +184,8 @@ Backend-specific entry points:
 
 Backend planning and contract notes live in
 [docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md).
+Optional local provider sidecar requirements live in
+[docs/providers/LOCAL_PROVIDER_SIDECARS.md](docs/providers/LOCAL_PROVIDER_SIDECARS.md).
 
 ## Operations Layer
 
@@ -221,12 +245,53 @@ Runtime-facing checks:
 Maintainer checks:
 
 ```bash
+./scripts/compat_docker.sh --smoke
+./scripts/compat_docker.sh --ci
 ./scripts/compat_local.sh --quick
 cd rust/cxrs
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
 cargo test --tests -- --test-threads=1
 ```
+
+`./scripts/compat_docker.sh --smoke` is the fast Linux-hosted preflight path.
+Use it only when:
+- Docker is installed and the local daemon is available.
+- the compat image can be built from `Dockerfile` or reused from cache.
+- the repo can be bind-mounted read-write because Docker cache state is written
+  under `.cx/compat/`.
+- expect the first run to spend most of its time building the image and filling
+  the Cargo target cache under `.cx/compat/`; warm-cache reruns should be much
+  faster unless `--rebuild` is used.
+
+If the image or bind-mounted cache gets stale:
+- force a fresh image build with `./scripts/compat_docker.sh --rebuild ...`
+- prune unused Docker state with `docker image prune` / `docker builder prune`
+  before retrying if cache corruption or disk pressure is suspected
+
+The default image tag is `xshelf-compat:local`. Advanced users can select an
+already available image with `./scripts/compat_docker.sh --image <tag> ...` or
+`CX_COMPAT_IMAGE=<tag>`; the script never pulls remote images automatically.
+When an override tag is missing, use `--rebuild` to build the repo Dockerfile
+into that tag or pull/build the image explicitly yourself.
+
+`--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick` or
+`./scripts/compat_docker.sh --quick` when you need representative compat
+readiness. The quick path avoids timeout-heavy reliability and scheduler timing
+tests so it stays deterministic under harness load. Use
+`cargo test --tests -- --test-threads=1`, `./scripts/compat_local.sh --full`,
+or fuller Docker validation for release confidence.
+`compat_local.sh --full` runs the explicit integration suites itself, then runs
+guardrails with their duplicate full-test step skipped; standalone
+`rust/cxrs/scripts/guardrails.sh` still runs the full test suite by default.
+Use Docker `--smoke` when the goal is a faster Linux-hosted preflight, not a
+substitute for the fuller check.
+`./scripts/compat_docker.sh --ci` is the local Linux core guardrail subset. It
+runs the core checks from `cxrs-compat` that local Docker can reasonably mirror,
+including fmt/check/clippy/tests, guardrails, release metadata,
+`compat_check.sh`, and the shell regression suite. The JSON report includes
+`ci_parity.intentional_deltas` for workflow-only, hosted-runner, artifact, and
+dependency-security gates that local Docker does not claim to reproduce.
 
 ## Development
 
@@ -246,6 +311,8 @@ Design discipline:
 - Startup should not run automatic checks.
 - Diagnostics go to stderr; pipeline output stays on stdout.
 - Capture is internal-native only.
+- `contracts export --profile full --json` is the declared machine-readable
+  compatibility manifest for covered JSON surfaces.
 
 ## Documentation
 

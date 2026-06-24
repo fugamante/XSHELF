@@ -25,6 +25,18 @@ cd ../..
 `tools.test_release_check`, so local pre-release validation matches the default
 CI metadata gate before the broader checklist runs.
 
+Validation preference for maintainers:
+- prefer `./scripts/compat_local.sh --quick` when you need representative
+  compat readiness for the current machine.
+- use `cargo test --tests -- --test-threads=1` or
+  `./scripts/compat_local.sh --full` when preparing release-signoff evidence.
+- use `./scripts/compat_docker.sh --smoke` only as a cheaper Linux-hosted
+  preflight when you want early runtime drift detection before paying for the
+  fuller compat suite.
+- use `./scripts/compat_docker.sh --ci` when you want the closest local mirror
+  of the Linux `cxrs-compat` job before pushing, while remembering that
+  event-specific PR metadata gates still live in GitHub Actions.
+
 - Validate `CHANGELOG.md` has release notes.
 - If command entrypoints or command-facing help/routing changed, validate `README.md` and `docs/project/XSHELF_RENAME_MIGRATION.md` were updated in the same bundle.
 - Validate README requirements/version notes still match tested environment.
