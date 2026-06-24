@@ -10,9 +10,10 @@ use std::process::Command;
 use crate::config::cli_app_name;
 use crate::local_models::resolve_model_for_backend;
 use crate::logs::file_len;
-use crate::paths::resolve_log_file;
+use crate::paths::{repo_root, resolve_log_file};
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::runtime::llm_backend;
+use crate::state::{read_state_value, value_at_path};
 use crate::types::{ExecutionResult, LlmOutputKind, TaskInput, TaskRecord, TaskSpec};
 
 #[derive(Debug, Clone)]
@@ -45,6 +46,361 @@ pub struct TaskRunner {
     pub cmd_cxj: fn(&[String]) -> i32,
     pub cmd_cxo: fn(&[String]) -> i32,
     pub execute_task: fn(TaskSpec) -> Result<ExecutionResult, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskSandboxConfig {
+    pub enabled: bool,
+    pub image: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaskSandboxReadiness {
+    pub enabled: bool,
+    pub active: bool,
+    pub image: Option<String>,
+    pub ready: bool,
+    pub docker_available: bool,
+    pub image_available: bool,
+    pub repo_mount_writable: bool,
+    pub entrypoint_available: bool,
+    pub issues: Vec<String>,
+    pub recommended_action: Option<String>,
+}
+
+fn env_bool_override(name: &str) -> Option<bool> {
+    env::var(name)
+        .ok()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .and_then(|v| match v.as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        })
+}
+
+fn state_pref_bool(path: &str) -> Option<bool> {
+    read_state_value()
+        .as_ref()
+        .and_then(|v| value_at_path(v, path))
+        .and_then(Value::as_bool)
+}
+
+fn state_pref_string(path: &str) -> Option<String> {
+    read_state_value()
+        .as_ref()
+        .and_then(|v| value_at_path(v, path))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+pub fn task_sandbox_config() -> TaskSandboxConfig {
+    let enabled = env_bool_override("CX_TASK_SANDBOX_ENABLED")
+        .or_else(|| state_pref_bool("preferences.task_sandbox.enabled"))
+        .unwrap_or(false);
+    let image = env::var("CX_TASK_SANDBOX_IMAGE")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| state_pref_string("preferences.task_sandbox.image"));
+    TaskSandboxConfig { enabled, image }
+}
+
+fn task_sandbox_active() -> bool {
+    env_bool_override("CX_TASK_SANDBOX_ACTIVE").unwrap_or(false)
+}
+
+fn passthrough_container_envs(cmd: &mut Command) {
+    let mut pairs: Vec<(String, String)> = env::vars()
+        .filter(|(k, _)| {
+            k.starts_with("CX_")
+                || k.starts_with("OPENAI_")
+                || k.starts_with("OLLAMA_")
+                || matches!(k.as_str(), "HTTP_PROXY" | "HTTPS_PROXY" | "NO_PROXY")
+        })
+        .collect();
+    pairs.sort_by(|a, b| a.0.cmp(&b.0));
+    for (key, value) in pairs {
+        if key == "CX_TASK_SANDBOX_ACTIVE" {
+            continue;
+        }
+        cmd.arg("-e");
+        cmd.arg(format!("{key}={value}"));
+    }
+}
+
+fn sandbox_lane_detail(image: &str) -> String {
+    format!("docker:{image}")
+}
+
+fn current_uid_gid() -> Result<(String, String), String> {
+    let uid = crate::process::run_command_output_with_timeout(
+        {
+            let mut cmd = Command::new("id");
+            cmd.arg("-u");
+            cmd
+        },
+        "id -u",
+    )
+    .map_err(|e| format!("{} task sandbox: {e}", cli_app_name()))?;
+    let gid = crate::process::run_command_output_with_timeout(
+        {
+            let mut cmd = Command::new("id");
+            cmd.arg("-g");
+            cmd
+        },
+        "id -g",
+    )
+    .map_err(|e| format!("{} task sandbox: {e}", cli_app_name()))?;
+    let uid = String::from_utf8_lossy(&uid.stdout).trim().to_string();
+    let gid = String::from_utf8_lossy(&gid.stdout).trim().to_string();
+    if uid.is_empty() || gid.is_empty() {
+        return Err(format!(
+            "{} task sandbox: unable to resolve uid/gid for docker run",
+            cli_app_name()
+        ));
+    }
+    Ok((uid, gid))
+}
+
+fn command_success(cmd: Command, label: &str) -> bool {
+    crate::process::run_command_output_with_timeout(cmd, label)
+        .map(|out| out.status.success())
+        .unwrap_or(false)
+}
+
+fn sandbox_probe_success(root: &Path, image: &str) -> bool {
+    let Ok((uid, gid)) = current_uid_gid() else {
+        return false;
+    };
+    let mut cmd = Command::new("docker");
+    cmd.arg("run");
+    cmd.arg("--rm");
+    cmd.arg("--user");
+    cmd.arg(format!("{uid}:{gid}"));
+    cmd.arg("--workdir");
+    cmd.arg("/work");
+    cmd.arg("-v");
+    cmd.arg(format!("{}:/work", root.display()));
+    cmd.arg(image);
+    cmd.arg("bash");
+    cmd.arg("-lc");
+    cmd.arg(
+        "test -d .cx && test -w .cx && \
+if [[ -x ./bin/xshelf || -x ./bin/cx ]]; then exit 0; fi && \
+if command -v xshelf >/dev/null 2>&1 || command -v cx >/dev/null 2>&1; then exit 0; fi && \
+exit 127",
+    );
+    command_success(cmd, "task sandbox readiness docker run")
+}
+
+pub fn task_sandbox_readiness() -> TaskSandboxReadiness {
+    let cfg = task_sandbox_config();
+    let active = task_sandbox_active();
+    let mut issues: Vec<String> = Vec::new();
+    if !cfg.enabled {
+        issues.push("sandbox_disabled".to_string());
+    }
+    if cfg.image.is_none() {
+        issues.push("image_unset".to_string());
+    }
+    let docker_available = {
+        let mut cmd = Command::new("docker");
+        cmd.arg("--version");
+        command_success(cmd, "docker --version")
+    };
+    if !docker_available {
+        issues.push("docker_unavailable".to_string());
+    }
+    let image_available = if docker_available {
+        if let Some(image) = cfg.image.as_deref() {
+            let mut cmd = Command::new("docker");
+            cmd.arg("image");
+            cmd.arg("inspect");
+            cmd.arg(image);
+            command_success(cmd, "docker image inspect")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if cfg.image.is_some() && !image_available {
+        issues.push("image_unavailable".to_string());
+    }
+    let root = repo_root();
+    let repo_mount_writable = root
+        .as_ref()
+        .map(|p| {
+            p.join(".cx").is_dir()
+                && !p
+                    .join(".cx")
+                    .metadata()
+                    .map(|m| m.permissions().readonly())
+                    .unwrap_or(true)
+        })
+        .unwrap_or(false);
+    if root.is_none() {
+        issues.push("repo_unavailable".to_string());
+    } else if !repo_mount_writable {
+        issues.push("repo_state_not_writable".to_string());
+    }
+    let entrypoint_available = if docker_available && image_available && repo_mount_writable {
+        if let (Some(root), Some(image)) = (root.as_ref(), cfg.image.as_deref()) {
+            sandbox_probe_success(root, image)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    if cfg.enabled
+        && cfg.image.is_some()
+        && docker_available
+        && image_available
+        && !entrypoint_available
+    {
+        issues.push("entrypoint_unavailable".to_string());
+    }
+    let ready = cfg.enabled
+        && cfg.image.is_some()
+        && docker_available
+        && image_available
+        && repo_mount_writable
+        && entrypoint_available
+        && issues.is_empty();
+    let recommended_action = if ready {
+        None
+    } else if issues.iter().any(|i| i == "sandbox_disabled") {
+        Some("run `xshelf task sandbox enable`".to_string())
+    } else if issues.iter().any(|i| i == "image_unset") {
+        Some("run `xshelf task sandbox set-image <image>`".to_string())
+    } else if issues.iter().any(|i| i == "docker_unavailable") {
+        Some("start Docker and make `docker --version` work".to_string())
+    } else if issues.iter().any(|i| i == "image_unavailable") {
+        Some("build or pull the configured sandbox image".to_string())
+    } else if issues.iter().any(|i| i == "repo_state_not_writable") {
+        Some("ensure repo-local `.cx/` state is writable from the container user".to_string())
+    } else if issues.iter().any(|i| i == "entrypoint_unavailable") {
+        Some(
+            "install xshelf/cx in the image or expose repo-local ./bin/xshelf or ./bin/cx"
+                .to_string(),
+        )
+    } else {
+        Some("inspect sandbox configuration".to_string())
+    };
+    TaskSandboxReadiness {
+        enabled: cfg.enabled,
+        active,
+        image: cfg.image,
+        ready,
+        docker_available,
+        image_available,
+        repo_mount_writable,
+        entrypoint_available,
+        issues,
+        recommended_action,
+    }
+}
+
+fn task_in_sandbox(
+    id: &str,
+    mode_override: Option<&str>,
+    backend_override: Option<&str>,
+    emit_output: bool,
+) -> Result<(i32, Option<String>), String> {
+    let cfg = task_sandbox_config();
+    let image = cfg.image.ok_or_else(|| {
+        format!(
+            "{} task sandbox: image is required when sandbox is enabled",
+            cli_app_name()
+        )
+    })?;
+    let root = repo_root().ok_or_else(|| {
+        format!(
+            "{} task sandbox: not inside a git repository",
+            cli_app_name()
+        )
+    })?;
+    let (uid, gid) = current_uid_gid()?;
+
+    let log_cursor = capture_log_cursor();
+    let mut docker = Command::new("docker");
+    docker.arg("run");
+    docker.arg("--rm");
+    docker.arg("--user");
+    docker.arg(format!("{uid}:{gid}"));
+    docker.arg("--workdir");
+    docker.arg("/work");
+    docker.arg("-e");
+    docker.arg("HOME=/tmp/cx-home");
+    docker.arg("-e");
+    docker.arg("CARGO_TARGET_DIR=.cx/task-sandbox/target");
+    docker.arg("-e");
+    docker.arg("CX_TASK_SANDBOX_ACTIVE=1");
+    docker.arg("-e");
+    docker.arg("CX_EXECUTION_LANE=container");
+    docker.arg("-e");
+    docker.arg(format!(
+        "CX_EXECUTION_LANE_DETAIL={}",
+        sandbox_lane_detail(&image)
+    ));
+    passthrough_container_envs(&mut docker);
+    docker.arg("-v");
+    docker.arg(format!("{}:/work", root.display()));
+    docker.arg(&image);
+    docker.arg("bash");
+    docker.arg("-lc");
+
+    let mut inner_args = vec![
+        "task".to_string(),
+        "run".to_string(),
+        id.to_string(),
+        "--managed-by-parent".to_string(),
+    ];
+    if let Some(mode) = mode_override {
+        inner_args.push("--mode".to_string());
+        inner_args.push(mode.to_string());
+    }
+    if let Some(backend) = backend_override {
+        inner_args.push("--backend".to_string());
+        inner_args.push(backend.to_string());
+    }
+    let quoted = inner_args
+        .iter()
+        .map(|arg| shell_words::quote(arg).to_string())
+        .collect::<Vec<String>>()
+        .join(" ");
+    let script = format!(
+        "mkdir -p \"$HOME\" \"$CARGO_TARGET_DIR\" && \
+if [[ -x ./bin/xshelf ]]; then app=./bin/xshelf; \
+elif [[ -x ./bin/cx ]]; then app=./bin/cx; \
+elif command -v xshelf >/dev/null 2>&1; then app=xshelf; \
+elif command -v cx >/dev/null 2>&1; then app=cx; \
+else echo \"{} task sandbox: xshelf/cx is not available inside the container image\" >&2; exit 127; fi && \
+\"$app\" {quoted}",
+        cli_app_name()
+    );
+    docker.arg(script);
+
+    let status_code = if emit_output {
+        crate::process::run_command_status_with_timeout(docker, "task sandbox docker run")
+            .map_err(|e| format!("{} task sandbox: {e}", cli_app_name()))?
+            .code()
+            .unwrap_or(1)
+    } else {
+        crate::process::run_command_output_with_timeout(docker, "task sandbox docker run")
+            .map_err(|e| format!("{} task sandbox: {e}", cli_app_name()))?
+            .status
+            .code()
+            .unwrap_or(1)
+    };
+    let recovered = log_cursor
+        .as_ref()
+        .and_then(|(p, offset)| recover_execution_id_from_log(p, *offset));
+    Ok((status_code, recovered))
 }
 
 #[derive(Debug, Clone)]
@@ -599,13 +955,23 @@ fn run_replica(
         Some(config.converge_mode.to_string()),
     );
     set_optional_env("CX_TASK_CONVERGE_WINNER", None);
-    match run_task_objective(
-        runner,
-        task,
-        config.mode_override,
-        config.backend_override,
-        config.emit_output,
-    ) {
+    let run_result = if !task_sandbox_active() && task_sandbox_config().enabled {
+        task_in_sandbox(
+            &task.id,
+            config.mode_override,
+            config.backend_override,
+            config.emit_output,
+        )
+    } else {
+        run_task_objective(
+            runner,
+            task,
+            config.mode_override,
+            config.backend_override,
+            config.emit_output,
+        )
+    };
+    match run_result {
         Ok((code, execution_id)) => ReplicaOutcome {
             index: config.replica_index,
             status_code: code,

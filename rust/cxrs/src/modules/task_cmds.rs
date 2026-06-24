@@ -11,6 +11,7 @@ use crate::config::{app_config, cli_app_name, command_with_cli};
 use crate::contract_versions::{
     TASK_CHECK_JSON_CONTRACT_VERSION, TASK_LIST_JSON_CONTRACT_VERSION,
     TASK_RUN_ALL_JSON_CONTRACT_VERSION, TASK_RUN_JSON_CONTRACT_VERSION,
+    TASK_RUN_PLAN_JSON_CONTRACT_VERSION, TASK_SANDBOX_READINESS_JSON_CONTRACT_VERSION,
 };
 use crate::doctor::{
     exec_context_value, exec_recommendations_value, latest_wave_sum, next_cost_class,
@@ -23,7 +24,7 @@ use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, set_state_path};
 use crate::task_events::{TaskEvent, cmd_task_events, emit as emit_task_event};
-use crate::taskrun::{TaskRunError, TaskRunner};
+use crate::taskrun::{TaskRunError, TaskRunner, task_sandbox_config, task_sandbox_readiness};
 use crate::tasks::set_task_status;
 use crate::tasks::task_run_state;
 use crate::tasks::task_run_view;
@@ -186,6 +187,210 @@ fn handle_fanout(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         i += 1;
     }
     (deps.cmd_task_fanout)(app_name, &objective_parts.join(" "), from)
+}
+
+fn handle_task_sandbox(app_name: &str, args: &[String]) -> i32 {
+    let usage = format!(
+        "Usage: {app_name} task sandbox <show|check|enable|disable|set-image|clear-image> [--json|--text|<image>]"
+    );
+    let sub = args.get(1).map(String::as_str).unwrap_or("show");
+    match sub {
+        "show" | "check" => {
+            let mut as_json = false;
+            for arg in args.iter().skip(2) {
+                match arg.as_str() {
+                    "--json" => as_json = true,
+                    "--text" => as_json = false,
+                    other => {
+                        crate::cx_eprintln!(
+                            "{} task sandbox: unknown flag '{other}'",
+                            cli_app_name()
+                        );
+                        return 2;
+                    }
+                }
+            }
+            if sub == "show" {
+                let cfg = task_sandbox_config();
+                let payload = serde_json::json!({
+                    "contract_version": "task-sandbox.v1",
+                    "enabled": cfg.enabled,
+                    "image": cfg.image,
+                    "active": std::env::var("CX_TASK_SANDBOX_ACTIVE").ok().as_deref() == Some("1")
+                });
+                if as_json {
+                    match serde_json::to_string_pretty(&payload) {
+                        Ok(s) => println!("{s}"),
+                        Err(e) => {
+                            crate::cx_eprintln!(
+                                "{} task sandbox: failed to render json: {e}",
+                                cli_app_name()
+                            );
+                            return 1;
+                        }
+                    }
+                } else {
+                    println!("task_sandbox_enabled: {}", cfg.enabled);
+                    println!(
+                        "task_sandbox_image: {}",
+                        cfg.image.unwrap_or_else(|| "-".to_string())
+                    );
+                    println!(
+                        "task_sandbox_active: {}",
+                        std::env::var("CX_TASK_SANDBOX_ACTIVE").ok().as_deref() == Some("1")
+                    );
+                }
+                return 0;
+            }
+
+            let readiness = task_sandbox_readiness();
+            let payload = serde_json::json!({
+                "contract_version": TASK_SANDBOX_READINESS_JSON_CONTRACT_VERSION,
+                "enabled": readiness.enabled,
+                "active": readiness.active,
+                "image": readiness.image,
+                "ready": readiness.ready,
+                "docker_available": readiness.docker_available,
+                "image_available": readiness.image_available,
+                "repo_mount_writable": readiness.repo_mount_writable,
+                "entrypoint_available": readiness.entrypoint_available,
+                "issues": readiness.issues,
+                "recommended_action": readiness.recommended_action,
+            });
+            if as_json {
+                match serde_json::to_string_pretty(&payload) {
+                    Ok(s) => println!("{s}"),
+                    Err(e) => {
+                        crate::cx_eprintln!(
+                            "{} task sandbox: failed to render json: {e}",
+                            cli_app_name()
+                        );
+                        return 1;
+                    }
+                }
+            } else {
+                println!(
+                    "task_sandbox_ready: {}",
+                    payload
+                        .get("ready")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                println!(
+                    "task_sandbox_active: {}",
+                    payload
+                        .get("active")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                println!(
+                    "task_sandbox_image: {}",
+                    payload.get("image").and_then(Value::as_str).unwrap_or("-")
+                );
+                println!(
+                    "docker_available: {}",
+                    payload
+                        .get("docker_available")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                println!(
+                    "image_available: {}",
+                    payload
+                        .get("image_available")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                println!(
+                    "repo_mount_writable: {}",
+                    payload
+                        .get("repo_mount_writable")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                println!(
+                    "entrypoint_available: {}",
+                    payload
+                        .get("entrypoint_available")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                );
+                let issues = payload
+                    .get("issues")
+                    .and_then(Value::as_array)
+                    .map(|rows| {
+                        rows.iter()
+                            .filter_map(Value::as_str)
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    })
+                    .unwrap_or_default();
+                println!(
+                    "issues: {}",
+                    if issues.is_empty() {
+                        "-".to_string()
+                    } else {
+                        issues
+                    }
+                );
+                println!(
+                    "recommended_action: {}",
+                    payload
+                        .get("recommended_action")
+                        .and_then(Value::as_str)
+                        .unwrap_or("-")
+                );
+            }
+            if payload.get("ready").and_then(Value::as_bool) == Some(true) {
+                0
+            } else {
+                1
+            }
+        }
+        "enable" => {
+            if let Err(e) = set_state_path("preferences.task_sandbox.enabled", Value::Bool(true)) {
+                crate::cx_eprintln!("{} task sandbox: {e}", cli_app_name());
+                return 1;
+            }
+            println!("task_sandbox_enabled: true");
+            0
+        }
+        "disable" => {
+            if let Err(e) = set_state_path("preferences.task_sandbox.enabled", Value::Bool(false)) {
+                crate::cx_eprintln!("{} task sandbox: {e}", cli_app_name());
+                return 1;
+            }
+            println!("task_sandbox_enabled: false");
+            0
+        }
+        "set-image" => {
+            let Some(image) = args.get(2).map(String::as_str) else {
+                crate::cx_eprintln!("{usage}");
+                return 2;
+            };
+            if let Err(e) = set_state_path(
+                "preferences.task_sandbox.image",
+                Value::String(image.to_string()),
+            ) {
+                crate::cx_eprintln!("{} task sandbox: {e}", cli_app_name());
+                return 1;
+            }
+            println!("task_sandbox_image: {image}");
+            0
+        }
+        "clear-image" => {
+            if let Err(e) = set_state_path("preferences.task_sandbox.image", Value::Null) {
+                crate::cx_eprintln!("{} task sandbox: {e}", cli_app_name());
+                return 1;
+            }
+            println!("task_sandbox_image: -");
+            0
+        }
+        _ => {
+            crate::cx_eprintln!("{usage}");
+            2
+        }
+    }
 }
 
 fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOverrides, i32> {
@@ -1067,7 +1272,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             println!(
                 "{}",
                 serde_json::json!({
-                    "contract_version": "task-run-all.v1",
+                    "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
                     "status_filter": options.status_filter,
                     "mode": options.run_mode,
                     "summary_format": options.summary_format,
@@ -1844,7 +2049,7 @@ fn plan_json_out(
     };
     let can_execute = plan.blocked.is_empty() && (!options.strict_plan || strict_ok);
     let payload = serde_json::json!({
-        "contract_version": "task-run-plan.v1",
+        "contract_version": TASK_RUN_PLAN_JSON_CONTRACT_VERSION,
         "status_filter": options.status_filter,
         "requested_mode": options.run_mode,
         "strict_plan": options.strict_plan,
@@ -2106,7 +2311,7 @@ fn dry_run_out(
         }));
     }
     let payload = serde_json::json!({
-        "contract_version": "task-run-all.v1",
+        "contract_version": TASK_RUN_ALL_JSON_CONTRACT_VERSION,
         "status_filter": options.status_filter,
         "mode": options.run_mode,
         "strict_plan": options.strict_plan,
@@ -3316,13 +3521,14 @@ pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
         },
         "fanout" => handle_fanout(app_name, args, deps),
         "check" => handle_task_check(app_name, args, deps),
+        "sandbox" => handle_task_sandbox(app_name, args),
         "events" => cmd_task_events(app_name, args),
         "run-plan" => handle_run_plan(app_name, args, deps),
         "run" => handle_run(app_name, args, deps),
         "run-all" => handle_run_all(app_name, args, deps),
         _ => {
             crate::cx_eprintln!(
-                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|check|events|run-plan|run|run-all> ..."
+                "Usage: {app_name} task <add|list|show|claim|complete|fail|fanout|check|sandbox|events|run-plan|run|run-all> ..."
             );
             2
         }

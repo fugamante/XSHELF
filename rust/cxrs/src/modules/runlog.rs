@@ -108,6 +108,15 @@ fn base_execution_log(
     let backend = llm_backend();
     let model = llm_model();
     let adapter_type = selected_adapter_name().to_string();
+    let execution_lane = env::var("CX_EXECUTION_LANE")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| Some("host".to_string()));
+    let execution_lane_detail = env::var("CX_EXECUTION_LANE_DETAIL")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
     let model_opt = if model.is_empty() {
         None
     } else {
@@ -199,6 +208,8 @@ fn base_execution_log(
         adapter_type: Some(adapter_type),
         provider_transport: Some(selected_provider_transport().to_string()),
         provider_status: selected_provider_status().map(str::to_string),
+        execution_lane,
+        execution_lane_detail,
         http_request_profile: http_profile_opt().map(str::to_string),
         http_provider_format: selected_http_provider_format_opt().map(str::to_string),
         http_parser_mode: selected_http_parser_mode_opt().map(str::to_string),

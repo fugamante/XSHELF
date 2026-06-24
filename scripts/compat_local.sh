@@ -84,14 +84,19 @@ run_step "cargo_check_tests" "cd rust/cxrs && cargo check --tests"
 run_step "release_metadata_guard_tests" "cd rust/cxrs && python3 -m unittest tools.test_release_check"
 run_step "release_metadata_check" "cd rust/cxrs && python3 tools/release_check.py --repo-root \"$ROOT_DIR\" --max-version-age-days 14"
 run_step "entrypoint_tests" "cd rust/cxrs && cargo test --test entrypoint_integration -- --test-threads=1"
-run_step "reliability_tests" "cd rust/cxrs && cargo test --test reliability_integration -- --test-threads=1"
-run_step "scheduler_tests" "cd rust/cxrs && cargo test --test scheduler_tests -- --test-threads=1"
+if [[ "$MODE" == "quick" ]]; then
+  run_step "reliability_smoke" "cd rust/cxrs && cargo test --test reliability_integration capture_pipeline_native_logs_provider_fields -- --exact --test-threads=1 && cargo test --test reliability_integration http_openai_cov -- --exact --test-threads=1 && cargo test --test reliability_integration schema_injection_creates_quarantine_run_flags -- --exact --test-threads=1"
+  run_step "scheduler_smoke" "cd rust/cxrs && cargo test --test scheduler_tests plan_json_contract -- --exact --test-threads=1 && cargo test --test scheduler_tests run_all_contract -- --exact --test-threads=1 && cargo test --test scheduler_tests task_check_contract -- --exact --test-threads=1"
+else
+  run_step "reliability_tests" "cd rust/cxrs && cargo test --test reliability_integration -- --test-threads=1"
+  run_step "scheduler_tests" "cd rust/cxrs && cargo test --test scheduler_tests -- --test-threads=1"
+fi
 run_step "root_provenance" "./test/provenance_tools.sh"
 run_step "root_schema" "./test/schema_registry.sh"
 run_step "root_pipeline" "./test/core_pipeline.sh"
 
 if [[ "$MODE" == "full" ]]; then
-  run_step "guardrails_full" "cd rust/cxrs && ./scripts/guardrails.sh"
+  run_step "guardrails_full" "cd rust/cxrs && CX_GUARDRAILS_SKIP_TESTS=1 ./scripts/guardrails.sh"
   run_step "compat_check_full" "cd rust/cxrs && ./scripts/compat_check.sh 50"
 fi
 

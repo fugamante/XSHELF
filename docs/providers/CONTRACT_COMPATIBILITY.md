@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-06-08
+Last updated: 2026-06-23
 
 ## Scope
 
@@ -64,8 +64,18 @@ Major releases:
 ## CI Enforcement
 
 Contract stability is enforced by:
+- `xshelf contracts export --profile full --json` for the declared compatibility
+  surface manifest
 - fixture-backed integration tests under `rust/cxrs/tests/fixtures/*_contract.json` for the fixture-locked surfaces
 - targeted integration assertions for typed JSON surfaces that do not yet have standalone fixture manifests (`policy show`, `llm verify`, `llm resident`)
+- fixture-backed local sidecar assertions for `llm resident probe-models --json`
+  to preserve the loopback `/v1/models` path and visible HTTP boundary fields
+- strict run-log validation requires HTTP provenance keys
+  (`http_request_profile`, `http_provider_format`, `http_parser_mode`) on every
+  modern row; `xshelf logs migrate` backfills unknown historical values as
+  nullable fields
+- command-surface docs gates that include covered contract producer/version and
+  fixture files
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`
 - `cargo test --tests -- --test-threads=1`
 

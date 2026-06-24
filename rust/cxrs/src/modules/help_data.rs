@@ -124,12 +124,12 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "cx",
         usage: "cx <cmd...>",
-        description: "Run command output through LLM text mode",
+        description: "Compatibility LLM text-mode command; prefer cxo for explicit XSHELF output",
     },
     CommandHelp {
         name: "cxj",
         usage: "cxj <cmd...>",
-        description: "Run command output through LLM JSONL mode",
+        description: "Compatibility LLM JSONL command",
     },
     CommandHelp {
         name: "cxo",
@@ -139,12 +139,12 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "cxol",
         usage: "cxol <cmd...>",
-        description: "Run command output through LLM plain mode",
+        description: "Compatibility LLM plain-output command",
     },
     CommandHelp {
         name: "cxcopy",
         usage: "cxcopy <cmd...>",
-        description: "Copy cxo output to clipboard (pbcopy/wl-copy/xclip)",
+        description: "Compatibility helper that copies cxo output to clipboard",
     },
     CommandHelp {
         name: "fix",
@@ -239,7 +239,7 @@ pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
         name: "cx-compat",
         usage: "cx-compat <cmd...>",
-        description: "Compatibility shim for bash-style cx command names",
+        description: "Legacy compatibility shim for bash-style cx command names",
     },
     CommandHelp {
         name: "profile",
@@ -358,6 +358,11 @@ pub const TASK_COMMANDS: &[CommandHelp] = &[
         name: "task check",
         usage: "{APP} task check [--status pending|in_progress|complete|failed] [--strict-plan] [--json|--text]",
         description: "Preflight blocked tasks, strict-plan readiness, and recommended mode",
+    },
+    CommandHelp {
+        name: "task sandbox",
+        usage: "{APP} task sandbox <show|check|enable|disable|set-image|clear-image> [--json|--text|<image>]",
+        description: "Inspect, preflight, or configure the repo-scoped Docker task sandbox",
     },
     CommandHelp {
         name: "task events",

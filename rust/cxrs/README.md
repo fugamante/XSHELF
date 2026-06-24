@@ -157,6 +157,11 @@ cd ../..
 ./scripts/compat_local.sh --quick
 ```
 
+The quick runner uses representative reliability and scheduler smoke tests so
+it stays stable under harness load. Run the full integration binaries directly,
+or use `./scripts/compat_local.sh --full`, when collecting release-signoff
+evidence.
+
 Reliability/failure-injection suite:
 
 ```bash

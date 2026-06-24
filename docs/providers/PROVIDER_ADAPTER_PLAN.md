@@ -137,7 +137,9 @@ Rollout policy (finalized):
 
 Merge checklist for main:
 - [x] Phase 1-5 code paths merged and validated
-- [x] adapter telemetry fields present in logs (`adapter_type`, `provider_transport`, `provider_status`)
+- [x] adapter telemetry fields present in logs (`adapter_type`,
+  `provider_transport`, `provider_status`, `http_request_profile`,
+  `http_provider_format`, `http_parser_mode`)
 - [x] deterministic failure classification for HTTP adapter
 - [x] mock adapter deterministic test coverage
 - [x] strict CI contract gates enforced (fmt/clippy/tests/log contracts)

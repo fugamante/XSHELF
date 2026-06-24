@@ -14,8 +14,23 @@
 
 ## Next (1-2 months)
 
-- Stage the `XSHELF` rename as a compatibility migration, not a breaking command/env/state rename.
-- Land dual-surface command docs/install defaults so `xshelf` is documented first while `cx` stays fully supported.
+- Maintain the landed `XSHELF` rename as a compatibility migration, not a
+  breaking command/env/state rename.
+- Keep dual-surface command docs/install defaults aligned so `xshelf` is
+  documented first while `cx` stays fully supported.
+- Use the staged Docker plan in `docs/project/DOCKER_STRATEGY.md`:
+  - 1. landed maintainer parity and onboarding through local-build Docker
+    smoke/quick paths
+  - 2. landed Linux CI core guardrail harness through `compat_docker.sh --ci`
+    with explicit report deltas for workflow-only gates
+  - 3. landed the first opt-in project task sandbox floor with readiness
+    diagnostics, container execution, and execution-lane provenance
+  - 4. landed provider sidecar contract floor with local-service requirements
+    and fixture-backed resident `/v1/models` validation; Compose/service
+    recipes remain future opt-in work
+  - 5. landed the first prebuilt cache/distribution policy floor with explicit
+    image selection, no default remote pulls, and Docker report provenance;
+    publishing release images remains future opt-in work
 - Landed richer command-level JSON outputs for diagnostics tools, including contract-backed `broker show --json`.
 - Landed CI-level artifact reports for reliability suite failures.
 - Land Linux-focused CI pass on PR/push while keeping full Linux+macOS compat on manual dispatch.
