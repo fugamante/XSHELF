@@ -4,7 +4,7 @@ use common::*;
 use serde_json::Value;
 
 #[test]
-fn task_sandbox_show_and_mutate() {
+fn sandbox_show_mutate() {
     let repo = TempRepo::new("cxrs-it");
 
     let show = repo.run(&["task", "sandbox", "show", "--json"]);
@@ -58,7 +58,7 @@ fn task_sandbox_show_and_mutate() {
 }
 
 #[test]
-fn task_sandbox_check_reports_not_ready() {
+fn sandbox_not_ready() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "docker",
@@ -101,9 +101,9 @@ esac
 }
 
 #[test]
-fn task_sandbox_check_reports_ready() {
+fn sandbox_check_ready() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_local_cx_wrapper();
+    repo.write_cx_wrapper();
     repo.write_mock(
         "docker",
         r#"#!/usr/bin/env bash
@@ -171,9 +171,9 @@ esac
 }
 
 #[test]
-fn task_run_uses_container_lane() {
+fn task_container_lane() {
     let repo = TempRepo::new("cxrs-it");
-    repo.write_local_cx_wrapper();
+    repo.write_cx_wrapper();
     repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'

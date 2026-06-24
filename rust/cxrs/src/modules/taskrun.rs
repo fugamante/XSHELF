@@ -131,7 +131,7 @@ fn passthrough_container_envs(cmd: &mut Command) {
     }
 }
 
-fn sandbox_execution_lane_detail(image: &str) -> String {
+fn sandbox_lane_detail(image: &str) -> String {
     format!("docker:{image}")
 }
 
@@ -305,7 +305,7 @@ pub fn task_sandbox_readiness() -> TaskSandboxReadiness {
     }
 }
 
-fn run_task_in_sandbox(
+fn task_in_sandbox(
     id: &str,
     mode_override: Option<&str>,
     backend_override: Option<&str>,
@@ -345,7 +345,7 @@ fn run_task_in_sandbox(
     docker.arg("-e");
     docker.arg(format!(
         "CX_EXECUTION_LANE_DETAIL={}",
-        sandbox_execution_lane_detail(&image)
+        sandbox_lane_detail(&image)
     ));
     passthrough_container_envs(&mut docker);
     docker.arg("-v");
@@ -956,7 +956,7 @@ fn run_replica(
     );
     set_optional_env("CX_TASK_CONVERGE_WINNER", None);
     let run_result = if !task_sandbox_active() && task_sandbox_config().enabled {
-        run_task_in_sandbox(
+        task_in_sandbox(
             &task.id,
             config.mode_override,
             config.backend_override,

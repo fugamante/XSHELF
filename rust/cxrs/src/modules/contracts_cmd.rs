@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn full_bundle_includes_policy_and_resident_contracts() {
+    fn bundle_includes_contracts() {
         let bundle = bundle_value("0.0.0-test", "full", &super::profile_specs("full").unwrap());
         let contracts = bundle
             .get("contracts")

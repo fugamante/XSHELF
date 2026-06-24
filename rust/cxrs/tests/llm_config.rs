@@ -1534,7 +1534,7 @@ JSON
 }
 
 #[test]
-fn local_sidecar_probe_keeps_http_boundary() {
+fn sidecar_probe_boundary() {
     let repo = TempRepo::new("cxrs-llm");
     let (url, captured, handle) =
         run_fixture_http_server_once(r#"{"data":[{"id":"sidecar-mock"}]}"#);

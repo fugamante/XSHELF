@@ -86,7 +86,7 @@ fn bin_xshelf_version_reports_runtime() {
 }
 
 #[test]
-fn bin_xs_version_reports_runtime() {
+fn xs_version_reports() {
     let repo = repo_root();
     let out = Command::new(repo.join("bin").join("xs"))
         .arg("version")

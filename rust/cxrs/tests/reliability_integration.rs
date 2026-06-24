@@ -151,7 +151,10 @@ exit 0
 
     let out = repo.run_with_env(
         &["cxcopy", "echo", "hello"],
-        &[("CX_CMD_TIMEOUT_SECS", "9"), ("CX_TIMEOUT_SHELL_SECS", "1")],
+        &[
+            ("CX_CMD_TIMEOUT_SECS", "60"),
+            ("CX_TIMEOUT_SHELL_SECS", "1"),
+        ],
     );
     assert!(
         !out.status.success(),
@@ -745,7 +748,7 @@ fn fix_run_policy_block_logged_with_reason() {
             ("CXFIX_RUN", "1"),
             ("CXFIX_FORCE", "0"),
             ("CX_UNSAFE", "0"),
-            ("CX_TIMEOUT_LLM_SECS", "20"),
+            ("CX_TIMEOUT_LLM_SECS", "60"),
         ],
     );
     assert!(

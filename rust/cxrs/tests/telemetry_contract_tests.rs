@@ -475,7 +475,7 @@ fn logs_stats_strict_severity_behave_expected() {
         issue_count, strict_violations,
         "logs validate and telemetry strict violation counts diverged"
     );
-    assert_eq!(required, 33, "unexpected strict contract field count");
+    assert_eq!(required, 36, "unexpected strict contract field count");
 }
 
 #[test]

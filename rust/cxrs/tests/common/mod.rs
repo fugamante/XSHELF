@@ -148,7 +148,7 @@ impl TempRepo {
         self.write_mock(concat!("co", "dex"), body);
     }
 
-    pub fn write_local_cx_wrapper(&self) {
+    pub fn write_cx_wrapper(&self) {
         let bin_dir = self.root.join("bin");
         fs::create_dir_all(&bin_dir).expect("create bin dir");
         let body = format!(

@@ -26,8 +26,10 @@ cd ../..
 CI metadata gate before the broader checklist runs.
 
 Validation preference for maintainers:
-- prefer `./scripts/compat_local.sh --quick` when you need the real compat bar
-  for the current machine or are preparing release-signoff evidence.
+- prefer `./scripts/compat_local.sh --quick` when you need representative
+  compat readiness for the current machine.
+- use `cargo test --tests -- --test-threads=1` or
+  `./scripts/compat_local.sh --full` when preparing release-signoff evidence.
 - use `./scripts/compat_docker.sh --smoke` only as a cheaper Linux-hosted
   preflight when you want early runtime drift detection before paying for the
   fuller compat suite.

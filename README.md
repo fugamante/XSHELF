@@ -275,12 +275,17 @@ already available image with `./scripts/compat_docker.sh --image <tag> ...` or
 When an override tag is missing, use `--rebuild` to build the repo Dockerfile
 into that tag or pull/build the image explicitly yourself.
 
-`--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick`,
-`./scripts/compat_docker.sh --quick`, or fuller validation when you need actual
-compat or release confidence.
-Prefer `./scripts/compat_local.sh --quick` when you want the normal compat bar
-for the current machine. Use Docker `--smoke` when the goal is a faster
-Linux-hosted preflight, not a substitute for the fuller check.
+`--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick` or
+`./scripts/compat_docker.sh --quick` when you need representative compat
+readiness. The quick path avoids timeout-heavy reliability and scheduler timing
+tests so it stays deterministic under harness load. Use
+`cargo test --tests -- --test-threads=1`, `./scripts/compat_local.sh --full`,
+or fuller Docker validation for release confidence.
+`compat_local.sh --full` runs the explicit integration suites itself, then runs
+guardrails with their duplicate full-test step skipped; standalone
+`rust/cxrs/scripts/guardrails.sh` still runs the full test suite by default.
+Use Docker `--smoke` when the goal is a faster Linux-hosted preflight, not a
+substitute for the fuller check.
 `./scripts/compat_docker.sh --ci` is the local Linux core guardrail subset. It
 runs the core checks from `cxrs-compat` that local Docker can reasonably mirror,
 including fmt/check/clippy/tests, guardrails, release metadata,
