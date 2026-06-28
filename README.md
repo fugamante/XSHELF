@@ -25,6 +25,11 @@ repository configuration.
 ./bin/xshelf diag --json --window 20
 ```
 
+`version`, `core --json`, and `diag --json` include an additive
+`operator_context` surface that identifies `XSHELF`, the canonical `xshelf`
+command, compatibility aliases, and the read-only first-check path for local
+operator sessions.
+
 The task check prints a stable JSON contract. Values depend on the local task
 queue, but the shape should look like this:
 

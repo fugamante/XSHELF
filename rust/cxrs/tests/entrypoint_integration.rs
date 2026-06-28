@@ -38,6 +38,10 @@ fn bin_cx_version_reports_runtime() {
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("execution_path:"), "{stdout}");
+    assert!(
+        stdout.contains("operator_context.project: XSHELF (formerly CX)"),
+        "{stdout}"
+    );
 }
 
 #[test]
@@ -318,6 +322,17 @@ fn version_tq_json() {
         Some(false)
     );
     assert_eq!(payload.get("name").and_then(Value::as_str), Some("cxrs"));
+    let context = payload
+        .get("operator_context")
+        .expect("version operator_context");
+    assert_eq!(
+        context.get("project_name").and_then(Value::as_str),
+        Some("XSHELF")
+    );
+    assert_eq!(
+        context.get("canonical_command").and_then(Value::as_str),
+        Some("xshelf")
+    );
 }
 
 #[test]

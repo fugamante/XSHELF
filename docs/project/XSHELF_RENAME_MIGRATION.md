@@ -139,6 +139,9 @@ Current status:
 - uninstall flow now supports `bin/xs-uninstall`
 - man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
+- `version`, `core --json`, `diag --json`, and `doctor` now expose additive
+  operator context that identifies XSHELF first, names `xshelf` as canonical,
+  and preserves `xs` / `cx` as aliases
 - task orchestration docs/examples now include `xshelf task sandbox ...`,
   including `task sandbox check --json` readiness diagnostics, while keeping
   `cx task ...` compatibility intact

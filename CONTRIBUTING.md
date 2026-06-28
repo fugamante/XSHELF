@@ -6,6 +6,21 @@
 - Bash is compatibility/bootstrap only.
 - Keep behavior deterministic and non-interactive unless explicitly required.
 
+## Operator Session Discipline
+
+- When working inside this repository, treat local repo identity as the first
+  source of truth before reaching for external project lookup. Start from the
+  current working directory, this file, the root `README.md`, and active
+  `docs/project/` policy docs.
+- For feasibility or implementation questions, answer from the local XSHELF
+  runtime state first. Prefer read-only checks such as `./bin/xshelf version`,
+  `./bin/xshelf core --json`, `./bin/xshelf task check --json`, and
+  `./bin/xshelf doctor` before speculating about unrelated public projects.
+- Close completed passes with current state, validation performed, residual
+  risks, and a recommended next direction. When a follow-up pass is useful,
+  include a copyable final prompt with goal, priorities, validation, guardrails,
+  and required final-report fields.
+
 ## Branding and Command Stability
 
 - Project branding is `XSHELF (formerly CX)`.
