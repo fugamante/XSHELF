@@ -85,10 +85,9 @@
             <pre><code data-terminal-code>$ ./bin/xshelf task check --json
 {
   "contract_version": "task-check.v1",
-  "runtime": "rust",
-  "strict_plan_ok": true,
-  "can_execute": true,
-  "log_file": ".cx/cxlogs/runs.jsonl"
+  "can_run": true,
+  "recommended_mode": "sequential",
+  "selected": 0
 }</code></pre>
             <div class="terminal-footer" aria-live="polite">
               <span data-terminal-caption>Capture -&gt; Budget -&gt; Validate -&gt; Telemetry</span>
@@ -271,13 +270,12 @@
             terminal: `$ ./bin/xshelf task check --json
 {
   "contract_version": "task-check.v1",
-  "runtime": "rust",
-  "strict_plan_ok": true,
-  "can_execute": true,
-  "log_file": ".cx/cxlogs/runs.jsonl"
+  "can_run": true,
+  "recommended_mode": "sequential",
+  "selected": 0
 }`,
             steps: [
-              ["Inspect runtime", "./bin/xshelf version\n./bin/xshelf task check --json\n./bin/xshelf core --json"],
+              ["Inspect runtime", "./bin/xshelf version\n./bin/xshelf task check --json\n./bin/xshelf core --json\n./bin/xshelf diag --json --window 20"],
               ["Check health", "./bin/xshelf llm check\n./bin/xshelf doctor\n./bin/xshelf health"],
               ["Run safely", "./bin/xshelf cxo git status"],
             ],

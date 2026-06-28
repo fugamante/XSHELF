@@ -2,6 +2,7 @@
 
 ## Now (0-4 weeks)
 
+- Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
@@ -14,6 +15,8 @@
 
 ## Next (1-2 months)
 
+- Decide whether the current unreleased bundle should become the next tagged
+  release after the documented release-readiness validation stack is green.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
 - Keep dual-surface command docs/install defaults aligned so `xshelf` is
@@ -65,6 +68,17 @@
   - keep `http-curl` behind explicit opt-in rollout policy
   - require telemetry + reliability coverage before any broader adapter matrix growth
 - Landed exported contract-bundle maintenance for `cx-eval-lab`, including bundle ownership and fixture-backed contract drift discipline.
+
+## Release Readiness Boundary
+
+- Release-candidate validation is documented in
+  `docs/project/RELEASE_READINESS.md`.
+- The next release should not wait on published Docker images, provider sidecar
+  Compose recipes, Homebrew metadata, broader default capture prompt replacement,
+  or new backend adapter families unless one of those items becomes explicit
+  release scope.
+- Keep release notes, contract compatibility policy, and command-surface docs in
+  the same bundle as any release-facing behavior change.
 
 ## Later (2+ months)
 
