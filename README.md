@@ -1,19 +1,41 @@
 # XSHELF
 
-XSHELF (formerly CX) is deterministic runtime tooling for LLM-assisted
-repository work.
+XSHELF is deterministic runtime tooling for LLM-assisted repository work. It
+wraps repo commands so assistants and automation see bounded, inspectable
+evidence instead of an unstructured terminal transcript.
 
-`XSHELF` turns repository operations into bounded, inspectable, and
-automation-safe workflows. It captures command output, reduces context,
-enforces execution policy, validates structured responses, and keeps telemetry
-replayable.
-
-Use it when a free-form assistant loop is too loose for CI, automation, or
-operator workflows that need stable JSON contracts.
+Use it when a free-form assistant loop is too loose for CI, repeatable task
+execution, or operator workflows that need stable JSON contracts. XSHELF
+captures command output, reduces context, enforces execution policy, validates
+structured responses, and keeps failures replayable.
 
 `CX` remains a supported compatibility command surface during the rename
 migration. `XSHELF/CX` is an independent open-source project and is not
 affiliated with or endorsed by OpenAI.
+
+## First Useful Output
+
+Start with read-only checks. These commands inspect the runtime without changing
+repository configuration.
+
+```bash
+./bin/xshelf version
+./bin/xshelf task check --json
+./bin/xshelf core --json
+./bin/xshelf diag --json --window 20
+```
+
+The task check prints a stable JSON contract. Values depend on the local task
+queue, but the shape should look like this:
+
+```json
+{
+  "contract_version": "task-check.v1",
+  "can_run": true,
+  "recommended_mode": "sequential",
+  "selected": 0
+}
+```
 
 ## What It Provides
 
@@ -67,17 +89,7 @@ Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
 
 ## Quick Start
 
-Start with read-only checks. These commands inspect the runtime without changing
-repository configuration.
-
-```bash
-./bin/xshelf version
-./bin/xshelf task check --json
-./bin/xshelf core --json
-./bin/xshelf diag --json --window 20
-```
-
-Then check readiness:
+After the first inspection commands, check backend and runtime readiness:
 
 ```bash
 ./bin/xshelf llm check
@@ -234,7 +246,18 @@ HTTP/TLS operator guidance:
 
 ## Validation
 
-Runtime-facing checks:
+Choose the smallest check that matches the risk:
+
+| Goal | Command | Use when |
+| --- | --- | --- |
+| Runtime health | `./bin/xshelf doctor` / `./bin/xshelf health` | checking local operator readiness |
+| Log integrity | `./bin/xshelf logs validate --fix=false` | verifying run-log contract health |
+| Fast maintainer pass | `./scripts/compat_local.sh --quick` | checking representative local compatibility before a patch |
+| Linux preflight | `./scripts/compat_docker.sh --smoke` | getting a cheap container-hosted signal |
+| Linux CI mirror | `./scripts/compat_docker.sh --ci` | approximating the core GitHub Linux guardrail locally |
+| Release signoff | `./scripts/compat_local.sh --full` | validating the strongest host-native release-readiness path |
+
+Operator checks:
 
 ```bash
 ./bin/xshelf doctor
@@ -242,32 +265,33 @@ Runtime-facing checks:
 ./bin/xshelf logs validate --fix=false
 ```
 
-Maintainer checks:
+Typical maintainer sequence:
 
 ```bash
+./scripts/compat_local.sh --quick
 ./scripts/compat_docker.sh --smoke
 ./scripts/compat_docker.sh --ci
-./scripts/compat_local.sh --quick
+./scripts/compat_local.sh --full
+
 cd rust/cxrs
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
 cargo test --tests -- --test-threads=1
 ```
 
-`./scripts/compat_docker.sh --smoke` is the fast Linux-hosted preflight path.
-Use it only when:
+Docker compatibility prerequisites:
 - Docker is installed and the local daemon is available.
-- the compat image can be built from `Dockerfile` or reused from cache.
-- the repo can be bind-mounted read-write because Docker cache state is written
+- The compat image can be built from `Dockerfile` or reused from cache.
+- The repo can be bind-mounted read-write because Docker cache state is written
   under `.cx/compat/`.
-- expect the first run to spend most of its time building the image and filling
+- The first run usually spends most of its time building the image and filling
   the Cargo target cache under `.cx/compat/`; warm-cache reruns should be much
   faster unless `--rebuild` is used.
 
-If the image or bind-mounted cache gets stale:
-- force a fresh image build with `./scripts/compat_docker.sh --rebuild ...`
-- prune unused Docker state with `docker image prune` / `docker builder prune`
-  before retrying if cache corruption or disk pressure is suspected
+If the image or bind-mounted cache is stale:
+- Force a fresh image build with `./scripts/compat_docker.sh --rebuild ...`.
+- Prune unused Docker state with `docker image prune` / `docker builder prune`
+  before retrying if cache corruption or disk pressure is suspected.
 
 The default image tag is `xshelf-compat:local`. Advanced users can select an
 already available image with `./scripts/compat_docker.sh --image <tag> ...` or
@@ -275,23 +299,20 @@ already available image with `./scripts/compat_docker.sh --image <tag> ...` or
 When an override tag is missing, use `--rebuild` to build the repo Dockerfile
 into that tag or pull/build the image explicitly yourself.
 
-`--smoke` is not a signoff step. Use `./scripts/compat_local.sh --quick` or
-`./scripts/compat_docker.sh --quick` when you need representative compat
-readiness. The quick path avoids timeout-heavy reliability and scheduler timing
-tests so it stays deterministic under harness load. Use
-`cargo test --tests -- --test-threads=1`, `./scripts/compat_local.sh --full`,
-or fuller Docker validation for release confidence.
-`compat_local.sh --full` runs the explicit integration suites itself, then runs
-guardrails with their duplicate full-test step skipped; standalone
-`rust/cxrs/scripts/guardrails.sh` still runs the full test suite by default.
-Use Docker `--smoke` when the goal is a faster Linux-hosted preflight, not a
-substitute for the fuller check.
-`./scripts/compat_docker.sh --ci` is the local Linux core guardrail subset. It
-runs the core checks from `cxrs-compat` that local Docker can reasonably mirror,
-including fmt/check/clippy/tests, guardrails, release metadata,
-`compat_check.sh`, and the shell regression suite. The JSON report includes
-`ci_parity.intentional_deltas` for workflow-only, hosted-runner, artifact, and
-dependency-security gates that local Docker does not claim to reproduce.
+Release confidence:
+- `--smoke` is a fast Linux-hosted preflight, not a signoff step.
+- `compat_local.sh --quick` and `compat_docker.sh --quick` are representative
+  compatibility checks; the quick path avoids timeout-heavy reliability and
+  scheduler timing tests so it stays deterministic under harness load.
+- `compat_local.sh --full` is the strongest host-native release-signoff signal.
+  It runs the explicit integration suites, then runs guardrails with their
+  duplicate full-test step skipped.
+- Standalone `rust/cxrs/scripts/guardrails.sh` still runs the full test suite by
+  default.
+- `compat_docker.sh --ci` mirrors the core `cxrs-compat` Linux guardrail subset
+  locally. Its JSON report includes `ci_parity.intentional_deltas` for
+  workflow-only, hosted-runner, artifact, and dependency-security gates that
+  local Docker does not claim to reproduce.
 
 ## Development
 

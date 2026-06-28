@@ -17,6 +17,7 @@ Maintain XSHELF:
 - [project/REPO_ROLE_CONTRACT.md](project/REPO_ROLE_CONTRACT.md) - repository role and boundaries
 - [project/ROADMAP.md](project/ROADMAP.md) - roadmap and active planning context
 - [project/RELEASE_CADENCE.md](project/RELEASE_CADENCE.md) - release process
+- [project/RELEASE_READINESS.md](project/RELEASE_READINESS.md) - current release-readiness snapshot
 - [contributing/](contributing/) - contributor walkthroughs and starter issues
 - [providers/PROVIDER_ADAPTER_PLAN.md](providers/PROVIDER_ADAPTER_PLAN.md) - provider adapter planning
 

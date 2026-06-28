@@ -39,6 +39,9 @@ Notes:
   - added Docker CI guardrail report metadata for intentional local-vs-GitHub deltas and documented local-build-only/prebuilt-image and provider-sidecar decision boundaries.
   - added `docs/providers/LOCAL_PROVIDER_SIDECARS.md` and fixture-backed resident probe coverage for the local OpenAI-compatible MLX HTTP sidecar contract before adding Docker Compose/service orchestration.
   - added explicit Docker compat image selection through `compat_docker.sh --image <tag>` / `CX_COMPAT_IMAGE=<tag>` with pull policy `never` and image provenance in JSON reports while preserving local-build default behavior.
+  - reconciled roadmap and Docker strategy status language with the landed compatibility floors, and added `docs/project/RELEASE_READINESS.md` to summarize current release-candidate validation boundaries.
+  - refreshed the root README landing flow with a source-backed first-output path and aligned the public website's `task-check.v1` sample to the same current contract shape.
+  - reformatted the root README validation section into goal-based checks, Docker compatibility notes, and release-confidence guidance.
   - expanded `contracts export --profile full` coverage for the declared compatibility surfaces (`broker benchmark`, `policy show`, `task run-plan`, `llm verify`, and `llm resident`) and added contract producer/fixture files to the command-surface docs gate.
   - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.

@@ -1,6 +1,8 @@
 # Docker Strategy
 
-Status: proposed
+Status: active; stages 1-5 have landed as guarded floors. Remaining work is
+future opt-in distribution/service packaging, not a prerequisite for normal
+runtime use.
 
 ## Goal
 
@@ -18,7 +20,7 @@ Objective:
 
 Why first:
 - lowest product risk
-- already partially landed through `compat_docker.sh`
+- landed through `compat_docker.sh`
 - improves confidence for every later Docker step
 
 Current floor:
@@ -27,9 +29,11 @@ Current floor:
 - `scripts/compat_docker.sh --quick`
 - local-build image default: `xshelf-compat:local`
 
-Next additions:
-- document first-run and warm-cache expectations
-- add a rebuild/prune note for stale image or cache state
+Documented operations:
+- first-run and warm-cache expectations
+- rebuild/prune notes for stale image or bind-mounted cache state
+
+Remaining decision:
 - decide whether to publish a prebuilt maintainer image or keep local build only
 
 Exit criteria:
@@ -78,7 +82,7 @@ Scope:
 - repo-defined container contract, not automatic inference
 - bind-mounted project workspace with explicit writable areas
 
-Likely shape:
+Landed shape:
 - project config points XSHELF at a container image or compose service
 - `task run` / `task run-all` can choose host or container execution lanes
 - runtime records whether execution happened on host or in container
@@ -119,8 +123,8 @@ Scope:
 - keep provider configuration inspectable
 
 Current decision:
-- start with a written local-service contract and fixture/mock validation before
-  adding Docker Compose or service startup code
+- the written local-service contract and fixture/mock validation floor is
+  landed before any Docker Compose or service startup code
 
 Current floor:
 - `docs/providers/LOCAL_PROVIDER_SIDECARS.md` defines the local
@@ -173,6 +177,11 @@ Guardrails:
 Exit criteria:
 - first-run Docker setup is materially faster
 - image provenance and update expectations are explicit
+
+Remaining future work:
+- optional published maintainer image policy
+- optional versioned image tags or digest-pinned release images
+- optional Docker Compose/service recipes for provider sidecars
 
 ## Non-Goals
 
