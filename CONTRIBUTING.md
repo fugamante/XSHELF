@@ -94,6 +94,21 @@ state, and the entrypoint contract.
 - Keep Rust/file/integration guardrails green locally before push: `./scripts/guardrails.sh`, `./scripts/check_rs_max_lines.sh`, and `./scripts/check_integration_guardrails.sh`.
 - Keep third-party GitHub Actions pinned to full 40-character commit SHAs; validate with `./scripts/check_action_pins.sh .`.
 
+## Naming And Comments
+
+- Production Rust identifiers and file stems follow the global compact naming
+  rule: max `3` semantic segments (`2` underscores), enforced by
+  `rust/cxrs/scripts/guardrails.sh`.
+- Longer production names require a committed local allowlist entry with a
+  compatibility or migration reason; do not add long names ad hoc for prose-like
+  clarity.
+- Integration test names have a deliberate local exception: max `7` segments
+  and max `48` characters, enforced by `check_test_naming.py`. This is for
+  behavior-readable test cases only and does not weaken production naming.
+- Prefer concise comments that explain invariants, compatibility constraints,
+  boundaries, or non-obvious tradeoffs. Avoid comments that restate what the
+  code already says.
+
 ## Commit Guidance
 
 - Keep commits focused and reviewable.

@@ -23,6 +23,12 @@ Flow:
 2. Promote to `main` only after parity + smoke checks pass.
 3. Keep branch READMEs branch-specific.
 4. Prefer concise names that stay within `3` segments total.
+5. Treat longer test names as a committed guardrail exception only when the
+   behavior being tested needs a readable scenario label; production Rust names
+   still follow the `3` segment rule unless a local allowlist requires
+   otherwise.
+6. Use comments to explain invariants, compatibility constraints, and
+   non-obvious tradeoffs rather than expanding function names into prose.
 
 Examples:
 - good: `orchestration/contracts`, `runtime/task-guidance`
