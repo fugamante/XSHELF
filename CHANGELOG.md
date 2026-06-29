@@ -109,6 +109,10 @@ Notes:
   - install flow now publishes `xshelf.1`, `xs.1`, and `cx.1` man-page entries.
   - added `docs/project/XSHELF_RENAME_MIGRATION.md` to lock the staged compatibility migration policy.
   - top-level help/task-help/usage error text now follows the invoked command name (`xshelf`, `xs`, or `cx`).
+  - added additive operator context to `version`, `core --json`, `diag --json`,
+    and `doctor` so local sessions surface XSHELF identity, canonical command
+    spelling, compatibility aliases, and read-only first-check guidance before
+    broader inspection.
 - HTTP adapter hardening:
   - optional host allowlist gate via `CX_HTTP_ALLOWED_HOSTS` (CSV).
   - optional TLS pinning hook via `CX_HTTP_TLS_PINNEDPUBKEY` (curl `--pinnedpubkey`).

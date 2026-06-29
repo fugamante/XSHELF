@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-06-23
+Last updated: 2026-06-28
 
 ## Scope
 
@@ -8,6 +8,8 @@ This policy defines compatibility guarantees for machine-readable XSHELF outputs
 Canonical command examples use `xshelf`; `cx` remains the supported compatibility alias for existing automation.
 
 Covered JSON surfaces:
+- `xshelf version --json`
+- `xshelf core --json`
 - `xshelf diag --json`
 - `xshelf scheduler --json`
 - `xshelf optimize --json`
@@ -30,6 +32,8 @@ Covered JSON surfaces:
 Each covered payload includes a top-level `contract_version` field.
 
 Current versions:
+- `version.v1`
+- `core.v1`
 - `diag.v1`
 - `scheduler.v1`
 - `optimize.v1`
@@ -53,6 +57,9 @@ Patch releases:
 - no key removals on stable contracts
 - no type changes for existing keys
 - additive keys are allowed only with fixture/test updates
+- shared additive guidance objects, such as `operator_context`, may appear on
+  multiple inspection surfaces without a version bump when existing keys and
+  exit semantics are preserved
 
 Minor releases:
 - additive fields allowed with changelog notes

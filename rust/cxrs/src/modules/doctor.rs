@@ -6,6 +6,7 @@ use std::process::Command;
 use crate::config::{cli_app_name, command_matches_cli, command_with_cli};
 use crate::llm::extract_agent_text;
 use crate::logs::load_values;
+use crate::operator_context::operator_lines;
 use crate::paths::resolve_log_file;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::adapter_policy_value;
@@ -1596,6 +1597,9 @@ pub fn print_doctor(run_llm_jsonl: JsonlRunner) -> i32 {
     let backend = llm_backend();
     let llm_bin = llm_bin_name();
     println!("== {} doctor ==", cli_app_name());
+    for line in operator_lines() {
+        println!("{line}");
+    }
     let missing_required = check_required_bins(&backend, llm_bin);
     if missing_required > 0 {
         println!(
