@@ -148,6 +148,9 @@ Current status:
 - shell helpers preserve canonical `xshelf`, short `xs`, and compatibility
   `cx` invocation names
 - `cx` remains fully supported as the compatibility path
+- `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
+  read-only evidence; `cxo` remains the compatibility/agentic interpretation
+  lane when provider-backed natural-language output is explicitly desired
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift

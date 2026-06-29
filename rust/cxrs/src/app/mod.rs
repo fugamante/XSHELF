@@ -149,6 +149,10 @@ fn cmd_cxcopy(command: &[String]) -> i32 {
     agentcmds::cmd_cxcopy(command, execute_task)
 }
 
+fn cmd_capture(command: &[String]) -> i32 {
+    agentcmds::cmd_capture(command, run_system_command_capture)
+}
+
 fn cmd_fix(command: &[String]) -> i32 {
     agentcmds::cmd_fix(command, run_system_command_capture, execute_task)
 }
