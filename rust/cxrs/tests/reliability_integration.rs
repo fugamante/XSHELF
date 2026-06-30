@@ -259,6 +259,44 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":123,"cached_inpu
 }
 
 #[test]
+fn schema_link_strict() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        concat!("co", "dex"),
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"not-json"}}'
+"#,
+    );
+
+    let out = repo.run_with_env(&["next", "echo", "hello"], &[]);
+    assert!(!out.status.success(), "expected schema failure");
+
+    let qid = parse_jsonl(&repo.runs_log())
+        .last()
+        .and_then(|row| row.get("quarantine_id"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    assert!(!qid.is_empty(), "schema failure run missing quarantine_id");
+    fs::remove_file(repo.quarantine_file(&qid)).expect("remove quarantine fixture");
+
+    let validate = repo.run(&["logs", "validate", "--strict"]);
+    assert_eq!(
+        validate.status.code(),
+        Some(1),
+        "stdout={} stderr={}",
+        stdout_str(&validate),
+        stderr_str(&validate)
+    );
+    assert!(
+        stdout_str(&validate).contains("schema failure quarantine_id"),
+        "stdout={}",
+        stdout_str(&validate)
+    );
+}
+
+#[test]
 fn missing_schema_file_fails_structured_command() {
     let repo = TempRepo::new("cxrs-rel");
     let schema_file = repo

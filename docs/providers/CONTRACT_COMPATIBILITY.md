@@ -90,6 +90,8 @@ Contract stability is enforced by:
 - quarantine records are read through an integrity guard: `quarantine show` and
   `replay` reject records whose embedded id or prompt/raw hashes do not match
   the requested record and payload
+- strict run-log validation follows modern schema-failure `quarantine_id`
+  references and reports unreadable or integrity-invalid quarantine records
 - command-surface docs gates that include covered contract producer/version and
   fixture files
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`
