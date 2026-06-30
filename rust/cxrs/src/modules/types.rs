@@ -62,6 +62,8 @@ pub struct RunEntry {
     #[serde(default)]
     pub timeout_secs: Option<u64>,
     #[serde(default)]
+    pub system_status: Option<i32>,
+    #[serde(default)]
     pub command_label: Option<String>,
     #[serde(default)]
     pub prompt_preview: Option<String>,
@@ -376,6 +378,7 @@ pub struct ExecutionLog {
     pub schema_attempt: Option<u64>,
     pub timed_out: Option<bool>,
     pub timeout_secs: Option<u64>,
+    pub system_status: Option<i32>,
     pub command_label: Option<String>,
     pub prompt_preview: Option<String>,
     pub policy_blocked: Option<bool>,

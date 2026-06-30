@@ -48,7 +48,8 @@ queue, but the shape should look like this:
 | --- | --- |
 | Safe first inspection | `version`, `doctor`, `health`, `diag --json` |
 | Stable runtime state | `core --json`, `mode --json`, `broker show --json` |
-| Bounded command execution | `cxo ...` |
+| Bounded command capture | `capture ...` |
+| Agentic command interpretation | `cxo ...` |
 | Task orchestration | `task add`, `task run`, `task run-all`, `task sandbox`, `task events` |
 | Contract hygiene | schema validation, quarantine, replay, contract bundles |
 | Backend selection | primary, Ollama, llama.cpp, MLX, HTTP adapter profiles |
@@ -57,7 +58,8 @@ queue, but the shape should look like this:
 Pipeline contract:
 
 ```text
-capture -> reduce -> budget -> run backend -> validate -> quarantine -> telemetry
+capture -> reduce -> budget -> telemetry
+cxo -> capture -> reduce -> budget -> run backend -> validate -> quarantine -> telemetry
 ```
 
 Diagnostics go to stderr. Machine-readable stdout stays parseable.
@@ -103,11 +105,17 @@ After the first inspection commands, check backend and runtime readiness:
 ```
 
 After readiness checks pass, run a read-only repository command through the
-bounded execution path:
+bounded capture path:
 
 ```bash
-./bin/xshelf cxo git status
+./bin/xshelf capture git status
+./bin/xshelf budget
+./bin/xshelf trace
 ```
+
+Use `./bin/xshelf cxo ...` only when you want natural-language interpretation
+from the configured provider. It is agentic; `capture` is the default lane for
+read-only evidence capture.
 
 Command aliases:
 
@@ -167,6 +175,9 @@ Inspect telemetry and contract health:
 Task-event progress can be streamed to `.codex/cxlogs/task_events.jsonl`.
 Telemetry and log stats also expose additive rollout summaries for capture
 prompt telemetry when `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` is enabled.
+Run logs may include nullable `system_status` for lanes that wrap a repository
+command, including `capture`, so nonzero child exits remain visible without
+provider token usage.
 
 For the full command catalog, use the operator manuals:
 - [docs/manuals/00_README.md](docs/manuals/00_README.md)

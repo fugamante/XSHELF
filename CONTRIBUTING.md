@@ -20,6 +20,20 @@
   risks, and a recommended next direction. When a follow-up pass is useful,
   include a copyable final prompt with goal, priorities, validation, guardrails,
   and required final-report fields.
+- Do not generate final prompts mechanically. A next prompt must advance a new
+  decision gate, validation depth, approved mutation, or project objective. If
+  a pass only confirms the same state or completes an audit, ask for the
+  unblocked decision directly instead of repeating the previous prompt shape.
+- In Codex sessions, use an explicit XSHELF lane for noisy or broad command
+  output instead of assuming every tool call is wrapped automatically. Prefer
+  `./bin/xshelf capture ...` for read-only logs, tests, diffs, diagnostics, and
+  repo scans that may exceed ordinary context needs, then check
+  `./bin/xshelf budget` and `./bin/xshelf trace` when token efficiency or
+  clipping quality is part of the question. Use direct shell commands for small
+  exact-output probes. Use `./bin/xshelf cxo ...` only when a natural-language
+  interpretation is worth provider cost and agentic mutation risk. Treat
+  `capture` as provider-safe, not command-sandboxed: the wrapped command can
+  still modify files if the command itself writes.
 
 ## Branding and Command Stability
 

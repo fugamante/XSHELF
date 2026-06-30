@@ -34,6 +34,99 @@ fn command_parsing_and_file_io_edge_cases() {
 }
 
 #[test]
+fn capture_zero_tokens() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "noisy",
+        r#"#!/usr/bin/env bash
+printf 'alpha\nbeta\ngamma\ndelta\n'
+"#,
+    );
+
+    let out = repo.run_with_env(
+        &["capture", "noisy"],
+        &[
+            ("CX_CONTEXT_BUDGET_CHARS", "16"),
+            ("CX_CONTEXT_BUDGET_LINES", "2"),
+            ("CX_CONTEXT_CLIP_MODE", "tail"),
+        ],
+    );
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let stdout = stdout_str(&out);
+    assert!(stdout.contains("gamma"), "stdout={stdout}");
+    assert!(stdout.contains("delta"), "stdout={stdout}");
+    assert!(
+        stdout.contains("[XSHELF] output clipped: original=23/4, kept=11/2, mode=tail"),
+        "stdout={stdout}"
+    );
+
+    let last = parse_jsonl(&repo.runs_log())
+        .into_iter()
+        .last()
+        .expect("capture run log row");
+    assert_eq!(last.get("tool").and_then(Value::as_str), Some("capture"));
+    assert_eq!(
+        last.get("system_output_len_raw").and_then(Value::as_u64),
+        Some(23)
+    );
+    assert_eq!(
+        last.get("system_output_len_clipped")
+            .and_then(Value::as_u64),
+        Some(11)
+    );
+    assert_eq!(last.get("input_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        last.get("effective_input_tokens").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(last.get("output_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(last.get("system_status").and_then(Value::as_i64), Some(0));
+}
+
+#[test]
+fn capture_status_logged() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "failcap",
+        r#"#!/usr/bin/env bash
+printf 'captured failure\n'
+exit 7
+"#,
+    );
+
+    let out = repo.run(&["capture", "failcap"]);
+    assert_eq!(out.status.code(), Some(7), "stderr={}", stderr_str(&out));
+    assert!(
+        stdout_str(&out).contains("captured failure"),
+        "stdout={}",
+        stdout_str(&out)
+    );
+
+    let last = parse_jsonl(&repo.runs_log())
+        .into_iter()
+        .last()
+        .expect("capture run log row");
+    assert_eq!(last.get("tool").and_then(Value::as_str), Some("capture"));
+    assert_eq!(last.get("system_status").and_then(Value::as_i64), Some(7));
+    assert_eq!(last.get("input_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(last.get("output_tokens").and_then(Value::as_u64), Some(0));
+}
+
+#[test]
+fn routes_capture_listed() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let out = repo.run(&["routes"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let stdout = stdout_str(&out);
+    assert!(stdout.contains("capture: rust (capture)"), "{stdout}");
+    assert!(
+        stdout.contains("cxcapture: rust (cx-compat cxcapture)"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn http_curl_non_200_classified_http_status() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
