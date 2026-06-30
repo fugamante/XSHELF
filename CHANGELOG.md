@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.06.29` (2026-06-29): XSHELF rename rollout, local-model substrate, token-compression wiring, HTTP adapter hardening, Docker compatibility bootstrap, and capture telemetry readiness.
 - `v2026.03.05` (2026-03-05): Phase V closure release with contract freeze markers and compatibility policy.
 - `v2026.02.21` (2026-02-20): schema extraction hardening, strict routing, bootstrap reliability baseline.
 - `v2026.02.21-20260225T151634Z` (2026-02-25): manuals/docs snapshot and migration milestone.
@@ -13,6 +14,10 @@ Notes:
 - This file tracks rolling changes under `Unreleased` until the next tagged release.
 
 ## [Unreleased]
+
+No changes yet.
+
+## [v2026.06.29] - 2026-06-29
 
 ### Added
 - Repository governance:
