@@ -13,6 +13,7 @@ pub use json_contract::{
 pub use telemetry_helpers::parse_labeled_u64;
 
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -340,6 +341,12 @@ pub fn write_quarantine_fixture(
     prompt: &str,
     raw_response: &str,
 ) {
+    fn hash(s: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(s.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
     let payload = serde_json::json!({
         "id": id,
         "ts": "2026-01-01T00:00:00Z",
@@ -347,9 +354,9 @@ pub fn write_quarantine_fixture(
         "reason": "invalid_json",
         "schema": schema,
         "prompt": prompt,
-        "prompt_sha256": "fixture",
+        "prompt_sha256": hash(prompt),
         "raw_response": raw_response,
-        "raw_sha256": "fixture",
+        "raw_sha256": hash(raw_response),
         "attempts": []
     });
     fs::create_dir_all(repo.quarantine_dir()).expect("create quarantine dir");

@@ -309,6 +309,80 @@ fn corrupted_quarantine_record_fails_show_clear() {
 }
 
 #[test]
+fn quarantine_id_mismatch_fails_show() {
+    let repo = TempRepo::new("cxrs-rel");
+    write_quarantine_fixture(&repo, "expected_id", "next", "{}", "prompt", "raw");
+
+    let mut rec: Value = serde_json::from_str(
+        &fs::read_to_string(repo.quarantine_file("expected_id")).expect("read quarantine"),
+    )
+    .expect("fixture JSON");
+    rec["id"] = Value::String("other_id".to_string());
+    fs::write(
+        repo.quarantine_file("expected_id"),
+        serde_json::to_string_pretty(&rec).expect("serialize tampered record"),
+    )
+    .expect("rewrite quarantine");
+
+    let out = repo.run_with_env(&["quarantine", "show", "expected_id"], &[]);
+    assert!(
+        !out.status.success(),
+        "expected id mismatch failure; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("quarantine id mismatch"),
+        "expected id mismatch in stderr: {}",
+        stderr_str(&out)
+    );
+}
+
+#[test]
+fn quarantine_hash_mismatch_blocks_replay() {
+    let repo = TempRepo::new("cxrs-rel");
+    repo.write_mock(
+        concat!("co", "dex"),
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"{\"commands\":[\"echo ok\"]}"}}'
+"#,
+    );
+    let next_schema = fs::read_to_string(
+        repo.root
+            .join(".cx")
+            .join("schemas")
+            .join("next.schema.json"),
+    )
+    .expect("read next schema");
+    let qid = "hash_mismatch";
+    write_quarantine_fixture(&repo, qid, "next", &next_schema, "prompt", "raw");
+
+    let mut rec: Value =
+        serde_json::from_str(&fs::read_to_string(repo.quarantine_file(qid)).expect("read q"))
+            .expect("fixture JSON");
+    rec["raw_response"] = Value::String("tampered raw".to_string());
+    fs::write(
+        repo.quarantine_file(qid),
+        serde_json::to_string_pretty(&rec).expect("serialize tampered record"),
+    )
+    .expect("rewrite quarantine");
+
+    let out = repo.run_with_env(&["replay", qid], &[]);
+    assert!(
+        !out.status.success(),
+        "expected hash mismatch failure; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("quarantine raw_sha256 mismatch"),
+        "expected raw hash mismatch in stderr: {}",
+        stderr_str(&out)
+    );
+}
+
+#[test]
 fn unwritable_quarantine_path_surfaces_schema_error() {
     let repo = TempRepo::new("cxrs-rel");
     let qdir = repo.root.join(".cx").join("quarantine");

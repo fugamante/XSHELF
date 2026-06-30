@@ -30,6 +30,9 @@ Notes:
 - Route introspection:
   - `routes` now derives its default listing from the native and compatibility
     command-name registry so valid routes do not drift out of introspection.
+- Quarantine integrity:
+  - `quarantine show` and `replay` now reject quarantine records whose embedded
+    id or stored prompt/raw hashes do not match the requested record and payload.
 
 ## [v2026.06.29] - 2026-06-29
 
