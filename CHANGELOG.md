@@ -27,6 +27,9 @@ Notes:
   - `logs validate --strict` now treats modern `capture` rows without integer
     `system_status` as invalid so capture exit-status telemetry regressions are
     caught during validation.
+- Route introspection:
+  - `routes` now derives its default listing from the native and compatibility
+    command-name registry so valid routes do not drift out of introspection.
 
 ## [v2026.06.29] - 2026-06-29
 
