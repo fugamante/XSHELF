@@ -183,6 +183,11 @@ For the full command catalog, use the operator manuals:
 - [docs/manuals/00_README.md](docs/manuals/00_README.md)
 - [docs/manuals/02_web/index.html](docs/manuals/02_web/index.html)
 
+For a runtime-derived route catalog, use `./bin/xshelf routes` or
+`./bin/xshelf routes --json`. The listing is generated from the same native and
+compatibility command-name registry used by dispatch, so `xshelf`, `xs`, and
+`cx` route aliases stay aligned.
+
 ## Backend Selection
 
 Choose and inspect the active backend:

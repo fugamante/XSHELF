@@ -147,6 +147,9 @@ Current status:
   `cx task ...` compatibility intact
 - shell helpers preserve canonical `xshelf`, short `xs`, and compatibility
   `cx` invocation names
+- `routes` / `routes --json` derives its listing from the shared native and
+  compatibility command-name registry so canonical `xshelf` routes and `cx`
+  aliases remain visible together
 - `cx` remains fully supported as the compatibility path
 - `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
   read-only evidence; `cxo` remains the compatibility/agentic interpretation
