@@ -169,6 +169,30 @@ fn routes_capture_listed() {
 }
 
 #[test]
+fn routes_registry_complete() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let out = repo.run(&["routes", "--json"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let rows: Vec<Value> = serde_json::from_str(stdout_str(&out).trim()).expect("routes JSON");
+    let names: std::collections::BTreeSet<&str> = rows
+        .iter()
+        .filter_map(|row| row.get("name").and_then(Value::as_str))
+        .collect();
+
+    for expected in ["schema", "cxcore", "cxmode", "cxbroker", "launch"] {
+        assert!(
+            names.contains(expected),
+            "missing route {expected}: {names:?}"
+        );
+    }
+    assert!(
+        !names.contains("--help"),
+        "option aliases should not appear as command routes"
+    );
+}
+
+#[test]
 fn http_curl_non_200_classified_http_status() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(

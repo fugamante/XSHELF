@@ -176,6 +176,14 @@ const NATIVE_NAMES: &[&str] = &[
     "schema",
 ];
 
+pub fn compat_command_names() -> &'static [&'static str] {
+    COMPAT_NAMES
+}
+
+pub fn native_command_names() -> &'static [&'static str] {
+    NATIVE_NAMES
+}
+
 pub fn is_compat_name(name: &str) -> bool {
     COMPAT_NAMES.contains(&name)
 }
