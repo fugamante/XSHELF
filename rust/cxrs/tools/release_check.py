@@ -59,6 +59,22 @@ def has_pr_exception_label(label: str, event_name: str, event_path: str | None) 
     return False
 
 
+def validate_current_release_notes(
+    version_text: str, changelog_text: str, history_text: str
+) -> str | None:
+    tag = f"v{version_text}"
+    checks = [
+        (changelog_text, f"`{tag}`", "CHANGELOG.md release index"),
+        (changelog_text, f"## [{tag}]", "CHANGELOG.md release section"),
+        (history_text, f"| `{tag}` |", "VERSION_HISTORY.md release row"),
+        (history_text, f"/releases/tag/{tag}", "VERSION_HISTORY.md release link"),
+    ]
+    for source_text, needle, label in checks:
+        if needle not in source_text:
+            return f"missing current release notes entry in {label}: {needle}"
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="cx release metadata checks")
     ap.add_argument("--repo-root", default=None, help="repo root path")
@@ -83,6 +99,11 @@ def main() -> int:
         default=os.environ.get("GITHUB_EVENT_PATH"),
         help="GitHub event payload path (defaults to GITHUB_EVENT_PATH)",
     )
+    ap.add_argument(
+        "--require-current-release-notes",
+        action="store_true",
+        help="fail unless CHANGELOG.md and VERSION_HISTORY.md are cut for VERSION",
+    )
     args = ap.parse_args()
 
     if args.repo_root:
@@ -92,10 +113,11 @@ def main() -> int:
 
     version = root / "VERSION"
     changelog = root / "CHANGELOG.md"
+    history = root / "VERSION_HISTORY.md"
     readme = root / "README.md"
     license_file = root / "LICENSE"
 
-    for p in [version, changelog, readme, license_file]:
+    for p in [version, changelog, history, readme, license_file]:
         if not p.exists():
             return fail(f"missing required file: {p}")
 
@@ -109,6 +131,15 @@ def main() -> int:
     changelog_text = changelog.read_text(encoding="utf-8")
     if "## [Unreleased]" not in changelog_text:
         return fail("CHANGELOG.md missing '## [Unreleased]' section")
+
+    if args.require_current_release_notes:
+        history_text = history.read_text(encoding="utf-8")
+        release_notes_error = validate_current_release_notes(
+            version_text, changelog_text, history_text
+        )
+        if release_notes_error:
+            return fail(release_notes_error)
+        print("release_notes_ok")
 
     readme_text = readme.read_text(encoding="utf-8")
     required_sections = ["## Requirements", "## Validation"]

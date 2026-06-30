@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-06-27
+Snapshot date: 2026-06-30
 
 ## Current State
 
@@ -9,8 +9,8 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
-- `main` is aligned with `origin/main` after the provider provenance and compat
-  validation bundle.
+- `v2026.06.29` is published, and `main` is aligned with `origin/main` after
+  the release-note cut.
 - strict run-log validation requires HTTP provenance keys on modern rows:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
@@ -52,8 +52,7 @@ patch or minor release unless they become explicit scope:
 
 ## Release Decision
 
-If the validation stack stays green and no contract drift appears, the next
-maintainer decision is whether to cut the next tagged release from the current
-`main` or hold for one more scoped readiness item. Prefer cutting a release when
-the current bundle needs user-visible availability; prefer holding only for a
-specific blocker with named evidence.
+The `v2026.06.29` release is cut. Future release decisions should keep using the
+same validation stack, plus the pre-tag
+`release_check.py --require-current-release-notes` gate, before publishing a
+tag or GitHub release.

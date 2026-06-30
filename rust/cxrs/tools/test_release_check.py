@@ -85,6 +85,34 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("VERSION is stale for release cadence", result.stdout)
 
+    def test_release_notes_gate_passes_for_current_version(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, release_cut=True)
+            commit_all(repo, "cut release metadata", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_current_release_notes=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("release_notes_ok", result.stdout)
+
+    def test_release_notes_gate_fails_for_uncut_current_version(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo)
+            commit_all(repo, "uncut release metadata", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_current_release_notes=True,
+            )
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("missing current release notes entry", result.stdout)
+
 
 def run_release_check(
     repo: pathlib.Path,
@@ -92,6 +120,7 @@ def run_release_check(
     max_version_age_days: int,
     event_name: str = "",
     event_path: pathlib.Path | None = None,
+    require_current_release_notes: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     cmd = [
         os.environ.get("PYTHON", "python3"),
@@ -105,6 +134,8 @@ def run_release_check(
         cmd.extend(["--event-name", event_name])
     if event_path is not None:
         cmd.extend(["--event-path", str(event_path)])
+    if require_current_release_notes:
+        cmd.append("--require-current-release-notes")
     env = os.environ.copy()
     env.pop("GITHUB_EVENT_NAME", None)
     env.pop("GITHUB_EVENT_PATH", None)
@@ -137,12 +168,26 @@ class temp_repo:
         self._tmp.cleanup()
 
 
-def write_release_files(repo: pathlib.Path) -> None:
+def write_release_files(repo: pathlib.Path, *, release_cut: bool = False) -> None:
     (repo / "VERSION").write_text("2026.06.03\n", encoding="utf-8")
-    (repo / "CHANGELOG.md").write_text(
-        "# Changelog\n\n## [Unreleased]\n\n- test entry\n",
-        encoding="utf-8",
+    changelog = "# Changelog\n\n## Release Index\n\n"
+    if release_cut:
+        changelog += "- `v2026.06.03` (2026-06-03): test release.\n\n"
+    changelog += "## [Unreleased]\n\n- test entry\n"
+    if release_cut:
+        changelog += "\n## [v2026.06.03] - 2026-06-03\n\n- released entry\n"
+    (repo / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+    history = (
+        "# Version History\n\nCurrent:\n- `2026.06.03`\n\n"
+        "Historical tagged versions:\n\n| Tag | Date | Summary |\n|---|---|---|\n"
     )
+    if release_cut:
+        history += "| `v2026.06.03` | 2026-06-03 | Test release. |\n"
+        history += (
+            "\nRelease links:\n"
+            "- https://github.com/fugamante/XSHELF/releases/tag/v2026.06.03\n"
+        )
+    (repo / "VERSION_HISTORY.md").write_text(history, encoding="utf-8")
     (repo / "README.md").write_text(
         "# XSHELF\n\n## Requirements\n\n- git\n\n## Validation\n\n- checks\n\n## Try It\n\n- run xshelf\n",
         encoding="utf-8",
