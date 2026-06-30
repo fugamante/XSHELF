@@ -87,6 +87,9 @@ Contract stability is enforced by:
 - modern `capture` run-log rows must include integer `system_status` so
   `xshelf logs validate --strict` can catch regressions where wrapped command
   exit status telemetry is lost
+- quarantine records are read through an integrity guard: `quarantine show` and
+  `replay` reject records whose embedded id or prompt/raw hashes do not match
+  the requested record and payload
 - command-surface docs gates that include covered contract producer/version and
   fixture files
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`
