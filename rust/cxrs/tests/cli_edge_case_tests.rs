@@ -113,7 +113,7 @@ exit 7
 }
 
 #[test]
-fn capture_validate_requires_status() {
+fn capture_status_validated() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "capok",
