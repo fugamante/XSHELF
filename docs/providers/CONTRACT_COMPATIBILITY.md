@@ -84,6 +84,9 @@ Contract stability is enforced by:
 - run logs may carry additive nullable command-provenance fields such as
   `system_status`; these fields must be preserved by migration but are not
   required for historical rows
+- modern `capture` run-log rows must include integer `system_status` so
+  `xshelf logs validate --strict` can catch regressions where wrapped command
+  exit status telemetry is lost
 - command-surface docs gates that include covered contract producer/version and
   fixture files
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`

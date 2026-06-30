@@ -113,6 +113,48 @@ exit 7
 }
 
 #[test]
+fn capture_validate_requires_status() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "capok",
+        r#"#!/usr/bin/env bash
+printf 'capture ok\n'
+"#,
+    );
+
+    let out = repo.run(&["capture", "capok"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+
+    let mut rows = parse_jsonl(&repo.runs_log());
+    let row = rows
+        .last_mut()
+        .and_then(Value::as_object_mut)
+        .expect("capture run log object");
+    row.remove("system_status");
+    let mut text = String::new();
+    for row in rows {
+        text.push_str(&serde_json::to_string(&row).expect("serialize row"));
+        text.push('\n');
+    }
+    fs::write(repo.runs_log(), text).expect("rewrite runs");
+
+    let validate = repo.run(&["logs", "validate", "--strict"]);
+    assert_eq!(
+        validate.status.code(),
+        Some(1),
+        "stdout={} stderr={}",
+        stdout_str(&validate),
+        stderr_str(&validate)
+    );
+    assert!(
+        stdout_str(&validate)
+            .contains("capture row missing command-provenance field 'system_status'"),
+        "stdout={}",
+        stdout_str(&validate)
+    );
+}
+
+#[test]
 fn routes_capture_listed() {
     let repo = TempRepo::new("cxrs-it");
 
