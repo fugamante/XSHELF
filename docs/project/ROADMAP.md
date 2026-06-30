@@ -15,8 +15,9 @@
 
 ## Next (1-2 months)
 
-- Decide whether the current unreleased bundle should become the next tagged
-  release after the documented release-readiness validation stack is green.
+- `v2026.06.29` is published; the next release cut should use the pre-tag
+  `release_check.py --require-current-release-notes` gate so changelog/history
+  coherence is validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
 - Keep dual-surface command docs/install defaults aligned so `xshelf` is
@@ -73,7 +74,7 @@
 
 - Release-candidate validation is documented in
   `docs/project/RELEASE_READINESS.md`.
-- The next release should not wait on published Docker images, provider sidecar
+- Future releases should not wait on published Docker images, provider sidecar
   Compose recipes, Homebrew metadata, broader default capture prompt replacement,
   or new backend adapter families unless one of those items becomes explicit
   release scope.

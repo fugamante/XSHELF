@@ -18,12 +18,15 @@ cargo check
 cargo test --test reliability_integration -- --test-threads=1
 python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0
 cd ../..
+python3 rust/cxrs/tools/release_check.py --repo-root . --max-version-age-days 14 --require-current-release-notes
 ./scripts/check_action_pins.sh .
 ```
 
 `./scripts/guardrails.sh` now covers the release-cadence age check and
 `tools.test_release_check`, so local pre-release validation matches the default
-CI metadata gate before the broader checklist runs.
+CI metadata gate before the broader checklist runs. The
+`--require-current-release-notes` form is the pre-tag gate; normal development
+can keep rolling notes under `Unreleased` until a release cut is intentional.
 
 Validation preference for maintainers:
 - prefer `./scripts/compat_local.sh --quick` when you need representative

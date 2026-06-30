@@ -15,7 +15,12 @@ Notes:
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+- Release metadata:
+  - added `release_check.py --require-current-release-notes` so pre-tag
+    validation fails when `CHANGELOG.md` and `VERSION_HISTORY.md` have not been
+    cut for the current `VERSION` while preserving rolling `Unreleased` notes
+    during normal development.
 
 ## [v2026.06.29] - 2026-06-29
 
