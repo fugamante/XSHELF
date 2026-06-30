@@ -33,6 +33,9 @@ Notes:
 - Quarantine integrity:
   - `quarantine show` and `replay` now reject quarantine records whose embedded
     id or stored prompt/raw hashes do not match the requested record and payload.
+- Log validation:
+  - `logs validate --strict` now verifies that modern schema-failure run rows
+    reference readable, integrity-valid quarantine records.
 
 ## [v2026.06.29] - 2026-06-29
 
