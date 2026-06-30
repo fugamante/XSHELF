@@ -309,7 +309,7 @@ fn corrupted_quarantine_record_fails_show_clear() {
 }
 
 #[test]
-fn quarantine_id_mismatch_fails_show() {
+fn quarantine_id_guard_show() {
     let repo = TempRepo::new("cxrs-rel");
     write_quarantine_fixture(&repo, "expected_id", "next", "{}", "prompt", "raw");
 
@@ -339,7 +339,7 @@ fn quarantine_id_mismatch_fails_show() {
 }
 
 #[test]
-fn quarantine_hash_mismatch_blocks_replay() {
+fn quarantine_hash_guard_replay() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(
         concat!("co", "dex"),
