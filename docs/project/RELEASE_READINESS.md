@@ -53,6 +53,5 @@ patch or minor release unless they become explicit scope:
 ## Release Decision
 
 The `v2026.06.29` release is cut. Future release decisions should keep using the
-same validation stack, plus the pre-tag
-`release_check.py --require-current-release-notes` gate, before publishing a
-tag or GitHub release.
+same validation stack, plus `./scripts/release_pretag_check.sh`, before
+publishing a tag or GitHub release.

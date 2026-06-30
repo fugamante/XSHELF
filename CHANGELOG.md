@@ -17,6 +17,8 @@ Notes:
 
 ### Added
 - Release metadata:
+  - added `scripts/release_pretag_check.sh` as the canonical pre-tag wrapper for
+    release metadata freshness plus current-version changelog/history coherence.
   - added `release_check.py --require-current-release-notes` so pre-tag
     validation fails when `CHANGELOG.md` and `VERSION_HISTORY.md` have not been
     cut for the current `VERSION` while preserving rolling `Unreleased` notes
