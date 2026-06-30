@@ -175,6 +175,9 @@ Inspect telemetry and contract health:
 Task-event progress can be streamed to `.codex/cxlogs/task_events.jsonl`.
 Telemetry and log stats also expose additive rollout summaries for capture
 prompt telemetry when `CX_CAPTURE_PROMPT_PROFILE=shadow_narrow` is enabled.
+Run logs may include nullable `system_status` for lanes that wrap a repository
+command, including `capture`, so nonzero child exits remain visible without
+provider token usage.
 
 For the full command catalog, use the operator manuals:
 - [docs/manuals/00_README.md](docs/manuals/00_README.md)

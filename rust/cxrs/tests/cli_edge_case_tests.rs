@@ -80,6 +80,50 @@ printf 'alpha\nbeta\ngamma\ndelta\n'
         Some(0)
     );
     assert_eq!(last.get("output_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(last.get("system_status").and_then(Value::as_i64), Some(0));
+}
+
+#[test]
+fn capture_status_logged() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock(
+        "failcap",
+        r#"#!/usr/bin/env bash
+printf 'captured failure\n'
+exit 7
+"#,
+    );
+
+    let out = repo.run(&["capture", "failcap"]);
+    assert_eq!(out.status.code(), Some(7), "stderr={}", stderr_str(&out));
+    assert!(
+        stdout_str(&out).contains("captured failure"),
+        "stdout={}",
+        stdout_str(&out)
+    );
+
+    let last = parse_jsonl(&repo.runs_log())
+        .into_iter()
+        .last()
+        .expect("capture run log row");
+    assert_eq!(last.get("tool").and_then(Value::as_str), Some("capture"));
+    assert_eq!(last.get("system_status").and_then(Value::as_i64), Some(7));
+    assert_eq!(last.get("input_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(last.get("output_tokens").and_then(Value::as_u64), Some(0));
+}
+
+#[test]
+fn routes_capture_listed() {
+    let repo = TempRepo::new("cxrs-it");
+
+    let out = repo.run(&["routes"]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let stdout = stdout_str(&out);
+    assert!(stdout.contains("capture: rust (capture)"), "{stdout}");
+    assert!(
+        stdout.contains("cxcapture: rust (cx-compat cxcapture)"),
+        "{stdout}"
+    );
 }
 
 #[test]

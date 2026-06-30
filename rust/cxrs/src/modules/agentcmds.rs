@@ -188,6 +188,7 @@ pub fn cmd_capture(command: &[String], run_capture: CaptureRunner) -> i32 {
         schema_attempt: None,
         timed_out: None,
         timeout_secs: None,
+        system_status: Some(status),
         command_label: Some(&command_label),
         duration_ms: started.elapsed().as_millis() as u64,
         usage: Some(&usage),

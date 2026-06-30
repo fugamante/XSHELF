@@ -81,6 +81,9 @@ Contract stability is enforced by:
   (`http_request_profile`, `http_provider_format`, `http_parser_mode`) on every
   modern row; `xshelf logs migrate` backfills unknown historical values as
   nullable fields
+- run logs may carry additive nullable command-provenance fields such as
+  `system_status`; these fields must be preserved by migration but are not
+  required for historical rows
 - command-surface docs gates that include covered contract producer/version and
   fixture files
 - strict lint/test gates in `.github/workflows/cxrs-compat.yml`

@@ -44,9 +44,11 @@ Notes:
   - reformatted the root README validation section into goal-based checks, Docker compatibility notes, and release-confidence guidance.
   - expanded `contracts export --profile full` coverage for the declared compatibility surfaces (`broker benchmark`, `policy show`, `task run-plan`, `llm verify`, and `llm resident`) and added contract producer/fixture files to the command-surface docs gate.
   - tightened the release-cadence boundary check so `VERSION` older than the limit by even a few seconds now fails instead of slipping through until the next full day rollover.
+  - refreshed `VERSION` to `2026.06.29` for the capture telemetry release-readiness validation pass.
   - widened the command-surface changelog gate so `bin/xshelf`, `bin/xs`, and their install/uninstall wrappers are treated like `bin/cx` for release-note enforcement.
   - hardened the command-surface docs gate so command entrypoint changes now require synchronized updates to `CHANGELOG.md`, `README.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md`.
   - added `xshelf capture <cmd...>` as a capture-only lane for noisy read-only evidence, with budget/trace telemetry and zero provider token usage.
+  - added additive nullable `system_status` run-log telemetry so capture-only and captured-command lanes record the wrapped command exit status without making old logs invalid.
 - Phase VIII local model substrate:
   - added repo-scoped local model registry at `.cx/local_models.json`.
   - added `xshelf llm models list|add|inspect|remove` with deterministic JSON/text output shapes.

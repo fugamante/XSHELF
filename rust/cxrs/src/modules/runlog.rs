@@ -27,6 +27,7 @@ pub struct RunLogInput<'a> {
     pub schema_attempt: Option<u64>,
     pub timed_out: Option<bool>,
     pub timeout_secs: Option<u64>,
+    pub system_status: Option<i32>,
     pub command_label: Option<&'a str>,
     pub duration_ms: u64,
     pub usage: Option<&'a UsageStats>,
@@ -311,6 +312,7 @@ pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
     row.schema_attempt = input.schema_attempt;
     row.timed_out = input.timed_out;
     row.timeout_secs = input.timeout_secs;
+    row.system_status = input.system_status;
     row.command_label = input.command_label.map(|s| s.to_string());
     row.prompt_preview = Some(prompt_preview(filtered_prompt, 180));
     row.policy_blocked = input.policy_blocked;
