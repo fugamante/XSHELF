@@ -15,9 +15,9 @@
 
 ## Next (1-2 months)
 
-- `v2026.06.29` is published; the next release cut should use the pre-tag
-  `release_check.py --require-current-release-notes` gate so changelog/history
-  coherence is validated before tagging.
+- `v2026.06.29` is published; the next release cut should use
+  `./scripts/release_pretag_check.sh` so changelog/history coherence is
+  validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
 - Keep dual-surface command docs/install defaults aligned so `xshelf` is

@@ -272,6 +272,7 @@ Choose the smallest check that matches the risk:
 | Linux preflight | `./scripts/compat_docker.sh --smoke` | getting a cheap container-hosted signal |
 | Linux CI mirror | `./scripts/compat_docker.sh --ci` | approximating the core GitHub Linux guardrail locally |
 | Release signoff | `./scripts/compat_local.sh --full` | validating the strongest host-native release-readiness path |
+| Pre-tag metadata | `./scripts/release_pretag_check.sh` | confirming `VERSION`, `CHANGELOG.md`, and `VERSION_HISTORY.md` are coherent before tagging |
 
 Operator checks:
 
@@ -288,6 +289,7 @@ Typical maintainer sequence:
 ./scripts/compat_docker.sh --smoke
 ./scripts/compat_docker.sh --ci
 ./scripts/compat_local.sh --full
+./scripts/release_pretag_check.sh
 
 cd rust/cxrs
 cargo fmt --check
