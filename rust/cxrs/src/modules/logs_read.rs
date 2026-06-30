@@ -134,6 +134,36 @@ fn validate_required_fields(
                 .push(format!("line {line_no}: missing required field '{k}'"));
         }
     }
+    validate_command_fields(obj, line_no, out);
+}
+
+fn validate_command_fields(
+    obj: &serde_json::Map<String, Value>,
+    line_no: usize,
+    out: &mut LogValidateOutcome,
+) {
+    let command = obj.get("command").and_then(Value::as_str).unwrap_or("");
+    let tool = obj.get("tool").and_then(Value::as_str).unwrap_or("");
+    if command != "capture" && tool != "capture" {
+        return;
+    }
+    let Some(status) = obj.get("system_status") else {
+        out.corrupted_lines.insert(line_no);
+        out.issues.push(format!(
+            "line {line_no}: capture row missing command-provenance field 'system_status'"
+        ));
+        return;
+    };
+    if status
+        .as_i64()
+        .and_then(|v| i32::try_from(v).ok())
+        .is_none()
+    {
+        out.corrupted_lines.insert(line_no);
+        out.issues.push(format!(
+            "line {line_no}: capture row field 'system_status' must be an integer status"
+        ));
+    }
 }
 
 pub fn load_runs(log_file: &Path, limit: usize) -> Result<Vec<RunEntry>, String> {

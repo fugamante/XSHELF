@@ -23,6 +23,10 @@ Notes:
     validation fails when `CHANGELOG.md` and `VERSION_HISTORY.md` have not been
     cut for the current `VERSION` while preserving rolling `Unreleased` notes
     during normal development.
+- Run-log validation:
+  - `logs validate --strict` now treats modern `capture` rows without integer
+    `system_status` as invalid so capture exit-status telemetry regressions are
+    caught during validation.
 
 ## [v2026.06.29] - 2026-06-29
 
