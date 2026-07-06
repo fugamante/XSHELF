@@ -3,6 +3,7 @@ mod common;
 use common::*;
 use serde_json::Value;
 use std::fs;
+use std::process::{Command, Output};
 
 #[test]
 fn command_parsing_and_file_io_edge_cases() {
@@ -151,6 +152,117 @@ printf 'capture ok\n'
             .contains("capture row missing command-provenance field 'system_status'"),
         "stdout={}",
         stdout_str(&validate)
+    );
+}
+
+#[test]
+fn capture_log_override() {
+    let caller = tempfile::tempdir().expect("caller tempdir");
+    let external = tempfile::tempdir().expect("external tempdir");
+    let log_file = external.path().join("runs").join("capture.jsonl");
+
+    let git = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(caller.path())
+        .output()
+        .expect("git init");
+    assert!(
+        git.status.success(),
+        "git init failed: stderr={}",
+        String::from_utf8_lossy(&git.stderr)
+    );
+
+    fn run_at(cwd: &std::path::Path, log_file: &std::path::Path, args: &[&str]) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_cxrs"))
+            .args(args)
+            .current_dir(cwd)
+            .env("CX_LOG_FILE", log_file)
+            .env("CX_CONTEXT_BUDGET_CHARS", "32")
+            .env("CX_CONTEXT_BUDGET_LINES", "2")
+            .env("CX_CONTEXT_CLIP_MODE", "tail")
+            .env_remove("GIT_DIR")
+            .env_remove("GIT_WORK_TREE")
+            .env_remove("GIT_INDEX_FILE")
+            .output()
+            .expect("run cxrs")
+    }
+
+    let capture = run_at(
+        caller.path(),
+        &log_file,
+        &[
+            "capture",
+            "sh",
+            "-c",
+            "printf 'alpha\\nbeta\\ngamma\\ndelta\\n'",
+        ],
+    );
+    assert!(
+        capture.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&capture),
+        stderr_str(&capture)
+    );
+    assert!(
+        log_file.is_file(),
+        "missing override log {}",
+        log_file.display()
+    );
+    assert!(
+        !caller.path().join(".cx").exists(),
+        "capture with CX_LOG_FILE should not create caller .cx"
+    );
+
+    let last = parse_jsonl(&log_file)
+        .into_iter()
+        .last()
+        .expect("override capture row");
+    let caller_root = fs::canonicalize(caller.path()).expect("canonical caller path");
+    assert_eq!(last.get("tool").and_then(Value::as_str), Some("capture"));
+    assert_eq!(last.get("input_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        last.get("effective_input_tokens").and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(last.get("output_tokens").and_then(Value::as_u64), Some(0));
+    assert_eq!(
+        last.get("repo_root").and_then(Value::as_str),
+        Some(caller_root.to_string_lossy().as_ref())
+    );
+
+    let budget = run_at(caller.path(), &log_file, &["budget"]);
+    assert!(budget.status.success(), "stderr={}", stderr_str(&budget));
+    assert!(
+        stdout_str(&budget).contains(&format!("log_file: {}", log_file.display())),
+        "budget stdout={}",
+        stdout_str(&budget)
+    );
+    assert!(
+        stdout_str(&budget).contains("system_output_len_raw: 23"),
+        "budget stdout={}",
+        stdout_str(&budget)
+    );
+
+    let trace = run_at(caller.path(), &log_file, &["trace"]);
+    assert!(trace.status.success(), "stderr={}", stderr_str(&trace));
+    assert!(
+        stdout_str(&trace).contains("tool: capture"),
+        "trace stdout={}",
+        stdout_str(&trace)
+    );
+    assert!(
+        stdout_str(&trace).contains("input_tokens: 0"),
+        "trace stdout={}",
+        stdout_str(&trace)
+    );
+    assert!(
+        stdout_str(&trace).contains(&format!("log_file: {}", log_file.display())),
+        "trace stdout={}",
+        stdout_str(&trace)
+    );
+    assert!(
+        !caller.path().join(".cx").exists(),
+        "budget/trace with CX_LOG_FILE should not create caller .cx"
     );
 }
 

@@ -17,6 +17,8 @@ Notes:
 
 ### Added
 - Release metadata:
+  - refreshed `VERSION` to `2026.07.14` so the local and CI release-cadence
+    gates reflect the current active branch state.
   - added `scripts/release_pretag_check.sh` as the canonical pre-tag wrapper for
     release metadata freshness plus current-version changelog/history coherence.
   - added `release_check.py --require-current-release-notes` so pre-tag
@@ -36,6 +38,10 @@ Notes:
 - Log validation:
   - `logs validate --strict` now verifies that modern schema-failure run rows
     reference readable, integrity-valid quarantine records.
+- Cross-repo capture:
+  - added `CX_LOG_FILE` as an explicit run-log destination override so
+    absolute-path `xshelf capture`, `budget`, and `trace` can share telemetry
+    outside the caller repo without changing the default repo-local log path.
 
 ## [v2026.06.29] - 2026-06-29
 

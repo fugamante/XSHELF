@@ -55,7 +55,16 @@ pub fn home_dir() -> Option<PathBuf> {
     env::var_os("HOME").map(PathBuf::from)
 }
 
+fn env_path(name: &str) -> Option<PathBuf> {
+    env::var_os(name)
+        .map(PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty())
+}
+
 pub fn resolve_log_file() -> Option<PathBuf> {
+    if let Some(path) = env_path("CX_LOG_FILE") {
+        return Some(path);
+    }
     if let Some(root) = repo_root() {
         return Some(root.join(".cx").join("cxlogs").join("runs.jsonl"));
     }
