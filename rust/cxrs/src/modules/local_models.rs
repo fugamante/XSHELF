@@ -1,4 +1,5 @@
 use serde_json::{Value, json};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -70,7 +71,9 @@ fn registry_value() -> Result<Value, String> {
         .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
     let value = serde_json::from_str::<Value>(&s)
         .map_err(|e| format!("invalid JSON in {}: {e}", path.display()))?;
-    Ok(normalize_registry(value))
+    let value = normalize_registry(value);
+    validate_registry(&value)?;
+    Ok(value)
 }
 
 fn normalize_registry(mut value: Value) -> Value {
@@ -102,6 +105,32 @@ fn opt_string(value: &Value, key: &str) -> Option<String> {
 
 fn required_string(value: &Value, key: &str) -> Result<String, String> {
     opt_string(value, key).ok_or_else(|| format!("local model record missing '{key}'"))
+}
+
+fn validate_registry(value: &Value) -> Result<(), String> {
+    let models = value
+        .get("models")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "local model registry has invalid models array".to_string())?;
+    let mut ids = HashSet::new();
+    let mut aliases = HashSet::new();
+    for item in models {
+        let record = record_from_value(item)?;
+        if !ids.insert(record.id.clone()) {
+            return Err(format!(
+                "local model registry contains duplicate id '{}'",
+                record.id
+            ));
+        }
+        let alias_key = (record.backend.clone(), record.alias.clone());
+        if !aliases.insert(alias_key) {
+            return Err(format!(
+                "local model registry contains duplicate backend alias '{}:{}'",
+                record.backend, record.alias
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn record_from_value(value: &Value) -> Result<LocalModelRecord, String> {

@@ -241,6 +241,8 @@ Validation:
 - ambiguous global inspect/remove selectors fail with backend-scoped guidance
 - `--replace` cannot overwrite a different backend/alias record through a
   colliding custom ID
+- registry reads reject duplicate IDs and duplicate backend-scoped aliases
+  before selection or mutation
 
 ### Slice 3: Inspection And Accounting
 

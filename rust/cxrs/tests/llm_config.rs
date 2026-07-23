@@ -1,7 +1,7 @@
 mod common;
 
 use common::{TempRepo, read_json, run_fixture_http_server_once, stderr_str, stdout_str};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::fs;
 
 #[test]
@@ -579,6 +579,61 @@ fn models_replace_rejects_cross_record_id_collision() {
         Some("mlx")
     );
     assert_eq!(inspected.get("alias").and_then(Value::as_str), Some("tiny"));
+}
+
+#[test]
+fn models_reject_duplicate_registry_identities() {
+    let repo = TempRepo::new("cxrs-llm");
+    let model = |id: &str, alias: &str, backend: &str| {
+        json!({
+            "id": id,
+            "alias": alias,
+            "backend": backend,
+            "resolved_model": format!("{backend}/{alias}")
+        })
+    };
+
+    fs::write(
+        repo.local_models_file(),
+        serde_json::to_vec_pretty(&json!({
+            "contract_version": "local_models.v1",
+            "models": [
+                model("shared-id", "tiny", "mlx"),
+                model("shared-id", "other", "llamacpp")
+            ]
+        }))
+        .expect("serialize duplicate id registry"),
+    )
+    .expect("write duplicate id registry");
+    let duplicate_id = repo.run(&["llm", "models", "list"]);
+    assert!(!duplicate_id.status.success());
+    assert!(
+        stderr_str(&duplicate_id)
+            .contains("local model registry contains duplicate id 'shared-id'"),
+        "{}",
+        stderr_str(&duplicate_id)
+    );
+
+    fs::write(
+        repo.local_models_file(),
+        serde_json::to_vec_pretty(&json!({
+            "contract_version": "local_models.v1",
+            "models": [
+                model("mlx:tiny-a", "tiny", "mlx"),
+                model("mlx:tiny-b", "tiny", "mlx")
+            ]
+        }))
+        .expect("serialize duplicate alias registry"),
+    )
+    .expect("write duplicate alias registry");
+    let duplicate_alias = repo.run(&["llm", "models", "inspect", "tiny"]);
+    assert!(!duplicate_alias.status.success());
+    assert!(
+        stderr_str(&duplicate_alias)
+            .contains("local model registry contains duplicate backend alias 'mlx:tiny'"),
+        "{}",
+        stderr_str(&duplicate_alias)
+    );
 }
 
 #[test]

@@ -45,6 +45,8 @@ Notes:
 - Local model registry:
   - hardened `llm models add --replace` so a colliding custom model ID cannot
     overwrite a different backend or alias record.
+  - reject duplicate model IDs and duplicate backend-scoped aliases when
+    reading the registry, preventing ambiguous selection or partial mutation.
 
 ## [v2026.06.29] - 2026-06-29
 
