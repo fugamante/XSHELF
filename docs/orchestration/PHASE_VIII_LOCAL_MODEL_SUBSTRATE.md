@@ -239,6 +239,8 @@ Validation:
 - direct model strings still work
 - cross-backend alias collisions do not break backend-scoped resolution
 - ambiguous global inspect/remove selectors fail with backend-scoped guidance
+- `--replace` cannot overwrite a different backend/alias record through a
+  colliding custom ID
 
 ### Slice 3: Inspection And Accounting
 

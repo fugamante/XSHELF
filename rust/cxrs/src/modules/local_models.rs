@@ -296,11 +296,25 @@ pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String>
         .get_mut("models")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "local model registry has invalid models array".to_string())?;
-    let existing_idx = models.iter().position(|item| {
-        item.get("id").and_then(Value::as_str) == Some(record.id.as_str())
-            || (item.get("backend").and_then(Value::as_str) == Some(record.backend.as_str())
-                && item.get("alias").and_then(Value::as_str) == Some(record.alias.as_str()))
+    let id_idx = models
+        .iter()
+        .position(|item| item.get("id").and_then(Value::as_str) == Some(record.id.as_str()));
+    if let Some(idx) = id_idx {
+        let same_record = models[idx].get("backend").and_then(Value::as_str)
+            == Some(record.backend.as_str())
+            && models[idx].get("alias").and_then(Value::as_str) == Some(record.alias.as_str());
+        if !same_record {
+            return Err(format!(
+                "local model id '{}' already belongs to another backend or alias",
+                record.id
+            ));
+        }
+    }
+    let alias_idx = models.iter().position(|item| {
+        item.get("backend").and_then(Value::as_str) == Some(record.backend.as_str())
+            && item.get("alias").and_then(Value::as_str) == Some(record.alias.as_str())
     });
+    let existing_idx = alias_idx.or(id_idx);
     if let Some(idx) = existing_idx {
         if !input.replace {
             return Err(format!(

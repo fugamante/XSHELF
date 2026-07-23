@@ -524,6 +524,64 @@ fn models_replace() {
 }
 
 #[test]
+fn models_replace_rejects_cross_record_id_collision() {
+    let repo = TempRepo::new("cxrs-llm");
+
+    let add = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "tiny",
+        "--backend",
+        "mlx",
+        "--model",
+        "mlx-community/Tiny",
+        "--id",
+        "shared-id",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    let collision = repo.run(&[
+        "llm",
+        "models",
+        "add",
+        "other",
+        "--backend",
+        "llamacpp",
+        "--model",
+        "/models/other.gguf",
+        "--id",
+        "shared-id",
+        "--replace",
+    ]);
+    assert!(
+        !collision.status.success(),
+        "stdout={}",
+        stdout_str(&collision)
+    );
+    assert!(
+        stderr_str(&collision)
+            .contains("local model id 'shared-id' already belongs to another backend or alias"),
+        "{}",
+        stderr_str(&collision)
+    );
+
+    let inspect = repo.run(&["llm", "models", "inspect", "shared-id", "--json"]);
+    assert!(
+        inspect.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&inspect),
+        stderr_str(&inspect)
+    );
+    let inspected = serde_json::from_str::<Value>(&stdout_str(&inspect)).expect("inspect JSON");
+    assert_eq!(
+        inspected.get("backend").and_then(Value::as_str),
+        Some("mlx")
+    );
+    assert_eq!(inspected.get("alias").and_then(Value::as_str), Some("tiny"));
+}
+
+#[test]
 fn models_inspect_reports_accounting_paths() {
     let repo = TempRepo::new("cxrs-llm");
     let missing_path = repo.root.join("does-not-exist");

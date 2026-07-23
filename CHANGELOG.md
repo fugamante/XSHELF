@@ -42,6 +42,9 @@ Notes:
   - added `CX_LOG_FILE` as an explicit run-log destination override so
     absolute-path `xshelf capture`, `budget`, and `trace` can share telemetry
     outside the caller repo without changing the default repo-local log path.
+- Local model registry:
+  - hardened `llm models add --replace` so a colliding custom model ID cannot
+    overwrite a different backend or alias record.
 
 ## [v2026.06.29] - 2026-06-29
 
