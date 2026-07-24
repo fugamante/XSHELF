@@ -47,6 +47,9 @@ Notes:
     overwrite a different backend or alias record.
   - reject duplicate model IDs and duplicate backend-scoped aliases when
     reading the registry, preventing ambiguous selection or partial mutation.
+  - reject malformed explicit registry structure, unsupported contract
+    versions, and invalid backend/trust/size domains before selection or
+    mutation while preserving legacy registries without a version marker.
 
 ## [v2026.06.29] - 2026-06-29
 

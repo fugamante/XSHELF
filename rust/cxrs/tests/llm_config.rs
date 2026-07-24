@@ -637,6 +637,136 @@ fn models_reject_duplicate_registry_identities() {
 }
 
 #[test]
+fn models_validate_registry_contract_and_domains() {
+    let repo = TempRepo::new("cxrs-llm");
+    let valid_model = || {
+        json!({
+            "id": "mlx:tiny",
+            "alias": "tiny",
+            "backend": "mlx",
+            "resolved_model": "mlx-community/Tiny"
+        })
+    };
+    let cases = [
+        (json!([]), "local model registry root must be an object"),
+        (
+            json!({
+                "contract_version": "local_models.v2",
+                "models": []
+            }),
+            "local model registry contract_version must be 'local_models.v1'",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": {}
+            }),
+            "local model registry 'models' must be an array",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": [{
+                    "id": "bad:tiny",
+                    "alias": "tiny",
+                    "backend": "bad",
+                    "resolved_model": "bad/Tiny"
+                }]
+            }),
+            "local model record has invalid backend 'bad'",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": [{
+                    "id": "mlx:tiny",
+                    "alias": "tiny",
+                    "backend": "MLX",
+                    "resolved_model": "mlx-community/Tiny"
+                }]
+            }),
+            "local model record backend 'MLX' must use canonical value 'mlx'",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": [{
+                    "trust_remote_code": true,
+                    "id": "mlx:tiny",
+                    "alias": "tiny",
+                    "backend": "mlx",
+                    "resolved_model": "mlx-community/Tiny"
+                }]
+            }),
+            "local model record has invalid trust_remote_code value",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": [{
+                    "trust_remote_code": "sometimes",
+                    "id": "mlx:tiny",
+                    "alias": "tiny",
+                    "backend": "mlx",
+                    "resolved_model": "mlx-community/Tiny"
+                }]
+            }),
+            "local model record has invalid trust_remote_code 'sometimes'",
+        ),
+        (
+            json!({
+                "contract_version": "local_models.v1",
+                "models": [{
+                    "size_bytes": "large",
+                    "id": "mlx:tiny",
+                    "alias": "tiny",
+                    "backend": "mlx",
+                    "resolved_model": "mlx-community/Tiny"
+                }]
+            }),
+            "local model record has invalid 'size_bytes'",
+        ),
+    ];
+
+    for (registry, expected) in cases {
+        fs::write(
+            repo.local_models_file(),
+            serde_json::to_vec_pretty(&registry).expect("serialize invalid registry"),
+        )
+        .expect("write invalid registry");
+        let out = repo.run(&["llm", "models", "list"]);
+        assert!(!out.status.success(), "stdout={}", stdout_str(&out));
+        assert!(
+            stderr_str(&out).contains(expected),
+            "expected={expected} stderr={}",
+            stderr_str(&out)
+        );
+    }
+
+    fs::write(
+        repo.local_models_file(),
+        serde_json::to_vec_pretty(&json!({
+            "models": [valid_model()]
+        }))
+        .expect("serialize legacy registry"),
+    )
+    .expect("write legacy registry");
+    let legacy = repo.run(&["llm", "models", "list", "--json"]);
+    assert!(
+        legacy.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&legacy),
+        stderr_str(&legacy)
+    );
+    let payload =
+        serde_json::from_str::<Value>(&stdout_str(&legacy)).expect("legacy registry JSON");
+    assert_eq!(
+        payload.get("contract_version").and_then(Value::as_str),
+        Some("local_models.v1")
+    );
+}
+
+#[test]
 fn models_inspect_reports_accounting_paths() {
     let repo = TempRepo::new("cxrs-llm");
     let missing_path = repo.root.join("does-not-exist");

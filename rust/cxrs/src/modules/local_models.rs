@@ -71,22 +71,35 @@ fn registry_value() -> Result<Value, String> {
         .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
     let value = serde_json::from_str::<Value>(&s)
         .map_err(|e| format!("invalid JSON in {}: {e}", path.display()))?;
-    let value = normalize_registry(value);
+    let value = normalize_registry(value)?;
     validate_registry(&value)?;
     Ok(value)
 }
 
-fn normalize_registry(mut value: Value) -> Value {
+fn normalize_registry(mut value: Value) -> Result<Value, String> {
     if !value.is_object() {
-        return empty_registry();
+        return Err("local model registry root must be an object".to_string());
     }
     let obj = value.as_object_mut().expect("registry object");
+    if let Some(version) = obj.get("contract_version")
+        && version.as_str() != Some(CONTRACT_VERSION)
+    {
+        return Err(format!(
+            "local model registry contract_version must be '{CONTRACT_VERSION}'"
+        ));
+    }
     obj.entry("contract_version".to_string())
         .or_insert_with(|| json!(CONTRACT_VERSION));
-    if !obj.get("models").is_some_and(Value::is_array) {
-        obj.insert("models".to_string(), json!([]));
+    match obj.get("models") {
+        Some(models) if !models.is_array() => {
+            return Err("local model registry 'models' must be an array".to_string());
+        }
+        Some(_) => {}
+        None => {
+            obj.insert("models".to_string(), json!([]));
+        }
     }
-    value
+    Ok(value)
 }
 
 fn write_registry(value: &Value) -> Result<(), String> {
@@ -134,10 +147,39 @@ fn validate_registry(value: &Value) -> Result<(), String> {
 }
 
 fn record_from_value(value: &Value) -> Result<LocalModelRecord, String> {
+    let backend_raw = required_string(value, "backend")?;
+    let backend = normalize_backend(&backend_raw)
+        .ok_or_else(|| format!("local model record has invalid backend '{backend_raw}'"))?;
+    if backend_raw != backend {
+        return Err(format!(
+            "local model record backend '{backend_raw}' must use canonical value '{backend}'"
+        ));
+    }
+    let trust_remote_code = match value.get("trust_remote_code") {
+        None | Some(Value::Null) => "unknown".to_string(),
+        Some(raw) => raw
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| "local model record has invalid trust_remote_code value".to_string())?,
+    };
+    if !valid_remote_code(&trust_remote_code) {
+        return Err(format!(
+            "local model record has invalid trust_remote_code '{trust_remote_code}'"
+        ));
+    }
+    let size_bytes = match value.get("size_bytes") {
+        None | Some(Value::Null) => None,
+        Some(raw) => Some(
+            raw.as_u64()
+                .ok_or_else(|| "local model record has invalid 'size_bytes'".to_string())?,
+        ),
+    };
     Ok(LocalModelRecord {
         id: required_string(value, "id")?,
         alias: required_string(value, "alias")?,
-        backend: required_string(value, "backend")?,
+        backend: backend.to_string(),
         provider: opt_string(value, "provider"),
         repo_id: opt_string(value, "repo_id"),
         revision: opt_string(value, "revision"),
@@ -145,13 +187,12 @@ fn record_from_value(value: &Value) -> Result<LocalModelRecord, String> {
         local_path: opt_string(value, "local_path"),
         quantization: opt_string(value, "quantization"),
         format: opt_string(value, "format"),
-        size_bytes: value.get("size_bytes").and_then(Value::as_u64),
+        size_bytes,
         cache_path: opt_string(value, "cache_path"),
         last_used_at: opt_string(value, "last_used_at"),
         last_smoke_status: opt_string(value, "last_smoke_status"),
         preferred_args: opt_string(value, "preferred_args"),
-        trust_remote_code: opt_string(value, "trust_remote_code")
-            .unwrap_or_else(|| "unknown".to_string()),
+        trust_remote_code,
     })
 }
 

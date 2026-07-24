@@ -243,6 +243,9 @@ Validation:
   colliding custom ID
 - registry reads reject duplicate IDs and duplicate backend-scoped aliases
   before selection or mutation
+- registry reads reject malformed explicit structure, unsupported contract
+  versions, and invalid backend/trust/size domains while continuing to
+  normalize legacy registries that omit `contract_version`
 
 ### Slice 3: Inspection And Accounting
 
