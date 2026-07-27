@@ -82,7 +82,7 @@ run_step() {
 
 run_step "cargo_check_tests" "cd rust/cxrs && cargo check --tests"
 run_step "release_metadata_guard_tests" "cd rust/cxrs && python3 -m unittest tools.test_release_check"
-run_step "release_metadata_check" "cd rust/cxrs && python3 tools/release_check.py --repo-root \"$ROOT_DIR\" --max-version-age-days 14"
+run_step "release_metadata_check" "cd rust/cxrs && python3 tools/release_check.py --repo-root \"$ROOT_DIR\" --max-version-age-days 14 --require-published-status-docs"
 run_step "entrypoint_tests" "cd rust/cxrs && cargo test --test entrypoint_integration -- --test-threads=1"
 if [[ "$MODE" == "quick" ]]; then
   run_step "reliability_smoke" "cd rust/cxrs && cargo test --test reliability_integration capture_pipeline_native_logs_provider_fields -- --exact --test-threads=1 && cargo test --test reliability_integration http_openai_cov -- --exact --test-threads=1 && cargo test --test reliability_integration schema_injection_creates_quarantine_run_flags -- --exact --test-threads=1"

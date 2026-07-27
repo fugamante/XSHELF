@@ -231,6 +231,7 @@ jobs:
           python3 tools/release_check.py \
             --repo-root "$GITHUB_WORKSPACE" \
             --max-version-age-days 14 \
+            --require-published-status-docs \
             --cadence-exception-label release-exception \
             --event-name "${{ github.event_name }}" \
             --event-path "${{ github.event_path }}"

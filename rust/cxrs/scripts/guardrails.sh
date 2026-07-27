@@ -39,6 +39,9 @@ echo "guardrails: python3 -m unittest tools.test_release_check"
 python3 -m unittest tools.test_release_check
 
 echo "guardrails: python3 tools/release_check.py --repo-root \"$REPO_ROOT\" --max-version-age-days 14"
-python3 tools/release_check.py --repo-root "$REPO_ROOT" --max-version-age-days 14
+python3 tools/release_check.py \
+  --repo-root "$REPO_ROOT" \
+  --max-version-age-days 14 \
+  --require-published-status-docs
 
 echo "guardrails: PASS"

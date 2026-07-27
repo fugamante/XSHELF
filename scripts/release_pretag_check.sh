@@ -9,4 +9,5 @@ MAX_VERSION_AGE_DAYS="${XSHELF_RELEASE_MAX_VERSION_AGE_DAYS:-14}"
 python3 rust/cxrs/tools/release_check.py \
   --repo-root "$ROOT_DIR" \
   --max-version-age-days "$MAX_VERSION_AGE_DAYS" \
-  --require-current-release-notes
+  --require-current-release-notes \
+  --require-published-status-docs
