@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
 - `v2026.06.29` (2026-06-29): XSHELF rename rollout, local-model substrate, token-compression wiring, HTTP adapter hardening, Docker compatibility bootstrap, and capture telemetry readiness.
 - `v2026.03.05` (2026-03-05): Phase V closure release with contract freeze markers and compatibility policy.
 - `v2026.02.21` (2026-02-20): schema extraction hardening, strict routing, bootstrap reliability baseline.
@@ -15,9 +16,11 @@ Notes:
 
 ## [Unreleased]
 
+## [v2026.07.27] - 2026-07-27
+
 ### Added
 - Release metadata:
-  - refreshed `VERSION` to `2026.07.14` so the local and CI release-cadence
+  - refreshed `VERSION` to `2026.07.27` so the local and CI release-cadence
     gates reflect the current active branch state.
   - added `scripts/release_pretag_check.sh` as the canonical pre-tag wrapper for
     release metadata freshness plus current-version changelog/history coherence.
