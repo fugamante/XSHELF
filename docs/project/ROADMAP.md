@@ -15,7 +15,7 @@
 
 ## Next (1-2 months)
 
-- `v2026.06.29` is published; the next release cut should use
+- `v2026.07.27` is published; future release cuts should use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
