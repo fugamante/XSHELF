@@ -29,7 +29,10 @@ CI metadata gate before the broader checklist runs. The pre-tag wrapper runs
 `--require-published-status-docs`; normal development can keep rolling notes
 under `Unreleased` and advance `VERSION` without claiming publication. The
 published-status guard uses the newest final-release `vN.N.N` Git tag reachable
-from `HEAD`, not `VERSION`, as its source of truth.
+from `HEAD`, not `VERSION`, as its source of truth. Strict published-status
+validation requires tags and sufficient history; tagless or depth-limited
+checkouts fail with an explicit fetch diagnostic instead of inferring
+publication from `VERSION`.
 
 Validation preference for maintainers:
 - prefer `./scripts/compat_local.sh --quick` when you need representative

@@ -80,6 +80,8 @@ tests so the default local path matches `cxrs-compat` CI. The gate runs
 `tools/release_check.py` with `--max-version-age-days 14` and
 `--require-published-status-docs`; the published-status check follows the newest
 final-release `vN.N.N` tag reachable from `HEAD`, not rolling `VERSION`.
+Run this strict check from a checkout with tags and sufficient history; a
+tagless or depth-limited checkout fails with an explicit fetch diagnostic.
 Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
 signal before paying for the full quick compat suite.
 Smoke prerequisites:
