@@ -25,8 +25,11 @@ cd ../..
 `./scripts/guardrails.sh` now covers the release-cadence age check and
 `tools.test_release_check`, so local pre-release validation matches the default
 CI metadata gate before the broader checklist runs. The pre-tag wrapper runs
-`release_check.py --require-current-release-notes`; normal development can keep
-rolling notes under `Unreleased` until a release cut is intentional.
+`release_check.py` with `--require-current-release-notes` and
+`--require-published-status-docs`; normal development can keep rolling notes
+under `Unreleased` and advance `VERSION` without claiming publication. The
+published-status guard uses the newest final-release `vN.N.N` Git tag reachable
+from `HEAD`, not `VERSION`, as its source of truth.
 
 Validation preference for maintainers:
 - prefer `./scripts/compat_local.sh --quick` when you need representative

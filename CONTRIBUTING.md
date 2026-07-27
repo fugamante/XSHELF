@@ -75,9 +75,11 @@ cd ../..
 ./scripts/compat_docker.sh --quick
 ```
 
-`./scripts/guardrails.sh` includes the release-cadence gate
-(`tools/release_check.py --repo-root ../.. --max-version-age-days 14`) and its
-Python unit tests so the default local path matches `cxrs-compat` CI.
+`./scripts/guardrails.sh` includes the release-cadence gate and its Python unit
+tests so the default local path matches `cxrs-compat` CI. The gate runs
+`tools/release_check.py` with `--max-version-age-days 14` and
+`--require-published-status-docs`; the published-status check follows the newest
+final-release `vN.N.N` tag reachable from `HEAD`, not rolling `VERSION`.
 Use `./scripts/compat_docker.sh --smoke` for a faster Linux-hosted bind-mounted
 signal before paying for the full quick compat suite.
 Smoke prerequisites:

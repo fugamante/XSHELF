@@ -113,6 +113,112 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("missing current release notes entry", result.stdout)
 
+    def test_published_docs_pass(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "published release status", days_ago=1)
+            create_tag(repo, "v2026.06.03")
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("published_status_docs_ok", result.stdout)
+            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+
+    def test_rolling_version_pass(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "published release status", days_ago=2)
+            create_tag(repo, "v2026.06.03")
+            (repo / "VERSION").write_text("2026.07.01\n", encoding="utf-8")
+            commit_all(repo, "roll version forward", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+
+    def test_stale_docs_fail(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.05.20")
+            commit_all(repo, "stale release status", days_ago=1)
+            create_tag(repo, "v2026.06.03")
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(
+                "ROADMAP.md published release marker is stale or missing",
+                result.stdout,
+            )
+
+    def test_unmerged_tag_ignored(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "published release status", days_ago=2)
+            create_tag(repo, "v2026.06.03")
+            branch = subprocess.check_output(
+                ["git", "-C", str(repo), "branch", "--show-current"],
+                text=True,
+            ).strip()
+            subprocess.run(
+                ["git", "-C", str(repo), "switch", "-q", "-c", "future-release"],
+                check=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    "future release",
+                ],
+                check=True,
+            )
+            create_tag(repo, "v2026.07.01")
+            subprocess.run(
+                ["git", "-C", str(repo), "switch", "-q", branch],
+                check=True,
+            )
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+
+    def test_missing_tag_fail(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "release status without tag", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("no reachable final release tag", result.stdout)
+
 
 def run_release_check(
     repo: pathlib.Path,
@@ -121,6 +227,7 @@ def run_release_check(
     event_name: str = "",
     event_path: pathlib.Path | None = None,
     require_current_release_notes: bool = False,
+    require_published_status_docs: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     cmd = [
         os.environ.get("PYTHON", "python3"),
@@ -136,6 +243,8 @@ def run_release_check(
         cmd.extend(["--event-path", str(event_path)])
     if require_current_release_notes:
         cmd.append("--require-current-release-notes")
+    if require_published_status_docs:
+        cmd.append("--require-published-status-docs")
     env = os.environ.copy()
     env.pop("GITHUB_EVENT_NAME", None)
     env.pop("GITHUB_EVENT_PATH", None)
@@ -168,7 +277,12 @@ class temp_repo:
         self._tmp.cleanup()
 
 
-def write_release_files(repo: pathlib.Path, *, release_cut: bool = False) -> None:
+def write_release_files(
+    repo: pathlib.Path,
+    *,
+    release_cut: bool = False,
+    published_tag: str = "v2026.06.03",
+) -> None:
     (repo / "VERSION").write_text("2026.06.03\n", encoding="utf-8")
     changelog = "# Changelog\n\n## Release Index\n\n"
     if release_cut:
@@ -193,6 +307,23 @@ def write_release_files(repo: pathlib.Path, *, release_cut: bool = False) -> Non
         encoding="utf-8",
     )
     (repo / "LICENSE").write_text("test license\n", encoding="utf-8")
+    project_dir = repo / "docs" / "project"
+    project_dir.mkdir(parents=True)
+    (project_dir / "ROADMAP.md").write_text(
+        f"# Roadmap\n\n- `{published_tag}` is published; future releases use checks.\n",
+        encoding="utf-8",
+    )
+    (project_dir / "RELEASE_READINESS.md").write_text(
+        "# Release Readiness Snapshot\n\n"
+        f"- `{published_tag}` is published, and main is aligned.\n\n"
+        "## Release Decision\n\n"
+        f"The `{published_tag}` release is cut.\n",
+        encoding="utf-8",
+    )
+
+
+def create_tag(repo: pathlib.Path, tag: str) -> None:
+    subprocess.run(["git", "-C", str(repo), "tag", "-a", tag, "-m", tag], check=True)
 
 
 def commit_all(

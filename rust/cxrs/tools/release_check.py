@@ -75,6 +75,50 @@ def validate_current_release_notes(
     return None
 
 
+def latest_reachable_release_tag(repo_root: pathlib.Path) -> str | None:
+    out = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "tag",
+            "--merged",
+            "HEAD",
+            "--list",
+            "v[0-9]*",
+            "--sort=-version:refname",
+        ],
+        text=True,
+    )
+    for raw in out.splitlines():
+        tag = raw.strip()
+        if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
+            return tag
+    return None
+
+
+def validate_published_status_docs(
+    tag: str, roadmap_text: str, readiness_text: str
+) -> str | None:
+    checks = [
+        (roadmap_text, f"`{tag}` is published;", "ROADMAP.md published release marker"),
+        (
+            readiness_text,
+            f"`{tag}` is published,",
+            "RELEASE_READINESS.md merged readiness marker",
+        ),
+        (
+            readiness_text,
+            f"The `{tag}` release is cut.",
+            "RELEASE_READINESS.md release decision",
+        ),
+    ]
+    for source_text, needle, label in checks:
+        if needle not in source_text:
+            return f"{label} is stale or missing: {needle}"
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="cx release metadata checks")
     ap.add_argument("--repo-root", default=None, help="repo root path")
@@ -103,6 +147,14 @@ def main() -> int:
         "--require-current-release-notes",
         action="store_true",
         help="fail unless CHANGELOG.md and VERSION_HISTORY.md are cut for VERSION",
+    )
+    ap.add_argument(
+        "--require-published-status-docs",
+        action="store_true",
+        help=(
+            "fail unless ROADMAP.md and RELEASE_READINESS.md name the newest "
+            "reachable final-release tag"
+        ),
     )
     args = ap.parse_args()
 
@@ -140,6 +192,28 @@ def main() -> int:
         if release_notes_error:
             return fail(release_notes_error)
         print("release_notes_ok")
+
+    if args.require_published_status_docs:
+        roadmap = root / "docs" / "project" / "ROADMAP.md"
+        readiness = root / "docs" / "project" / "RELEASE_READINESS.md"
+        for path in [roadmap, readiness]:
+            if not path.exists():
+                return fail(f"missing required published-status file: {path}")
+        try:
+            published_tag = latest_reachable_release_tag(root)
+        except Exception as exc:
+            return fail(f"unable to determine reachable release tags: {exc}")
+        if published_tag is None:
+            return fail("no reachable final release tag matching vN.N.N")
+        status_error = validate_published_status_docs(
+            published_tag,
+            roadmap.read_text(encoding="utf-8"),
+            readiness.read_text(encoding="utf-8"),
+        )
+        if status_error:
+            return fail(status_error)
+        print("published_status_docs_ok")
+        print(f"published_release_tag={published_tag}")
 
     readme_text = readme.read_text(encoding="utf-8")
     required_sections = ["## Requirements", "## Validation"]

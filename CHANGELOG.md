@@ -16,6 +16,12 @@ Notes:
 
 ## [Unreleased]
 
+### Added
+- Release metadata:
+  - added a deterministic published-status documentation guard based on the
+    newest reachable final-release Git tag, so rolling `VERSION` changes do not
+    force roadmap/readiness claims before a release is actually tagged.
+
 ## [v2026.07.27] - 2026-07-27
 
 ### Added
