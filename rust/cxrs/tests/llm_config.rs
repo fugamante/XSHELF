@@ -524,7 +524,7 @@ fn models_replace() {
 }
 
 #[test]
-fn models_replace_rejects_cross_record_id_collision() {
+fn registry_id_collision() {
     let repo = TempRepo::new("cxrs-llm");
 
     let add = repo.run(&[
@@ -582,7 +582,7 @@ fn models_replace_rejects_cross_record_id_collision() {
 }
 
 #[test]
-fn models_reject_duplicate_registry_identities() {
+fn registry_duplicate_ids() {
     let repo = TempRepo::new("cxrs-llm");
     let model = |id: &str, alias: &str, backend: &str| {
         json!({
@@ -637,7 +637,7 @@ fn models_reject_duplicate_registry_identities() {
 }
 
 #[test]
-fn models_validate_registry_contract_and_domains() {
+fn registry_contract_validation() {
     let repo = TempRepo::new("cxrs-llm");
     let valid_model = || {
         json!({
