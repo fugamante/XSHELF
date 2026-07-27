@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-06-28
+Last updated: 2026-07-27
 
 ## Scope
 
@@ -84,6 +84,9 @@ Contract stability is enforced by:
 - run logs may carry additive nullable command-provenance fields such as
   `system_status`; these fields must be preserved by migration but are not
   required for historical rows
+- `CX_LOG_FILE` may relocate the run-log destination for `capture`, `budget`,
+  and `trace` without changing the JSONL row contract; when unset, repository
+  state remains under `.cx/cxlogs/runs.jsonl`
 - modern `capture` run-log rows must include integer `system_status` so
   `xshelf logs validate --strict` can catch regressions where wrapped command
   exit status telemetry is lost
