@@ -204,7 +204,11 @@ def main() -> int:
         except Exception as exc:
             return fail(f"unable to determine reachable release tags: {exc}")
         if published_tag is None:
-            return fail("no reachable final release tag matching vN.N.N")
+            return fail(
+                "no reachable final release tag matching vN.N.N; "
+                "fetch tags and sufficient history before running the "
+                "published-status guard"
+            )
         status_error = validate_published_status_docs(
             published_tag,
             roadmap.read_text(encoding="utf-8"),

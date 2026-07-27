@@ -21,6 +21,8 @@ Notes:
   - added a deterministic published-status documentation guard based on the
     newest reachable final-release Git tag, so rolling `VERSION` changes do not
     force roadmap/readiness claims before a release is actually tagged.
+  - clarified tagless and depth-limited checkout diagnostics for the
+    published-status guard and added a full synthetic release lifecycle fixture.
 
 ## [v2026.07.27] - 2026-07-27
 

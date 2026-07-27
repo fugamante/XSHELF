@@ -146,6 +146,50 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("published_release_tag=v2026.06.03", result.stdout)
 
+    def test_release_lifecycle(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "published release status", days_ago=3)
+            create_tag(repo, "v2026.06.03")
+            (repo / "VERSION").write_text("2026.07.01\n", encoding="utf-8")
+            commit_all(repo, "roll version forward", days_ago=2)
+
+            rolling = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+            self.assertEqual(
+                rolling.returncode, 0, rolling.stdout + rolling.stderr
+            )
+            self.assertIn("published_release_tag=v2026.06.03", rolling.stdout)
+
+            create_tag(repo, "v2026.07.01")
+            stale = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+            self.assertEqual(stale.returncode, 1, stale.stdout + stale.stderr)
+            self.assertIn(
+                "ROADMAP.md published release marker is stale or missing",
+                stale.stdout,
+            )
+
+            write_status_docs(repo, "v2026.07.01")
+            commit_all(repo, "reconcile release status", days_ago=1)
+            reconciled = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+            self.assertEqual(
+                reconciled.returncode,
+                0,
+                reconciled.stdout + reconciled.stderr,
+            )
+            self.assertIn("published_release_tag=v2026.07.01", reconciled.stdout)
+
     def test_stale_docs_fail(self) -> None:
         with temp_repo() as repo:
             write_release_files(repo, published_tag="v2026.05.20")
@@ -218,6 +262,54 @@ class ReleaseCheckTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             self.assertIn("no reachable final release tag", result.stdout)
+            self.assertIn("fetch tags and sufficient history", result.stdout)
+
+    def test_shallow_diagnostic(self) -> None:
+        with temp_repo() as source:
+            write_release_files(source, published_tag="v2026.06.03")
+            commit_all(source, "published release status", days_ago=2)
+            create_tag(source, "v2026.06.03")
+            (source / "VERSION").write_text("2026.07.01\n", encoding="utf-8")
+            commit_all(source, "roll version forward", days_ago=1)
+
+            with tempfile.TemporaryDirectory() as clone_tmp:
+                clone = pathlib.Path(clone_tmp) / "shallow"
+                subprocess.run(
+                    [
+                        "git",
+                        "clone",
+                        "-q",
+                        "--depth",
+                        "1",
+                        "--no-tags",
+                        source.as_uri(),
+                        str(clone),
+                    ],
+                    check=True,
+                )
+                shallow = subprocess.check_output(
+                    [
+                        "git",
+                        "-C",
+                        str(clone),
+                        "rev-parse",
+                        "--is-shallow-repository",
+                    ],
+                    text=True,
+                ).strip()
+                self.assertEqual(shallow, "true")
+
+                result = run_release_check(
+                    clone,
+                    max_version_age_days=14,
+                    require_published_status_docs=True,
+                )
+
+                self.assertEqual(
+                    result.returncode, 1, result.stdout + result.stderr
+                )
+                self.assertIn("no reachable final release tag", result.stdout)
+                self.assertIn("fetch tags and sufficient history", result.stdout)
 
 
 def run_release_check(
@@ -309,6 +401,12 @@ def write_release_files(
     (repo / "LICENSE").write_text("test license\n", encoding="utf-8")
     project_dir = repo / "docs" / "project"
     project_dir.mkdir(parents=True)
+    write_status_docs(repo, published_tag)
+
+
+def write_status_docs(repo: pathlib.Path, published_tag: str) -> None:
+    project_dir = repo / "docs" / "project"
+    project_dir.mkdir(parents=True, exist_ok=True)
     (project_dir / "ROADMAP.md").write_text(
         f"# Roadmap\n\n- `{published_tag}` is published; future releases use checks.\n",
         encoding="utf-8",
