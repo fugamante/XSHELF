@@ -154,6 +154,9 @@ Current status:
 - `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
   read-only evidence; `cxo` remains the compatibility/agentic interpretation
   lane when provider-backed natural-language output is explicitly desired
+- Absolute-path `xshelf` invocations from another repository write telemetry to
+  the caller repo by default; set `CX_LOG_FILE` when capture/budget/trace
+  telemetry should live outside that repo.
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift

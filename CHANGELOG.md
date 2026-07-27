@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
 - `v2026.06.29` (2026-06-29): XSHELF rename rollout, local-model substrate, token-compression wiring, HTTP adapter hardening, Docker compatibility bootstrap, and capture telemetry readiness.
 - `v2026.03.05` (2026-03-05): Phase V closure release with contract freeze markers and compatibility policy.
 - `v2026.02.21` (2026-02-20): schema extraction hardening, strict routing, bootstrap reliability baseline.
@@ -15,8 +16,12 @@ Notes:
 
 ## [Unreleased]
 
+## [v2026.07.27] - 2026-07-27
+
 ### Added
 - Release metadata:
+  - refreshed `VERSION` to `2026.07.27` so the local and CI release-cadence
+    gates reflect the current active branch state.
   - added `scripts/release_pretag_check.sh` as the canonical pre-tag wrapper for
     release metadata freshness plus current-version changelog/history coherence.
   - added `release_check.py --require-current-release-notes` so pre-tag
@@ -36,6 +41,18 @@ Notes:
 - Log validation:
   - `logs validate --strict` now verifies that modern schema-failure run rows
     reference readable, integrity-valid quarantine records.
+- Cross-repo capture:
+  - added `CX_LOG_FILE` as an explicit run-log destination override so
+    absolute-path `xshelf capture`, `budget`, and `trace` can share telemetry
+    outside the caller repo without changing the default repo-local log path.
+- Local model registry:
+  - hardened `llm models add --replace` so a colliding custom model ID cannot
+    overwrite a different backend or alias record.
+  - reject duplicate model IDs and duplicate backend-scoped aliases when
+    reading the registry, preventing ambiguous selection or partial mutation.
+  - reject malformed explicit registry structure, unsupported contract
+    versions, and invalid backend/trust/size domains before selection or
+    mutation while preserving legacy registries without a version marker.
 
 ## [v2026.06.29] - 2026-06-29
 

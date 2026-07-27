@@ -122,6 +122,9 @@
     - `.cx/local_models.json` registry
     - `xshelf llm models list|add|inspect|remove`
     - deterministic JSON/text outputs with focused integration coverage
+    - registry reads reject duplicate IDs, duplicate backend-scoped aliases,
+      malformed explicit structure, unsupported versions, and invalid typed
+      domains; replacement cannot overwrite a different identity
   - Slice 2 landed:
     - `llm use <ollama|llamacpp|mlx> <alias-or-id>` resolves registry tokens to `resolved_model`
     - `llm show` surfaces alias and resolved model fields when applicable

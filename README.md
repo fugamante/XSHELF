@@ -117,6 +117,24 @@ Use `./bin/xshelf cxo ...` only when you want natural-language interpretation
 from the configured provider. It is agentic; `capture` is the default lane for
 read-only evidence capture.
 
+For another local repository that does not have a repo-local `./bin/xshelf`,
+you can call this checkout explicitly:
+
+```bash
+/path/to/xshelf/bin/xshelf capture <read-only-command>
+```
+
+By default that records telemetry in the caller repository at
+`.cx/cxlogs/runs.jsonl`. To keep the caller repo untouched, set an explicit run
+log path and use the same value for follow-up budget/trace checks:
+
+```bash
+export CX_LOG_FILE=/tmp/xshelf-runs.jsonl
+/path/to/xshelf/bin/xshelf capture <read-only-command>
+/path/to/xshelf/bin/xshelf budget
+/path/to/xshelf/bin/xshelf trace
+```
+
 Command aliases:
 
 | Command | Role |

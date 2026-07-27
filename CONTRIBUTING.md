@@ -34,6 +34,12 @@
   interpretation is worth provider cost and agentic mutation risk. Treat
   `capture` as provider-safe, not command-sandboxed: the wrapped command can
   still modify files if the command itself writes.
+- For cross-repo use, an absolute XSHELF path such as
+  `/path/to/xshelf/bin/xshelf capture ...` is still an explicit lane, not a
+  global wrapper. Without `CX_LOG_FILE`, telemetry is written under the caller
+  repo's `.cx/cxlogs/runs.jsonl`. Set `CX_LOG_FILE` when capture evidence should
+  be kept outside the caller repo, and reuse that value for `budget` and
+  `trace`.
 
 ## Branding and Command Stability
 
