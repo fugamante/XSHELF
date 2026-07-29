@@ -1,4 +1,4 @@
-use jsonschema::JSONSchema;
+use jsonschema::validator_for;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -135,23 +135,20 @@ pub fn validate_schema_instance(schema: &LoadedSchema, raw: &str) -> Result<Valu
         if let Some(existing) = lock.get(&schema.name) {
             existing.clone()
         } else {
-            let compiled = JSONSchema::compile(&schema.value)
+            let compiled = validator_for(&schema.value)
                 .map_err(|e| format!("failed to compile schema {}: {e}", schema.path.display()))?;
             let compiled = Arc::new(compiled);
             lock.insert(schema.name.clone(), compiled.clone());
             compiled
         }
     };
-    if let Err(errors) = compiled.validate(&instance) {
-        let mut reasons: Vec<String> = Vec::new();
-        for err in errors.take(3) {
-            reasons.push(err.to_string());
-        }
-        let reason = if reasons.is_empty() {
-            "schema_validation_failed".to_string()
-        } else {
-            format!("schema_validation_failed: {}", reasons.join(" | "))
-        };
+    let reasons: Vec<String> = compiled
+        .iter_errors(&instance)
+        .take(3)
+        .map(|err| err.to_string())
+        .collect();
+    if !reasons.is_empty() {
+        let reason = format!("schema_validation_failed: {}", reasons.join(" | "));
         return Err(reason);
     }
     Ok(instance)
