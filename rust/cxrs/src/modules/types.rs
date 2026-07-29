@@ -1,11 +1,11 @@
-use jsonschema::JSONSchema;
+use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
-pub static SCHEMA_COMPILED_CACHE: OnceLock<Mutex<HashMap<String, Arc<JSONSchema>>>> =
+pub static SCHEMA_COMPILED_CACHE: OnceLock<Mutex<HashMap<String, Arc<Validator>>>> =
     OnceLock::new();
 
 #[derive(Debug, Deserialize, Default, Clone)]
