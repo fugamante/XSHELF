@@ -154,6 +154,16 @@ state, and the entrypoint contract.
 - Prefer small mechanical refactors before functional changes.
 - Add migration notes when changing log/schema contracts.
 
+## Merge Selection
+
+- Use rebase merge when a pull request contains an intentionally structured,
+  independently reviewable commit series whose boundaries improve audit,
+  bisect, or backport workflows.
+- Use squash merge when fixups are present or the pull request represents one
+  logically indivisible change.
+- Merge only after required status checks pass. Keep `main` linear; merge
+  commits remain disabled.
+
 ## Branch Naming
 
 - Use `primary/<short-scope>` for local feature branches.
