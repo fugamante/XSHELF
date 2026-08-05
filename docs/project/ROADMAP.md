@@ -10,6 +10,8 @@
 - Landed additive `optimize --json` capture-prompt rollout guidance using the same run-log fields for configured/applied/fallback visibility and follow-up actions.
 - Landed additive `diag --json` capture-prompt rollout guidance with latest explicit-profile fallback context and follow-up action support.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
+- Landed cross-platform process-group timeout cleanup with TERM-to-KILL
+  escalation so timed commands cannot leave resistant descendants running.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
 

@@ -6,6 +6,28 @@ use common::{
 };
 use serde_json::Value;
 use std::fs;
+use std::process::{Command, Stdio};
+use std::thread::sleep;
+use std::time::Duration;
+
+fn child_is_running(pid: &str) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        let stat = fs::read_to_string(format!("/proc/{pid}/stat"));
+        stat.ok()
+            .and_then(|value| value.split_whitespace().nth(2).map(str::to_string))
+            .is_some_and(|state| state != "Z")
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Command::new("kill")
+            .args(["-0", pid])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success())
+    }
+}
 
 fn assert_required_run_fields(v: &Value) {
     for key in [
@@ -67,6 +89,48 @@ sleep 2
         last.get("command_label")
             .and_then(Value::as_str)
             .is_some_and(|s| !s.trim().is_empty())
+    );
+}
+
+#[test]
+fn timeout_stops_children() {
+    let repo = TempRepo::new("cxrs-rel");
+    let pid_file = repo.root.join("timeout-child.pid");
+    let script = format!(
+        "(trap '' TERM; exec sleep 30) >/dev/null 2>&1 & child=$!; printf '%s' \"$child\" > '{}'; wait",
+        pid_file.display()
+    );
+
+    let out = repo.run_with_env(
+        &["capture", "bash", "-c", &script],
+        &[("CX_CMD_TIMEOUT_SECS", "1")],
+    );
+    assert!(
+        !out.status.success(),
+        "expected timeout failure; stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let child_pid = fs::read_to_string(&pid_file).expect("read child pid");
+    let child_pid = child_pid.trim();
+    let mut child_alive = false;
+    for _ in 0..20 {
+        child_alive = child_is_running(child_pid);
+        if !child_alive {
+            break;
+        }
+        sleep(Duration::from_millis(50));
+    }
+    if child_alive {
+        let _ = Command::new("kill")
+            .args(["-KILL", child_pid])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    assert!(
+        !child_alive,
+        "timed-out capture left SIGTERM-resistant child {child_pid} running"
     );
 }
 

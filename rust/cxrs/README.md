@@ -60,6 +60,7 @@ Primary toggles:
 - `CX_CONTEXT_BUDGET_CHARS`, `CX_CONTEXT_BUDGET_LINES`, `CX_CONTEXT_CLIP_MODE`, `CX_CONTEXT_CLIP_FOOTER`
 - `CX_CMD_TIMEOUT_SECS` (external command timeout, default `120`)
 - `CX_TIMEOUT_LLM_SECS`, `CX_TIMEOUT_GIT_SECS`, `CX_TIMEOUT_SHELL_SECS` (optional per-command-class timeout overrides)
+- Timed commands run in isolated process groups so timeout cleanup covers spawned descendants.
 - `CXLOG_ENABLED`, `CXBENCH_LOG`, `CXBENCH_PASSTHRU`, `CXFIX_RUN`, `CXFIX_FORCE`, `CX_UNSAFE`
 
 ## Command execution path

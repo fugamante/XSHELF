@@ -23,6 +23,14 @@ Notes:
     force roadmap/readiness claims before a release is actually tagged.
   - clarified tagless and depth-limited checkout diagnostics for the
     published-status guard and added a full synthetic release lifecycle fixture.
+- Timeout cleanup:
+  - timed commands now run in isolated process groups and complete TERM-to-KILL
+    escalation against descendants, including when the direct parent exits first.
+  - process-group signals disambiguate negative group IDs so descendant cleanup
+    behaves consistently on macOS and Linux.
+- Dependency maintenance:
+  - updated `jsonschema` from `0.49.2` to `0.49.4` without changing XSHELF's
+    schema, quarantine, replay, or public JSON contracts.
 
 ## [v2026.07.27] - 2026-07-27
 
