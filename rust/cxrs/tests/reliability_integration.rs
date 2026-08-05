@@ -56,6 +56,41 @@ printf '%s\n' '{{"type":"turn.completed","usage":{{"input_tokens":64,"cached_inp
 }
 
 #[test]
+fn health_version_failure() {
+    for args in [&["health"][..], &["cx-compat", "cxhealth"][..]] {
+        let repo = TempRepo::new("cxrs-rel");
+        repo.write_mock_primary(
+            r#"#!/usr/bin/env bash
+if [[ "${1:-}" == "--version" ]]; then
+  printf '%s\n' 'broken version probe' >&2
+  exit 23
+fi
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":1,"cached_input_tokens":0,"output_tokens":1}}'
+"#,
+        );
+
+        let out = repo.run(args);
+        assert!(
+            !out.status.success(),
+            "health must reject a failed version probe for {args:?}; stdout={} stderr={}",
+            stdout_str(&out),
+            stderr_str(&out)
+        );
+        assert!(
+            stderr_str(&out).contains("--version exited with status 23"),
+            "missing version-probe failure for {args:?}: {}",
+            stderr_str(&out)
+        );
+        assert!(
+            !stdout_str(&out).contains("All systems operational."),
+            "health reported success after failed version probe for {args:?}"
+        );
+    }
+}
+
+#[test]
 fn timeout_injection_logs_timeout_required_fields() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(

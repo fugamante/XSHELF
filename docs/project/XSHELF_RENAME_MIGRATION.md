@@ -151,6 +151,8 @@ Current status:
   compatibility command-name registry so canonical `xshelf` routes and `cx`
   aliases remain visible together
 - `cx` remains fully supported as the compatibility path
+- `health` and compatibility `cxhealth` share the same fail-closed provider
+  version probe behavior; a nonzero backend exit stops both checks
 - `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
   read-only evidence; `cxo` remains the compatibility/agentic interpretation
   lane when provider-backed natural-language output is explicitly desired

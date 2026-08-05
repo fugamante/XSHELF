@@ -292,7 +292,8 @@ cargo run -- replay <id>
 
 - add richer prompt templates by mode with optional schema snippets
 - add explicit chunking helpers and expose chunk-aware fanout workflows
-- align remaining edge-case behavior for `cxhealth`/`cxdoctor` and command-output formatting parity
+- continue aligning `cxhealth`/`cxdoctor` command-output edge cases; health
+  version probes now fail closed on nonzero provider exits
 - add explicit session-mode preflight (`subscription` vs `visitor`) with log metadata
 
 ## License

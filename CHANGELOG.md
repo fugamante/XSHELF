@@ -28,6 +28,10 @@ Notes:
     escalation against descendants, including when the direct parent exits first.
   - process-group signals disambiguate negative group IDs so descendant cleanup
     behaves consistently on macOS and Linux.
+- Health checks:
+  - `health` and compatibility `cxhealth` now stop when the selected
+    provider's `--version` probe exits nonzero instead of continuing to live
+    probes and potentially reporting all systems operational.
 - Dependency maintenance:
   - updated `jsonschema` from `0.49.2` to `0.49.4` without changing XSHELF's
     schema, quarantine, replay, or public JSON contracts.
