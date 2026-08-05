@@ -12,6 +12,8 @@
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed cross-platform process-group timeout cleanup with TERM-to-KILL
   escalation so timed commands cannot leave resistant descendants running.
+- Landed fail-closed `health` / `cxhealth` provider version probes so a
+  nonzero backend exit cannot be reported as operational.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
 
