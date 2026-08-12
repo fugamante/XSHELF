@@ -18,6 +18,8 @@ Notes:
 
 ### Added
 - Release metadata:
+  - advanced rolling `VERSION` metadata to `2026.08.12` for the active
+    reliability hardening line without claiming a tagged release.
   - added a deterministic published-status documentation guard based on the
     newest reachable final-release Git tag, so rolling `VERSION` changes do not
     force roadmap/readiness claims before a release is actually tagged.
@@ -32,6 +34,10 @@ Notes:
   - `health` and compatibility `cxhealth` now stop when the selected
     provider's `--version` probe exits nonzero instead of continuing to live
     probes and potentially reporting all systems operational.
+- Host compatibility:
+  - integration tests now resolve repository fixtures from their runtime
+    working directory before the compiled manifest path, so cached binaries
+    built in disposable worktrees remain reusable after those paths disappear.
 - Dependency maintenance:
   - updated `jsonschema` from `0.49.2` to `0.49.4` without changing XSHELF's
     schema, quarantine, replay, or public JSON contracts.

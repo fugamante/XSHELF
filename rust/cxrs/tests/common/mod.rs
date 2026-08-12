@@ -63,19 +63,29 @@ fn init_git_repo_with_retry(root: &Path, template_dir: &Path) {
     panic!("git init failed after retries: {:?}", last);
 }
 
-fn repo_root() -> PathBuf {
-    let mut cur = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+fn find_repo_root(mut cur: PathBuf) -> Option<PathBuf> {
     for _ in 0..6 {
         if cur.join(".cx").join("schemas").is_dir() && cur.join("bin").join("cx").is_file() {
-            return cur;
+            return Some(cur);
         }
         if !cur.pop() {
             break;
         }
     }
+    None
+}
+
+fn repo_root() -> PathBuf {
+    let runtime_dir = std::env::current_dir().expect("resolve test working directory");
+    // Cached test binaries may outlive a disposable build worktree.
+    for start in [runtime_dir, PathBuf::from(env!("CARGO_MANIFEST_DIR"))] {
+        if let Some(root) = find_repo_root(start) {
+            return root;
+        }
+    }
     panic!(
-        "unable to resolve repo root from {}",
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).display()
+        "unable to resolve repo root from runtime or compiled manifest path ({})",
+        env!("CARGO_MANIFEST_DIR")
     );
 }
 
