@@ -5,7 +5,7 @@ use crate::config::app_config;
 use crate::execmeta::{is_schema_tool, make_execution_id, prompt_preview, utc_now_iso};
 use crate::llm::effective_input_tokens;
 use crate::logs::{append_jsonl, validate_execution_log_row};
-use crate::paths::{repo_root, resolve_log_file, resolve_schema_fail_log_file};
+use crate::paths::{repo_root_hint, resolve_log_file, resolve_schema_fail_log_file};
 use crate::provider_adapter::{
     http_profile_opt, selected_adapter_name, selected_http_parser_mode_opt,
     selected_http_provider_format_opt, selected_provider_status, selected_provider_transport,
@@ -75,7 +75,7 @@ fn cwd_scope_root() -> (String, String, String) {
         .ok()
         .map(|p| p.display().to_string())
         .unwrap_or_default();
-    let root = repo_root()
+    let root = repo_root_hint()
         .map(|p| p.display().to_string())
         .unwrap_or_default();
     let scope = if root.is_empty() { "global" } else { "repo" }.to_string();

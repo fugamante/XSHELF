@@ -23,6 +23,9 @@ Notes:
 - Release metadata:
   - advanced rolling `VERSION` metadata to `2026.08.12` for the active
     reliability hardening line without claiming a tagged release.
+  - synchronized the committed file-name grandfathering allowlist with three
+    existing long-form project artifacts so clean-worktree pre-push validation
+    matches the established repository naming policy.
   - added a deterministic published-status documentation guard based on the
     newest reachable final-release Git tag, so rolling `VERSION` changes do not
     force roadmap/readiness claims before a release is actually tagged.
@@ -41,6 +44,14 @@ Notes:
   - integration tests now resolve repository fixtures from their runtime
     working directory before the compiled manifest path, so cached binaries
     built in disposable worktrees remain reusable after those paths disappear.
+  - isolated the external log-override regression test from pre-push Git
+    environment state by setting its supported repository-root override
+    explicitly, keeping release validation deterministic across worktrees.
+  - run-log provenance now honors the existing `CX_REPO_ROOT` override instead
+    of bypassing it during repository-root resolution, and canonicalizes the
+    configured path consistently with Git-discovered roots.
+  - release-check fixture repositories now ignore Git repository paths exported
+    by hooks, preventing pre-push validation from mutating the parent checkout.
 - Dependency maintenance:
   - updated `jsonschema` from `0.49.2` to `0.49.4` without changing XSHELF's
     schema, quarantine, replay, or public JSON contracts.
