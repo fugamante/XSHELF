@@ -52,6 +52,8 @@ Notes:
     configured path consistently with Git-discovered roots.
   - release-check fixture repositories now ignore Git repository paths exported
     by hooks, preventing pre-push validation from mutating the parent checkout.
+  - Docker compatibility images now normalize cached Cargo registry readability
+    so non-root validation is independent of dependency archive file modes.
 - Dependency maintenance:
   - updated `jsonschema` from `0.49.2` to `0.49.4` without changing XSHELF's
     schema, quarantine, replay, or public JSON contracts.
