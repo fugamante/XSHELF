@@ -22,6 +22,10 @@ Notes:
   as `test_output`, so the existing failure-recall and safe-fallback fixtures
   exercise the command operators actually run instead of a synthetic `test`
   executable.
+- The `test_output` reducer now falls back to source text when a nonempty test
+  stream has no recognized markers and reserves bounded tail capacity so late
+  failure and final-result evidence survives more than 400 earlier matches.
+  Adversarial fixtures also lock unrelated Cargo commands to generic capture.
 
 ## [v2026.08.12] - 2026-08-12
 

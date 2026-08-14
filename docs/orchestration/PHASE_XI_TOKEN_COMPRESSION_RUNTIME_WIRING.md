@@ -121,6 +121,13 @@ Post-phase additive visibility landed through telemetry rather than default wiri
 - the test-output fixture now uses the real `cargo test` command shape, proving
   reducer selection and existing recall/fallback gates together rather than
   relying on a synthetic `test` executable
+- the `test_output` boundary now preserves source text when a nonempty stream
+  has no recognized markers, and its 400-line bound reserves deterministic tail
+  capacity for distinct late failure, assertion, and final-summary evidence
+- adversarial coverage keeps `cargo check`, `cargo build`, `cargo clippy`, bare
+  `cargo`, empty commands, and `cargo-test` executables on generic capture;
+  shadow-profile coverage confirms unfamiliar `cargo test` streams remain
+  recoverable without changing the opt-in eligibility set
 
 - `telemetry --json` / `logs stats --json` now expose additive `capture_prompt_telemetry`
 - run logs now carry nullable prompt-profile fields for explicit `shadow_narrow` runs:

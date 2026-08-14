@@ -11,6 +11,9 @@
 - Landed additive `diag --json` capture-prompt rollout guidance with latest explicit-profile fallback context and follow-up action support.
 - Landed real `cargo test` command classification for the fixture-backed Phase
   XI `test_output` reducer while keeping typed prompt assembly opt-in only.
+- Hardened the existing `test_output` lane with source fallback for unfamiliar
+  nonempty streams, bounded late-result retention, selector omission coverage,
+  and shadow-profile recovery evidence; no reducer family was widened.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed cross-platform process-group timeout cleanup with TERM-to-KILL
   escalation so timed commands cannot leave resistant descendants running.
