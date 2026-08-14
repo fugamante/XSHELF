@@ -17,6 +17,12 @@ Notes:
 
 ## [Unreleased]
 
+### Changed
+- Phase XI capture reduction now classifies the real `cargo test` command shape
+  as `test_output`, so the existing failure-recall and safe-fallback fixtures
+  exercise the command operators actually run instead of a synthetic `test`
+  executable.
+
 ## [v2026.08.12] - 2026-08-12
 
 ### Added

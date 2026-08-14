@@ -120,7 +120,7 @@ fn select_reducer(cmd: &[String], profile: ReduceProfile) -> ReducerKind {
         ("git", "log", _) | ("log", _, _) => ReducerKind::GitLog,
         ("grep", _, _) => ReducerKind::Grep,
         ("tree", _, _) | ("ls", _, _) => ReducerKind::TreeLs,
-        ("test", _, _) => ReducerKind::TestOutput,
+        ("test", _, _) | ("cargo", "test", _) => ReducerKind::TestOutput,
         (_, _, ReduceProfile::Deep) => ReducerKind::DeepFallback,
         _ => ReducerKind::GenericPassthrough,
     }
