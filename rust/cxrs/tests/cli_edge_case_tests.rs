@@ -177,6 +177,7 @@ fn capture_log_override() {
             .args(args)
             .current_dir(cwd)
             .env("CX_LOG_FILE", log_file)
+            .env("CX_REPO_ROOT", cwd)
             .env("CX_CONTEXT_BUDGET_CHARS", "32")
             .env("CX_CONTEXT_BUDGET_LINES", "2")
             .env("CX_CONTEXT_CLIP_MODE", "tail")

@@ -27,7 +27,7 @@ pub fn repo_root_hint() -> Option<PathBuf> {
     if let Ok(v) = env::var("CX_REPO_ROOT") {
         let p = PathBuf::from(v);
         if p.exists() {
-            return Some(p);
+            return std::fs::canonicalize(&p).ok().or(Some(p));
         }
     }
     repo_root()

@@ -9,6 +9,18 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 
+# Git hooks may export repository-local paths. The fixture repositories must
+# resolve exclusively through their explicit `git -C` arguments.
+for git_var in (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+):
+    os.environ.pop(git_var, None)
+
+
 SCRIPT_PATH = pathlib.Path(__file__).resolve().parent / "release_check.py"
 MODULE_SPEC = importlib.util.spec_from_file_location("release_check", SCRIPT_PATH)
 assert MODULE_SPEC and MODULE_SPEC.loader
