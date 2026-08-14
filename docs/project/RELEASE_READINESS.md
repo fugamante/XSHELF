@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-07-27
+Snapshot date: 2026-08-12
 
 ## Current State
 
@@ -9,8 +9,8 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
-- `v2026.07.27` is published, and `main` is aligned with `origin/main` after
-  the contract bundle and release-note cut.
+- `v2026.08.12` is published, and `main` is aligned with `origin/main` after
+  the release hardening bundle and release-note cut.
 - strict run-log validation requires HTTP provenance keys on modern rows:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
@@ -52,6 +52,6 @@ patch or minor release unless they become explicit scope:
 
 ## Release Decision
 
-The `v2026.07.27` release is cut. Future release decisions should keep using the
+The `v2026.08.12` release is cut. Future release decisions should keep using the
 same validation stack, plus `./scripts/release_pretag_check.sh`, before
 publishing a tag or GitHub release.
