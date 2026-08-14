@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.08.12` (2026-08-12): process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance.
 - `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
 - `v2026.06.29` (2026-06-29): XSHELF rename rollout, local-model substrate, token-compression wiring, HTTP adapter hardening, Docker compatibility bootstrap, and capture telemetry readiness.
 - `v2026.03.05` (2026-03-05): Phase V closure release with contract freeze markers and compatibility policy.
@@ -15,6 +16,8 @@ Notes:
 - This file tracks rolling changes under `Unreleased` until the next tagged release.
 
 ## [Unreleased]
+
+## [v2026.08.12] - 2026-08-12
 
 ### Added
 - Release metadata:
