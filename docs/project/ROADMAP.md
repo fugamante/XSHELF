@@ -9,6 +9,8 @@
 - Landed additive Phase XI operator visibility on `telemetry --json` / `logs stats --json` through `capture_prompt_telemetry` for explicit `shadow_narrow` prompt-profile runs.
 - Landed additive `optimize --json` capture-prompt rollout guidance using the same run-log fields for configured/applied/fallback visibility and follow-up actions.
 - Landed additive `diag --json` capture-prompt rollout guidance with latest explicit-profile fallback context and follow-up action support.
+- Landed real `cargo test` command classification for the fixture-backed Phase
+  XI `test_output` reducer while keeping typed prompt assembly opt-in only.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed cross-platform process-group timeout cleanup with TERM-to-KILL
   escalation so timed commands cannot leave resistant descendants running.
