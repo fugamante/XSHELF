@@ -1,7 +1,7 @@
 {
   "fixture_id": "cargo_test_unrecognized_truncated_stream",
   "command": ["cargo", "test"],
-  "input_path": "rust/cxrs/tests/fixtures/phase_x/cargo_test_unrecognized_fallback.txt",
+  "input_path": "rust/cxrs/tests/fixtures/phase_x/cargo_unknown_fallback.txt",
   "expected_reducer_kind": "test_output",
   "expected_fallback": "source_text",
   "required_spans": [

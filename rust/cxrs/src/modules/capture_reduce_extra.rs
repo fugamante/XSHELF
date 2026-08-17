@@ -27,9 +27,9 @@ fn failure_markers() {
 
 #[test]
 fn test_fallback() {
-    let input = include_str!("../../tests/fixtures/phase_x/cargo_test_unrecognized_fallback.txt");
+    let input = include_str!("../../tests/fixtures/phase_x/cargo_unknown_fallback.txt");
     let manifest: serde_json::Value = serde_json::from_str(include_str!(
-        "../../tests/fixtures/phase_x/test_output_fallback_manifest.json"
+        "../../tests/fixtures/phase_x/output_fallback_manifest.json"
     ))
     .expect("parse fallback fixture manifest");
     let command = manifest["command"]
@@ -55,7 +55,7 @@ fn test_fallback() {
 #[test]
 fn test_tail() {
     let manifest: serde_json::Value = serde_json::from_str(include_str!(
-        "../../tests/fixtures/phase_x/test_output_tail_manifest.json"
+        "../../tests/fixtures/phase_x/output_tail_manifest.json"
     ))
     .expect("parse tail fixture manifest");
     let prefix_lines = manifest["prefix_lines"].as_u64().expect("prefix lines") as usize;
@@ -64,7 +64,7 @@ fn test_tail() {
         .collect::<Vec<_>>()
         .join("\n");
     input.push_str(include_str!(
-        "../../tests/fixtures/phase_x/cargo_test_late_failure.txt"
+        "../../tests/fixtures/phase_x/cargo_late_failure.txt"
     ));
     let result = native_reduce_output_with_metadata(&["cargo".into(), "test".into()], &input);
 

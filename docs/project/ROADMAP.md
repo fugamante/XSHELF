@@ -14,6 +14,8 @@
 - Hardened the existing `test_output` lane with source fallback for unfamiliar
   nonempty streams, bounded late-result retention, selector omission coverage,
   and shadow-profile recovery evidence; no reducer family was widened.
+- Restored filename-guardrail parity for the Phase XI adversarial fixture set
+  without widening the grandfathered naming allowlist.
 - Landed additional HTTP adapter reliability coverage for timeout and policy-block permutations.
 - Landed cross-platform process-group timeout cleanup with TERM-to-KILL
   escalation so timed commands cannot leave resistant descendants running.
