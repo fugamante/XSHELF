@@ -38,7 +38,7 @@ fn shadow_unchanged() {
 #[test]
 fn shadow_fallback() {
     let cmd = vec!["cargo".to_string(), "test".to_string()];
-    let raw = include_str!("../../tests/fixtures/phase_x/cargo_test_unrecognized_fallback.txt");
+    let raw = include_str!("../../tests/fixtures/phase_x/cargo_unknown_fallback.txt");
     let (captured, stats) = process_capture(
         &cmd,
         2,

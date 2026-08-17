@@ -18,6 +18,9 @@ Notes:
 ## [Unreleased]
 
 ### Changed
+- Phase XI fixture filenames now follow the enforced three-segment repository
+  naming policy, restoring clean-checkout Rust guardrail parity without
+  changing reducer inputs, expected spans, or runtime behavior.
 - Phase XI capture reduction now classifies the real `cargo test` command shape
   as `test_output`, so the existing failure-recall and safe-fallback fixtures
   exercise the command operators actually run instead of a synthetic `test`
