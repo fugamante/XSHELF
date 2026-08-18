@@ -16,6 +16,23 @@ OUT_FILE=""
 REBUILD=0
 PASS_TTY=0
 declare -a EXTRA_ARGS=()
+declare -a GIT_MOUNT_ARGS=()
+GIT_SNAPSHOT_DIR=""
+GIT_POINTER_FILE=""
+TSV_FILE=""
+
+cleanup() {
+  if [[ -n "$TSV_FILE" ]]; then
+    rm -f -- "$TSV_FILE"
+  fi
+  if [[ -n "$GIT_SNAPSHOT_DIR" && -d "$GIT_SNAPSHOT_DIR" ]]; then
+    rm -rf -- "$GIT_SNAPSHOT_DIR"
+  fi
+  if [[ -n "$GIT_POINTER_FILE" ]]; then
+    rm -f -- "$GIT_POINTER_FILE"
+  fi
+}
+trap cleanup EXIT
 
 usage() {
   cat >&2 <<'USAGE'
@@ -92,6 +109,19 @@ command -v docker >/dev/null 2>&1 || {
   exit 2
 }
 
+if [[ -f "$ROOT_DIR/.git" ]]; then
+  GIT_SNAPSHOT_DIR="$(mktemp -d)"
+  GIT_POINTER_FILE="$(mktemp)"
+  "$ROOT_DIR/scripts/compat_git_snapshot.sh" "$ROOT_DIR" "$GIT_SNAPSHOT_DIR"
+  printf 'gitdir: /xshelf-git\n' >"$GIT_POINTER_FILE"
+  GIT_MOUNT_ARGS=(
+    --mount
+    "type=bind,source=$GIT_SNAPSHOT_DIR,target=/xshelf-git,readonly"
+    --mount
+    "type=bind,source=$GIT_POINTER_FILE,target=/work/.git,readonly"
+  )
+fi
+
 if [[ "$REBUILD" -eq 1 ]]; then
   echo "compat-docker: building $IMAGE_TAG" >&2
   docker build -t "$IMAGE_TAG" "$ROOT_DIR" >&2
@@ -119,6 +149,7 @@ docker_exec() {
     -e CARGO_TARGET_DIR=/work/.cx/compat/docker-target \
     -e PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     -v "$ROOT_DIR":/work \
+    "${GIT_MOUNT_ARGS[@]}" \
     "${EXTRA_ARGS[@]}" \
     "$IMAGE_TAG" \
     bash -c 'mkdir -p "$HOME" /work/.cx/compat/docker-target && "$@"' bash "$@"
@@ -242,7 +273,6 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
     OUT_FILE="${OUT_FILE:-.cx/compat/docker_ci_latest.json}"
   fi
   TSV_FILE="$(mktemp)"
-  trap 'rm -f "$TSV_FILE"' EXIT
   OVERALL_RC=0
 
   run_report_step() {

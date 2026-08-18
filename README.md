@@ -328,6 +328,9 @@ Docker compatibility prerequisites:
 - The first run usually spends most of its time building the image and filling
   the Cargo target cache under `.cx/compat/`; warm-cache reruns should be much
   faster unless `--rebuild` is used.
+- Linked Git worktrees are supported through an ephemeral, read-only snapshot
+  of current HEAD history and tags; the parent checkout's common Git directory
+  and unrelated worktree administration are not mounted into the container.
 
 If the image or bind-mounted cache is stale:
 - Force a fresh image build with `./scripts/compat_docker.sh --rebuild ...`.

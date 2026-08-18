@@ -18,6 +18,9 @@ Notes:
 ## [Unreleased]
 
 ### Changed
+- Docker compatibility runs from linked Git worktrees now use a temporary,
+  read-only metadata snapshot containing current HEAD history and tags, so
+  strict release checks work without mounting unrelated worktree metadata.
 - Phase XI fixture filenames now follow the enforced three-segment repository
   naming policy, restoring clean-checkout Rust guardrail parity without
   changing reducer inputs, expected spans, or runtime behavior.
