@@ -102,6 +102,10 @@ Do not treat `--smoke` as a release or compat signoff step; use `--quick` or
 Use `./scripts/compat_docker.sh --ci` when you want the local Linux core
 guardrail subset before pushing; inspect `ci_parity.intentional_deltas` in the
 JSON report for workflow-only gates it does not reproduce.
+Linked Git worktrees are supported without mounting the parent checkout's
+common `.git` directory. The wrapper creates a temporary read-only metadata
+snapshot containing the current HEAD history and tags, mounts it over
+`/work/.git`, and removes it when the run exits.
 Use `./scripts/compat_docker.sh --rebuild --full` when you need a Linux-hosted
 compat pass without changing the host-native `scripts/compat_local.sh` contract.
 
