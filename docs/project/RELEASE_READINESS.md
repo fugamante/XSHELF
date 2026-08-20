@@ -9,11 +9,8 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
-- `v2026.08.12` is published, and `main` is aligned with `origin/main` after
-  the release hardening bundle and release-note cut.
-- `VERSION` and release artifacts are prepared for `v2026.08.20`; publication
-  remains pending integration, final validation, tag creation, and release
-  verification.
+- `v2026.08.20` is published, and the annotated tag resolves to the validated
+  release head after the reliability bundle and dependency advisory patch.
 - strict run-log validation requires HTTP provenance keys on modern rows:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
@@ -55,7 +52,6 @@ patch or minor release unless they become explicit scope:
 
 ## Release Decision
 
-The `v2026.08.20` candidate is prepared but not published. Keep published
-status anchored to reachable tag `v2026.08.12` until the candidate is
-integrated and the same validation stack, plus
-`./scripts/release_pretag_check.sh`, passes on the final release head.
+The `v2026.08.20` release is cut. Its annotated tag and GitHub release are
+published from the final validated release head; continue recording subsequent
+changes under `Unreleased` until the next release candidate is prepared.
