@@ -107,15 +107,20 @@ def validate_published_status_docs(
             f"`{tag}` is published,",
             "RELEASE_READINESS.md merged readiness marker",
         ),
-        (
-            readiness_text,
-            f"The `{tag}` release is cut.",
-            "RELEASE_READINESS.md release decision",
-        ),
     ]
     for source_text, needle, label in checks:
         if needle not in source_text:
             return f"{label} is stale or missing: {needle}"
+    decisions = [
+        f"The `{tag}` release is cut.",
+        f"Keep published status anchored to reachable tag `{tag}`",
+    ]
+    normalized_readiness = " ".join(readiness_text.split())
+    if not any(marker in normalized_readiness for marker in decisions):
+        return (
+            "RELEASE_READINESS.md release decision is stale or missing: "
+            + " or ".join(decisions)
+        )
     return None
 
 

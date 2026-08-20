@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
 - `v2026.08.12` (2026-08-12): process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance.
 - `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
 - `v2026.06.29` (2026-06-29): XSHELF rename rollout, local-model substrate, token-compression wiring, HTTP adapter hardening, Docker compatibility bootstrap, and capture telemetry readiness.
@@ -17,7 +18,12 @@ Notes:
 
 ## [Unreleased]
 
+## [v2026.08.20] - 2026-08-20
+
 ### Changed
+- Release validation now accepts an explicit prepared-candidate decision while
+  still requiring roadmap and readiness markers for the newest reachable
+  published tag, so pre-tag checks do not force a false publication claim.
 - Docker compatibility runs from linked Git worktrees now use a temporary,
   read-only metadata snapshot containing current HEAD history and tags, so
   strict release checks work without mounting unrelated worktree metadata.

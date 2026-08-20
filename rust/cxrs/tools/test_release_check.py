@@ -158,6 +158,32 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("published_release_tag=v2026.06.03", result.stdout)
 
+    def test_prepared_candidate_passes_published_docs(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03")
+            commit_all(repo, "published release status", days_ago=2)
+            create_tag(repo, "v2026.06.03")
+            readiness = repo / "docs" / "project" / "RELEASE_READINESS.md"
+            readiness.write_text(
+                readiness.read_text(encoding="utf-8").replace(
+                    "The `v2026.06.03` release is cut.",
+                    "The `v2026.07.01` candidate is prepared but not published. "
+                    "Keep published status anchored to\nreachable tag "
+                    "`v2026.06.03` until final validation passes.",
+                ),
+                encoding="utf-8",
+            )
+            commit_all(repo, "prepare release candidate", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+
     def test_release_lifecycle(self) -> None:
         with temp_repo() as repo:
             write_release_files(repo, published_tag="v2026.06.03")
