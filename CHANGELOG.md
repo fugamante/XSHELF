@@ -21,6 +21,10 @@ Notes:
 ## [v2026.08.20] - 2026-08-20
 
 ### Changed
+- Updated transitive `h2` from `0.4.15` to `0.4.16` to address
+  `RUSTSEC-2026-0258` without changing XSHELF runtime contracts.
+- Docker compatibility images now keep the cached Cargo registry writable by
+  non-root validation so newly locked dependency patches can be fetched.
 - Release validation now accepts an explicit prepared-candidate decision while
   still requiring roadmap and readiness markers for the newest reachable
   published tag, so pre-tag checks do not force a false publication claim.

@@ -27,6 +27,6 @@ COPY rust/cxrs/Cargo.toml rust/cxrs/Cargo.lock rust/cxrs/rust-toolchain.toml ./r
 RUN mkdir -p rust/cxrs/src \
     && printf 'fn main() {}\n' > rust/cxrs/src/main.rs \
     && cargo fetch --manifest-path rust/cxrs/Cargo.toml --locked \
-    && chmod -R a+rX /usr/local/cargo/registry
+    && chmod -R a+rwX /usr/local/cargo/registry
 
 WORKDIR /work
