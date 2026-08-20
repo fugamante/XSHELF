@@ -147,6 +147,9 @@ docker_exec() {
     --workdir /work \
     -e HOME=/tmp/cx-home \
     -e CARGO_TARGET_DIR=/work/.cx/compat/docker-target \
+    -e GIT_CONFIG_COUNT=1 \
+    -e GIT_CONFIG_KEY_0=safe.directory \
+    -e GIT_CONFIG_VALUE_0=/work \
     -e PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     -v "$ROOT_DIR":/work \
     "${GIT_MOUNT_ARGS[@]}" \
