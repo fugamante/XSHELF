@@ -23,13 +23,12 @@
   nonzero backend exit cannot be reported as operational.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
-- Prepared the `v2026.08.20` candidate artifacts for the Phase XI reducer and
-  linked-worktree Docker reliability bundle; publication remains pending final
-  integrated-head validation.
+- Published `v2026.08.20` after final integrated-head validation of the Phase XI
+  reducer, linked-worktree Docker reliability, and dependency advisory patch.
 
 ## Next (1-2 months)
 
-- `v2026.08.12` is published; future release cuts should use
+- `v2026.08.20` is published; future release cuts should use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
