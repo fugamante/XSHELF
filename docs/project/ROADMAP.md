@@ -23,6 +23,9 @@
   nonzero backend exit cannot be reported as operational.
 - Landed mixed-mode orchestration invariants on `task run-all` and `task_execution`, including summary-level accounting and timing checks.
 - Maintain release hygiene (contract policy + changelog + tagged releases).
+- Prepared the `v2026.08.20` candidate artifacts for the Phase XI reducer and
+  linked-worktree Docker reliability bundle; publication remains pending final
+  integrated-head validation.
 
 ## Next (1-2 months)
 
