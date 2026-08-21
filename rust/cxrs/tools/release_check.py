@@ -100,6 +100,8 @@ def latest_reachable_release_tag(repo_root: pathlib.Path) -> str | None:
 def validate_published_status_docs(
     tag: str, roadmap_text: str, readiness_text: str
 ) -> str | None:
+    if validate_release_source_docs(tag, roadmap_text, readiness_text) is None:
+        return None
     checks = [
         (roadmap_text, f"`{tag}` is published;", "ROADMAP.md published release marker"),
         (
@@ -120,6 +122,33 @@ def validate_published_status_docs(
         return (
             "RELEASE_READINESS.md release decision is stale or missing: "
             + " or ".join(decisions)
+        )
+    return None
+
+
+def validate_release_source_docs(
+    tag: str, roadmap_text: str, readiness_text: str
+) -> str | None:
+    checks = [
+        (
+            roadmap_text,
+            f"`{tag}` release source is validated;",
+            "ROADMAP.md release source marker",
+        ),
+        (
+            readiness_text,
+            f"`{tag}` release source is validated,",
+            "RELEASE_READINESS.md release source marker",
+        ),
+    ]
+    for source_text, needle, label in checks:
+        if needle not in source_text:
+            return f"{label} is stale or missing: {needle}"
+    marker = f"The `{tag}` release source is validated for publication."
+    if marker not in " ".join(readiness_text.split()):
+        return (
+            "RELEASE_READINESS.md release source decision is stale or missing: "
+            + marker
         )
     return None
 
@@ -161,6 +190,14 @@ def main() -> int:
             "reachable final-release tag"
         ),
     )
+    ap.add_argument(
+        "--require-current-release-source",
+        action="store_true",
+        help=(
+            "fail unless ROADMAP.md and RELEASE_READINESS.md mark the "
+            "vVERSION source as validated for publication"
+        ),
+    )
     args = ap.parse_args()
 
     if args.repo_root:
@@ -198,12 +235,28 @@ def main() -> int:
             return fail(release_notes_error)
         print("release_notes_ok")
 
-    if args.require_published_status_docs:
+    if args.require_published_status_docs or args.require_current_release_source:
         roadmap = root / "docs" / "project" / "ROADMAP.md"
         readiness = root / "docs" / "project" / "RELEASE_READINESS.md"
         for path in [roadmap, readiness]:
             if not path.exists():
                 return fail(f"missing required published-status file: {path}")
+
+    if args.require_current_release_source:
+        current_tag = f"v{version_text}"
+        status_error = validate_release_source_docs(
+            current_tag,
+            roadmap.read_text(encoding="utf-8"),
+            readiness.read_text(encoding="utf-8"),
+        )
+        if status_error:
+            return fail(
+                "current release head is not ready to tag: " + status_error
+            )
+        print("current_release_source_ok")
+        print(f"current_release_tag={current_tag}")
+
+    if args.require_published_status_docs:
         try:
             published_tag = latest_reachable_release_tag(root)
         except Exception as exc:

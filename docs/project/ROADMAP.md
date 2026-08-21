@@ -25,6 +25,8 @@
 - Maintain release hygiene (contract policy + changelog + tagged releases).
 - Published `v2026.08.20` after final integrated-head validation of the Phase XI
   reducer, linked-worktree Docker reliability, and dependency advisory patch.
+- `v2026.08.20` release source is validated; its annotated tag preserves the
+  exact release-head implementation and validation inputs.
 
 ## Next (1-2 months)
 

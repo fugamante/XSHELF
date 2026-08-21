@@ -11,6 +11,8 @@ release hygiene, and guarded opt-in expansion.
 Current merged readiness floor:
 - `v2026.08.20` is published, and the annotated tag resolves to the validated
   release head after the reliability bundle and dependency advisory patch.
+- `v2026.08.20` release source is validated, with the immutable tag retaining
+  the release-head code, metadata, and compatibility inputs.
 - strict run-log validation requires HTTP provenance keys on modern rows:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
@@ -55,3 +57,4 @@ patch or minor release unless they become explicit scope:
 The `v2026.08.20` release is cut. Its annotated tag and GitHub release are
 published from the final validated release head; continue recording subsequent
 changes under `Unreleased` until the next release candidate is prepared.
+The `v2026.08.20` release source is validated for publication.
