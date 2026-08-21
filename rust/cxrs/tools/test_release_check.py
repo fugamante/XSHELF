@@ -184,6 +184,59 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("published_release_tag=v2026.06.03", result.stdout)
 
+    def test_current_release_source_passes_without_tag(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.05.20")
+            write_source_status_docs(repo, "v2026.06.03")
+            commit_all(repo, "final release head", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_current_release_source=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("current_release_source_ok", result.stdout)
+            self.assertIn("current_release_tag=v2026.06.03", result.stdout)
+
+    def test_current_release_source_rejects_prepared_candidate(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.05.20")
+            readiness = repo / "docs" / "project" / "RELEASE_READINESS.md"
+            readiness.write_text(
+                readiness.read_text(encoding="utf-8")
+                + "\nThe `v2026.06.03` candidate is prepared but not published.\n",
+                encoding="utf-8",
+            )
+            commit_all(repo, "prepared release candidate", days_ago=1)
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_current_release_source=True,
+            )
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("current release head is not ready to tag", result.stdout)
+            self.assertIn("ROADMAP.md release source marker", result.stdout)
+
+    def test_tagged_release_accepts_validated_source_markers(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.05.20")
+            write_source_status_docs(repo, "v2026.06.03")
+            commit_all(repo, "validated release source", days_ago=1)
+            create_tag(repo, "v2026.06.03")
+
+            result = run_release_check(
+                repo,
+                max_version_age_days=14,
+                require_published_status_docs=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+
     def test_release_lifecycle(self) -> None:
         with temp_repo() as repo:
             write_release_files(repo, published_tag="v2026.06.03")
@@ -358,6 +411,7 @@ def run_release_check(
     event_path: pathlib.Path | None = None,
     require_current_release_notes: bool = False,
     require_published_status_docs: bool = False,
+    require_current_release_source: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     cmd = [
         os.environ.get("PYTHON", "python3"),
@@ -375,6 +429,8 @@ def run_release_check(
         cmd.append("--require-current-release-notes")
     if require_published_status_docs:
         cmd.append("--require-published-status-docs")
+    if require_current_release_source:
+        cmd.append("--require-current-release-source")
     env = os.environ.copy()
     env.pop("GITHUB_EVENT_NAME", None)
     env.pop("GITHUB_EVENT_PATH", None)
@@ -454,6 +510,22 @@ def write_status_docs(repo: pathlib.Path, published_tag: str) -> None:
         f"- `{published_tag}` is published, and main is aligned.\n\n"
         "## Release Decision\n\n"
         f"The `{published_tag}` release is cut.\n",
+        encoding="utf-8",
+    )
+
+
+def write_source_status_docs(repo: pathlib.Path, tag: str) -> None:
+    project_dir = repo / "docs" / "project"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    (project_dir / "ROADMAP.md").write_text(
+        f"# Roadmap\n\n- `{tag}` release source is validated; tagging is pending.\n",
+        encoding="utf-8",
+    )
+    (project_dir / "RELEASE_READINESS.md").write_text(
+        "# Release Readiness Snapshot\n\n"
+        f"- `{tag}` release source is validated, with publication pending.\n\n"
+        "## Release Decision\n\n"
+        f"The `{tag}` release source is validated for publication.\n",
         encoding="utf-8",
     )
 

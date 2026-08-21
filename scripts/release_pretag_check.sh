@@ -10,4 +10,5 @@ python3 rust/cxrs/tools/release_check.py \
   --repo-root "$ROOT_DIR" \
   --max-version-age-days "$MAX_VERSION_AGE_DAYS" \
   --require-current-release-notes \
+  --require-current-release-source \
   --require-published-status-docs

@@ -18,6 +18,11 @@ Notes:
 
 ## [Unreleased]
 
+### Changed
+- Pre-tag validation now requires durable release-source markers for the
+  current `VERSION`, preventing annotated tags whose immutable source cannot
+  pass published-status validation without claiming publication early.
+
 ## [v2026.08.20] - 2026-08-20
 
 ### Changed

@@ -34,6 +34,11 @@ validation requires tags and sufficient history; tagless or depth-limited
 checkouts fail with an explicit fetch diagnostic instead of inferring
 publication from `VERSION`.
 
+The pre-tag wrapper also requires durable release-source validation markers for
+`vVERSION` on the exact release head. Update the roadmap and readiness decision
+before creating the annotated tag so the immutable tagged source validates
+itself without claiming publication early or relying on a post-tag correction.
+
 Validation preference for maintainers:
 - prefer `./scripts/compat_local.sh --quick` when you need representative
   compat readiness for the current machine.
