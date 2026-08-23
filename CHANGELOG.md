@@ -18,6 +18,12 @@ Notes:
 
 ## [Unreleased]
 
+### Added
+- Codex integration:
+  - added a fail-open `SessionStart` hook adapter, fixture coverage, and an
+    operator runbook that makes the explicit XSHELF capture lane discoverable
+    without wrapping commands, invoking providers, or writing startup state.
+
 ### Changed
 - Pre-tag validation now requires durable release-source markers for the
   current `VERSION`, preventing annotated tags whose immutable source cannot
