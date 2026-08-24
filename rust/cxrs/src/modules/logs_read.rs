@@ -94,7 +94,7 @@ fn validate_row_fields(
     if legacy_ok {
         validate_legacy_or_modern_row(obj, line_no, out);
     } else {
-        validate_required_fields(obj, line_no, out, true);
+        validate_required_fields(obj, line_no, out, true, false);
     }
 }
 
@@ -105,7 +105,7 @@ fn validate_legacy_or_modern_row(
 ) {
     let is_modern = obj.contains_key("execution_id") && obj.contains_key("timestamp");
     if is_modern {
-        validate_required_fields(obj, line_no, out, false);
+        validate_required_fields(obj, line_no, out, false, true);
         return;
     }
     let mut legacy_ok = true;
@@ -128,6 +128,7 @@ fn validate_required_fields(
     line_no: usize,
     out: &mut LogValidateOutcome,
     check_links: bool,
+    allow_legacy_status: bool,
 ) {
     for k in REQUIRED_STRICT_FIELDS {
         if !obj.contains_key(k) {
@@ -136,7 +137,7 @@ fn validate_required_fields(
                 .push(format!("line {line_no}: missing required field '{k}'"));
         }
     }
-    validate_command_fields(obj, line_no, out);
+    validate_command_fields(obj, line_no, out, allow_legacy_status);
     if check_links {
         validate_schema_link(obj, line_no, out);
     }
@@ -146,6 +147,7 @@ fn validate_command_fields(
     obj: &serde_json::Map<String, Value>,
     line_no: usize,
     out: &mut LogValidateOutcome,
+    allow_legacy_status: bool,
 ) {
     let command = obj.get("command").and_then(Value::as_str).unwrap_or("");
     let tool = obj.get("tool").and_then(Value::as_str).unwrap_or("");
@@ -153,12 +155,18 @@ fn validate_command_fields(
         return;
     }
     let Some(status) = obj.get("system_status") else {
+        if allow_legacy_status {
+            return;
+        }
         out.corrupted_lines.insert(line_no);
         out.issues.push(format!(
             "line {line_no}: capture row missing command-provenance field 'system_status'"
         ));
         return;
     };
+    if allow_legacy_status && status.is_null() {
+        return;
+    }
     if status
         .as_i64()
         .and_then(|v| i32::try_from(v).ok())
