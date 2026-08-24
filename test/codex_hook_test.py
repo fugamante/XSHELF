@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import stat
@@ -127,6 +128,49 @@ class CodexHookTests(unittest.TestCase):
             self.assert_fail_open(output)
             self.assertIn("malformed JSON", output["systemMessage"])
             self.assertNotIn("hookSpecificOutput", output)
+
+    def test_hook_scope_static(self) -> None:
+        tree = ast.parse(HOOK.read_text(encoding="utf-8"))
+        modules = set()
+        calls = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules.update(alias.name.split(".", 1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                modules.add(node.module.split(".", 1)[0])
+            elif isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name):
+                    calls.add(node.func.id)
+                elif isinstance(node.func, ast.Attribute):
+                    calls.add(node.func.attr)
+
+        self.assertFalse(
+            modules & {"http", "requests", "socket", "subprocess", "urllib"}
+        )
+        self.assertFalse(
+            calls
+            & {
+                "chmod",
+                "chown",
+                "execv",
+                "link",
+                "mkdir",
+                "open",
+                "popen",
+                "remove",
+                "rename",
+                "replace",
+                "rmdir",
+                "spawnv",
+                "symlink",
+                "system",
+                "touch",
+                "unlink",
+                "write",
+                "write_bytes",
+                "write_text",
+            }
+        )
 
 
 if __name__ == "__main__":
