@@ -202,7 +202,7 @@ sleep 2
 }
 
 #[test]
-fn timeout_git_precedence_logged_end_to_end() {
+fn git_timeout_diagnostic() {
     let repo = TempRepo::new("cxrs-rel");
     repo.write_mock(
         "git",
