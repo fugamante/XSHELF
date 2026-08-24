@@ -30,6 +30,10 @@ Notes:
   pass published-status validation without claiming publication early.
 
 ### Fixed
+- Run-log compatibility:
+  - made `logs validate --strict --legacy-ok` honor the documented historical
+    allowance for additive nullable `system_status` capture provenance while
+    keeping plain strict validation fail-closed for current rows.
 - Schema validation reliability:
   - scoped cached compiled validators to their schema source and contents so
     compatible registries that reuse a schema filename cannot validate against

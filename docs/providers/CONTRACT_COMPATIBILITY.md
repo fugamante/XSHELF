@@ -83,7 +83,7 @@ Contract stability is enforced by:
   nullable fields
 - run logs may carry additive nullable command-provenance fields such as
   `system_status`; these fields must be preserved by migration but are not
-  required for historical rows
+  required for historical rows when validation uses `--legacy-ok`
 - `CX_LOG_FILE` may relocate the run-log destination for `capture`, `budget`,
   and `trace` without changing the JSONL row contract; when unset, repository
   state remains under `.cx/cxlogs/runs.jsonl`
