@@ -29,6 +29,12 @@ Notes:
   current `VERSION`, preventing annotated tags whose immutable source cannot
   pass published-status validation without claiming publication early.
 
+### Fixed
+- Schema validation reliability:
+  - scoped cached compiled validators to their schema source and contents so
+    compatible registries that reuse a schema filename cannot validate against
+    stale rules from another repository.
+
 ## [v2026.08.20] - 2026-08-20
 
 ### Changed

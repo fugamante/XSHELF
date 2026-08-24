@@ -127,18 +127,25 @@ pub fn build_schema_prompt_envelope(
 
 pub fn validate_schema_instance(schema: &LoadedSchema, raw: &str) -> Result<Value, String> {
     let instance: Value = serde_json::from_str(raw).map_err(|e| format!("invalid JSON: {e}"))?;
+    // Schema names repeat across compatible registries; cache only validators
+    // compiled from the same source so one repository cannot borrow another's rules.
+    let cache_key = format!(
+        "{}:{}",
+        schema.path.display(),
+        sha256_hex(&schema.value.to_string())
+    );
     let compiled = {
         let mut lock = SCHEMA_COMPILED_CACHE
             .get_or_init(|| Mutex::new(HashMap::new()))
             .lock()
             .map_err(|_| "schema cache poisoned".to_string())?;
-        if let Some(existing) = lock.get(&schema.name) {
+        if let Some(existing) = lock.get(&cache_key) {
             existing.clone()
         } else {
             let compiled = validator_for(&schema.value)
                 .map_err(|e| format!("failed to compile schema {}: {e}", schema.path.display()))?;
             let compiled = Arc::new(compiled);
-            lock.insert(schema.name.clone(), compiled.clone());
+            lock.insert(cache_key, compiled.clone());
             compiled
         }
     };
@@ -152,4 +159,30 @@ pub fn validate_schema_instance(schema: &LoadedSchema, raw: &str) -> Result<Valu
         return Err(reason);
     }
     Ok(instance)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::path::PathBuf;
+
+    fn schema(path: &str, required: &str) -> LoadedSchema {
+        LoadedSchema {
+            name: "next.schema.json".to_string(),
+            path: PathBuf::from(path),
+            value: json!({"type": "object", "required": [required]}),
+            id: None,
+        }
+    }
+
+    #[test]
+    fn schema_cache_scopes_validator_to_schema_contents() {
+        let nonce = std::process::id();
+        let first = schema(&format!("/tmp/cxrs-schema-{nonce}-first.json"), "first");
+        let second = schema(&format!("/tmp/cxrs-schema-{nonce}-second.json"), "second");
+
+        assert!(validate_schema_instance(&first, r#"{"first":true}"#).is_ok());
+        assert!(validate_schema_instance(&second, r#"{"first":true}"#).is_err());
+    }
 }
