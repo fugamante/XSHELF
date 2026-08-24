@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn schema_cache_scopes_validator_to_schema_contents() {
+    fn schema_cache_isolated() {
         let nonce = std::process::id();
         let first = schema(&format!("/tmp/cxrs-schema-{nonce}-first.json"), "first");
         let second = schema(&format!("/tmp/cxrs-schema-{nonce}-second.json"), "second");
