@@ -44,6 +44,24 @@ After adding or changing the definition, start a fresh Codex session and use
 `/hooks` to review the source and trust its current hash. Until that review is
 accepted, Codex skips the non-managed command hook.
 
+## Scope contract
+
+The hook is an advisory discovery aid, not a runtime automation surface.
+
+- **Purpose:** make the explicit XSHELF lane discoverable and provide concise
+  operator guidance.
+- **Inputs:** the `SessionStart` payload plus read-only local checks for the
+  executable path and enclosing Git marker.
+- **Output:** a valid fail-open response (`continue: true`) with optional
+  advisory context or warning.
+- **Forbidden:** command interception or wrapping; XSHELF execution; provider
+  calls; repository initialization; telemetry, log, or configuration writes;
+  network access; and automatic repair or remediation.
+
+Any change to this boundary must identify a concrete operator problem and add
+a fixture that proves the hook remains read-only and fail-open. An exception is
+a separate project decision, not a routine hook enhancement.
+
 ## Behavior
 
 - An executable canonical `xshelf` on `PATH`, or the checkout's executable

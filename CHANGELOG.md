@@ -25,6 +25,10 @@ Notes:
     without wrapping commands, invoking providers, or writing startup state.
 
 ### Changed
+- Codex integration:
+  - documented and fixture-locked the `SessionStart` hook's advisory-only,
+    read-only, fail-open scope contract and its evidence gate for future
+    changes, without changing hook behavior.
 - Pre-tag validation now requires durable release-source markers for the
   current `VERSION`, preventing annotated tags whose immutable source cannot
   pass published-status validation without claiming publication early.
