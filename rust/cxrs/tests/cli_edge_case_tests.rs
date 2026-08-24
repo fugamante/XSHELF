@@ -156,7 +156,7 @@ printf 'capture ok\n'
 }
 
 #[test]
-fn capture_status_legacy_ok() {
+fn capture_status_legacy() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock(
         "capok",
