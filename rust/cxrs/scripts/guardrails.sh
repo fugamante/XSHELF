@@ -7,8 +7,8 @@ cd "$REPO_ROOT/rust/cxrs"
 echo "guardrails: cargo fmt --check"
 cargo fmt --check
 
-echo "guardrails: cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments"
-cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments
+echo "guardrails: cargo clippy --locked --all-targets -- -D warnings -D clippy::too_many_arguments"
+cargo clippy --locked --all-targets -- -D warnings -D clippy::too_many_arguments
 
 echo "guardrails: rust toolchain sync"
 python3 "$REPO_ROOT/scripts/check_rust_toolchain_sync.py" --repo-root "$REPO_ROOT"
@@ -29,10 +29,10 @@ echo "guardrails: #[test] naming convention (max_len=48, max_segments=7)"
 python3 ./scripts/check_test_naming.py --root ./tests --max-len 48 --max-segments 7
 
 if [[ "${CX_GUARDRAILS_SKIP_TESTS:-0}" == "1" ]]; then
-  echo "guardrails: cargo test --tests -- --test-threads=1 (skipped by CX_GUARDRAILS_SKIP_TESTS=1)"
+  echo "guardrails: cargo test --locked --tests -- --test-threads=1 (skipped by CX_GUARDRAILS_SKIP_TESTS=1)"
 else
-  echo "guardrails: cargo test --tests -- --test-threads=1"
-  cargo test --tests -- --test-threads=1
+  echo "guardrails: cargo test --locked --tests -- --test-threads=1"
+  cargo test --locked --tests -- --test-threads=1
 fi
 
 echo "guardrails: python3 -m unittest tools.test_release_check"

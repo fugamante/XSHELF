@@ -317,13 +317,13 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "cd /work/rust/cxrs && cargo fmt --check"
     run_report_step \
       "rust_check" \
-      "cd /work/rust/cxrs && cargo check"
+      "cd /work/rust/cxrs && cargo check --locked"
     run_report_step \
       "rust_clippy" \
-      "cd /work/rust/cxrs && cargo clippy --all-targets -- -D warnings -D clippy::too_many_arguments"
+      "cd /work/rust/cxrs && cargo clippy --locked --all-targets -- -D warnings -D clippy::too_many_arguments"
     run_report_step \
       "rust_tests" \
-      "cd /work/rust/cxrs && cargo test --tests -- --test-threads=1"
+      "cd /work/rust/cxrs && cargo test --locked --tests -- --test-threads=1"
     run_report_step \
       "rust_file_line_guardrail" \
       "cd /work && ./rust/cxrs/scripts/check_rs_max_lines.sh 600 /work"
