@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 
@@ -120,6 +121,7 @@ class PackageReleaseTests(unittest.TestCase):
             source_revision=self.revision,
             source_dirty=False,
             source_fingerprint="b" * 64,
+            cargo_toolchain="cargo 1.95.0 (fixture)",
             rust_toolchain="rustc 1.95.0 (fixture)",
             macos_min_version="11.0",
             verify_architecture=False,
@@ -160,6 +162,8 @@ class PackageReleaseTests(unittest.TestCase):
         self.assertFalse(provenance["source_dirty"])
         self.assertEqual(provenance["source_fingerprint"], "b" * 64)
         self.assertEqual(provenance["macos_min_version"], "11.0")
+        self.assertEqual(provenance["cargo_toolchain"], "cargo 1.95.0 (fixture)")
+        self.assertEqual(provenance["rust_toolchain"], "rustc 1.95.0 (fixture)")
 
     def test_checksum_tampering_fails_closed(self) -> None:
         archive, checksum = self.build(self.base / "tamper")
@@ -177,6 +181,142 @@ class PackageReleaseTests(unittest.TestCase):
         text = summary.read_text(encoding="utf-8")
         self.assertIn(archive.name, text)
         self.assertNotIn(stale.name, text)
+
+    def test_build_pins_compiler_despite_shadow_path(self) -> None:
+        fixture = self.base / "build-fixture"
+        script_dir = fixture / "scripts"
+        crate_dir = fixture / "rust/cxrs"
+        tool_dir = self.base / "pinned-tools"
+        shadow_dir = self.base / "shadow-tools"
+        for path in (script_dir, crate_dir, tool_dir, shadow_dir):
+            path.mkdir(parents=True)
+        shutil.copy2(ROOT / "scripts/build_packages.sh", script_dir / "build_packages.sh")
+        (fixture / "VERSION").write_text("2026.08.25\n", encoding="utf-8")
+        (crate_dir / "Cargo.toml").write_text("[package]\nname='cxrs'\n", encoding="utf-8")
+        (crate_dir / "rust-toolchain.toml").write_text(
+            "[toolchain]\nchannel='1.95.0'\n", encoding="utf-8"
+        )
+
+        evidence = self.base / "toolchain-evidence.txt"
+        shadow_marker = self.base / "shadow-rustc-called"
+        self._write_executable(
+            shadow_dir / "rustup",
+            """
+            #!/bin/bash
+            set -eu
+            case "$1" in
+              target) printf '%s\\n' aarch64-apple-darwin ;;
+              which) printf '%s\\n' "$FAKE_TOOL_DIR/$4" ;;
+              *) exit 2 ;;
+            esac
+            """,
+        )
+        self._write_executable(
+            shadow_dir / "rustc",
+            """
+            #!/bin/bash
+            : >"$FAKE_SHADOW_MARKER"
+            exit 91
+            """,
+        )
+        self._write_executable(
+            tool_dir / "rustc",
+            """
+            #!/bin/bash
+            printf '%s\\n' 'rustc 1.95.0 (fixture)'
+            """,
+        )
+        self._write_executable(
+            tool_dir / "cargo",
+            """
+            #!/bin/bash
+            set -eu
+            if [[ "${1:-}" == --version ]]; then
+              printf 'cargo %s (fixture)\\n' "${FAKE_CARGO_VERSION:-1.95.0}"
+              exit 0
+            fi
+            [[ "${1:-}" == build ]]
+            [[ "$RUSTC" == "$FAKE_TOOL_DIR/rustc" ]]
+            printf 'RUSTC=%s\\n' "$RUSTC" >"$FAKE_EVIDENCE"
+            while [[ $# -gt 0 ]]; do
+              case "$1" in
+                --target) target="$2"; shift 2 ;;
+                --target-dir) target_dir="$2"; shift 2 ;;
+                *) shift ;;
+              esac
+            done
+            mkdir -p "$target_dir/$target/release"
+            printf '%s\\n' 'fixture binary' >"$target_dir/$target/release/cxrs"
+            chmod 755 "$target_dir/$target/release/cxrs"
+            """,
+        )
+        self._write_executable(
+            script_dir / "package_release.py",
+            """
+            #!/usr/bin/env python3
+            import hashlib
+            import json
+            import os
+            import pathlib
+            import sys
+
+            command = sys.argv[1]
+            if command == "source-state":
+                print('{"source_dirty": false, "source_fingerprint": "fixture", "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}')
+            elif command == "build":
+                args = dict(zip(sys.argv[2::2], sys.argv[3::2]))
+                assert args["--cargo-toolchain"] == "cargo 1.95.0 (fixture)"
+                assert args["--rust-toolchain"] == "rustc 1.95.0 (fixture)"
+                version = pathlib.Path(os.environ["FAKE_REPO_ROOT"], "VERSION").read_text().strip()
+                archive = pathlib.Path(args["--output-dir"], f"xshelf-{version}-{args['--target']}.tar.gz")
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                archive.write_bytes(b"fixture archive")
+                archive.with_name(archive.name + ".sha256").write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + "  " + archive.name + "\\n")
+                print(json.dumps({"archive": str(archive)}))
+            elif command == "summary":
+                output = pathlib.Path(sys.argv[sys.argv.index("--output") + 1])
+                output.write_text("fixture summary\\n")
+            else:
+                raise SystemExit(2)
+            """,
+        )
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "FAKE_EVIDENCE": str(evidence),
+                "FAKE_REPO_ROOT": str(fixture),
+                "FAKE_SHADOW_MARKER": str(shadow_marker),
+                "FAKE_TOOL_DIR": str(tool_dir),
+                "HOME": str(self.base / "clean-home"),
+                "PATH": f"{shadow_dir}:/opt/homebrew/bin:/usr/bin:/bin",
+            }
+        )
+        result = subprocess.run(
+            [str(script_dir / "build_packages.sh"), "--target", "aarch64-apple-darwin"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(evidence.read_text(), f"RUSTC={tool_dir}/rustc\n")
+        self.assertFalse(shadow_marker.exists())
+
+        env["FAKE_CARGO_VERSION"] = "1.96.0"
+        mismatch = subprocess.run(
+            [str(script_dir / "build_packages.sh"), "--target", "aarch64-apple-darwin"],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(mismatch.returncode, 2)
+        self.assertIn("identity does not match pinned toolchain", mismatch.stderr)
+
+    def _write_executable(self, path: Path, body: str) -> None:
+        path.write_text(textwrap.dedent(body).lstrip(), encoding="utf-8")
+        path.chmod(0o755)
 
     def test_dirty_source_and_fingerprint(self) -> None:
         subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)

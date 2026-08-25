@@ -43,7 +43,9 @@ Build one architecture explicitly when validating on a single-target host:
 
 Outputs default to `.cx/packages`, and compilation uses the ignored
 `.cx/package-target` directory. The build pins Rust `1.95.0`, uses the locked
-dependency graph, sets the macOS 11 deployment floor, disables incremental
+dependency graph, resolves Cargo and rustc as absolute paths from that same
+rustup toolchain, and rejects mismatched identities or inherited compiler
+wrappers. It also sets the macOS 11 deployment floor, disables incremental
 compilation, and remaps checkout and build-home paths before verifying they are
 absent from the executable string table.
 
@@ -72,7 +74,8 @@ Archive headers have deterministic ordering, ownership, modes, and timestamps.
 The `xshelf-package-manifest.v1` record inventories installed paths and hashes.
 The `xshelf-package-provenance.v1` record identifies the version, source
 revision and content fingerprint, dirty state, target, Rust compiler,
-deployment floor, archive format, and explicit unsigned/unnotarized state.
+Cargo version, deployment floor, archive format, and explicit
+unsigned/unnotarized state.
 Per-archive sidecars and `SHA256SUMS` contain SHA-256 digests. These new formats
 are fixture-checked by `test/package_release_test.py`; incompatible changes
 require a versioned format and migration note.

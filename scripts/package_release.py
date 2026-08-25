@@ -261,6 +261,7 @@ def _provenance(
     revision: str,
     source_dirty: bool,
     source_fingerprint: str,
+    cargo_toolchain: str,
     rust_toolchain: str,
     macos_min_version: str,
     artifact_name: str,
@@ -270,6 +271,7 @@ def _provenance(
         "architecture_check": "thin-mach-o-header",
         "artifact": artifact_name,
         "archive_format": "tar+gzip",
+        "cargo_toolchain": cargo_toolchain,
         "contract_version": "xshelf-package-provenance.v1",
         "normalized_mtime": NORMALIZED_MTIME,
         "macos_min_version": macos_min_version,
@@ -316,6 +318,7 @@ def build_archive(
     source_revision: str,
     source_dirty: bool,
     source_fingerprint: str,
+    cargo_toolchain: str,
     rust_toolchain: str,
     macos_min_version: str,
     verify_architecture: bool = True,
@@ -361,6 +364,7 @@ def build_archive(
                     source_revision,
                     source_dirty,
                     source_fingerprint,
+                    cargo_toolchain,
                     rust_toolchain,
                     macos_min_version,
                     archive.name,
@@ -434,6 +438,7 @@ def _parser() -> argparse.ArgumentParser:
     build.add_argument("--version")
     build.add_argument("--source-revision")
     build.add_argument("--allow-dirty", action="store_true")
+    build.add_argument("--cargo-toolchain", required=True)
     build.add_argument("--rust-toolchain", required=True)
     build.add_argument("--macos-min-version", required=True)
     verify = subparsers.add_parser("verify", help="verify an archive SHA-256 sidecar")
@@ -477,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
             source_revision=revision,
             source_dirty=dirty,
             source_fingerprint=_source_fingerprint(repo_root),
+            cargo_toolchain=args.cargo_toolchain,
             rust_toolchain=args.rust_toolchain,
             macos_min_version=args.macos_min_version,
         )

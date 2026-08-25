@@ -64,7 +64,28 @@ PY
 )"
 installed="$(rustup target list --toolchain "$toolchain" --installed)"
 declare -a artifacts=()
-rust_identity="$(rustup run "$toolchain" rustc --version)"
+cargo_bin="$(rustup which --toolchain "$toolchain" cargo)"
+rustc_bin="$(rustup which --toolchain "$toolchain" rustc)"
+if [[ ! -x "$cargo_bin" || ! -x "$rustc_bin" ]]; then
+  echo "build_packages: pinned Cargo or rustc is not executable" >&2
+  exit 2
+fi
+if [[ "$(dirname "$cargo_bin")" != "$(dirname "$rustc_bin")" ]]; then
+  echo "build_packages: pinned Cargo and rustc resolved from different toolchains" >&2
+  exit 2
+fi
+cargo_identity="$("$cargo_bin" --version)"
+rust_identity="$("$rustc_bin" --version)"
+cargo_release="${cargo_identity#cargo }"
+cargo_release="${cargo_release%% *}"
+rust_release="${rust_identity#rustc }"
+rust_release="${rust_release%% *}"
+if [[ "$cargo_release" != "$toolchain" || "$rust_release" != "$toolchain" ]]; then
+  echo "build_packages: Cargo/rustc identity does not match pinned toolchain $toolchain" >&2
+  echo "build_packages: cargo=$cargo_identity" >&2
+  echo "build_packages: rustc=$rust_identity" >&2
+  exit 2
+fi
 for target in "${targets[@]}"; do
   if ! grep -qx "$target" <<<"$installed"; then
     echo "build_packages: Rust target is not installed: $target" >&2
@@ -76,8 +97,8 @@ done
 mkdir -p "$out_dir" "$target_dir"
 home_prefix="${HOME%/}"
 remap="--remap-path-prefix=$repo_root=/usr/src/xshelf --remap-path-prefix=$home_prefix=/usr/src/build-home"
-if [[ -n "${RUSTFLAGS:-}" ]]; then
-  echo "build_packages: inherited RUSTFLAGS are not allowed for release packaging" >&2
+if [[ -n "${RUSTFLAGS:-}" || -n "${RUSTC_WRAPPER:-}" || -n "${RUSTC_WORKSPACE_WRAPPER:-}" ]]; then
+  echo "build_packages: inherited Rust flags or compiler wrappers are not allowed for release packaging" >&2
   exit 2
 fi
 
@@ -87,8 +108,11 @@ for target in "${targets[@]}"; do
   echo "build_packages: building $target" >&2
   CARGO_INCREMENTAL=0 \
   MACOSX_DEPLOYMENT_TARGET=11.0 \
+  RUSTC="$rustc_bin" \
+  RUSTC_WRAPPER= \
+  RUSTC_WORKSPACE_WRAPPER= \
   RUSTFLAGS="$remap" \
-    rustup run "$toolchain" cargo build \
+    "$cargo_bin" build \
       --locked \
       --manifest-path "$repo_root/rust/cxrs/Cargo.toml" \
       --release \
@@ -117,6 +141,7 @@ for target in "${targets[@]}"; do
     --binary "$binary"
     --target "$target"
     --output-dir "$out_dir"
+    --cargo-toolchain "$cargo_identity"
     --rust-toolchain "$rust_identity"
     --macos-min-version 11.0
   )
