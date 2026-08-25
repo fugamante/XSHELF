@@ -46,6 +46,12 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
           python3 ./scripts/check_rust_toolchain_sync.py --repo-root "$GITHUB_WORKSPACE"
+          python3 ./scripts/check_version_sync.py --repo-root "$GITHUB_WORKSPACE"
+
+      - name: Packaging Lifecycle Guardrail
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          python3 ./test/package_release_test.py
 
       - name: Command Surface Changelog Gate
         run: |

@@ -3,7 +3,7 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.08.20`
+- `2026.08.25` (unpublished release candidate)
 
 Historical tagged versions:
 

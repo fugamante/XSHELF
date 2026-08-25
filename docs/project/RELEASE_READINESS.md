@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-08-20
+Snapshot date: 2026-08-25
 
 ## Current State
 
@@ -24,6 +24,15 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
+Current unpublished candidate:
+- `VERSION` is advanced to `2026.08.25` for the CLI packaging validation line.
+- The dirty diagnostic ARM64 archive and temporary-prefix Homebrew install,
+  test, upgrade, and uninstall lifecycle are validated locally with user-state
+  preservation.
+- The candidate is not a validated release source until clean ARM64 and x86_64
+  artifacts and native Intel Homebrew lifecycle evidence are complete.
+- `v2026.08.20` remains the newest published release and immutable authority.
+
 ## Release Candidate Validation
 
 Future release candidates are ready for review when these checks are green on
@@ -46,7 +55,9 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- Homebrew-ready packaging metadata
+- published Homebrew formula, bottles, and signed/notarized binary assets (the
+  local deterministic archive and draft-formula validation foundation is
+  documented in `docs/PACKAGING.md`)
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`

@@ -80,7 +80,7 @@ Optional backend tools:
 | llama.cpp | `llama-cli` |
 | MLX on macOS | `mlx-lm` in a Python environment |
 
-Install shell functions and man pages:
+For source-checkout development, install shell functions and man pages:
 
 ```bash
 ./bin/xshelf-install
@@ -91,8 +91,23 @@ man xs
 man cx
 ```
 
-Matching uninstall wrappers are available as `./bin/xshelf-uninstall`,
-`./bin/xs-uninstall`, and `./bin/cx-uninstall`.
+Shell-profile uninstall wrappers are available as `./bin/xshelf-uninstall`,
+`./bin/xs-uninstall`, and `./bin/cx-uninstall`; source-installed man pages are
+managed separately.
+
+Homebrew-first distribution tooling is available for local release-candidate
+validation, but no formula or binary assets are published yet. It produces a
+native `xshelf` executable, `xs` / `cx` aliases, packaged default schemas, and
+man pages without editing shell profiles or installing `cxops`:
+
+```bash
+./scripts/build_packages.sh --target aarch64-apple-darwin
+python3 test/package_release_test.py
+```
+
+See [Packaging](docs/PACKAGING.md) for the dual-architecture build, checksum,
+relocation, clean-home, and draft-formula workflow. Signing, notarization,
+release assets, and tap publication remain separate release decisions.
 
 ## Quick Start
 

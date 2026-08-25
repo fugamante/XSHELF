@@ -19,12 +19,26 @@ Notes:
 ## [Unreleased]
 
 ### Added
+- Packaging readiness:
+  - added deterministic, architecture-specific macOS CLI archive tooling with
+    checksums, package manifests, unsigned/unnotarized provenance, lifecycle
+    tests, and an unpublished Homebrew formula template.
+  - added a release-version synchronization gate between the calendar `VERSION`
+    authority and Cargo's normalized SemVer package metadata.
 - Codex integration:
   - added a fail-open `SessionStart` hook adapter, fixture coverage, and an
     operator runbook that makes the explicit XSHELF capture lane discoverable
     without wrapping commands, invoking providers, or writing startup state.
 
 ### Changed
+- Advanced the unpublished packaging candidate authority to `2026.08.25` while
+  keeping `v2026.08.20` as the newest published release. This does not claim a
+  tag, release asset, formula, signature, or notarization.
+- Standalone XSHELF binaries now use the embedded release version instead of a
+  caller repository's `VERSION` or Git revision, resolve `xshelf` / `xs` / `cx`
+  from the invoked executable name, discover packaged default schemas without
+  writing user state, and embed the eval-lab contract fixture so validation no
+  longer depends on the build checkout.
 - Codex integration:
   - documented and fixture-locked the `SessionStart` hook's advisory-only,
     read-only, fail-open scope contract and its evidence gate for future

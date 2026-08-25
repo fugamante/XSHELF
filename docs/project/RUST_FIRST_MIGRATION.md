@@ -95,13 +95,20 @@ Requirements:
   - interactive TTY: prompt once and persist,
   - non-interactive: fail clearly with remediation.
 
-## 8) Packaging track (future-ready)
+## 8) Packaging track (candidate-ready)
 
 Prepare `cxrs` for Homebrew formula use from `main`:
 - keep command/help output stable,
 - avoid runtime side effects during install,
 - keep dependencies explicit in docs,
 - tag release points from `main`.
+
+The local candidate foundation now provides deterministic thin macOS archives,
+native aliases, packaged schemas and man pages, checksum/provenance metadata,
+an unpublished formula template, and an ARM64 temporary-prefix Homebrew
+lifecycle lane. Publication, clean-source dual-architecture evidence, native
+Intel execution, signing, and notarization remain separate release gates; see
+`docs/PACKAGING.md`.
 
 ## 9) Decommission plan for Bash-heavy logic
 
