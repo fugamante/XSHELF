@@ -25,6 +25,9 @@ Notes:
     tests, and an unpublished Homebrew formula template.
   - added a release-version synchronization gate between the calendar `VERSION`
     authority and Cargo's normalized SemVer package metadata.
+  - added a manual-only GitHub Actions lane that validates the exact unpublished
+    candidate on a native `macos-15-intel` runner, including deterministic
+    archive identity and an isolated Homebrew lifecycle.
 - Codex integration:
   - added a fail-open `SessionStart` hook adapter, fixture coverage, and an
     operator runbook that makes the explicit XSHELF capture lane discoverable

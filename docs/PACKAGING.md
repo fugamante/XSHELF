@@ -104,6 +104,13 @@ embedded contract validation, and complete formula rendering. Intel execution
 still requires an Intel host or verified Rosetta environment; static
 architecture inspection is not runtime validation.
 
+Maintainers without Intel hardware can manually dispatch `cxrs-compat` on the
+candidate branch. Its `intel-package` job runs only for `workflow_dispatch`,
+uses GitHub's native `macos-15-intel` runner, checks out the exact candidate
+revision declared by the job, requires a non-translated `x86_64` process,
+reproduces the expected archive hash, and uploads bounded validation evidence.
+Ordinary pull-request and push events do not start this lane.
+
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a
 content fingerprint; such an artifact is never release-ready.
@@ -144,6 +151,10 @@ fixtures must remain outside taps intended for publication. A real isolated
 test must use a temporary Homebrew clone and temporary HOME, cache, logs, temp,
 and XDG paths; verify its prefix before installation and compare the installed
 Homebrew configuration hashes afterward.
+
+The hosted Intel lane applies this same isolation boundary, exercises install,
+`brew test`, revision upgrade, relocation, and uninstall, and fails if either
+the runner's Homebrew configuration or the isolated clone configuration drifts.
 
 ## Release Boundary
 

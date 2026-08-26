@@ -31,6 +31,8 @@ Current unpublished candidate:
   preservation.
 - The candidate is not a validated release source until clean ARM64 and x86_64
   artifacts and native Intel Homebrew lifecycle evidence are complete.
+- A manual-only `macos-15-intel` compatibility job is available to collect the
+  missing native Intel evidence without treating Rosetta as equivalent.
 - `v2026.08.20` remains the newest published release and immutable authority.
 
 ## Release Candidate Validation
