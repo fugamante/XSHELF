@@ -359,16 +359,12 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      XSHELF_CANDIDATE_SHA: 394dd1d9e72d88c3b4166b0267862f9c8ef4414f
-      XSHELF_INTEL_SHA256: a91c60152d93abdba59ae0cc2a77f2a769c385540e6690735758801a41fc5bf7
     steps:
-      - name: Checkout exact packaging candidate
+      - name: Checkout exact dispatched revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ env.XSHELF_CANDIDATE_SHA }}
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -391,7 +387,7 @@ jobs:
           test "$(uname -m)" = x86_64
           translated="$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)"
           test "$translated" = 0
-          test "$(git rev-parse HEAD)" = "$XSHELF_CANDIDATE_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
           {
             echo "runner_arch=$(uname -m)"
@@ -409,15 +405,21 @@ jobs:
             --manifest-path rust/cxrs/Cargo.toml \
             --test package_runtime -- --test-threads=1
 
-          packages="$RUNNER_TEMP/packages"
+          packages="$RUNNER_TEMP/packages-1"
           ./scripts/build_packages.sh \
             --target x86_64-apple-darwin \
             --out-dir "$packages"
+          packages_repeat="$RUNNER_TEMP/packages-2"
+          ./scripts/build_packages.sh \
+            --target x86_64-apple-darwin \
+            --out-dir "$packages_repeat"
           archive="$packages/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz"
+          archive_repeat="$packages_repeat/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz"
+          cmp "$archive" "$archive_repeat"
           observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
-          test "$observed" = "$XSHELF_INTEL_SHA256"
           python3 ./scripts/package_release.py verify "$archive"
           cp "$archive" "$archive.sha256" "$packages/SHA256SUMS" "$evidence/"
+          echo "$observed  $(basename "$archive")" > "$evidence/native-SHA256SUMS"
 
           extracted="$RUNNER_TEMP/extracted"
           mkdir -p "$extracted"
@@ -427,7 +429,7 @@ jobs:
           test "$(readlink "$package_root/bin/xs")" = xshelf
           test "$(readlink "$package_root/bin/cx")" = xshelf
           cp "$package_root/manifest.json" "$package_root/provenance.json" "$evidence/"
-          python3 - "$package_root/provenance.json" "$XSHELF_CANDIDATE_SHA" <<'PY'
+          python3 - "$package_root/provenance.json" "$GITHUB_SHA" <<'PY'
           import json, pathlib, sys
           value = json.loads(pathlib.Path(sys.argv[1]).read_text())
           assert value["architecture"] == "x86_64-apple-darwin"

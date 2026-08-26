@@ -51,6 +51,9 @@ Notes:
   pass published-status validation without claiming publication early.
 
 ### Fixed
+- Packaging validation now uses the active Python interpreter in its
+  compiler-shadow regression instead of assuming an ARM Homebrew path, so the
+  same test runs on native Intel CI hosts.
 - Run-log compatibility:
   - made `logs validate --strict --legacy-ok` honor the documented historical
     allowance for additive nullable `system_status` capture provenance while

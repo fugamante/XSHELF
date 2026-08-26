@@ -45,7 +45,8 @@ Outputs default to `.cx/packages`, and compilation uses the ignored
 `.cx/package-target` directory. The build pins Rust `1.95.0`, uses the locked
 dependency graph, resolves Cargo and rustc as absolute paths from that same
 rustup toolchain, and rejects mismatched identities or inherited compiler
-wrappers. It also sets the macOS 11 deployment floor, disables incremental
+wrappers. Python 3.11 or newer is required for the packaging metadata tools.
+The build also sets the macOS 11 deployment floor, disables incremental
 compilation, and remaps checkout and build-home paths before verifying they are
 absent from the executable string table.
 
@@ -107,8 +108,8 @@ architecture inspection is not runtime validation.
 Maintainers without Intel hardware can manually dispatch `cxrs-compat` on the
 candidate branch. Its `intel-package` job runs only for `workflow_dispatch`,
 uses GitHub's native `macos-15-intel` runner, checks out the exact candidate
-revision declared by the job, requires a non-translated `x86_64` process,
-reproduces the expected archive hash, and uploads bounded validation evidence.
+revision dispatched by GitHub, requires a non-translated `x86_64` process,
+reproduces the archive byte-for-byte, and uploads bounded validation evidence.
 Ordinary pull-request and push events do not start this lane.
 
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an

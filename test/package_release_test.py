@@ -289,7 +289,7 @@ class PackageReleaseTests(unittest.TestCase):
                 "FAKE_SHADOW_MARKER": str(shadow_marker),
                 "FAKE_TOOL_DIR": str(tool_dir),
                 "HOME": str(self.base / "clean-home"),
-                "PATH": f"{shadow_dir}:/opt/homebrew/bin:/usr/bin:/bin",
+                "PATH": f"{shadow_dir}:{Path(sys.executable).resolve().parent}:/usr/bin:/bin",
             }
         )
         result = subprocess.run(
