@@ -555,5 +555,5 @@ jobs:
         with:
           name: xshelf-intel-package-${{ github.run_id }}
           path: ${{ runner.temp }}/intel-artifacts
-          retention-days: 14
+          retention-days: 90
           if-no-files-found: error

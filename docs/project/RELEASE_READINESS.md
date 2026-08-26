@@ -30,12 +30,17 @@ Current unpublished candidate:
   archive and isolated Homebrew lifecycle validation passed on GitHub's
   `macos-15-intel` runner for exact source
   `727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
-- The Intel evidence records `runner_arch=x86_64`, `translated=0`, reproducible
-  archive bytes, validated manifest/provenance, clean-home and relocation
-  behavior, `xshelf` / `xs` / `cx` compatibility, install, `brew test`, revision
-  upgrade, uninstall, and unchanged Homebrew configuration and user state.
-- The unpublished Intel archive SHA-256 is
-  `4fe2baa71f9615a6dee1603a3426421f0aab5e6d7e0cd2fcbf45c7464dc81c51`.
+- That run is predecessor evidence only after later documentation commits. The
+  authoritative Intel evidence for review is the retained artifact from a
+  successful final-head dispatch whose `source_revision` equals the exact
+  candidate commit selected for PR or merge review.
+- Exact-head Intel evidence must record `runner_arch=x86_64`, `translated=0`,
+  reproducible archive bytes, validated manifest/provenance, clean-home and
+  relocation behavior, `xshelf` / `xs` / `cx` compatibility, install,
+  `brew test`, revision upgrade, uninstall, and unchanged Homebrew
+  configuration and user state.
+- Final-head checksums and provenance stay in the 90-day workflow artifact so
+  recording them does not create a new, unvalidated repository head.
 - `v2026.08.25` release source is validated, while publishing, tagging,
   signing, notarization, and formula publication remain separate decisions.
 - `v2026.08.20` remains the newest published release and immutable authority.
@@ -77,6 +82,8 @@ published from the final validated release head; continue recording subsequent
 changes under `Unreleased` until the next release candidate is prepared.
 The `v2026.08.20` release source is validated for publication.
 
-The `v2026.08.25` release source is validated for publication. Keep published
-status anchored to reachable tag `v2026.08.20` unless a separate release action
-is explicitly authorized.
+The `v2026.08.25` release source is validated for publication. This is a source
+readiness statement, not a publication claim, and is supported only when the
+retained native Intel artifact names the exact selected candidate head. Keep
+published status anchored to reachable tag `v2026.08.20` unless a separate
+release action is explicitly authorized.

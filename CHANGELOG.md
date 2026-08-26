@@ -54,6 +54,13 @@ No unreleased changes.
 - Pre-tag validation now requires durable release-source markers for the
   current `VERSION`, preventing annotated tags whose immutable source cannot
   pass published-status validation without claiming publication early.
+- Native Intel evidence now uses the repository-supported 90-day artifact
+  retention horizon, and release-readiness documentation binds authoritative
+  evidence to the exact artifact `source_revision` without committing a stale
+  predecessor checksum.
+- Version history now separates prepared unpublished candidates from historical
+  tags while retaining the prospective release metadata required by the
+  pre-tag gate.
 
 ### Fixed
 - Packaging validation now uses the active Python interpreter in its

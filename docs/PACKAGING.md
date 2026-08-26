@@ -117,8 +117,14 @@ The `2026.08.25` implementation candidate passed this lane at source
 Its evidence records native, non-translated Intel execution, byte-identical
 archive reproduction, checksum and provenance verification, package relocation
 and clean-home operation, and the complete isolated Homebrew lifecycle. This is
-candidate evidence only; it does not claim a published, signed, or notarized
-release.
+predecessor candidate evidence after later commits; it does not validate a
+different branch head or claim a published, signed, or notarized release.
+
+For final review, dispatch the lane after the candidate head is frozen and
+require the retained artifact's `source_revision` to equal that exact head.
+Intel evidence is retained for the repository-supported 90-day review horizon.
+Keep the final checksum and provenance in that artifact rather than creating a
+follow-up documentation commit that would invalidate the source binding.
 
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a
