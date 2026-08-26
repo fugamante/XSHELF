@@ -370,6 +370,11 @@ jobs:
           persist-credentials: false
           ref: ${{ env.XSHELF_CANDIDATE_SHA }}
 
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+
       - name: Set up pinned Rust with Intel target
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
