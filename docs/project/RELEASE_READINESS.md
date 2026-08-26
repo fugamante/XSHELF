@@ -26,13 +26,18 @@ Current merged readiness floor:
 
 Current unpublished candidate:
 - `VERSION` is advanced to `2026.08.25` for the CLI packaging validation line.
-- The dirty diagnostic ARM64 archive and temporary-prefix Homebrew install,
-  test, upgrade, and uninstall lifecycle are validated locally with user-state
-  preservation.
-- The candidate is not a validated release source until clean ARM64 and x86_64
-  artifacts and native Intel Homebrew lifecycle evidence are complete.
-- A manual-only `macos-15-intel` compatibility job is available to collect the
-  missing native Intel evidence without treating Rosetta as equivalent.
+- Clean ARM64 packaging and Homebrew checks passed locally. Native Intel
+  archive and isolated Homebrew lifecycle validation passed on GitHub's
+  `macos-15-intel` runner for exact source
+  `727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
+- The Intel evidence records `runner_arch=x86_64`, `translated=0`, reproducible
+  archive bytes, validated manifest/provenance, clean-home and relocation
+  behavior, `xshelf` / `xs` / `cx` compatibility, install, `brew test`, revision
+  upgrade, uninstall, and unchanged Homebrew configuration and user state.
+- The unpublished Intel archive SHA-256 is
+  `4fe2baa71f9615a6dee1603a3426421f0aab5e6d7e0cd2fcbf45c7464dc81c51`.
+- `v2026.08.25` release source is validated, while publishing, tagging,
+  signing, notarization, and formula publication remain separate decisions.
 - `v2026.08.20` remains the newest published release and immutable authority.
 
 ## Release Candidate Validation
@@ -71,3 +76,7 @@ The `v2026.08.20` release is cut. Its annotated tag and GitHub release are
 published from the final validated release head; continue recording subsequent
 changes under `Unreleased` until the next release candidate is prepared.
 The `v2026.08.20` release source is validated for publication.
+
+The `v2026.08.25` release source is validated for publication. Keep published
+status anchored to reachable tag `v2026.08.20` unless a separate release action
+is explicitly authorized.

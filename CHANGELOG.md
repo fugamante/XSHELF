@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
 - `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
 - `v2026.08.12` (2026-08-12): process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance.
 - `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
@@ -17,6 +18,10 @@ Notes:
 - This file tracks rolling changes under `Unreleased` until the next tagged release.
 
 ## [Unreleased]
+
+No unreleased changes.
+
+## [v2026.08.25] - 2026-08-25
 
 ### Added
 - Packaging readiness:

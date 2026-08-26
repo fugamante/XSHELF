@@ -101,9 +101,9 @@ cargo test --locked --test package_runtime -- --test-threads=1
 The tests cover deterministic archives, checksum tampering, relocation, clean
 home state, runtime operation without Rust/Cargo on `PATH`, aliases, schemas,
 simulated package-layout upgrade/uninstall preservation, caller-repository version isolation,
-embedded contract validation, and complete formula rendering. Intel execution
-still requires an Intel host or verified Rosetta environment; static
-architecture inspection is not runtime validation.
+embedded contract validation, and complete formula rendering. Native Intel
+evidence requires an Intel host; Rosetta and static architecture inspection are
+not substitutes.
 
 Maintainers without Intel hardware can manually dispatch `cxrs-compat` on the
 candidate branch. Its `intel-package` job runs only for `workflow_dispatch`,
@@ -111,6 +111,14 @@ uses GitHub's native `macos-15-intel` runner, checks out the exact candidate
 revision dispatched by GitHub, requires a non-translated `x86_64` process,
 reproduces the archive byte-for-byte, and uploads bounded validation evidence.
 Ordinary pull-request and push events do not start this lane.
+
+The `2026.08.25` implementation candidate passed this lane at source
+`727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
+Its evidence records native, non-translated Intel execution, byte-identical
+archive reproduction, checksum and provenance verification, package relocation
+and clean-home operation, and the complete isolated Homebrew lifecycle. This is
+candidate evidence only; it does not claim a published, signed, or notarized
+release.
 
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a

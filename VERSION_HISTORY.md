@@ -3,12 +3,13 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.08.25` (unpublished release candidate)
+- `2026.08.25` (validated release source; unpublished)
 
 Historical tagged versions:
 
 | Tag | Date | Summary |
 |---|---|---|
+| `v2026.08.25` | 2026-08-25 | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
 | `v2026.08.20` | 2026-08-20 | Phase XI capture-reduction reliability and linked-worktree Docker validation parity. |
 | `v2026.08.12` | 2026-08-12 | Process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance. |
 | `v2026.07.27` | 2026-07-27 | Run-log relocation control, local-model registry integrity, and contract corpus reconciliation. |
@@ -18,6 +19,7 @@ Historical tagged versions:
 | `v2026.02.21-20260225T151634Z` | 2026-02-25 | Snapshot milestone: manuals/docs layout and migration hooks. |
 
 Release links:
+- https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.20
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.12
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.07.27
