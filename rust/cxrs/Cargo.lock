@@ -228,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "cxrs"
-version = "0.1.0"
+version = "2026.8.25"
 dependencies = [
  "base64",
  "chrono",

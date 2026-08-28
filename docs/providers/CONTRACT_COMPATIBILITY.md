@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-07-27
+Last updated: 2026-08-27
 
 ## Scope
 
@@ -73,6 +73,11 @@ Major releases:
 Contract stability is enforced by:
 - `xshelf contracts export --profile full --json` for the declared compatibility
   surface manifest
+- the `eval-lab` validation fixture is embedded in the Rust binary so packaged
+  `xshelf contracts validate --profile eval-lab --json` preserves the declared
+  action set, contract versions, required keys, and strict drift result without
+  depending on a source checkout; embedding changes fixture availability, not
+  the contract surface
 - fixture-backed integration tests under `rust/cxrs/tests/fixtures/*_contract.json` for the fixture-locked surfaces
 - targeted integration assertions for typed JSON surfaces that do not yet have standalone fixture manifests (`policy show`, `llm verify`, `llm resident`)
 - fixture-backed local sidecar assertions for `llm resident probe-models --json`

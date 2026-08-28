@@ -13,6 +13,9 @@ cargo clippy --locked --all-targets -- -D warnings -D clippy::too_many_arguments
 echo "guardrails: rust toolchain sync"
 python3 "$REPO_ROOT/scripts/check_rust_toolchain_sync.py" --repo-root "$REPO_ROOT"
 
+echo "guardrails: release version sync"
+python3 "$REPO_ROOT/scripts/check_version_sync.py" --repo-root "$REPO_ROOT"
+
 echo "guardrails: function name length (max=52)"
 python3 ./scripts/check_fn_name_length.py --root . --max-len 52 --max-segments 3 --allowlist ./config/fn_segments_allowlist.txt
 
@@ -37,6 +40,9 @@ fi
 
 echo "guardrails: python3 -m unittest tools.test_release_check"
 python3 -m unittest tools.test_release_check
+
+echo "guardrails: packaging lifecycle tests"
+python3 "$REPO_ROOT/test/package_release_test.py"
 
 echo "guardrails: python3 tools/release_check.py --repo-root \"$REPO_ROOT\" --max-version-age-days 14"
 python3 tools/release_check.py \

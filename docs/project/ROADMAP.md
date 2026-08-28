@@ -27,6 +27,9 @@
   reducer, linked-worktree Docker reliability, and dependency advisory patch.
 - `v2026.08.20` release source is validated; its annotated tag preserves the
   exact release-head implementation and validation inputs.
+- `v2026.08.25` release source is validated; native Intel packaging evidence
+  passed on the exact implementation candidate without claiming publication,
+  signing, or notarization.
 
 ## Next (1-2 months)
 
@@ -90,7 +93,7 @@
 - Release-candidate validation is documented in
   `docs/project/RELEASE_READINESS.md`.
 - Future releases should not wait on published Docker images, provider sidecar
-  Compose recipes, Homebrew metadata, broader default capture prompt replacement,
+  Compose recipes, Homebrew publication, broader default capture prompt replacement,
   or new backend adapter families unless one of those items becomes explicit
   release scope.
 - Keep release notes, contract compatibility policy, and command-surface docs in
@@ -99,7 +102,6 @@
 ## Later (2+ months)
 
 - Pluggable backend adapters beyond primary/Ollama.
-- Incremental CLI packaging/distribution improvements (Homebrew-ready metadata).
 - Optional distributed execution backends (multi-process/remote workers) while preserving current log/schema contracts.
 - Backend capability experiments for local inference optimization must stay isolated from core XSHELF until they prove value and preserve adapter boundaries.
 - Current backend experiment note: `docs/turboquant/TURBOQUANT_SPIKE.md`

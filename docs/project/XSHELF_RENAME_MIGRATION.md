@@ -209,6 +209,8 @@ These rules apply unless a later approved phase explicitly changes them.
 - `.cx/` remains the runtime state location
 - machine-readable JSON contracts are not renamed purely for branding
 - downstream repos may continue consuming `cx` compatibility surfaces
+- packaged distributions install one native `xshelf` executable and retain
+  `xs` / `cx` as invoked-name-aware symlink aliases
 
 ## What Should Change Immediately
 

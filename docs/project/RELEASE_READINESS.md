@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-08-20
+Snapshot date: 2026-08-25
 
 ## Current State
 
@@ -24,6 +24,27 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
+Current unpublished candidate:
+- `VERSION` is advanced to `2026.08.25` for the CLI packaging validation line.
+- Clean ARM64 packaging and Homebrew checks passed locally. Native Intel
+  archive and isolated Homebrew lifecycle validation passed on GitHub's
+  `macos-15-intel` runner for exact source
+  `727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
+- That run is predecessor evidence only after later documentation commits. The
+  authoritative Intel evidence for review is the retained artifact from a
+  successful final-head dispatch whose `source_revision` equals the exact
+  candidate commit selected for PR or merge review.
+- Exact-head Intel evidence must record `runner_arch=x86_64`, `translated=0`,
+  reproducible archive bytes, validated manifest/provenance, clean-home and
+  relocation behavior, `xshelf` / `xs` / `cx` compatibility, install,
+  `brew test`, revision upgrade, uninstall, and unchanged Homebrew
+  configuration and user state.
+- Final-head checksums and provenance stay in the 90-day workflow artifact so
+  recording them does not create a new, unvalidated repository head.
+- `v2026.08.25` release source is validated, while publishing, tagging,
+  signing, notarization, and formula publication remain separate decisions.
+- `v2026.08.20` remains the newest published release and immutable authority.
+
 ## Release Candidate Validation
 
 Future release candidates are ready for review when these checks are green on
@@ -46,7 +67,9 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- Homebrew-ready packaging metadata
+- published Homebrew formula, bottles, and signed/notarized binary assets (the
+  local deterministic archive and draft-formula validation foundation is
+  documented in `docs/PACKAGING.md`)
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`
@@ -58,3 +81,9 @@ The `v2026.08.20` release is cut. Its annotated tag and GitHub release are
 published from the final validated release head; continue recording subsequent
 changes under `Unreleased` until the next release candidate is prepared.
 The `v2026.08.20` release source is validated for publication.
+
+The `v2026.08.25` release source is validated for publication. This is a source
+readiness statement, not a publication claim, and is supported only when the
+retained native Intel artifact names the exact selected candidate head. Keep
+published status anchored to reachable tag `v2026.08.20` unless a separate
+release action is explicitly authorized.

@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
 - `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
 - `v2026.08.12` (2026-08-12): process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance.
 - `v2026.07.27` (2026-07-27): run-log relocation control, local-model registry integrity, and contract corpus reconciliation.
@@ -18,13 +19,34 @@ Notes:
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [v2026.08.25] - 2026-08-25
+
 ### Added
+- Packaging readiness:
+  - added deterministic, architecture-specific macOS CLI archive tooling with
+    checksums, package manifests, unsigned/unnotarized provenance, lifecycle
+    tests, and an unpublished Homebrew formula template.
+  - added a release-version synchronization gate between the calendar `VERSION`
+    authority and Cargo's normalized SemVer package metadata.
+  - added a manual-only GitHub Actions lane that validates the exact unpublished
+    candidate on a native `macos-15-intel` runner, including deterministic
+    archive identity and an isolated Homebrew lifecycle.
 - Codex integration:
   - added a fail-open `SessionStart` hook adapter, fixture coverage, and an
     operator runbook that makes the explicit XSHELF capture lane discoverable
     without wrapping commands, invoking providers, or writing startup state.
 
 ### Changed
+- Advanced the unpublished packaging candidate authority to `2026.08.25` while
+  keeping `v2026.08.20` as the newest published release. This does not claim a
+  tag, release asset, formula, signature, or notarization.
+- Standalone XSHELF binaries now use the embedded release version instead of a
+  caller repository's `VERSION` or Git revision, resolve `xshelf` / `xs` / `cx`
+  from the invoked executable name, discover packaged default schemas without
+  writing user state, and embed the eval-lab contract fixture so validation no
+  longer depends on the build checkout.
 - Codex integration:
   - documented and fixture-locked the `SessionStart` hook's advisory-only,
     read-only, fail-open scope contract and its evidence gate for future
@@ -32,8 +54,18 @@ Notes:
 - Pre-tag validation now requires durable release-source markers for the
   current `VERSION`, preventing annotated tags whose immutable source cannot
   pass published-status validation without claiming publication early.
+- Native Intel evidence now uses the repository-supported 90-day artifact
+  retention horizon, and release-readiness documentation binds authoritative
+  evidence to the exact artifact `source_revision` without committing a stale
+  predecessor checksum.
+- Version history now separates prepared unpublished candidates from historical
+  tags while retaining the prospective release metadata required by the
+  pre-tag gate.
 
 ### Fixed
+- Packaging validation now uses the active Python interpreter in its
+  compiler-shadow regression instead of assuming an ARM Homebrew path, so the
+  same test runs on native Intel CI hosts.
 - Run-log compatibility:
   - made `logs validate --strict --legacy-ok` honor the documented historical
     allowance for additive nullable `system_status` capture provenance while
