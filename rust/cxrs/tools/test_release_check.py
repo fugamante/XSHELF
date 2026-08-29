@@ -221,7 +221,7 @@ class ReleaseCheckTests(unittest.TestCase):
             self.assertIn("current release head is not ready to tag", result.stdout)
             self.assertIn("ROADMAP.md release source marker", result.stdout)
 
-    def test_tagged_release_accepts_validated_source_markers(self) -> None:
+    def test_source_markers_do_not_claim_publication(self) -> None:
         with temp_repo() as repo:
             write_release_files(repo, published_tag="v2026.05.20")
             write_source_status_docs(repo, "v2026.06.03")
@@ -234,8 +234,11 @@ class ReleaseCheckTests(unittest.TestCase):
                 require_published_status_docs=True,
             )
 
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertIn("published_release_tag=v2026.06.03", result.stdout)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn(
+                "ROADMAP.md published release marker is stale or missing",
+                result.stdout,
+            )
 
     def test_release_lifecycle(self) -> None:
         with temp_repo() as repo:

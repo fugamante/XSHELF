@@ -19,7 +19,11 @@ Notes:
 
 ## [Unreleased]
 
-No unreleased changes.
+### Fixed
+- Release validation now requires explicit publication markers for the newest
+  reachable release tag even when that tag's immutable source-validation
+  markers are present, preventing pre-publication source evidence from being
+  accepted as published-status documentation.
 
 ## [v2026.08.25] - 2026-08-25
 
