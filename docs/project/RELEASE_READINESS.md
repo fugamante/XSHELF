@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-08-25
+Snapshot date: 2026-08-29
 
 ## Current State
 
@@ -9,10 +9,11 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
-- `v2026.08.20` is published, and the annotated tag resolves to the validated
-  release head after the reliability bundle and dependency advisory patch.
-- `v2026.08.20` release source is validated, with the immutable tag retaining
-  the release-head code, metadata, and compatibility inputs.
+- `v2026.08.25` is published, and its annotated tag resolves to immutable
+  packaged source `210b3b524c01f4dc673244077f02b53d39cedcda`.
+- `v2026.08.25` release source is validated, with protected-main controller
+  `8c2a16b937dc79d49ecc11dd2da94eb63ebd4eaf` supplying the canonical native
+  reproduction policy without changing source provenance.
 - strict run-log validation requires HTTP provenance keys on modern rows:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
@@ -24,27 +25,24 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
-Current unpublished candidate:
-- `VERSION` is advanced to `2026.08.25` for the CLI packaging validation line.
-- Clean ARM64 packaging and Homebrew checks passed locally. Native Intel
-  archive and isolated Homebrew lifecycle validation passed on GitHub's
-  `macos-15-intel` runner for exact source
-  `727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
-- That run is predecessor evidence only after later documentation commits. The
-  authoritative Intel evidence for review is the retained artifact from a
-  successful final-head dispatch whose `source_revision` equals the exact
-  candidate commit selected for PR or merge review.
-- Exact-head Intel evidence must record `runner_arch=x86_64`, `translated=0`,
-  reproducible archive bytes, validated manifest/provenance, clean-home and
-  relocation behavior, `xshelf` / `xs` / `cx` compatibility, install,
-  `brew test`, revision upgrade, uninstall, and unchanged Homebrew
-  configuration and user state.
-- Final-head checksums and provenance stay in the 90-day workflow artifact so
-  recording them does not create a new, unvalidated repository head.
-- `v2026.08.25` release source is validated, and its annotated source tag points
-  at that source. GitHub release publication, signing, notarization, and formula
-  publication remain separate decisions.
-- `v2026.08.20` remains the newest published release and immutable authority.
+Current published release:
+- `VERSION` is `2026.08.25`; the release is published at
+  https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25.
+- Published assets are exactly:
+  - ARM64 archive `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f`;
+  - Intel archive `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e`;
+  - `SHA256SUMS` `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf`.
+- Clean ARM64 canonical reproduction, runtime, relocation, clean-home, and
+  isolated Homebrew lifecycle validation passed locally. Native Intel evidence
+  passed in workflow `33234570375`; retained artifact `9709817894` records
+  `runner_arch=x86_64`, `translated=0`, exact controller and source revisions,
+  two clean compilations, runtime, relocation, and the isolated Homebrew
+  lifecycle.
+- The assets are not Developer ID signed or notarized. ARM64 has
+  linker-generated ad-hoc signing state; Intel is unsigned.
+- No Homebrew formula or bottle is published.
+- Archive-embedded documentation remains the immutable tag-time snapshot, so
+  its pre-publication wording is historical.
 
 ## Release Candidate Validation
 
@@ -78,13 +76,9 @@ patch or minor release unless they become explicit scope:
 
 ## Release Decision
 
-The `v2026.08.20` release is cut. Its annotated tag and GitHub release are
-published from the final validated release head; continue recording subsequent
-changes under `Unreleased` until the next release candidate is prepared.
-The `v2026.08.20` release source is validated for publication.
-
-The `v2026.08.25` release source is validated for publication. This is a source
-readiness statement, not a publication claim, and is supported only when the
-retained native Intel artifact names the exact selected candidate head. Keep
-published status anchored to reachable tag `v2026.08.20` unless a separate
-release action is explicitly authorized.
+The `v2026.08.25` release is cut. Its annotated tag and GitHub release publish
+the validated unsigned native macOS assets from immutable source `210b3b5`;
+continue recording subsequent changes under `Unreleased` until the next release
+candidate is prepared. The `v2026.08.25` release source is validated for
+publication. Signing, notarization, and Homebrew publication remain separate
+future authority gates.

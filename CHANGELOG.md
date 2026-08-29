@@ -30,8 +30,8 @@ No unreleased changes.
     tests, and an unpublished Homebrew formula template.
   - added a release-version synchronization gate between the calendar `VERSION`
     authority and Cargo's normalized SemVer package metadata.
-  - added a manual-only GitHub Actions lane that validates the exact unpublished
-    candidate on a native `macos-15-intel` runner, including deterministic
+  - added a manual-only GitHub Actions lane that validates the exact package
+    source on a native `macos-15-intel` runner, including deterministic
     archive identity and an isolated Homebrew lifecycle.
 - Codex integration:
   - added a fail-open `SessionStart` hook adapter, fixture coverage, and an
@@ -39,9 +39,12 @@ No unreleased changes.
     without wrapping commands, invoking providers, or writing startup state.
 
 ### Changed
-- Advanced the unpublished packaging candidate authority to `2026.08.25` while
-  keeping `v2026.08.20` as the newest published release. This does not claim a
-  tag, release asset, formula, signature, or notarization.
+- Published `v2026.08.25` against its existing immutable annotated source tag
+  with two unsigned, unnotarized native macOS archives and `SHA256SUMS`. No
+  Homebrew formula or bottle was published:
+  - ARM64 archive: `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f`
+  - Intel archive: `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e`
+  - `SHA256SUMS`: `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf`
 - Standalone XSHELF binaries now use the embedded release version instead of a
   caller repository's `VERSION` or Git revision, resolve `xshelf` / `xs` / `cx`
   from the invoked executable name, discover packaged default schemas without
@@ -58,8 +61,8 @@ No unreleased changes.
   retention horizon, and release-readiness documentation binds authoritative
   evidence to the exact artifact `source_revision` without committing a stale
   predecessor checksum.
-- Version history now separates prepared unpublished candidates from historical
-  tags while retaining the prospective release metadata required by the
+- Version history now records the published unsigned release separately from
+  historical tags while retaining the release metadata required by the
   pre-tag gate.
 
 ### Fixed
