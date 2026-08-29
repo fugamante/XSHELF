@@ -154,9 +154,14 @@ path and the `xshelf-canonical-native.v1` policy. A sibling lock prevents
 concurrent use. Both builds reuse the same absolute source, HOME, Cargo, temp,
 XDG, output, and checkout-owned target paths, but the harness removes and
 verifies all owned state before each clone. It refuses dirty or wrong revisions,
-compares archive, executable, UUID, linker ad-hoc signature, manifest, and
-provenance bytes, writes `xshelf-native-reproduction.v1` evidence outside the
-root, and removes the canonical build root afterward.
+compares archive, executable, UUID, platform-observed linker signing state,
+CDHash when present, manifest, and provenance bytes, writes
+`xshelf-native-reproduction.v1` evidence outside the root, and removes the
+canonical build root afterward. The accepted linker states are ad-hoc with a
+CDHash or unsigned with a null CDHash; ambiguous, invalid, Developer ID, and
+other unexpected states fail closed. This linker observation is build evidence,
+not Developer ID release signing, and does not change the embedded
+`signed=false` or `notarized=false` package provenance fields.
 
 Host, SDK, linker, UUID-policy, and build-policy identities remain reproduction
 evidence rather than fields in `xshelf-package-provenance.v1`. This preserves

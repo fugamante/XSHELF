@@ -143,6 +143,44 @@ class CanonicalRootTests(unittest.TestCase):
         with self.assertRaisesRegex(reproduce.ReproductionError, "checksum mismatch"):
             reproduce.require_equal(first, second, "archive")
 
+    def test_adhoc_codesign_state_requires_cdhash(self) -> None:
+        observed = reproduce.parse_codesign(
+            0,
+            "Executable=/tmp/xshelf\nSignature=adhoc\n"
+            "CDHash=0123456789abcdef0123456789abcdef01234567\n",
+        )
+        self.assertEqual(
+            observed,
+            {
+                "signature_state": "adhoc",
+                "cdhash": "0123456789abcdef0123456789abcdef01234567",
+            },
+        )
+
+    def test_unsigned_codesign_state_has_null_cdhash(self) -> None:
+        observed = reproduce.parse_codesign(
+            1, "/tmp/xshelf: code object is not signed at all\n"
+        )
+        self.assertEqual(observed, {"signature_state": "unsigned", "cdhash": None})
+
+    def test_signing_identity_mismatch_is_refused(self) -> None:
+        first = {"signature_state": "adhoc", "cdhash": "a" * 40}
+        second = {"signature_state": "unsigned", "cdhash": None}
+        with self.assertRaisesRegex(reproduce.ReproductionError, "identity mismatch"):
+            reproduce.require_same_build_identity(first, second)
+
+    def test_unexpected_codesign_output_is_refused(self) -> None:
+        cases = (
+            (0, "Authority=Developer ID Application: Example\nCDHash=" + "a" * 40),
+            (0, "Signature=adhoc\n"),
+            (1, "/tmp/xshelf: invalid signature\n"),
+            (1, "/tmp/xshelf: code object is not signed at all\nCDHash=" + "a" * 40),
+        )
+        for returncode, details in cases:
+            with self.subTest(returncode=returncode, details=details):
+                with self.assertRaisesRegex(reproduce.ReproductionError, "unexpected|invalid"):
+                    reproduce.parse_codesign(returncode, details)
+
     def test_build_command_has_no_dirty_escape(self) -> None:
         text = (ROOT / "scripts/reproduce_packages.py").read_text(encoding="utf-8")
         self.assertNotIn("--allow-dirty", text)

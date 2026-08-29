@@ -171,7 +171,33 @@ def extract_member(archive: Path, suffix: str, output: Path) -> None:
         output.chmod(matches[0].mode)
 
 
-def macho_identity(binary: Path) -> dict[str, str]:
+def parse_codesign(returncode: int, details: str) -> dict[str, str | None]:
+    lines = [line.strip() for line in details.splitlines() if line.strip()]
+    signatures = [line.split("=", 1)[1] for line in lines if line.startswith("Signature=")]
+    cdhashes = [line.split("=", 1)[1] for line in lines if line.startswith("CDHash=")]
+    unsigned = [line for line in lines if line.endswith(": code object is not signed at all")]
+    if returncode == 0:
+        if (
+            signatures == ["adhoc"]
+            and len(cdhashes) == 1
+            and len(cdhashes[0]) == 40
+            and all(ch in "0123456789abcdefABCDEF" for ch in cdhashes[0])
+            and not unsigned
+        ):
+            return {"signature_state": "adhoc", "cdhash": cdhashes[0].lower()}
+        raise ReproductionError("native executable has an unexpected or ambiguous code signature")
+    if (
+        returncode == 1
+        and len(lines) == 1
+        and len(unsigned) == 1
+        and not signatures
+        and not cdhashes
+    ):
+        return {"signature_state": "unsigned", "cdhash": None}
+    raise ReproductionError("native executable signing state is invalid or ambiguous")
+
+
+def macho_identity(binary: Path) -> dict[str, str | None]:
     uuid_text = run(["dwarfdump", "--uuid", str(binary)])
     fields = uuid_text.split()
     if len(fields) < 2 or fields[0] != "UUID:":
@@ -179,24 +205,13 @@ def macho_identity(binary: Path) -> dict[str, str]:
     codesign = subprocess.run(
         ["codesign", "-d", "--verbose=4", str(binary)], text=True, capture_output=True
     )
-    if codesign.returncode != 0:
-        raise ReproductionError(
-            f"unable to inspect linker ad-hoc signature: {codesign.stderr.strip()}"
-        )
     details = codesign.stdout + codesign.stderr
-    cdhash = next(
-        (line.split("=", 1)[1] for line in details.splitlines() if line.startswith("CDHash=")),
-        None,
-    )
-    signature = next(
-        (line.split("=", 1)[1] for line in details.splitlines() if line.startswith("Signature=")),
-        None,
-    )
-    if not cdhash or signature != "adhoc":
-        raise ReproductionError(
-            "native executable does not have the expected linker ad-hoc signature"
-        )
-    return {"uuid": fields[1], "cdhash": cdhash, "signature": signature}
+    return {"uuid": fields[1], **parse_codesign(codesign.returncode, details)}
+
+
+def require_same_build_identity(first: dict[str, object], second: dict[str, object]) -> None:
+    if first != second:
+        raise ReproductionError("UUID or linker signing identity mismatch")
 
 
 def build_once(
@@ -363,8 +378,7 @@ def main(argv: list[str] | None = None) -> int:
                 labels = ("archive", "binary", "manifest", "provenance")
                 for name, label in zip(names, labels, strict=True):
                     require_equal(first / str(name), second / str(name), label)
-                if results[0] != results[1]:
-                    raise ReproductionError("UUID or ad-hoc signature identity mismatch")
+                require_same_build_identity(results[0], results[1])
                 for item in first.iterdir():
                     if item.name != "xshelf":
                         shutil.copy2(item, output / item.name)
@@ -379,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
                     },
                     "compiler_state_removed_between_builds": True,
                     "uuid_policy": "linker-default",
-                    "linker_signing": "adhoc",
+                    "linker_signing": results[0]["signature_state"],
                     "host": host,
                     "builds": results,
                 }
