@@ -27,13 +27,15 @@
   reducer, linked-worktree Docker reliability, and dependency advisory patch.
 - `v2026.08.20` release source is validated; its annotated tag preserves the
   exact release-head implementation and validation inputs.
+- `v2026.08.25` is published; its two native macOS archives and combined
+  checksum manifest remain unsigned and unnotarized.
 - `v2026.08.25` release source is validated; native Intel packaging evidence
-  passed on the exact implementation candidate without claiming publication,
-  signing, or notarization.
+  passed on the exact implementation candidate without claiming signing or
+  notarization.
 
 ## Next (1-2 months)
 
-- `v2026.08.20` is published; future release cuts should use
+- `v2026.08.25` is published; future release cuts should use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a

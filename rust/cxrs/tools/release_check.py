@@ -100,8 +100,6 @@ def latest_reachable_release_tag(repo_root: pathlib.Path) -> str | None:
 def validate_published_status_docs(
     tag: str, roadmap_text: str, readiness_text: str
 ) -> str | None:
-    if validate_release_source_docs(tag, roadmap_text, readiness_text) is None:
-        return None
     checks = [
         (roadmap_text, f"`{tag}` is published;", "ROADMAP.md published release marker"),
         (

@@ -37,7 +37,10 @@ publication from `VERSION`.
 The pre-tag wrapper also requires durable release-source validation markers for
 `vVERSION` on the exact release head. Update the roadmap and readiness decision
 before creating the annotated tag so the immutable tagged source validates
-itself without claiming publication early or relying on a post-tag correction.
+itself for the current-source gate without claiming publication early. The
+published-status gate remains separate: release-source markers cannot replace
+the explicit roadmap, readiness, and release-decision markers for the newest
+reachable published tag.
 
 Validation preference for maintainers:
 - prefer `./scripts/compat_local.sh --quick` when you need representative
