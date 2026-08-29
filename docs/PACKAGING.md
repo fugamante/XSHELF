@@ -94,6 +94,7 @@ Run the focused packaging lifecycle suite:
 
 ```bash
 python3 test/package_release_test.py
+python3 test/reproduce_packages_test.py
 cd rust/cxrs
 cargo test --locked --test package_runtime -- --test-threads=1
 ```
@@ -107,10 +108,14 @@ not substitutes.
 
 Maintainers without Intel hardware can manually dispatch `cxrs-compat` on the
 candidate branch. Its `intel-package` job runs only for `workflow_dispatch`,
-uses GitHub's native `macos-15-intel` runner, checks out the exact candidate
-revision dispatched by GitHub, requires a non-translated `x86_64` process,
-reproduces the archive byte-for-byte, and uploads bounded validation evidence.
-Ordinary pull-request and push events do not start this lane.
+uses GitHub's native `macos-15-intel` runner, and requires a non-translated
+`x86_64` process. By default it packages the dispatched workflow commit. An
+optional `package_revision` input accepts only a full commit ID, allowing a
+reviewed newer harness to reproduce an older immutable source tag without
+retagging it. The controller checkout and packaged source revision are recorded
+separately. Both clean builds and archive provenance bind to the selected
+package revision, and the job uploads bounded validation evidence. Ordinary
+pull-request and push events do not start this lane.
 
 The `2026.08.25` implementation candidate passed this lane at source
 `727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
@@ -129,6 +134,34 @@ follow-up documentation commit that would invalidate the source binding.
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a
 content fingerprint; such an artifact is never release-ready.
+
+For release-candidate reproducibility, use the canonical native harness rather
+than rebuilding against one shared Cargo target directory:
+
+```bash
+python3 scripts/reproduce_packages.py \
+  --source-repo . \
+  --revision "$(git rev-parse HEAD)" \
+  --target aarch64-apple-darwin \
+  --approved-prefix /tmp \
+  --canonical-root /tmp/xshelf-canonical-native \
+  --output-dir /tmp/xshelf-native-evidence
+```
+
+The canonical root must be one direct child of the approved temporary prefix.
+An existing root is accepted only when its marker exactly names that resolved
+path and the `xshelf-canonical-native.v1` policy. A sibling lock prevents
+concurrent use. Both builds reuse the same absolute source, HOME, Cargo, temp,
+XDG, output, and checkout-owned target paths, but the harness removes and
+verifies all owned state before each clone. It refuses dirty or wrong revisions,
+compares archive, executable, UUID, linker ad-hoc signature, manifest, and
+provenance bytes, writes `xshelf-native-reproduction.v1` evidence outside the
+root, and removes the canonical build root afterward.
+
+Host, SDK, linker, UUID-policy, and build-policy identities remain reproduction
+evidence rather than fields in `xshelf-package-provenance.v1`. This preserves
+the current archive contract and avoids making host-specific observations part
+of otherwise identical release bytes.
 
 ## Draft Homebrew Formula
 

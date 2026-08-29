@@ -6,6 +6,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      package_revision:
+        description: Full source commit to package; defaults to the dispatched workflow commit
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -52,6 +57,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
           python3 ./test/package_release_test.py
+          python3 ./test/reproduce_packages_test.py
 
       - name: Command Surface Changelog Gate
         run: |
@@ -378,12 +384,17 @@ jobs:
           targets: x86_64-apple-darwin
 
       - name: Validate native Intel package lifecycle
+        env:
+          XSHELF_PACKAGE_REVISION: ${{ inputs.package_revision }}
         run: |
           set -euo pipefail
           evidence="$RUNNER_TEMP/intel-artifacts"
           mkdir -p "$evidence"
           exec > >(tee "$evidence/intel-package.log") 2>&1
 
+          package_revision="${XSHELF_PACKAGE_REVISION:-$GITHUB_SHA}"
+          [[ "$package_revision" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$package_revision^{commit}"
           test "$(uname -m)" = x86_64
           translated="$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)"
           test "$translated" = 0
@@ -392,7 +403,8 @@ jobs:
           {
             echo "runner_arch=$(uname -m)"
             echo "translated=$translated"
-            echo "source_revision=$(git rev-parse HEAD)"
+            echo "controller_revision=$(git rev-parse HEAD)"
+            echo "source_revision=$package_revision"
             echo "runner_image=${ImageOS:-unknown}"
             echo "runner_version=${ImageVersion:-unknown}"
           } > "$evidence/host.txt"
@@ -401,24 +413,24 @@ jobs:
           python3 ./scripts/check_rust_toolchain_sync.py --repo-root "$GITHUB_WORKSPACE"
           python3 ./scripts/check_version_sync.py --repo-root "$GITHUB_WORKSPACE"
           python3 ./test/package_release_test.py
+          python3 ./test/reproduce_packages_test.py
           rustup run 1.95.0 cargo test --locked \
             --manifest-path rust/cxrs/Cargo.toml \
             --test package_runtime -- --test-threads=1
 
-          packages="$RUNNER_TEMP/packages-1"
-          ./scripts/build_packages.sh \
+          packages="$evidence/packages"
+          python3 ./scripts/reproduce_packages.py \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --revision "$package_revision" \
             --target x86_64-apple-darwin \
-            --out-dir "$packages"
-          packages_repeat="$RUNNER_TEMP/packages-2"
-          ./scripts/build_packages.sh \
-            --target x86_64-apple-darwin \
-            --out-dir "$packages_repeat"
+            --approved-prefix "$RUNNER_TEMP" \
+            --canonical-root "$RUNNER_TEMP/xshelf-canonical-native" \
+            --output-dir "$packages"
           archive="$packages/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz"
-          archive_repeat="$packages_repeat/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz"
-          cmp "$archive" "$archive_repeat"
           observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
           python3 ./scripts/package_release.py verify "$archive"
-          cp "$archive" "$archive.sha256" "$packages/SHA256SUMS" "$evidence/"
+          cp "$archive" "$archive.sha256" "$packages/SHA256SUMS" \
+            "$packages/reproduction.json" "$evidence/"
           echo "$observed  $(basename "$archive")" > "$evidence/native-SHA256SUMS"
 
           extracted="$RUNNER_TEMP/extracted"
@@ -429,7 +441,7 @@ jobs:
           test "$(readlink "$package_root/bin/xs")" = xshelf
           test "$(readlink "$package_root/bin/cx")" = xshelf
           cp "$package_root/manifest.json" "$package_root/provenance.json" "$evidence/"
-          python3 - "$package_root/provenance.json" "$GITHUB_SHA" <<'PY'
+          python3 - "$package_root/provenance.json" "$package_revision" <<'PY'
           import json, pathlib, sys
           value = json.loads(pathlib.Path(sys.argv[1]).read_text())
           assert value["architecture"] == "x86_64-apple-darwin"

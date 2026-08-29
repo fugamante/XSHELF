@@ -3,16 +3,16 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.08.25` (prepared release candidate; unpublished)
+- `2026.08.25` (annotated source tag exists; GitHub release unpublished)
 
 Prepared release candidates:
 
-| Prospective tag | Date | Status | Summary |
+| Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.08.25` | 2026-08-25 | Unpublished; no tag or release exists. | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
+| `v2026.08.25` | 2026-08-25 | Annotated source tag exists; no GitHub release exists. | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
 
-Prospective release links are reserved for the corresponding future tag and
-remain unavailable until publication is separately authorized:
+The GitHub release link remains unavailable until release publication is
+separately authorized:
 
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
 
