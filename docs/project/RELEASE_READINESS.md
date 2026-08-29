@@ -9,6 +9,11 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
+- `v2026.08.29` is published, and its annotated tag resolves to immutable
+  source `b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`.
+- `v2026.08.29` release source is validated, with native ARM and Intel
+  reproducibility, Developer ID signing, Apple notarization, public-byte
+  verification, and isolated Homebrew lifecycle evidence complete.
 - `v2026.08.25` is published, and its annotated tag resolves to immutable
   packaged source `210b3b524c01f4dc673244077f02b53d39cedcda`.
 - `v2026.08.25` release source is validated, with protected-main controller
@@ -25,30 +30,24 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
-Current release candidate:
-- `VERSION` is `2026.08.29`.
-- `v2026.08.29` release source is validated, with Developer ID signing, Apple
-  notarization, GitHub publication, and Homebrew tap publication still pending.
-- The signing implementation pins the certificate identity, validates the
-  configured team at execution time, preserves Apple submission evidence, and
-  emits only sanitized receipts in distributable output.
-
 Current published release:
-- The latest published version is `2026.08.25`; the release is available at
-  https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25.
+- The latest published version is `2026.08.29`; the release is available at
+  https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29.
 - Published assets are exactly:
-  - ARM64 archive `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f`;
-  - Intel archive `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e`;
-  - `SHA256SUMS` `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf`.
-- Clean ARM64 canonical reproduction, runtime, relocation, clean-home, and
-  isolated Homebrew lifecycle validation passed locally. Native Intel evidence
-  passed in workflow `33234570375`; retained artifact `9709817894` records
+  - ARM64 archive `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23`;
+  - Intel archive `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c`;
+  - `SHA256SUMS` `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e`;
+  - one sanitized `.notary.json` evidence record per archive.
+- Clean ARM64 canonical reproduction and public Homebrew lifecycle validation
+  passed locally. Native Intel evidence passed in workflow `33268120729`;
+  retained artifact `9719457140` records
   `runner_arch=x86_64`, `translated=0`, exact controller and source revisions,
   two clean compilations, runtime, relocation, and the isolated Homebrew
   lifecycle.
-- The assets are not Developer ID signed or notarized. ARM64 has
-  linker-generated ad-hoc signing state; Intel is unsigned.
-- No Homebrew formula or bottle is published.
+- Both archive binaries are Developer ID signed with hardened runtime and a
+  secure timestamp, and Apple accepted both notarization submissions. A public
+  source formula is published in `fugamante/homebrew-tap`; no bottle is
+  published.
 - Archive-embedded documentation remains the immutable tag-time snapshot, so
   its pre-publication wording is historical.
 
@@ -74,8 +73,8 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- Homebrew bottles; the `v2026.08.29` source formula and signed/notarized binary
-  archives are active release scope, while bottles remain deferred
+- Homebrew bottles; the signed/notarized archives and source formula are
+  published, while bottles remain deferred
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`
@@ -83,14 +82,8 @@ patch or minor release unless they become explicit scope:
 
 ## Release Decision
 
-The `v2026.08.25` release is cut. Its annotated tag and GitHub release publish
-the validated unsigned native macOS assets from immutable source `210b3b5`;
-continue recording subsequent changes under `Unreleased` until the next release
-candidate is prepared. The `v2026.08.25` release source is validated for
-publication. Signing, notarization, and Homebrew publication remain separate
-future authority gates.
-
-The `v2026.08.29` release source is validated for publication. This statement
-does not claim that the tag, signed artifacts, Apple notarization acceptance,
-GitHub release, or Homebrew formula already exists; each remains fail-closed
-until its exact evidence is recorded.
+The `v2026.08.29` release is cut. Its annotated tag, five-file GitHub release,
+and Homebrew source formula publish the validated signed/notarized native macOS
+assets from immutable source `b8ea981`. Public archive bytes and notarization
+records match the locally accepted release inventory. The `v2026.08.29`
+release source is validated for publication.
