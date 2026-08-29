@@ -439,7 +439,7 @@ jobs:
           extracted="$RUNNER_TEMP/extracted"
           mkdir -p "$extracted"
           tar -xzf "$archive" -C "$extracted"
-          package_root="$extracted/xshelf-2026.08.25-x86_64-apple-darwin"
+          package_root="$extracted/xshelf-${version}-x86_64-apple-darwin"
           file "$package_root/bin/xshelf" | grep -q x86_64
           test "$(readlink "$package_root/bin/xs")" = xshelf
           test "$(readlink "$package_root/bin/cx")" = xshelf
@@ -489,7 +489,7 @@ jobs:
           echo keep-codex > "$fixture/user-state/.codex/state-marker"
           python3 ./scripts/render_formula_fixture.py \
             --output "$fixture/xshelf.rb" \
-            --version 2026.08.25 \
+            --version "$version" \
             --intel-archive "$archive"
 
           brew_cmd=(/bin/bash "$fixture/prefix/bin/brew")
@@ -531,11 +531,11 @@ jobs:
           test "$(cat "$fixture/user-state/.cx/state-marker")" = keep-cx
           test "$(cat "$fixture/user-state/.codex/state-marker")" = keep-codex
 
-          python3 - "$fixture/xshelf.rb" <<'PY'
+          python3 - "$fixture/xshelf.rb" "$version" <<'PY'
           import pathlib, sys
           path = pathlib.Path(sys.argv[1])
           text = path.read_text()
-          needle = '  version "2026.08.25"\n'
+          needle = f'  version "{sys.argv[2]}"\n'
           assert text.count(needle) == 1
           path.write_text(text.replace(needle, needle + "  revision 1\n"))
           PY
