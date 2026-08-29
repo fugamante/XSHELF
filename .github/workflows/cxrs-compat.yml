@@ -57,6 +57,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE"
           python3 ./test/package_release_test.py
+          python3 ./test/package_signing_test.py
           python3 ./test/reproduce_packages_test.py
 
       - name: Command Surface Changelog Gate
@@ -413,6 +414,7 @@ jobs:
           python3 ./scripts/check_rust_toolchain_sync.py --repo-root "$GITHUB_WORKSPACE"
           python3 ./scripts/check_version_sync.py --repo-root "$GITHUB_WORKSPACE"
           python3 ./test/package_release_test.py
+          python3 ./test/package_signing_test.py
           python3 ./test/reproduce_packages_test.py
           rustup run 1.95.0 cargo test --locked \
             --manifest-path rust/cxrs/Cargo.toml \
