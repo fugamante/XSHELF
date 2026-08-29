@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.08.29` (2026-08-29): Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls.
 - `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
 - `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
 - `v2026.08.12` (2026-08-12): process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance.
@@ -18,6 +19,21 @@ Notes:
 - This file tracks rolling changes under `Unreleased` until the next tagged release.
 
 ## [Unreleased]
+
+No changes yet.
+
+## [v2026.08.29] - 2026-08-29
+
+### Added
+- A fail-closed macOS release-signing pipeline that validates immutable input
+  archives, signs only the packaged Mach-O executables with a pinned Developer
+  ID Application certificate, submits exact ZIP payloads to Apple, and records
+  sanitized notarization evidence before emitting signed archives.
+- Focused signing tests and operator documentation covering archive safety,
+  identity pinning, receipt preservation, Apple-log validation, and the
+  standalone-CLI limitation that notarization tickets cannot be stapled.
+- A version-derived native Intel workflow path so release evidence remains
+  aligned with the current machine-readable version.
 
 ### Fixed
 - Release validation now requires explicit publication markers for the newest

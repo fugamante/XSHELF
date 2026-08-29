@@ -25,8 +25,16 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
+Current release candidate:
+- `VERSION` is `2026.08.29`.
+- `v2026.08.29` release source is validated, with Developer ID signing, Apple
+  notarization, GitHub publication, and Homebrew tap publication still pending.
+- The signing implementation pins the certificate identity, validates the
+  configured team at execution time, preserves Apple submission evidence, and
+  emits only sanitized receipts in distributable output.
+
 Current published release:
-- `VERSION` is `2026.08.25`; the release is published at
+- The latest published version is `2026.08.25`; the release is available at
   https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25.
 - Published assets are exactly:
   - ARM64 archive `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f`;
@@ -66,9 +74,8 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- published Homebrew formula, bottles, and signed/notarized binary assets (the
-  local deterministic archive and draft-formula validation foundation is
-  documented in `docs/PACKAGING.md`)
+- Homebrew bottles; the `v2026.08.29` source formula and signed/notarized binary
+  archives are active release scope, while bottles remain deferred
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`
@@ -82,3 +89,8 @@ continue recording subsequent changes under `Unreleased` until the next release
 candidate is prepared. The `v2026.08.25` release source is validated for
 publication. Signing, notarization, and Homebrew publication remain separate
 future authority gates.
+
+The `v2026.08.29` release source is validated for publication. This statement
+does not claim that the tag, signed artifacts, Apple notarization acceptance,
+GitHub release, or Homebrew formula already exists; each remains fail-closed
+until its exact evidence is recorded.

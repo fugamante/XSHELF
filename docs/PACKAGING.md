@@ -115,6 +115,7 @@ Run the focused packaging lifecycle suite:
 
 ```bash
 python3 test/package_release_test.py
+python3 test/package_signing_test.py
 python3 test/reproduce_packages_test.py
 cd rust/cxrs
 cargo test --locked --test package_runtime -- --test-threads=1
@@ -151,6 +152,82 @@ notarization, or Homebrew publication.
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a
 content fingerprint; such an artifact is never release-ready.
+
+## Developer ID Signing And Notarization
+
+Signing is a post-build release gate. It never rewrites an unsigned input
+archive, and it must target a new release inventory rather than replace the
+published `v2026.08.25` assets. The two `bin/xshelf` Mach-O files are the only
+Apple code-signing targets in the Homebrew package. The `xs` and `cx` entries
+are symlinks to that code. Formula text, schemas, man pages, checksums, and tar
+containers are integrity or data artifacts and are not code-signed.
+
+Apple requires a Developer ID Application signature, Hardened Runtime, and a
+secure timestamp for command-line tools submitted to the notary service. The
+service accepts a ZIP submission and publishes a ticket for the signed binary.
+Apple does not support stapling a ticket to a standalone binary, so this
+Homebrew-first distribution relies on the online notarization ticket. A future
+offline-first installer would be a separate PKG or DMG product and would need
+its own signing, notarization, stapling, install, rollback, and clean-machine
+validation; it is not implied by this CLI release.
+
+Use `scripts/sign_packages.py` only with two clean, verified unsigned archives
+from the same version, source revision, and source fingerprint. First run the
+provider-free preflight with an explicitly approved reverse-DNS signing
+identifier:
+
+```bash
+python3 scripts/sign_packages.py preflight \
+  --archive /path/to/xshelf-VERSION-aarch64-apple-darwin.tar.gz \
+  --archive /path/to/xshelf-VERSION-x86_64-apple-darwin.tar.gz \
+  --identifier "<approved.reverse.dns.identifier>"
+```
+
+The signing host must have exactly the intended Developer ID Application
+certificate and an existing `notarytool` Keychain profile for the same Apple
+Developer team. Create or rotate credentials only as a separate operator
+decision. Never put an Apple ID, Team ID, app-specific password, private key,
+or certificate export in repository files, shell arguments, logs, or chat.
+When the exact local identity hash, Keychain profile name, and identifier have
+been confirmed, run:
+
+```bash
+export XSHELF_SIGN_IDENTITY="<certificate-sha1>"
+export XSHELF_NOTARY_PROFILE="<local-keychain-profile>"
+export XSHELF_SIGN_IDENTIFIER="<approved.reverse.dns.identifier>"
+
+python3 scripts/sign_packages.py run \
+  --archive /path/to/xshelf-VERSION-aarch64-apple-darwin.tar.gz \
+  --archive /path/to/xshelf-VERSION-x86_64-apple-darwin.tar.gz \
+  --identity "$XSHELF_SIGN_IDENTITY" \
+  --keychain-profile "$XSHELF_NOTARY_PROFILE" \
+  --identifier "$XSHELF_SIGN_IDENTIFIER" \
+  --confirm-profile-team \
+  --output-dir /path/to/signed-release
+```
+
+The command authenticates the named profile without printing its history,
+signs both temporary binary copies, submits each ZIP without embedding
+credentials, waits up to 30 minutes per submission, and validates the accepted
+notary log against the exact architecture and CDHash. It then writes signed
+archives, per-archive `.sha256` files, a combined `SHA256SUMS`, and sanitized
+`xshelf-notarization-evidence.v1` records. The additive `signing` and
+`notarization` provenance objects define the evidence behind `signed=true` and
+`notarized=true`; the existing `xshelf-package-provenance.v1` keys remain
+compatible.
+
+On success, raw notary logs and temporary signed files are removed. On failure,
+the command prints the exact owner-only recovery directory and preserves any
+submission receipt and raw Apple log there. Treat that directory as sensitive,
+do not upload it, and remove it only after its submission IDs and failure
+evidence have been reconciled. Publication, Git tagging, Homebrew tap changes,
+and replacement of any remote asset remain separate actions.
+
+Authoritative Apple references:
+
+- https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution
+- https://developer.apple.com/documentation/security/customizing-the-notarization-workflow
+- https://developer.apple.com/documentation/security/resolving-common-notarization-issues
 
 For release-candidate reproducibility, use the canonical native harness rather
 than rebuilding against one shared Cargo target directory:

@@ -32,6 +32,9 @@
 - `v2026.08.25` release source is validated; native Intel packaging evidence
   passed on the exact implementation candidate without claiming signing or
   notarization.
+- `v2026.08.29` release source is validated; Developer ID signing, Apple
+  notarization, GitHub publication, and Homebrew tap publication remain active
+  release gates rather than completed claims.
 
 ## Next (1-2 months)
 
