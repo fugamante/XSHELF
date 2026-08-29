@@ -41,8 +41,9 @@ Current unpublished candidate:
   configuration and user state.
 - Final-head checksums and provenance stay in the 90-day workflow artifact so
   recording them does not create a new, unvalidated repository head.
-- `v2026.08.25` release source is validated, while publishing, tagging,
-  signing, notarization, and formula publication remain separate decisions.
+- `v2026.08.25` release source is validated, and its annotated source tag points
+  at that source. GitHub release publication, signing, notarization, and formula
+  publication remain separate decisions.
 - `v2026.08.20` remains the newest published release and immutable authority.
 
 ## Release Candidate Validation
