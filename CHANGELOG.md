@@ -35,6 +35,13 @@ No changes yet.
 - A version-derived native Intel workflow path so release evidence remains
   aligned with the current machine-readable version.
 
+### Changed
+- Published two Developer ID signed and Apple-notarized native macOS archives,
+  their combined `SHA256SUMS`, and sanitized notarization evidence from exact
+  source `b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`.
+- Published the architecture-aware Homebrew source formula in
+  `fugamante/homebrew-tap`; no bottle is included.
+
 ### Fixed
 - Release validation now requires explicit publication markers for the newest
   reachable release tag even when that tag's immutable source-validation

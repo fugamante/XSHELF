@@ -33,12 +33,15 @@
   passed on the exact implementation candidate without claiming signing or
   notarization.
 - `v2026.08.29` release source is validated; Developer ID signing, Apple
-  notarization, GitHub publication, and Homebrew tap publication remain active
-  release gates rather than completed claims.
+  notarization, public-byte verification, and Homebrew tap lifecycle evidence
+  passed from exact source `b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`.
+- `v2026.08.29` is published; its two signed/notarized native archives,
+  checksum manifest, sanitized Apple evidence, and public Homebrew source
+  formula are available. No Homebrew bottle is published.
 
 ## Next (1-2 months)
 
-- `v2026.08.25` is published; future release cuts should use
+- `v2026.08.29` is published; future release cuts should use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a

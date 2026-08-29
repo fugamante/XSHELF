@@ -3,30 +3,26 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.08.29` (release source prepared; signing, notarization, and publication pending)
-
-Current release candidate:
-
-| Release tag | Date | Status | Summary |
-|---|---|---|---|
-| `v2026.08.29` | 2026-08-29 | Source prepared; signing, notarization, and publication pending. | Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls. |
+- `2026.08.29` (annotated source tag and signed/notarized GitHub release published)
 
 Current published release:
 
 | Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.08.25` | 2026-08-25 | Published with unsigned, unnotarized native macOS assets; no Homebrew formula or bottle. | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
+| `v2026.08.29` | 2026-08-29 | Published with signed/notarized native macOS assets and a Homebrew source formula; no bottle. | Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls. |
 
 Published assets:
 
-- `xshelf-2026.08.25-aarch64-apple-darwin.tar.gz`: `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f`
-- `xshelf-2026.08.25-x86_64-apple-darwin.tar.gz`: `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e`
-- `SHA256SUMS`: `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf`
+- `xshelf-2026.08.29-aarch64-apple-darwin.tar.gz`: `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23`
+- `xshelf-2026.08.29-x86_64-apple-darwin.tar.gz`: `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c`
+- `SHA256SUMS`: `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e`
+- Sanitized Apple-notarization evidence is attached beside each archive.
 
 Historical tagged versions:
 
 | Tag | Date | Summary |
 |---|---|---|
+| `v2026.08.25` | 2026-08-25 | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
 | `v2026.08.20` | 2026-08-20 | Phase XI capture-reduction reliability and linked-worktree Docker validation parity. |
 | `v2026.08.12` | 2026-08-12 | Process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance. |
 | `v2026.07.27` | 2026-07-27 | Run-log relocation control, local-model registry integrity, and contract corpus reconciliation. |

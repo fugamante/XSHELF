@@ -1,29 +1,26 @@
 # XSHELF Packaging
 
 This packaging track builds and validates the native XSHELF CLI distribution.
-The unsigned `v2026.08.25` macOS archives and checksum manifest are published;
-no Homebrew formula or bottle is published.
+The signed and notarized `v2026.08.29` macOS archives, checksum manifest,
+sanitized notarization evidence, and Homebrew source formula are published. No
+Homebrew bottle is published.
 
-## Published v2026.08.25 Assets
+## Published v2026.08.29 Assets
 
-Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
+Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29
 
 | Asset | SHA-256 |
 |---|---|
-| `xshelf-2026.08.25-aarch64-apple-darwin.tar.gz` | `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f` |
-| `xshelf-2026.08.25-x86_64-apple-darwin.tar.gz` | `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e` |
-| `SHA256SUMS` | `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf` |
+| `xshelf-2026.08.29-aarch64-apple-darwin.tar.gz` | `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23` |
+| `xshelf-2026.08.29-x86_64-apple-darwin.tar.gz` | `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c` |
+| `SHA256SUMS` | `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e` |
 
-The annotated tag object
-`49318430f6163bd640882493d1e163666c53cb43` peels to immutable packaged
-source `210b3b524c01f4dc673244077f02b53d39cedcda`. Protected-main controller
-`8c2a16b937dc79d49ecc11dd2da94eb63ebd4eaf` supplied the canonical native
-reproduction policy without changing that source provenance.
-
-These assets are not Developer ID signed or notarized. The ARM64 executable has
-linker-generated ad-hoc signing state; the Intel executable is unsigned. The
-README embedded in both immutable archives is the tag-time snapshot, so its
-pre-publication wording is historical rather than the current release status.
+The annotated tag peels to immutable packaged source
+`b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`. Both binaries are Developer ID
+signed with hardened runtime and secure timestamps, and Apple accepted both
+notarization submissions. The attached `.notary.json` records are sanitized
+distribution evidence. The source formula is published at
+https://github.com/fugamante/homebrew-tap.
 
 ## Product Boundary
 
@@ -108,7 +105,7 @@ Verify a sidecar without extracting its archive:
 
 ```bash
 python3 scripts/package_release.py verify \
-  .cx/packages/xshelf-2026.08.25-aarch64-apple-darwin.tar.gz
+  .cx/packages/xshelf-2026.08.29-aarch64-apple-darwin.tar.gz
 ```
 
 Run the focused packaging lifecycle suite:
@@ -156,8 +153,8 @@ content fingerprint; such an artifact is never release-ready.
 ## Developer ID Signing And Notarization
 
 Signing is a post-build release gate. It never rewrites an unsigned input
-archive, and it must target a new release inventory rather than replace the
-published `v2026.08.25` assets. The two `bin/xshelf` Mach-O files are the only
+archive, and it must target a new release inventory rather than replace
+published assets. The two `bin/xshelf` Mach-O files are the only
 Apple code-signing targets in the Homebrew package. The `xs` and `cx` entries
 are symlinks to that code. Formula text, schemas, man pages, checksums, and tar
 containers are integrity or data artifacts and are not code-signed.
@@ -270,10 +267,10 @@ from immutable versioned asset URLs and their actual SHA-256 values:
 ```bash
 python3 scripts/render_formula.py \
   --output .cx/packages/Formula/xshelf.rb \
-  --version 2026.08.25 \
-  --arm-url https://example.invalid/releases/download/v2026.08.25/xshelf-2026.08.25-aarch64-apple-darwin.tar.gz \
+  --version 2026.08.29 \
+  --arm-url https://example.invalid/releases/download/v2026.08.29/xshelf-2026.08.29-aarch64-apple-darwin.tar.gz \
   --arm-sha256 <64-hex-digest> \
-  --intel-url https://example.invalid/releases/download/v2026.08.25/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz \
+  --intel-url https://example.invalid/releases/download/v2026.08.29/xshelf-2026.08.29-x86_64-apple-darwin.tar.gz \
   --intel-sha256 <64-hex-digest>
 ```
 
@@ -288,8 +285,8 @@ available local archives without weakening the production renderer:
 ```bash
 python3 scripts/render_formula_fixture.py \
   --output /tmp/xshelf-formula/Formula/xshelf.rb \
-  --version 2026.08.25 \
-  --arm-archive .cx/packages/xshelf-2026.08.25-aarch64-apple-darwin.tar.gz
+  --version 2026.08.29 \
+  --arm-archive .cx/packages/xshelf-2026.08.29-aarch64-apple-darwin.tar.gz
 ```
 
 An omitted architecture receives an unavailable `file://` URL and a zero hash,
@@ -306,13 +303,10 @@ the runner's Homebrew configuration or the isolated clone configuration drifts.
 ## Release Boundary
 
 Local checksums and provenance alone do not establish signing, notarization,
-publication, or immutable remote identity. The `v2026.08.25` publication pass
-separately attached both verified thin archives and `SHA256SUMS` to the existing
-immutable tag and verified their public download bytes. It did not authorize
-Developer ID signing, notarization, or Homebrew publication.
-
-Any future formula publication must be separately authorized, rendered from
-the immutable attached assets, and validated with real install, `brew test`,
-upgrade, uninstall, and state-preservation behavior. The focused local
-lifecycle test is a package-layout simulation, not a substitute for that
-published-formula validation.
+publication, or immutable remote identity. The `v2026.08.29` publication pass
+attached both signed thin archives, `SHA256SUMS`, and sanitized Apple evidence
+to the immutable tag, then verified the public download bytes. The published
+formula was rendered from those immutable assets and validated through isolated
+local-formula and public-tap install, `brew test`, runtime, signature,
+uninstall, and state-preservation lifecycles on Apple silicon. Native Intel
+package and Homebrew lifecycle evidence passed in workflow `33268120729`.
