@@ -428,7 +428,8 @@ jobs:
             --approved-prefix "$RUNNER_TEMP" \
             --canonical-root "$RUNNER_TEMP/xshelf-canonical-native" \
             --output-dir "$packages"
-          archive="$packages/xshelf-2026.08.25-x86_64-apple-darwin.tar.gz"
+          version="$(tr -d '[:space:]' < VERSION)"
+          archive="$packages/xshelf-${version}-x86_64-apple-darwin.tar.gz"
           observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
           python3 ./scripts/package_release.py verify "$archive"
           cp "$archive" "$archive.sha256" "$packages/SHA256SUMS" \

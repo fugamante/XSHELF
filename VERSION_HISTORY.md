@@ -3,7 +3,13 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.08.25` (annotated source tag and unsigned GitHub release published)
+- `2026.08.29` (release source prepared; signing, notarization, and publication pending)
+
+Current release candidate:
+
+| Release tag | Date | Status | Summary |
+|---|---|---|---|
+| `v2026.08.29` | 2026-08-29 | Source prepared; signing, notarization, and publication pending. | Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls. |
 
 Current published release:
 
@@ -30,6 +36,7 @@ Historical tagged versions:
 | `v2026.02.21-20260225T151634Z` | 2026-02-25 | Snapshot milestone: manuals/docs layout and migration hooks. |
 
 Release links:
+- https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.20
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.12
