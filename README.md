@@ -95,19 +95,27 @@ Shell-profile uninstall wrappers are available as `./bin/xshelf-uninstall`,
 `./bin/xs-uninstall`, and `./bin/cx-uninstall`; source-installed man pages are
 managed separately.
 
-Homebrew-first distribution tooling is available for local release-candidate
-validation, but no formula or binary assets are published yet. It produces a
-native `xshelf` executable, `xs` / `cx` aliases, packaged default schemas, and
-man pages without editing shell profiles or installing `cxops`:
+Unsigned macOS binary assets for [`v2026.08.25`](https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25)
+are published for native Apple Silicon and Intel hosts. No Homebrew formula or
+bottle is published. The archives provide a native `xshelf` executable,
+`xs` / `cx` aliases, packaged default schemas, and man pages without editing
+shell profiles or installing `cxops`:
 
 ```bash
 ./scripts/build_packages.sh --target aarch64-apple-darwin
 python3 test/package_release_test.py
 ```
 
-See [Packaging](docs/PACKAGING.md) for the dual-architecture build, checksum,
-relocation, clean-home, and draft-formula workflow. Signing, notarization,
-release assets, and tap publication remain separate release decisions.
+The archives are not Developer ID signed or notarized. The ARM64 executable has
+linker-generated ad-hoc signing state; the Intel executable is unsigned. The
+README embedded in those immutable tag-built archives remains the tag-time
+snapshot and therefore describes binary publication as pending; this source
+README records the current post-publication state.
+
+See [Packaging](docs/PACKAGING.md) for the exact assets and checksums,
+dual-architecture build, relocation, clean-home, and draft-formula workflow.
+Developer ID signing, notarization, and Homebrew publication remain separate
+release decisions.
 
 ## Quick Start
 

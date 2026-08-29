@@ -1,8 +1,29 @@
 # XSHELF Packaging
 
-This packaging track prepares a Homebrew-first XSHELF CLI distribution. It is
-a local release-candidate workflow, not evidence that a formula, bottle, or
-binary release asset has been published.
+This packaging track builds and validates the native XSHELF CLI distribution.
+The unsigned `v2026.08.25` macOS archives and checksum manifest are published;
+no Homebrew formula or bottle is published.
+
+## Published v2026.08.25 Assets
+
+Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
+
+| Asset | SHA-256 |
+|---|---|
+| `xshelf-2026.08.25-aarch64-apple-darwin.tar.gz` | `9865e5440a5b6554cea952b630f8f3c26c6eabd64fdf39cb2e53c850306c873f` |
+| `xshelf-2026.08.25-x86_64-apple-darwin.tar.gz` | `e908105a9767d60cb057e0a9469cd2c49b2b750c7082435a468980d29ca9fd2e` |
+| `SHA256SUMS` | `3e56cb544b87d7e59a0d098941c1e4c4e3ab59f61c718aee34122b9c33b9beaf` |
+
+The annotated tag object
+`49318430f6163bd640882493d1e163666c53cb43` peels to immutable packaged
+source `210b3b524c01f4dc673244077f02b53d39cedcda`. Protected-main controller
+`8c2a16b937dc79d49ecc11dd2da94eb63ebd4eaf` supplied the canonical native
+reproduction policy without changing that source provenance.
+
+These assets are not Developer ID signed or notarized. The ARM64 executable has
+linker-generated ad-hoc signing state; the Intel executable is unsigned. The
+README embedded in both immutable archives is the tag-time snapshot, so its
+pre-publication wording is historical rather than the current release status.
 
 ## Product Boundary
 
@@ -117,19 +138,15 @@ separately. Both clean builds and archive provenance bind to the selected
 package revision, and the job uploads bounded validation evidence. Ordinary
 pull-request and push events do not start this lane.
 
-The `2026.08.25` implementation candidate passed this lane at source
-`727afec7a2214704fb9cb6e686872325e765afd9` in workflow run `32986914305`.
-Its evidence records native, non-translated Intel execution, byte-identical
-archive reproduction, checksum and provenance verification, package relocation
-and clean-home operation, and the complete isolated Homebrew lifecycle. This is
-predecessor candidate evidence after later commits; it does not validate a
-different branch head or claim a published, signed, or notarized release.
-
-For final review, dispatch the lane after the candidate head is frozen and
-require the retained artifact's `source_revision` to equal that exact head.
-Intel evidence is retained for the repository-supported 90-day review horizon.
-Keep the final checksum and provenance in that artifact rather than creating a
-follow-up documentation commit that would invalidate the source binding.
+The published `2026.08.25` Intel archive was reproduced by controller
+`8c2a16b937dc79d49ecc11dd2da94eb63ebd4eaf` from immutable source
+`210b3b524c01f4dc673244077f02b53d39cedcda` in workflow run `33234570375`.
+Retained artifact `9709817894` records native `x86_64`, `translated=0`, two
+clean canonical compilations, byte-identical archive and provenance evidence,
+package relocation and clean-home operation, and the complete isolated
+Homebrew lifecycle. The hosted evidence retains its repository-supported
+90-day review horizon; it is build evidence rather than Developer ID signing,
+notarization, or Homebrew publication.
 
 Archive creation fails on a dirty source tree by default. `--allow-dirty` is an
 explicit local-development lane that records `source_dirty: true` plus a
@@ -211,10 +228,14 @@ the runner's Homebrew configuration or the isolated clone configuration drifts.
 
 ## Release Boundary
 
-Local checksums and provenance do not establish signing, notarization,
-publication, or immutable remote identity. A future release must separately
-authorize and verify those steps, attach both thin archives to the intended
-immutable tag, render the formula from the attached assets, run `brew test`,
-and confirm real install, upgrade, uninstall, and state preservation behavior
-against the published formula. The focused local lifecycle test is a package
-layout simulation, not a substitute for that Homebrew validation.
+Local checksums and provenance alone do not establish signing, notarization,
+publication, or immutable remote identity. The `v2026.08.25` publication pass
+separately attached both verified thin archives and `SHA256SUMS` to the existing
+immutable tag and verified their public download bytes. It did not authorize
+Developer ID signing, notarization, or Homebrew publication.
+
+Any future formula publication must be separately authorized, rendered from
+the immutable attached assets, and validated with real install, `brew test`,
+upgrade, uninstall, and state-preservation behavior. The focused local
+lifecycle test is a package-layout simulation, not a substitute for that
+published-formula validation.
