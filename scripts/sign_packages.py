@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import errno
 import gzip
 import hashlib
 import hmac
@@ -547,6 +549,83 @@ def _tool_ready(tool: Path) -> bool:
     return tool.is_file() and os.access(tool, os.X_OK)
 
 
+def _move_exclusive(source: Path, destination: Path) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    source_bytes = os.fsencode(source)
+    destination_bytes = os.fsencode(destination)
+    try:
+        if sys.platform == "darwin":
+            rename = libc.renamex_np
+            rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+            rename.restype = ctypes.c_int
+            result = rename(source_bytes, destination_bytes, 0x00000004)
+        elif sys.platform.startswith("linux"):
+            rename = libc.renameat2
+            rename.argtypes = [
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            ]
+            rename.restype = ctypes.c_int
+            result = rename(-100, source_bytes, -100, destination_bytes, 0x00000001)
+        else:
+            raise AttributeError
+    except AttributeError:
+        raise OSError(errno.ENOTSUP, "exclusive rename is unsupported", source)
+    if result != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), source, destination)
+
+
+def _publish_inventory(staged: Path, output: Path, expected: dict[str, str]) -> None:
+    if os.path.lexists(output):
+        raise SignError(f"refusing to overwrite existing output: {output}")
+    staged.chmod(0o500)
+
+    def entries() -> dict[str, os.DirEntry[str]]:
+        with os.scandir(staged) as scan:
+            return {entry.name: entry for entry in scan}
+
+    sealed = entries()
+    if set(sealed) != set(expected):
+        raise SignError("staged publication inventory does not match expected names")
+    invalid = sorted(
+        name for name, entry in sealed.items() if not entry.is_file(follow_symlinks=False)
+    )
+    if invalid:
+        raise SignError(f"staged publication entry is not a regular file: {invalid[0]}")
+    for entry in sealed.values():
+        os.chmod(entry.path, 0o400, follow_symlinks=False)
+
+    sealed = entries()
+    if set(sealed) != set(expected):
+        raise SignError("sealed publication inventory names changed unexpectedly")
+    invalid = sorted(
+        name
+        for name, entry in sealed.items()
+        if not entry.is_file(follow_symlinks=False)
+        or entry.stat(follow_symlinks=False).st_mode & 0o777 != 0o400
+    )
+    if invalid:
+        raise SignError(f"sealed publication entry is invalid: {invalid[0]}")
+    changed = sorted(
+        name for name, entry in sealed.items() if sha256_file(Path(entry.path)) != expected[name]
+    )
+    if changed:
+        raise SignError(f"staged publication entry changed after finalization: {changed[0]}")
+    try:
+        _move_exclusive(staged, output)
+    except FileExistsError as exc:
+        collision = Path(exc.filename2 or output)
+        raise SignError(f"refusing to overwrite existing output: {collision}") from exc
+    except OSError as exc:
+        raise SignError(
+            f"inventory publication failed for {staged} -> {output}: {exc}"
+        ) from exc
+
+
 def execute(args: argparse.Namespace) -> None:
     packages = [load_package(path) for path in args.archives]
     _preflight(packages, args.identifier)
@@ -565,20 +644,20 @@ def execute(args: argparse.Namespace) -> None:
         raise SignError("--keychain-profile must be an explicit local profile name")
     if not re.fullmatch(r"[1-9][0-9]*[smh]?", args.wait_timeout):
         raise SignError("--wait-timeout must be a positive notarytool duration")
-    output = args.output_dir.resolve()
-    output.mkdir(parents=True, exist_ok=True)
+    requested_output = args.output_dir.expanduser()
+    output = requested_output.parent.resolve() / requested_output.name
+    if os.path.lexists(output):
+        raise SignError(f"refusing to overwrite existing output: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
     if any(output == item.archive.parent for item in packages):
         raise SignError("output directory must differ from every unsigned input directory")
-    expected = [output / item.archive.name for item in packages]
-    expected.extend(
-        output / f"{item.archive.name}{suffix}"
+    expected_names = {item.archive.name for item in packages}
+    expected_names.update(
+        f"{item.archive.name}{suffix}"
         for item in packages
         for suffix in (".sha256", ".notary.json")
     )
-    expected.append(output / "SHA256SUMS")
-    collisions = [path for path in expected if path.exists()]
-    if collisions:
-        raise SignError(f"refusing to overwrite existing output: {collisions[0]}")
+    expected_names.add("SHA256SUMS")
 
     # This authenticates the exact named profile without printing its history or credentials.
     run(
@@ -592,13 +671,15 @@ def execute(args: argparse.Namespace) -> None:
             "json",
         ]
     )
-    work = Path(tempfile.mkdtemp(prefix=".sign-notarize-", dir=output))
+    work = Path(tempfile.mkdtemp(prefix=".sign-notarize-", dir=output.parent))
     work.chmod(0o700)
     print(f"sign-packages: restricted work directory: {work}", file=sys.stderr)
-    final_dir = work / "final"
-    final_dir.mkdir(mode=0o700)
+    final_dir = Path(tempfile.mkdtemp(prefix=".sign-inventory-", dir=output.parent))
+    final_dir.chmod(0o700)
+    print(f"sign-packages: restricted inventory staging: {final_dir}", file=sys.stderr)
     teams: set[str] = set()
     finalized: list[tuple[Path, Path, Path]] = []
+    published = False
     try:
         for package in sorted(packages, key=lambda item: str(item.provenance["architecture"])):
             target = str(package.provenance["architecture"])
@@ -629,15 +710,25 @@ def execute(args: argparse.Namespace) -> None:
             "".join(f"{sha256_file(path)}  {path.name}\n" for path in sorted(archives)),
             encoding="utf-8",
         )
-        for path in sorted(final_dir.iterdir()):
-            os.replace(path, output / path.name)
-        final_dir.rmdir()
+        expected = {
+            name: sha256_file(final_dir / name) for name in sorted(expected_names)
+        }
+        _publish_inventory(final_dir, output, expected)
+        published = True
         shutil.rmtree(work)
     except Exception:
-        print(
-            "sign-packages: failed; restricted recovery evidence was preserved at " + str(work),
-            file=sys.stderr,
-        )
+        if published:
+            print(
+                f"sign-packages: inventory published at {output}; "
+                f"restricted temporary cleanup is incomplete at {work}",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "sign-packages: failed; restricted recovery evidence was preserved at "
+                + f"{work}; inventory staging: {final_dir}",
+                file=sys.stderr,
+            )
         raise
     print("sign-packages: signing and notarization PASS")
     print(f"sign-packages: output={output}")

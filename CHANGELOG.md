@@ -20,7 +20,11 @@ Notes:
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+- Release signing now binds the exact seven-file signed-artifact inventory by
+  SHA-256 and publishes it as one sealed directory via an exclusive atomic rename. The final inventory
+  path must be absent; late collisions and I/O failures preserve the complete
+  restricted staging inventory without child-path cleanup or partial output.
 
 ## [v2026.08.29] - 2026-08-29
 

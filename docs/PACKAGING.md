@@ -159,6 +159,24 @@ Apple code-signing targets in the Homebrew package. The `xs` and `cx` entries
 are symlinks to that code. Formula text, schemas, man pages, checksums, and tar
 containers are integrity or data artifacts and are not code-signed.
 
+`--output-dir` names the final inventory directory and must not already exist,
+including as a dangling symlink. The command assembles exactly the two signed
+archives, their four sidecars, and `SHA256SUMS` in a sibling owner-only staging
+directory and binds every finalized file by SHA-256. It rejects missing, extra,
+symlink, other non-regular, and post-finalization changed entries after sealing
+the directory and files read-only, then publishes the complete namespace with
+one same-filesystem exclusive directory rename. A consumer therefore sees
+either no inventory or all seven original artifact names; no child pathname is
+renamed, unlinked, or cleaned after an ownership check.
+
+An existing or racing destination is never replaced. Publication collision or
+I/O failure leaves the complete sealed staging inventory in the printed
+restricted recovery directory, with the source, destination, and operating
+system error identified when the transition itself fails. This filesystem
+boundary prevents ordinary pathname replacement during publication; it is not
+an isolation boundary against an actor with the same account or elevated access
+who deliberately changes permissions and mutates the private staging tree.
+
 Apple requires a Developer ID Application signature, Hardened Runtime, and a
 secure timestamp for command-line tools submitted to the notary service. The
 service accepts a ZIP submission and publishes a ticket for the signed binary.
@@ -203,6 +221,11 @@ python3 scripts/sign_packages.py run \
   --output-dir /path/to/signed-release
 ```
 
+Do not create `/path/to/signed-release` first. Existing flat-output consumers
+continue to read the same seven names beneath that path after the atomic
+directory appears; callers that previously pre-created the directory must
+instead create only its parent and treat the inventory path as immutable.
+
 The command authenticates the named profile without printing its history,
 signs both temporary binary copies, submits each ZIP without embedding
 credentials, waits up to 30 minutes per submission, and validates the accepted
@@ -213,8 +236,12 @@ archives, per-archive `.sha256` files, a combined `SHA256SUMS`, and sanitized
 `notarized=true`; the existing `xshelf-package-provenance.v1` keys remain
 compatible.
 
-On success, raw notary logs and temporary signed files are removed. On failure,
-the command prints the exact owner-only recovery directory and preserves any
+On success, the published inventory directory is mode `0500`, its seven files
+are mode `0400`, and raw notary logs and temporary signed files are removed. If
+cleanup fails after publication commits, the command identifies both the
+complete published inventory and the restricted temporary directory requiring
+manual reconciliation. On a pre-publication failure, the command prints the
+exact owner-only work and inventory-staging directories and preserves any
 submission receipt and raw Apple log there. Treat that directory as sensitive,
 do not upload it, and remove it only after its submission IDs and failure
 evidence have been reconciled. Publication, Git tagging, Homebrew tap changes,
