@@ -22,7 +22,10 @@ Notes:
 
 ### Fixed
 - Release signing now binds the exact seven-file signed-artifact inventory by
-  SHA-256 and publishes it as one sealed directory via an exclusive atomic rename. The final inventory
+  SHA-256 and publishes it as one sealed directory via an exclusive atomic
+  transition. Linux uses an exclusive rename; macOS uses a descriptor-bound
+  directory clone so sealed inventories also publish on older native Intel
+  hosts without trusting or deleting the staged pathname. The final inventory
   path must be absent; late collisions and I/O failures preserve the complete
   restricted staging inventory without child-path cleanup or partial output.
 

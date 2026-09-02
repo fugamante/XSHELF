@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -79,6 +80,23 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_fd(fd: int) -> str:
+    digest = hashlib.sha256()
+    os.lseek(fd, 0, os.SEEK_SET)
+    for chunk in iter(lambda: os.read(fd, 1024 * 1024), b""):
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _close_read_fd(fd: int) -> None:
+    try:
+        os.close(fd)
+    except OSError:
+        # These descriptors never carry writes. A close error cannot reverse a
+        # completed clone/rename and must not misclassify the commit boundary.
+        pass
 
 
 def run(
@@ -579,44 +597,81 @@ def _move_exclusive(source: Path, destination: Path) -> None:
         raise OSError(error, os.strerror(error), source, destination)
 
 
-def _publish_inventory(staged: Path, output: Path, expected: dict[str, str]) -> None:
+def _clone_exclusive(source_fd: int, parent_fd: int, destination_name: str) -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    try:
+        clone = libc.fclonefileat
+    except AttributeError:
+        raise OSError(errno.ENOTSUP, "exclusive directory clone is unsupported")
+    clone.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    clone.restype = ctypes.c_int
+    if clone(source_fd, parent_fd, os.fsencode(destination_name), 0) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), destination_name)
+
+
+def _inventory_entries(directory_fd: int) -> set[str]:
+    return set(os.listdir(directory_fd))
+
+
+def _open_inventory_file(directory_fd: int, name: str) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    return os.open(name, flags, dir_fd=directory_fd)
+
+
+def _validate_inventory(
+    directory_fd: int, expected: dict[str, str], *, seal: bool
+) -> None:
+    names = _inventory_entries(directory_fd)
+    if names != set(expected):
+        state = "staged" if seal else "sealed"
+        raise SignError(f"{state} publication inventory does not match expected names")
+    for name in sorted(names):
+        try:
+            fd = _open_inventory_file(directory_fd, name)
+        except OSError as exc:
+            raise SignError(f"staged publication entry is not a regular file: {name}") from exc
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise SignError(f"staged publication entry is not a regular file: {name}")
+            if seal:
+                os.fchmod(fd, 0o400)
+            mode = os.fstat(fd).st_mode & 0o777
+            if mode != 0o400:
+                raise SignError(f"sealed publication entry is invalid: {name}")
+            if _sha256_fd(fd) != expected[name]:
+                raise SignError(
+                    f"staged publication entry changed after finalization: {name}"
+                )
+        finally:
+            _close_read_fd(fd)
+
+
+def _commit_inventory(staged: Path, source_fd: int, output: Path) -> bool:
+    if sys.platform == "darwin":
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        parent_fd = os.open(output.parent, flags)
+        try:
+            _clone_exclusive(source_fd, parent_fd, output.name)
+        finally:
+            _close_read_fd(parent_fd)
+        # The descriptor-bound clone publishes the validated vnode. Retaining
+        # its source avoids any pathname-based cleanup of a possible replacement.
+        return True
+    _move_exclusive(staged, output)
+    return False
+
+
+def _publish_inventory(staged: Path, output: Path, expected: dict[str, str]) -> bool:
     if os.path.lexists(output):
         raise SignError(f"refusing to overwrite existing output: {output}")
-    staged.chmod(0o500)
-
-    def entries() -> dict[str, os.DirEntry[str]]:
-        with os.scandir(staged) as scan:
-            return {entry.name: entry for entry in scan}
-
-    sealed = entries()
-    if set(sealed) != set(expected):
-        raise SignError("staged publication inventory does not match expected names")
-    invalid = sorted(
-        name for name, entry in sealed.items() if not entry.is_file(follow_symlinks=False)
-    )
-    if invalid:
-        raise SignError(f"staged publication entry is not a regular file: {invalid[0]}")
-    for entry in sealed.values():
-        os.chmod(entry.path, 0o400, follow_symlinks=False)
-
-    sealed = entries()
-    if set(sealed) != set(expected):
-        raise SignError("sealed publication inventory names changed unexpectedly")
-    invalid = sorted(
-        name
-        for name, entry in sealed.items()
-        if not entry.is_file(follow_symlinks=False)
-        or entry.stat(follow_symlinks=False).st_mode & 0o777 != 0o400
-    )
-    if invalid:
-        raise SignError(f"sealed publication entry is invalid: {invalid[0]}")
-    changed = sorted(
-        name for name, entry in sealed.items() if sha256_file(Path(entry.path)) != expected[name]
-    )
-    if changed:
-        raise SignError(f"staged publication entry changed after finalization: {changed[0]}")
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    source_fd = os.open(staged, flags)
     try:
-        _move_exclusive(staged, output)
+        os.fchmod(source_fd, 0o500)
+        _validate_inventory(source_fd, expected, seal=True)
+        _validate_inventory(source_fd, expected, seal=False)
+        retained = _commit_inventory(staged, source_fd, output)
     except FileExistsError as exc:
         collision = Path(exc.filename2 or output)
         raise SignError(f"refusing to overwrite existing output: {collision}") from exc
@@ -624,6 +679,9 @@ def _publish_inventory(staged: Path, output: Path, expected: dict[str, str]) -> 
         raise SignError(
             f"inventory publication failed for {staged} -> {output}: {exc}"
         ) from exc
+    finally:
+        _close_read_fd(source_fd)
+    return retained
 
 
 def execute(args: argparse.Namespace) -> None:
@@ -680,6 +738,7 @@ def execute(args: argparse.Namespace) -> None:
     teams: set[str] = set()
     finalized: list[tuple[Path, Path, Path]] = []
     published = False
+    source_retained = False
     try:
         for package in sorted(packages, key=lambda item: str(item.provenance["architecture"])):
             target = str(package.provenance["architecture"])
@@ -713,14 +772,19 @@ def execute(args: argparse.Namespace) -> None:
         expected = {
             name: sha256_file(final_dir / name) for name in sorted(expected_names)
         }
-        _publish_inventory(final_dir, output, expected)
+        source_retained = _publish_inventory(final_dir, output, expected)
         published = True
         shutil.rmtree(work)
     except Exception:
         if published:
+            retained = (
+                f"; sealed source inventory retained at {final_dir}"
+                if source_retained
+                else ""
+            )
             print(
                 f"sign-packages: inventory published at {output}; "
-                f"restricted temporary cleanup is incomplete at {work}",
+                f"restricted temporary cleanup is incomplete at {work}{retained}",
                 file=sys.stderr,
             )
         else:
@@ -730,6 +794,11 @@ def execute(args: argparse.Namespace) -> None:
                 file=sys.stderr,
             )
         raise
+    if source_retained:
+        print(
+            f"sign-packages: sealed source inventory retained at {final_dir}",
+            file=sys.stderr,
+        )
     print("sign-packages: signing and notarization PASS")
     print(f"sign-packages: output={output}")
 
