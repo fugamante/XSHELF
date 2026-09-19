@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-08-29
+Snapshot date: 2026-09-19
 
 ## Current State
 
@@ -23,12 +23,24 @@ Current merged readiness floor:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
   parity modes with explicit report metadata.
-- release cadence metadata remains under the 14-day freshness gate.
+- release cadence metadata is refreshed for the `v2026.09.19` candidate.
 - the Docker strategy has landed guarded floors for maintainer parity, CI parity,
   task sandboxing, provider sidecar contract documentation, and explicit image
   provenance.
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
+
+Current release candidate:
+- `VERSION` is `2026.09.19`.
+- `v2026.09.19` release source is validated, with tagging, packaging, signing,
+  notarization, GitHub publication, and Homebrew publication still pending.
+- The candidate adds bounded task prompt inputs, stderr progress, additive
+  normalization diagnostics, and isolated Git context for pre-push validation
+  while preserving existing structured command and telemetry contracts.
+- The candidate binds the exact seven-file signed-artifact inventory before an
+  exclusive atomic publication transition. Linux uses an exclusive rename;
+  macOS uses a descriptor-bound sealed-directory clone so older native Intel
+  hosts do not require overwrite-prone directory replacement.
 
 Current published release:
 - The latest published version is `2026.08.29`; the release is available at
@@ -87,3 +99,8 @@ and Homebrew source formula publish the validated signed/notarized native macOS
 assets from immutable source `b8ea981`. Public archive bytes and notarization
 records match the locally accepted release inventory. The `v2026.08.29`
 release source is validated for publication.
+
+The `v2026.09.19` release source is validated for publication. This statement
+records the locally validated source candidate only; it does not claim that a
+tag, package, signature, notarization result, GitHub release, or Homebrew update
+exists. Each remains a separate fail-closed authority and evidence gate.

@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.09.19` (2026-09-19): Bounded task workflow observability and atomic sealed release-inventory publication.
 - `v2026.08.29` (2026-08-29): Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls.
 - `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
 - `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
@@ -20,7 +21,28 @@ Notes:
 
 ## [Unreleased]
 
+No changes yet.
+
+## [v2026.09.19] - 2026-09-19
+
+### Added
+- Bound task objective/context prompt text with `CX_TASK_OBJECTIVE_MAX_CHARS`,
+  `CX_TASK_OBJECTIVE_MAX_LINES`, `CX_TASK_CONTEXT_MAX_CHARS`, and
+  `CX_TASK_CONTEXT_MAX_LINES`. Defaults derive from the configured capture budget;
+  positive overrides are accepted and invalid or zero overrides use defaults.
+- Human task-run progress is written to stderr; set `CX_TASK_RUN_ALL_PROGRESS=0`
+  or `false` to disable it. Sequential `--json` retains its structured result path.
+- Additive `normalization` diagnostics in `logs stats --json` and `telemetry --json`
+  count rows with all required fields, rows missing fields, and rows whose execution
+  mode starts with `legacy`. Migrated rows can also count as modern; presence does
+  not imply value validity. Existing keys and contract versions remain unchanged.
+
 ### Fixed
+- Updated the transitive Rust TLS stack to `rustls` 0.23.45, `rustls-webpki`
+  0.103.15, `aws-lc-rs` 1.18.1, and `aws-lc-sys` 0.45.0 to remediate
+  `RUSTSEC-2026-0285` while preserving the existing HTTP/TLS interface.
+- Pre-push checks clear inherited repository-local Git variables before running
+  subdirectory checks and temporary-repository tests. Discovery failure stops the hook.
 - Release signing now binds the exact seven-file signed-artifact inventory by
   SHA-256 and publishes it as one sealed directory via an exclusive atomic
   transition. Linux uses an exclusive rename; macOS uses a descriptor-bound
@@ -221,18 +243,6 @@ Notes:
 ## [v2026.06.29] - 2026-06-29
 
 ### Added
-- Pre-push checks clear inherited repository-local Git variables before running
-  subdirectory checks and temporary-repository tests. Discovery failure stops the hook.
-- Bound task objective/context prompt text with `CX_TASK_OBJECTIVE_MAX_CHARS`,
-  `CX_TASK_OBJECTIVE_MAX_LINES`, `CX_TASK_CONTEXT_MAX_CHARS`, and
-  `CX_TASK_CONTEXT_MAX_LINES`. Defaults derive from the configured capture budget;
-  positive overrides are accepted and invalid or zero overrides use defaults.
-- Human task-run progress is written to stderr; set `CX_TASK_RUN_ALL_PROGRESS=0`
-  or `false` to disable it. Sequential `--json` retains its structured result path.
-- Additive `normalization` diagnostics in `logs stats --json` and `telemetry --json`
-  count rows with all required fields, rows missing fields, and rows whose execution
-  mode starts with `legacy`. Migrated rows can also count as modern; presence does
-  not imply value validity. Existing keys and contract versions remain unchanged.
 - Repository governance:
   - added `branch-protection-audit` workflow for solo-maintainer mode.
   - added `scripts/branch_protection_audit.py` to restore required PR reviews once a non-owner write collaborator exists.
