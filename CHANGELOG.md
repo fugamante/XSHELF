@@ -38,6 +38,9 @@ No changes yet.
   not imply value validity. Existing keys and contract versions remain unchanged.
 
 ### Fixed
+- Updated the transitive Rust TLS stack to `rustls` 0.23.45, `rustls-webpki`
+  0.103.15, `aws-lc-rs` 1.18.1, and `aws-lc-sys` 0.45.0 to remediate
+  `RUSTSEC-2026-0285` while preserving the existing HTTP/TLS interface.
 - Pre-push checks clear inherited repository-local Git variables before running
   subdirectory checks and temporary-repository tests. Discovery failure stops the hook.
 - Release signing now binds the exact seven-file signed-artifact inventory by
