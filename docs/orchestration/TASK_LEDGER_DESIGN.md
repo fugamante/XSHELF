@@ -100,6 +100,9 @@ precedes snapshot replacement. Therefore:
   warn rather than fail when a derived projection has drifted;
 - the next mutation rebuilds a missing, stale, or malformed snapshot before it
   commits;
+- intact historical projection pairs are checked against their exact recorded
+  revision, including revisions with identical state digests; this permits deliberate
+  historical restoration without accepting mismatched revision/digest metadata;
 - pre-existing unknown projection drift fails closed before mutation;
 - projection drift detected after command publication is preserved and reported
   as a committed/degraded warning rather than overwritten;

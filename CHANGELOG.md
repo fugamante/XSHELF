@@ -30,7 +30,8 @@ Notes:
   array remains backward-readable, while replay repairs interrupted snapshot
   publication and detects pre-existing projection drift during mutation. Missing
   ledger history and unsupported snapshot metadata versions are preserved and
-  rejected instead of silently reset.
+  rejected instead of silently reset. Historical snapshot restoration retains
+  exact revision/digest checks even when multiple revisions contain identical state.
 
 ## [v2026.09.19] - 2026-09-19
 

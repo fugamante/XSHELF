@@ -474,3 +474,6 @@ fn future_meta_preserved() {
         assert_eq!(fs::read(&meta_path).unwrap(), bytes);
     }
 }
+
+#[path = "task_restore_tests.rs"]
+mod restore;

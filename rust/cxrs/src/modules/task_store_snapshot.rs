@@ -110,12 +110,15 @@ pub(super) fn validate_snapshot(path: &Path, state: &LedgerState) -> Result<(), 
         if meta.revision == state.revision && meta.digest == desired {
             return Err("tasks.json changed outside the authoritative task ledger".to_string());
         }
-        if meta.digest != current
-            || state.revisions_by_digest.get(&current).copied() != Some(meta.revision)
+        if meta.digest != current || state.digests_by_revision.get(&meta.revision) != Some(&current)
         {
             return Err("tasks.json does not match a recorded task ledger revision".to_string());
         }
-    } else if !state.revisions_by_digest.contains_key(&current) {
+    } else if !state
+        .digests_by_revision
+        .values()
+        .any(|digest| digest == &current)
+    {
         return Err("tasks.json does not match a recorded task ledger revision".to_string());
     }
     Ok(())

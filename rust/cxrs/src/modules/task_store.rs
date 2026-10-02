@@ -65,7 +65,8 @@ struct LedgerState {
     tasks: Vec<TaskRecord>,
     operations: HashMap<String, String>,
     leases: HashMap<String, (u64, String)>,
-    revisions_by_digest: HashMap<String, u64>,
+    // Identical task state can occur at multiple valid historical revisions.
+    digests_by_revision: HashMap<u64, String>,
     head_command_digest: String,
 }
 
@@ -76,7 +77,7 @@ impl Default for LedgerState {
             tasks: Vec::new(),
             operations: HashMap::new(),
             leases: HashMap::new(),
-            revisions_by_digest: HashMap::new(),
+            digests_by_revision: HashMap::new(),
             head_command_digest: sha256_bytes(&[]),
         }
     }
@@ -304,9 +305,9 @@ fn apply_command(state: &mut LedgerState, command: &TaskCommand) -> Result<(), S
     )?;
     validate_fence(state, command)?;
     state
-        .revisions_by_digest
-        .entry(prior_digest)
-        .or_insert(state.revision);
+        .digests_by_revision
+        .entry(state.revision)
+        .or_insert(prior_digest);
     if command.lease_epoch > 0
         && let (Some(id), Some(worker)) = (&command.task_id, &command.worker_id)
         && task_by_id(&command.payload.tasks, id).map(|task| task.status.as_str())
@@ -319,8 +320,8 @@ fn apply_command(state: &mut LedgerState, command: &TaskCommand) -> Result<(), S
     state.revision = command.revision;
     state.tasks = command.payload.tasks.clone();
     state
-        .revisions_by_digest
-        .insert(command.result_digest.clone(), command.revision);
+        .digests_by_revision
+        .insert(command.revision, command.result_digest.clone());
     state.head_command_digest = command.command_digest.clone();
     state
         .operations
@@ -330,7 +331,7 @@ fn apply_command(state: &mut LedgerState, command: &TaskCommand) -> Result<(), S
 
 fn load_ledger(ledger_dir: &Path) -> Result<LedgerState, String> {
     let mut state = LedgerState::default();
-    state.revisions_by_digest.insert(tasks_digest(&[])?, 0);
+    state.digests_by_revision.insert(0, tasks_digest(&[])?);
     for (index, path) in ledger_entries(ledger_dir)?.into_iter().enumerate() {
         let expected_name = format!("{:020}.json", index + 1);
         if path.file_name().and_then(|value| value.to_str()) != Some(expected_name.as_str()) {
