@@ -21,7 +21,6 @@ use crate::config::{
 use crate::contracts_cmd::cmd_contracts;
 use crate::diagnostics::{cmd_diag, cmd_scheduler};
 use crate::doctor;
-use crate::execmeta::utc_now_iso;
 use crate::help::{render_help, render_task_help};
 use crate::introspect::{
     cmd_core as introspect_cmd_core, print_version as introspect_print_version,
@@ -46,7 +45,7 @@ use crate::structured_cmds;
 use crate::task_cmds;
 use crate::taskrun::{TaskRunner, run_task_by_id};
 use crate::tasks::{
-    cmd_task_add, cmd_task_fanout, cmd_task_list, cmd_task_show, read_tasks, write_tasks,
+    cmd_task_add, cmd_task_fanout, cmd_task_list, cmd_task_show, read_tasks, set_task_status,
 };
 use crate::types::{ExecutionResult, TaskSpec};
 
@@ -76,11 +75,10 @@ fn print_task_help() {
 fn task_runner() -> TaskRunner {
     TaskRunner {
         read_tasks,
-        write_tasks,
+        set_task_status,
         current_task_id,
         current_task_parent_id,
         set_state_path,
-        utc_now_iso,
         cmd_commitjson,
         cmd_commitmsg,
         cmd_diffsum,

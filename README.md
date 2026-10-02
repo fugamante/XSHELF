@@ -197,6 +197,14 @@ for command results. Set `CX_TASK_RUN_ALL_PROGRESS=0` (or `false`) to disable
 these messages. The same setting applies to the `xshelf`, `xs`, and `cx`
 entrypoints; structured task events and JSON results keep their existing contracts.
 
+Task mutations are serialized across local XSHELF processes. `.cx/tasks.json`
+remains the backward-readable task snapshot; after `.cx/task_ledger/` exists,
+use task commands rather than editing that snapshot directly so revision and
+recovery checks remain effective. Stop older XSHELF task writers before the
+first ledger-backed mutation; mixed old/new writers cannot share the new lock.
+If a command reports a committed/degraded warning, inspect task state before
+manually retrying it.
+
 Project task sandboxing is opt-in. Configure it per repo with:
 
 ```bash

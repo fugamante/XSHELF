@@ -12,6 +12,19 @@ fn copy_file(from: &Path, to: &Path, mode: u32) {
     fs::set_permissions(to, perms).expect("set package mode");
 }
 
+fn init_repo(path: &Path) {
+    let status = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(path)
+        .status()
+        .expect("initialize caller repo");
+    assert!(status.success(), "git init failed with {status}");
+    assert!(
+        path.join(".git").is_dir(),
+        "git init did not create the caller repository"
+    );
+}
+
 fn package_prefix() -> (tempfile::TempDir, PathBuf) {
     let temp = tempfile::tempdir().expect("package tempdir");
     let prefix = temp.path().join("prefix");
@@ -93,11 +106,7 @@ fn package_schema_clean() {
     let work = prefix.join("caller");
     fs::create_dir_all(&home).expect("create clean home");
     fs::create_dir_all(&work).expect("create caller repo");
-    Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(&work)
-        .status()
-        .expect("initialize caller repo");
+    init_repo(&work);
     let out = package_command(&prefix, "xshelf", &home)
         .args(["schema", "list", "--json"])
         .current_dir(&work)
@@ -163,11 +172,7 @@ fn package_version_caller() {
     fs::create_dir_all(&home).expect("create clean home");
     fs::create_dir_all(&work).expect("create caller repo");
     fs::write(work.join("VERSION"), "9999.99.99\n").expect("write unrelated version");
-    Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(&work)
-        .status()
-        .expect("initialize caller repo");
+    init_repo(&work);
     let out = package_command(&prefix, "xshelf", &home)
         .args(["version", "--json"])
         .current_dir(&work)
@@ -200,11 +205,7 @@ fn wrapper_schema_caller() {
         r#"{"$id":"cx://schemas/caller.v1","type":"object"}"#,
     )
     .expect("write caller schema");
-    Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(&caller)
-        .status()
-        .expect("initialize caller repo");
+    init_repo(&caller);
     symlink(env!("CARGO_BIN_EXE_cxrs"), target.join("cxrs")).expect("link test runtime");
 
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"))

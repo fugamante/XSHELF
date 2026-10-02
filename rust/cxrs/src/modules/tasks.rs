@@ -1,17 +1,16 @@
-use std::fs::File;
-use std::io::Read;
-
 use crate::config::{cli_app_name, command_with_cli};
 use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
-use crate::paths::{resolve_log_file, resolve_tasks_file};
-use crate::state::write_json_atomic;
+use crate::paths::resolve_log_file;
 use crate::tasks_plan::{TaskRunPlan, build_task_run_plan};
 use crate::types::TaskRecord;
 use serde_json::Value;
 
+#[path = "task_store.rs"]
+mod task_store;
 #[path = "tasks_fanout.rs"]
 mod tasks_fanout;
+pub use task_store::{TaskMutation, mutate_tasks};
 pub use tasks_fanout::cmd_task_fanout;
 
 pub fn task_role_valid(role: &str) -> bool {
@@ -22,26 +21,7 @@ pub fn task_role_valid(role: &str) -> bool {
 }
 
 pub fn read_tasks() -> Result<Vec<TaskRecord>, String> {
-    let path = resolve_tasks_file()?;
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let mut s = String::new();
-    File::open(&path)
-        .map_err(|e| format!("cannot open {}: {e}", path.display()))?
-        .read_to_string(&mut s)
-        .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-    if s.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-    serde_json::from_str::<Vec<TaskRecord>>(&s)
-        .map_err(|e| format!("invalid JSON in {}: {e}", path.display()))
-}
-
-pub fn write_tasks(tasks: &[TaskRecord]) -> Result<(), String> {
-    let path = resolve_tasks_file()?;
-    let value = serde_json::to_value(tasks).map_err(|e| format!("failed to encode tasks: {e}"))?;
-    write_json_atomic(&path, &value)
+    task_store::read_tasks()
 }
 
 pub fn next_task_id(tasks: &[TaskRecord]) -> String {
@@ -426,40 +406,41 @@ pub fn cmd_task_add(app_name: &str, args: &[String]) -> i32 {
         Err(code) => return code,
     };
 
-    let mut tasks = match read_tasks() {
-        Ok(v) => v,
+    let now = utc_now_iso();
+    let id = match mutate_tasks("add", None, 0, move |tasks| {
+        let id = next_task_id(tasks);
+        tasks.push(TaskRecord {
+            id: id.clone(),
+            parent_id: parsed.parent_id,
+            role: parsed.role,
+            objective: parsed.objective,
+            context_ref: parsed.context_ref,
+            backend: parsed.backend,
+            model: parsed.model,
+            profile: parsed.profile,
+            converge: parsed.converge,
+            replicas: parsed.replicas,
+            max_concurrency: parsed.max_concurrency,
+            run_mode: parsed.run_mode,
+            depends_on: parsed.depends_on,
+            resource_keys: parsed.resource_keys,
+            max_retries: parsed.max_retries,
+            timeout_secs: parsed.timeout_secs,
+            status: "pending".to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        });
+        Ok(TaskMutation {
+            result: id.clone(),
+            task_id: Some(id),
+        })
+    }) {
+        Ok(id) => id,
         Err(e) => {
-            crate::cx_eprintln!("{e}");
+            crate::cx_eprintln!("{} task add: {e}", cli_app_name());
             return 1;
         }
     };
-    let id = next_task_id(&tasks);
-    let now = utc_now_iso();
-    tasks.push(TaskRecord {
-        id: id.clone(),
-        parent_id: parsed.parent_id,
-        role: parsed.role,
-        objective: parsed.objective,
-        context_ref: parsed.context_ref,
-        backend: parsed.backend,
-        model: parsed.model,
-        profile: parsed.profile,
-        converge: parsed.converge,
-        replicas: parsed.replicas,
-        max_concurrency: parsed.max_concurrency,
-        run_mode: parsed.run_mode,
-        depends_on: parsed.depends_on,
-        resource_keys: parsed.resource_keys,
-        max_retries: parsed.max_retries,
-        timeout_secs: parsed.timeout_secs,
-        status: "pending".to_string(),
-        created_at: now.clone(),
-        updated_at: now,
-    });
-    if let Err(e) = write_tasks(&tasks) {
-        crate::cx_eprintln!("{} task add: {e}", cli_app_name());
-        return 1;
-    }
     println!("{id}");
     0
 }
@@ -719,11 +700,17 @@ fn task_run_latest(id: &str) -> Value {
 }
 
 pub fn set_task_status(id: &str, new_status: &str) -> Result<(), String> {
-    let mut tasks = read_tasks()?;
-    let Some(task) = tasks.iter_mut().find(|t| t.id == id) else {
-        return Err(format!("{} task: task not found: {id}", cli_app_name()));
-    };
-    task.status = new_status.to_string();
-    task.updated_at = utc_now_iso();
-    write_tasks(&tasks)
+    let id = id.to_string();
+    let status = new_status.to_string();
+    mutate_tasks("status", None, 0, move |tasks| {
+        let Some(task) = tasks.iter_mut().find(|task| task.id == id) else {
+            return Err(format!("{} task: task not found: {id}", cli_app_name()));
+        };
+        task.status = status;
+        task.updated_at = utc_now_iso();
+        Ok(TaskMutation {
+            result: (),
+            task_id: Some(id),
+        })
+    })
 }

@@ -254,3 +254,10 @@ A successful migration path:
 - avoids breaking contracts for aesthetic reasons
 - keeps the runtime substrate deterministic and reviewable
 - gives maintainers a clear decision rule for future rename-related edits
+
+## Local task persistence
+
+Task mutations through `xshelf`, `xs`, and `cx` use the same local ledger and
+lock. Existing `tasks.json` arrays remain backward-readable. Stop older task
+writers before the first ledger-backed mutation; use task commands thereafter.
+Public task JSON, environment variables, aliases, and telemetry are unchanged.
