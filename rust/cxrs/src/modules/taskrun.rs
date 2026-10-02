@@ -33,11 +33,10 @@ impl fmt::Display for TaskRunError {
 
 pub struct TaskRunner {
     pub read_tasks: fn() -> Result<Vec<TaskRecord>, String>,
-    pub write_tasks: fn(&[TaskRecord]) -> Result<(), String>,
+    pub set_task_status: fn(&str, &str) -> Result<(), String>,
     pub current_task_id: fn() -> Option<String>,
     pub current_task_parent_id: fn() -> Option<String>,
     pub set_state_path: fn(&str, Value) -> Result<(), String>,
-    pub utc_now_iso: fn() -> String,
     pub cmd_commitjson: fn() -> i32,
     pub cmd_commitmsg: fn() -> i32,
     pub cmd_diffsum: fn(bool) -> i32,
@@ -1151,20 +1150,12 @@ fn finalize_task_status(
     id: &str,
     status_code: i32,
 ) -> Result<(), TaskRunError> {
-    let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
-    let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
-        TaskRunError::Critical(format!(
-            "{} task run: task disappeared: {id}",
-            cli_app_name()
-        ))
-    })?;
-    tasks[idx].status = if status_code == 0 {
-        "complete".to_string()
+    let status = if status_code == 0 {
+        "complete"
     } else {
-        "failed".to_string()
+        "failed"
     };
-    tasks[idx].updated_at = (runner.utc_now_iso)();
-    (runner.write_tasks)(&tasks).map_err(TaskRunError::Critical)?;
+    (runner.set_task_status)(id, status).map_err(TaskRunError::Critical)?;
     if (runner.current_task_id)().as_deref() == Some(id) {
         let _ = (runner.set_state_path)("runtime.current_task_id", Value::Null);
     }
@@ -1179,7 +1170,7 @@ pub fn run_task_by_id(
     managed_by_parent: bool,
     emit_output: bool,
 ) -> Result<(i32, Option<String>), TaskRunError> {
-    let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
+    let tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
     let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
         TaskRunError::Critical(format!("{} task run: task not found: {id}", cli_app_name()))
     })?;
@@ -1187,9 +1178,7 @@ pub fn run_task_by_id(
         return Ok((0, None));
     }
     if !managed_by_parent {
-        tasks[idx].status = "in_progress".to_string();
-        tasks[idx].updated_at = (runner.utc_now_iso)();
-        (runner.write_tasks)(&tasks).map_err(TaskRunError::Critical)?;
+        (runner.set_task_status)(id, "in_progress").map_err(TaskRunError::Critical)?;
     }
     let prev_task_id = if managed_by_parent {
         None

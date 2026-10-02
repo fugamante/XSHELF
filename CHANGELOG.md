@@ -21,7 +21,17 @@ Notes:
 
 ## [Unreleased]
 
-No changes yet.
+### Fixed
+- Run-all persists task outcomes before reporting them and contains active workers
+  when persistence fails. Critical execution halts retain already launched worker
+  outcomes instead of leaving their tasks marked in progress.
+- Task mutations from independent XSHELF processes now serialize through a
+  revisioned, digest-validated local command ledger. The existing `tasks.json`
+  array remains backward-readable, while replay repairs interrupted snapshot
+  publication and detects pre-existing projection drift during mutation. Missing
+  ledger history and unsupported snapshot metadata versions are preserved and
+  rejected instead of silently reset. Historical snapshot restoration retains
+  exact revision/digest checks even when multiple revisions contain identical state.
 
 ## [v2026.09.19] - 2026-09-19
 
@@ -43,6 +53,7 @@ No changes yet.
   `RUSTSEC-2026-0285` while preserving the existing HTTP/TLS interface.
 - Pre-push checks clear inherited repository-local Git variables before running
   subdirectory checks and temporary-repository tests. Discovery failure stops the hook.
+
 - Release signing now binds the exact seven-file signed-artifact inventory by
   SHA-256 and publishes it as one sealed directory via an exclusive atomic
   transition. Linux uses an exclusive rename; macOS uses a descriptor-bound

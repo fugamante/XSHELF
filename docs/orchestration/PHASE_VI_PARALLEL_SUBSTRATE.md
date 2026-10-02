@@ -26,6 +26,11 @@ Evolve task orchestration from strictly sequential execution to parallel-ready s
 4. Validate fairness and retry behavior under backend pool + caps.
 5. Keep adapter HTTP path opt-in only during early Phase VI.
 
+Task mutations now use the local authoritative command ledger described in
+[`TASK_LEDGER_DESIGN.md`](TASK_LEDGER_DESIGN.md). This serializes independent
+XSHELF processes without changing the sequential default or introducing a
+distributed worker cluster.
+
 ## Merge Gate (Phase VI increments)
 
 - `cargo fmt --check`
