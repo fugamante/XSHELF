@@ -189,32 +189,41 @@ fn read_secret_src(name: &str) -> Result<Option<(String, HttpSecretSource)>, Llm
     Ok(Some((value, HttpSecretSource::File)))
 }
 
-fn is_local_url(url: &str) -> bool {
-    let u = url.trim().to_ascii_lowercase();
-    u.starts_with("http://localhost:")
-        || u == "http://localhost"
-        || u.starts_with("http://localhost/")
-        || u.starts_with("http://127.0.0.1:")
-        || u == "http://127.0.0.1"
-        || u.starts_with("http://127.0.0.1/")
-        || u.starts_with("http://[::1]:")
-        || u == "http://[::1]"
-        || u.starts_with("http://[::1]/")
+fn parse_provider_url(raw: &str) -> Option<url::Url> {
+    let raw = raw.trim();
+    // Curl and WHATWG parsers disagree on backslashes and embedded whitespace.
+    if raw.contains('\\')
+        || raw
+            .chars()
+            .any(|c| c.is_ascii_control() || c.is_whitespace())
+    {
+        return None;
+    }
+    if !raw.starts_with("http://") && !raw.starts_with("https://") {
+        return None;
+    }
+    let parsed = url::Url::parse(raw).ok()?;
+    parsed.host()?;
+    Some(parsed)
 }
 
-fn url_host(url: &str) -> Option<String> {
-    let lower = url.trim().to_ascii_lowercase();
-    let rest = lower
-        .strip_prefix("https://")
-        .or_else(|| lower.strip_prefix("http://"))?;
-    let authority = rest.split('/').next().unwrap_or(rest);
-    let host_port = authority.rsplit('@').next().unwrap_or(authority);
-    if let Some(without_bracket) = host_port.strip_prefix('[') {
-        let host = without_bracket.split(']').next().unwrap_or("").trim();
-        return (!host.is_empty()).then(|| host.to_string());
+fn is_local_url(raw: &str) -> bool {
+    let Some(parsed) = parse_provider_url(raw) else {
+        return false;
+    };
+    parsed.scheme() == "http"
+        && matches!(
+            url_host(raw).as_deref(),
+            Some("localhost" | "127.0.0.1" | "::1")
+        )
+}
+
+fn url_host(raw: &str) -> Option<String> {
+    match parse_provider_url(raw)?.host()? {
+        url::Host::Domain(host) => Some(host.to_string()),
+        url::Host::Ipv4(ip) => Some(ip.to_string()),
+        url::Host::Ipv6(ip) => Some(ip.to_string()),
     }
-    let host = host_port.split(':').next().unwrap_or("").trim();
-    (!host.is_empty()).then(|| host.to_string())
 }
 
 fn parse_http_hosts() -> Option<Vec<String>> {
@@ -253,7 +262,18 @@ fn validate_http_url(url: &str) -> Result<(), LlmRunError> {
             "http-curl adapter [http_url_missing] provider URL is empty".to_string(),
         ));
     }
-    if trimmed.starts_with("https://") {
+    if !trimmed.starts_with("http://") && !trimmed.starts_with("https://") {
+        return Err(LlmRunError::message(
+            "http-curl adapter [http_url_scheme_invalid] CX_HTTP_PROVIDER_URL must use http:// or https://".to_string(),
+        ));
+    }
+    let parsed = parse_provider_url(trimmed).ok_or_else(|| {
+        LlmRunError::message(
+            "http-curl adapter [http_url_host_invalid] invalid provider URL".to_string(),
+        )
+    })?;
+    validate_redirects(trimmed, http_follow_redirects())?;
+    if parsed.scheme() == "https" {
         return validate_host_allowlist(trimmed);
     }
     if !trimmed.starts_with("http://") {
@@ -685,24 +705,40 @@ pub fn runtime_caps_json(caps: BackendRuntimeCapabilities) -> Value {
     })
 }
 
-fn models_probe_url(url: &str) -> Result<String, LlmRunError> {
-    let trimmed = url.trim();
-    let (scheme, rest) = if let Some(v) = trimmed.strip_prefix("https://") {
-        ("https://", v)
-    } else if let Some(v) = trimmed.strip_prefix("http://") {
-        ("http://", v)
-    } else {
+fn models_probe_url(raw: &str) -> Result<String, LlmRunError> {
+    validate_http_url(raw)?;
+    let mut parsed = parse_provider_url(raw).ok_or_else(|| {
+        LlmRunError::message(
+            "http-curl adapter [http_url_host_invalid] invalid provider URL".to_string(),
+        )
+    })?;
+    parsed.set_path("/v1/models");
+    parsed.set_query(None);
+    parsed.set_fragment(None);
+    Ok(parsed.to_string())
+}
+
+pub(crate) fn validate_redirects(raw: &str, follow: bool) -> Result<(), LlmRunError> {
+    if !follow {
+        return Ok(());
+    }
+    // Curl cannot apply our host allowlist to each redirect destination.
+    if parse_http_hosts().is_some()
+        || (env_bool("CX_HTTP_REQUIRE_HTTPS", true) && is_local_url(raw))
+    {
         return Err(LlmRunError::message(
-            "http-curl adapter [http_url_scheme_invalid] CX_HTTP_PROVIDER_URL must use http:// or https://".to_string(),
-        ));
-    };
-    let authority = rest.split('/').next().unwrap_or(rest).trim();
-    if authority.is_empty() {
-        return Err(LlmRunError::message(
-            "http-curl adapter [http_url_host_invalid] unable to parse provider host from CX_HTTP_PROVIDER_URL".to_string(),
+            "http-curl adapter [http_redirect_policy] redirects require no host allowlist and an HTTPS origin when HTTPS is required".to_string(),
         ));
     }
-    Ok(format!("{scheme}{authority}/v1/models"))
+    Ok(())
+}
+
+pub(crate) fn redirect_protocols() -> &'static str {
+    if env_bool("CX_HTTP_REQUIRE_HTTPS", true) {
+        "=https"
+    } else {
+        "=http,https"
+    }
 }
 
 pub fn resident_boundary_reason(
@@ -825,6 +861,7 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
         _ => {}
     }
     if http_follow_redirects() {
+        cmd.args(["--proto-redir", redirect_protocols()]);
         cmd.arg("-L");
         cmd.arg("--max-redirs");
         cmd.arg(http_max_redirects().to_string());
@@ -1305,6 +1342,9 @@ impl HttpCurlAdapter {
                 )
             })?;
         validate_http_url(&url)?;
+        let url = parse_provider_url(&url)
+            .expect("validated provider URL")
+            .to_string();
         let auth = http_auth_pair()?;
         let tls_pinned_pubkey = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY");
         let tls_ca_bundle = env_nonempty("CX_HTTP_CA_BUNDLE");
@@ -1708,6 +1748,67 @@ mod tests {
             Some("api.example.com")
         );
         assert_eq!(url_host("https://[::1]:9443").as_deref(), Some("::1"));
+    }
+
+    #[test]
+    fn url_boundary_hosts() {
+        for userinfo in ["localhost", "127.0.0.1", "[::1]"] {
+            // Synthetic userinfo resembles a local authority but is not the URL host.
+            let endpoint = format!("http://{userinfo}:80@external.example.com/v1");
+            assert!(
+                !is_local_url(&endpoint),
+                "userinfo cannot select a loopback host"
+            );
+        }
+        for endpoint in [
+            "https://external.test?@allowed.test/v1",
+            "https://external.test#@allowed.test/v1",
+        ] {
+            assert_eq!(url_host(endpoint).as_deref(), Some("external.test"));
+        }
+        for endpoint in [
+            "http://localhost:8080/v1",
+            "http://127.0.0.1/v1",
+            "http://[::1]:8080/v1",
+        ] {
+            assert!(is_local_url(endpoint));
+        }
+    }
+
+    #[test]
+    fn url_boundary_parse() {
+        assert!(url_host("https://external.test\\\\@allowed.test/").is_none());
+        assert!(url_host("https://allowed.test:invalid/").is_none());
+        assert!(url_host("https://allowed.test\n/").is_none());
+        assert_eq!(
+            super::models_probe_url("https://api.example.test:9443/infer?@other.test#suffix")
+                .unwrap(),
+            "https://api.example.test:9443/v1/models"
+        );
+    }
+
+    #[test]
+    fn redirect_boundary() {
+        let _guard = env_test_lock();
+        unsafe {
+            env::set_var("CX_HTTP_ALLOWED_HOSTS", "allowed.test");
+            env::set_var("CX_HTTP_FOLLOW_REDIRECTS", "1");
+            env::remove_var("CX_HTTP_REQUIRE_HTTPS");
+        }
+        assert!(validate_http_url("https://allowed.test/infer").is_err());
+        unsafe { env::remove_var("CX_HTTP_ALLOWED_HOSTS") };
+        assert!(validate_http_url("http://127.0.0.1:8080/infer").is_err());
+        validate_http_url("https://allowed.test/infer").unwrap();
+        assert_eq!(super::redirect_protocols(), "=https");
+        unsafe {
+            env::set_var("CX_HTTP_REQUIRE_HTTPS", "0");
+        }
+        validate_http_url("http://127.0.0.1:8080/infer").unwrap();
+        assert_eq!(super::redirect_protocols(), "=http,https");
+        unsafe {
+            env::remove_var("CX_HTTP_REQUIRE_HTTPS");
+            env::remove_var("CX_HTTP_FOLLOW_REDIRECTS");
+        }
     }
 
     #[test]

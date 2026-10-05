@@ -22,6 +22,12 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Provider URL policy uses structured host parsing across inference and model discovery;
+  userinfo and query/fragment text cannot bypass loopback TLS or host allowlists.
+  Redirects obey the configured TLS boundary and are rejected with host allowlists.
+- Task JSON output uses the same objective classification as text output. Stored
+  provider/model overrides require explicit `CX_TASK_TRUST_PROVIDER=1`; explicit
+  operator backend selection is honored for both commands and prose objectives.
 - Policy module hardening:
   - fix-run parses suggested commands into argv, blocks shell control syntax and
     inline shell or interpreter delegation, and executes accepted commands

@@ -105,7 +105,15 @@ fn redirect_policy_cov() {
         r#"#!/usr/bin/env bash
 seen_follow=0
 seen_redirs=0
+seen_protocol=0
 while [ $# -gt 0 ]; do
+  if [ "$1" = "--proto-redir" ]; then
+    if [ "${2:-}" = "=https" ]; then
+      seen_protocol=1
+    fi
+    shift 2
+    continue
+  fi
   if [ "$1" = "-L" ]; then
     seen_follow=1
     shift
@@ -121,7 +129,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 cat >/dev/null
-if [ "$seen_follow" != "1" ] || [ "$seen_redirs" != "1" ]; then
+if [ "$seen_follow" != "1" ] || [ "$seen_redirs" != "1" ] || [ "$seen_protocol" != "1" ]; then
   echo "missing redirect controls" >&2
   exit 2
 fi

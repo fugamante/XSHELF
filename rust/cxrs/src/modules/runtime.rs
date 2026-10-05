@@ -3,21 +3,32 @@ use std::io::{self, IsTerminal, Write};
 use std::process::Command;
 
 use crate::config::{app_config, cli_app_name};
-use crate::local_models::find_record_for_backend;
+use crate::local_models::{find_record_for_backend, normalize_backend};
 use crate::process::run_command_output_with_timeout;
 use crate::state::{read_state_value, set_state_path, value_at_path};
 
 pub fn llm_backend() -> String {
-    app_config().llm_backend.clone()
+    // Task execution applies scoped operator overrides after config initialization.
+    match std::env::var("CX_LLM_BACKEND") {
+        Ok(value) if !value.trim().is_empty() => {
+            normalize_backend(&value).unwrap_or("primary").to_string()
+        }
+        _ => app_config().llm_backend.clone(),
+    }
 }
 
 pub fn llm_model() -> String {
-    match llm_backend().as_str() {
-        "ollama" => app_config().ollama_model.clone(),
-        "llamacpp" => app_config().llama_cpp_model.clone(),
-        "mlx" => app_config().mlx_model.clone(),
-        _ => app_config().primary_model.clone(),
-    }
+    let (key, default) = match llm_backend().as_str() {
+        "ollama" => ("CX_OLLAMA_MODEL", &app_config().ollama_model),
+        "llamacpp" => ("CX_LLAMA_CPP_MODEL", &app_config().llama_cpp_model),
+        "mlx" => ("CX_MLX_MODEL", &app_config().mlx_model),
+        _ => ("CX_MODEL", &app_config().primary_model),
+    };
+    std::env::var(key)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| default.clone())
 }
 
 pub fn logging_enabled() -> bool {

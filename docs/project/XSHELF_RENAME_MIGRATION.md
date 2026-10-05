@@ -261,3 +261,12 @@ Task mutations through `xshelf`, `xs`, and `cx` use the same local ledger and
 lock. Existing `tasks.json` arrays remain backward-readable. Stop older task
 writers before the first ledger-backed mutation; use task commands thereafter.
 Public task JSON, environment variables, aliases, and telemetry are unchanged.
+
+## Task provider trust compatibility
+
+Task backend/model keys and `CX_*` names remain supported. Applying provider/model
+choices from repository task metadata now requires the explicit operator environment
+setting `CX_TASK_TRUST_PROVIDER=1`. CLI backend selection remains authoritative.
+This changes the execution of untrusted metadata without renaming or deleting stored
+keys or changing JSON contract versions. JSON and text task output share objective
+classification.

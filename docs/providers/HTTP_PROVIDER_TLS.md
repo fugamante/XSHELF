@@ -28,7 +28,7 @@ Rules:
   - `http://localhost`
   - `http://127.0.0.1`
   - `http://[::1]`
-- `CX_HTTP_ALLOWED_HOSTS` (optional CSV): host allowlist gate for `CX_HTTP_PROVIDER_URL`.
+- `CX_HTTP_ALLOWED_HOSTS` (optional CSV): host allowlist gate for the parsed provider host. Userinfo, query strings and fragments cannot select another allowed host.
 - `CX_HTTP_TLS_PINNEDPUBKEY` (optional): passed to curl `--pinnedpubkey` for TLS pinning.
 - `CX_HTTP_CA_BUNDLE` (optional): passed to curl `--cacert` for custom trust bundles.
 - `CX_HTTP_CLIENT_CERT` / `CX_HTTP_CLIENT_KEY` (optional): passed to curl `--cert` / `--key` for mTLS.
@@ -36,11 +36,12 @@ Rules:
   - `1.2` (default)
   - `1.3`
   - `default` to defer to system curl defaults
-- `CX_HTTP_FOLLOW_REDIRECTS` (optional, default `0`): opt into HTTP redirects.
+- `CX_HTTP_FOLLOW_REDIRECTS` (optional, default `0`): opt into redirects. Redirects are rejected when a host allowlist is configured because curl cannot enforce that allowlist at every hop. With HTTPS required, only HTTPS origins and HTTPS redirect destinations are allowed; loopback HTTP redirects are rejected. Controlled testing with `CX_HTTP_REQUIRE_HTTPS=0` allows HTTP and HTTPS redirects.
 - `CX_HTTP_MAX_REDIRECTS` (optional, default `3` when redirects are enabled): redirect cap.
 
 Behavior:
-- `https://...` always allowed.
+- Valid `https://...` URLs are allowed subject to the host allowlist and redirect policy.
+- URL parsing is shared by inference, model discovery and local endpoint classification. Ambiguous backslashes, embedded whitespace and invalid ports are rejected before execution.
 - `http://...` non-loopback is rejected by default.
 - Set `CX_HTTP_REQUIRE_HTTPS=0` only for controlled local testing.
 

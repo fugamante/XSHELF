@@ -357,6 +357,11 @@ fn run_http_body(
         _ => {}
     }
     if options.follow_redirects {
+        crate::provider_adapter::validate_redirects(url, true)?;
+        cmd.args([
+            "--proto-redir",
+            crate::provider_adapter::redirect_protocols(),
+        ]);
         cmd.arg("-L");
         cmd.arg("--max-redirs");
         cmd.arg(options.max_redirects.to_string());
