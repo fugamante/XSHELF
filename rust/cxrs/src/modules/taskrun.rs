@@ -496,7 +496,14 @@ fn task_prompt(task: &TaskRecord) -> String {
     )
 }
 
+pub(crate) fn task_provider_trusted() -> bool {
+    env::var("CX_TASK_TRUST_PROVIDER").is_ok_and(|value| value.trim() == "1")
+}
+
 fn task_backend_override(task: &TaskRecord) -> Option<String> {
+    if !task_provider_trusted() {
+        return None;
+    }
     let backend = task.backend.trim().to_lowercase();
     match backend.as_str() {
         "primary" => Some("primary".to_string()),
@@ -516,6 +523,9 @@ fn task_mode_override(task: &TaskRecord) -> Option<String> {
 }
 
 fn task_model_override(task: &TaskRecord) -> Option<String> {
+    if !task_provider_trusted() {
+        return None;
+    }
     task.model
         .as_deref()
         .map(str::trim)
@@ -713,6 +723,29 @@ fn recover_execution_id_from_log(log_file: &Path, offset: u64) -> Option<String>
     latest
 }
 
+fn task_command_supported(command: &str) -> bool {
+    matches!(
+        command,
+        "cxcommitjson"
+            | "commitjson"
+            | "cxcommitmsg"
+            | "commitmsg"
+            | "cxdiffsum"
+            | "diffsum"
+            | "cxdiffsum_staged"
+            | "diffsum-staged"
+            | "cxnext"
+            | "next"
+            | "cxfix_run"
+            | "fix-run"
+            | "cxfix"
+            | "fix"
+            | "cx"
+            | "cxj"
+            | "cxo"
+    )
+}
+
 fn dispatch_task_command(
     runner: &TaskRunner,
     words: &[String],
@@ -721,44 +754,33 @@ fn dispatch_task_command(
     backend_override: Option<&str>,
     emit_output: bool,
 ) -> Result<(i32, Option<String>), String> {
-    let Some(cmd0) = words.first().map(String::as_str) else {
+    let cmd0 = words.first().map(String::as_str).unwrap_or("");
+    let model_override = task_model_override(task);
+    // Output formatting cannot grant additional command execution authority.
+    if !task_command_supported(cmd0) {
         return run_task_prompt(
             runner,
             task,
             mode_override,
             backend_override,
-            None,
+            model_override.as_deref(),
             emit_output,
         );
-    };
+    }
     let args: Vec<String> = words.iter().skip(1).cloned().collect();
-    let model_override = task_model_override(task);
-    if !emit_output {
+    if !emit_output
+        || mode_override.is_some()
+        || backend_override.is_some()
+        || model_override.is_some()
+    {
         let code = run_objective_subprocess(
             words,
             mode_override,
             backend_override,
             model_override.as_deref(),
-            false,
+            emit_output,
         )?;
         return Ok((code, None));
-    }
-    if mode_override.is_some() || backend_override.is_some() || model_override.is_some() {
-        match cmd0 {
-            "cxcommitjson" | "commitjson" | "cxcommitmsg" | "commitmsg" | "cxdiffsum"
-            | "diffsum" | "cxdiffsum_staged" | "diffsum-staged" | "cxnext" | "next"
-            | "cxfix_run" | "fix-run" | "cxfix" | "fix" | "cx" | "cxj" | "cxo" => {
-                let code = run_objective_subprocess(
-                    words,
-                    mode_override,
-                    backend_override,
-                    model_override.as_deref(),
-                    true,
-                )?;
-                return Ok((code, None));
-            }
-            _ => {}
-        }
     }
     let status = match cmd0 {
         "cxcommitjson" | "commitjson" => (runner.cmd_commitjson)(),

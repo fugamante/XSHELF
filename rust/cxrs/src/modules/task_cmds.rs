@@ -2740,10 +2740,20 @@ fn choose_backend_for_task(
     pool: &[String],
     index: usize,
 ) -> Option<String> {
+    choose_task_backend(task, pool, index, crate::taskrun::task_provider_trusted())
+}
+
+fn choose_task_backend(
+    task: Option<&TaskRecord>,
+    pool: &[String],
+    index: usize,
+    trusted: bool,
+) -> Option<String> {
     if pool.is_empty() {
         return None;
     }
-    if let Some(t) = task
+    if trusted
+        && let Some(t) = task
         && let Some(task_backend) = normalize_backend(&t.backend)
         && pool.contains(&task_backend)
     {
@@ -3858,14 +3868,15 @@ mod tests {
     }
 
     #[test]
-    fn choose_backend_prefers_task_backend_when_in_pool() {
+    fn trusted_backend_wins() {
         let task = mk_task("ollama");
-        let selected = choose_backend_for_task(
-            Some(&task),
-            &["primary".to_string(), "ollama".to_string()],
-            0,
-        );
+        let pool = ["primary".to_string(), "ollama".to_string()];
+        let selected = choose_task_backend(Some(&task), &pool, 0, true);
         assert_eq!(selected.as_deref(), Some("ollama"));
+        assert_eq!(
+            choose_task_backend(Some(&task), &pool, 0, false),
+            choose_task_backend(None, &pool, 0, false)
+        );
     }
 
     #[test]

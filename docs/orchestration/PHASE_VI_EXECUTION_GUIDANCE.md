@@ -137,3 +137,27 @@ Any future change to these objects must include:
 1. JSON contract test updates where applicable
 2. text-surface validation where applicable
 3. an explicit note in `docs/project/ROADMAP.md` or the relevant phase doc if the semantic contract changed
+
+## Task Provider Trust and Migration
+
+Task records remain repository data. `task run` and `task run-all` ignore stored
+`backend` and `model` overrides unless the operator explicitly supplies
+`CX_TASK_TRUST_PROVIDER=1` in the process environment. No repository state or
+configuration key enables this trust. Review the task records and local model
+registry before opting in:
+
+```bash
+CX_TASK_TRUST_PROVIDER=1 xshelf task run <id>
+CX_TASK_TRUST_PROVIDER=1 xshelf task run-all
+```
+
+Without that opt-in, execution uses the operator's configured backend and model.
+Explicit `task run --backend` and `task run-all --backend-pool` remain authoritative;
+stored model overrides still require the opt-in. Existing task keys and JSON
+contract versions are preserved. Existing workflows that intentionally use stored
+provider/model selection must add the process environment opt-in after review.
+
+Text and JSON output modes classify objectives identically. Recognized task
+command objectives retain command execution; other objectives, including text
+beginning with another top-level CLI command, are passed to the selected provider
+as task prompts. JSON output does not expand the set of executable commands.

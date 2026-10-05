@@ -1968,6 +1968,7 @@ printf 'mlx task ok'
         &["task", "run", &task_id],
         &[
             ("CX_LLM_BACKEND", "mlx"),
+            ("CX_TASK_TRUST_PROVIDER", "1"),
             ("CX_MLX_PYTHON", &mlx_python),
             ("MLX_TASK_ARGS_FILE", &args_path),
         ],
@@ -1985,4 +1986,81 @@ printf 'mlx task ok'
         args.contains("--model\nmlx-community/Tiny-Task\n"),
         "{args}"
     );
+}
+
+fn task_provider_case(trusted: bool, explicit: bool, mode: &str, objective: &str) {
+    let repo = TempRepo::new("cxrs-task-provider");
+    repo.write_mock_primary(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' primary > "$TASK_PROVIDER_FILE"
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"primary task ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":2,"output_tokens":1}}'
+"#,
+    );
+    repo.write_mock(
+        "mlx-python",
+        r#"#!/usr/bin/env bash
+printf '%s\n' "$@" > "$TASK_PROVIDER_FILE"
+printf 'mlx task ok'
+"#,
+    );
+    let add = repo.run(&[
+        "task",
+        "add",
+        objective,
+        "--backend",
+        "mlx",
+        "--model",
+        "repository-model",
+    ]);
+    assert!(add.status.success(), "{}", stderr_str(&add));
+    let id = stdout_str(&add).trim().to_string();
+    let mut args = vec!["task", "run", &id, mode];
+    if explicit {
+        args.extend(["--backend", if trusted { "primary" } else { "mlx" }]);
+    }
+    let provider_path = repo.root.join("provider.txt").display().to_string();
+    let python = repo.mock_bin.join("mlx-python").display().to_string();
+    let run = repo.run_with_env(
+        &args,
+        &[
+            ("CX_LLM_BACKEND", "primary"),
+            ("CX_MLX_MODEL", "operator-model"),
+            ("CX_MLX_PYTHON", &python),
+            ("CX_TASK_TRUST_PROVIDER", if trusted { "1" } else { "0" }),
+            ("TASK_PROVIDER_FILE", &provider_path),
+        ],
+    );
+    assert!(run.status.success(), "{}", stderr_str(&run));
+    let recorded = fs::read_to_string(provider_path).expect("provider invocation");
+    if trusted != explicit {
+        let model = if trusted {
+            "repository-model"
+        } else {
+            "operator-model"
+        };
+        assert!(
+            recorded.contains(&format!("--model\n{model}\n")),
+            "{recorded}"
+        );
+    } else {
+        assert_eq!(recorded.trim(), "primary");
+    }
+    assert_eq!(
+        read_json(&repo.tasks_file())[0]["model"],
+        "repository-model"
+    );
+}
+
+#[test]
+fn task_provider_trust() {
+    for mode in ["--text", "--json"] {
+        for objective in ["Describe task progress", "cxo echo provider-test"] {
+            for (trusted, explicit) in [(false, false), (true, false), (false, true), (true, true)]
+            {
+                task_provider_case(trusted, explicit, mode, objective);
+            }
+        }
+    }
 }

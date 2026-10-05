@@ -192,6 +192,11 @@ Work with tasks:
 ./bin/xshelf task events --limit 20 --json
 ```
 
+Task provider and model fields are metadata unless the operator sets
+`CX_TASK_TRUST_PROVIDER=1` for a trusted task file. Explicit `--backend` selection
+remains authoritative; JSON output preserves the same execution boundary as text.
+See [task execution guidance](docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md).
+
 Human `task run-all` progress is written to stderr so stdout remains available
 for command results. Set `CX_TASK_RUN_ALL_PROGRESS=0` (or `false`) to disable
 these messages. The same setting applies to the `xshelf`, `xs`, and `cx`
