@@ -46,6 +46,17 @@ fn parsed_command_policy() {
         "sudo.exe reboot",
         "bash.exe -c echo",
         "systemctl reboot",
+        "systemctl suspend",
+        "systemctl sleep",
+        "sys''temctl sleep",
+        "systemctl hibernate",
+        "systemctl hybrid-sleep",
+        "systemctl suspend-then-hibernate",
+        "sys''temctl suspend",
+        "/usr/bin/systemctl.exe hibernate",
+        "watch -x rm -rf ./synthetic",
+        "wa''tch --exec rm -rf ./synthetic",
+        "/usr/bin/watch.exe -n1 rm -rf ./synthetic",
         "launchctl reboot system",
         "cp -at/etc input",
         "cp -vat/etc input",
@@ -104,7 +115,15 @@ fn execution_override_matrix() {
     ] {
         let repo = TempRepo::new("policy-execution");
         let sentinel = repo.root.join("mock-execution");
-        for program in ["rm", "sudo", "reboot", "shutdown", "diskutil"] {
+        for program in [
+            "rm",
+            "sudo",
+            "reboot",
+            "shutdown",
+            "diskutil",
+            "watch",
+            "systemctl",
+        ] {
             repo.write_mock(
                 program,
                 "#!/usr/bin/env bash\nprintf '%s\\n' \"$0\" >> \"$POLICY_EXECUTED\"\n",
@@ -118,6 +137,8 @@ fn execution_override_matrix() {
                 "reboot",
                 "shutdown -h now",
                 "diskutil list",
+                "watch -x rm -rf ./synthetic",
+                "systemctl suspend",
             ],
         );
         let args = if unsafe_cli {
@@ -140,7 +161,7 @@ fn execution_override_matrix() {
         if expected {
             assert_eq!(
                 std::fs::read_to_string(sentinel).unwrap().lines().count(),
-                5
+                7
             );
         } else if run == "1" {
             let rows = parse_jsonl(&repo.runs_log());
@@ -206,4 +227,85 @@ fn nested_write_containment() {
     }
     assert!(!repo.home.join("out").exists());
     assert_eq!(std::fs::read_to_string(outside).unwrap(), "preserved");
+}
+
+#[test]
+fn copy_operand_boundary() {
+    let repo = TempRepo::new("policy-copy");
+    let external = repo.home.join("external-copy-input");
+    std::fs::write(&external, "synthetic copy input").unwrap();
+    std::fs::create_dir(repo.root.join("destination")).unwrap();
+    let source = external.display();
+    for command in [
+        format!("cp '{source}' local-output"),
+        format!("gcp '{source}' second-source local-output"),
+        format!("cp -t destination '{source}'"),
+        format!("cp -atdestination '{source}'"),
+        format!("cp -vat destination '{source}'"),
+        format!("cp --target-directory=destination '{source}'"),
+        format!("cp --target destination '{source}'"),
+        format!("cp --t=destination '{source}'"),
+        format!("cp --suffix=ignored '{source}' local-output"),
+        format!("gcp -S ignored '{source}' local-output"),
+        format!("cp --sparse never '{source}' local-output"),
+        format!("cp --preserve '{source}' local-output"),
+        format!("cp -- '{source}' local-output"),
+    ] {
+        let out = repo.run(&["policy", "check", &command]);
+        assert_eq!(stdout_str(&out).trim(), "safe", "{command}");
+    }
+    for command in [
+        format!("cp local-input '{source}'"),
+        format!(
+            "cp -t '{}' local-input",
+            external.parent().unwrap().display()
+        ),
+        format!("cp --parents '{source}' destination"),
+        format!("mv '{source}' local-output"),
+        format!("gcp -l '{source}' local-link"),
+        format!("gcp --link '{source}' local-link"),
+        format!("gcp --li '{source}' local-link"),
+        format!("cp -Sl '{source}' local-link"),
+    ] {
+        let out = repo.run(&["policy", "check", &command]);
+        assert!(stdout_str(&out).starts_with("dangerous:"), "{command}");
+    }
+    let external_dir = repo.home.join("directory-input");
+    std::fs::create_dir(&external_dir).unwrap();
+    for command in [
+        format!("gcp -R '{}/.' destination", external_dir.display()),
+        format!("gcp -R '{}' destination", external_dir.display()),
+        format!("cp --archive '{}' destination", external_dir.display()),
+    ] {
+        let out = repo.run(&["policy", "check", &command]);
+        assert!(stdout_str(&out).starts_with("dangerous:"), "{command}");
+    }
+    suggestions(&repo, &[&format!("cp '{source}' 'allowed copy'")]);
+    let out = repo.run_with_env(
+        &["fix-run", "echo", "fixture"],
+        &[
+            ("CX_LLM_BACKEND", "primary"),
+            ("CXFIX_RUN", "1"),
+            ("CXFIX_FORCE", "0"),
+            ("CX_UNSAFE", "0"),
+        ],
+    );
+    assert!(out.status.success(), "{}", stderr_str(&out));
+    assert_eq!(
+        std::fs::read_to_string(repo.root.join("allowed copy")).unwrap(),
+        "synthetic copy input"
+    );
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(
+            &external,
+            repo.root
+                .join("destination")
+                .join(external.file_name().unwrap()),
+        )
+        .unwrap();
+        let out = repo.run(&["policy", "check", &format!("cp '{source}' destination")]);
+        assert!(stdout_str(&out).starts_with("dangerous:"));
+    }
+    std::fs::remove_file(&external).unwrap();
 }

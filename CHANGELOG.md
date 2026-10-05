@@ -22,6 +22,9 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Suggested execution requires an unsafe override for `watch` and disruptive
+  `systemctl` sleep actions. Copy sources are reads; destinations remain checked,
+  including existing destination children and GNU target-directory options.
 - Leak scanning reads literal filenames and immutable staged blobs, handles NUL
   inventories, and blocks inspection failures instead of reporting a clean scan.
 - Suggested-command policy checks parsed executable names, removal flags, and

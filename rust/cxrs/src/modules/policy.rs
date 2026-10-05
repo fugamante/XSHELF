@@ -1,3 +1,6 @@
+#[path = "policy_copy.rs"]
+mod copy;
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -46,6 +49,7 @@ fn is_launcher(name: &str) -> bool {
             | "busybox"
             | "xargs"
             | "find"
+            | "watch"
     )
 }
 
@@ -120,6 +124,11 @@ fn collect_write_candidates(tokens: &[String]) -> Vec<String> {
         .first()
         .map(|value| command_name(value))
         .unwrap_or_default();
+    if program == "cp"
+        && let Some(targets) = copy::write_targets(tokens)
+    {
+        return targets;
+    }
     let mut operands = false;
     for (index, token) in tokens.iter().enumerate().skip(1) {
         if token == "--" {
@@ -340,6 +349,16 @@ fn evaluate_tokens(
             matches!(
                 argument.as_str(),
                 "reboot" | "poweroff" | "halt" | "kexec" | "soft-reboot"
+            )
+        })
+    {
+        return SafetyDecision::Dangerous("system control command".to_string());
+    }
+    if name == "systemctl"
+        && tokens.iter().skip(1).any(|argument| {
+            matches!(
+                argument.as_str(),
+                "sleep" | "suspend" | "hibernate" | "hybrid-sleep" | "suspend-then-hibernate"
             )
         })
     {

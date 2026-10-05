@@ -107,6 +107,11 @@ Recursive force removal, privilege launchers, system control, and disk managemen
 commands require an explicit unsafe override. This includes read forms such as
 `diskutil list` when suggested for execution. Repository-local file/image writes
 remain supported; relative targets are checked from the execution directory.
+`watch` and disruptive `systemctl` sleep actions require an unsafe override. Copy
+sources can be outside the repository when destinations are contained; `--parents`
+directory sources and hardlink creation retain conservative source checks.
+Dialect-ambiguous `cp -S` forms also retain conservative checks; `gcp -S` uses
+GNU suffix parsing.
 `policy check` remains advisory and can accept repository-local redirection that
 `fix-run` rejects. The policy is a command filter, not a sandbox for arbitrary tools.
 
