@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-06-23
+Last updated: 2026-10-05
 
 ## Scope
 
@@ -60,6 +60,10 @@ Minor releases:
 
 Major releases:
 - breaking contract changes allowed only with migration notes and version bump
+
+The fix-run policy hardening changes command acceptance and execution, not the
+`xshelf policy show --json` payload. Its `policy-show.v1` marker, keys, and
+types remain unchanged.
 
 ## CI Enforcement
 
