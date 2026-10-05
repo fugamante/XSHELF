@@ -488,6 +488,14 @@ fn policy_json_contract() {
         .and_then(Value::as_array)
         .expect("rules array");
     assert!(!rules.is_empty(), "rules array should not be empty");
+    assert!(rules.iter().any(|rule| {
+        rule.as_str()
+            .is_some_and(|text| text.contains("command launchers"))
+    }));
+    assert!(rules.iter().any(|rule| {
+        rule.as_str()
+            .is_some_and(|text| text.contains("environment assignments"))
+    }));
     assert!(
         payload
             .get("overrides")

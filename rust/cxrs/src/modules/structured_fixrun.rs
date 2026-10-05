@@ -7,7 +7,7 @@ use crate::capture::run_system_command_capture;
 use crate::config::app_config;
 use crate::error::{EXIT_OK, EXIT_RUNTIME, EXIT_USAGE, format_error};
 use crate::paths::repo_root;
-use crate::policy::{SafetyDecision, evaluate_command_safety};
+use crate::policy::{is_env_assignment, safe_command_argv};
 use crate::process::run_command_status_with_timeout;
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::schema::load_schema;
@@ -229,23 +229,45 @@ fn execute_fix_commands(
         let root = repo_root()
             .or_else(|| env::current_dir().ok())
             .unwrap_or_else(|| PathBuf::from("."));
-        match evaluate_command_safety(c, &root) {
-            SafetyDecision::Safe => {}
-            SafetyDecision::Dangerous(reason) => {
+        let argv = match safe_command_argv(c, &root) {
+            Ok(argv) => argv,
+            Err(reason) => {
                 if !(force || allow_unsafe) {
                     policy_blocked = true;
-                    policy_reasons.push(reason.clone());
+                    policy_reasons.push(reason);
                     crate::cx_eprintln!(
-                        "WARN blocked dangerous command ({reason}); use CXFIX_FORCE=1 or --unsafe: {c}"
+                        "WARN blocked dangerous command ({}); use CXFIX_FORCE=1 or --unsafe: {c}",
+                        policy_reasons.last().unwrap()
                     );
                     continue;
                 }
-                crate::cx_eprintln!("WARN unsafe override active; executing: {c}");
+                crate::cx_eprintln!("WARN unsafe override active; parsing: {c}");
+                match shell_words::split(c) {
+                    Ok(argv) => argv,
+                    Err(e) => {
+                        crate::cx_eprintln!(
+                            "{}",
+                            format_error("fix-run", &format!("failed to parse command: {e}"))
+                        );
+                        continue;
+                    }
+                }
             }
+        };
+        if argv.is_empty() {
+            crate::cx_eprintln!("{}", format_error("fix-run", "empty suggested command"));
+            continue;
+        }
+        if is_env_assignment(&argv[0]) {
+            crate::cx_eprintln!(
+                "{}",
+                format_error("fix-run", "leading environment assignment is unsupported")
+            );
+            continue;
         }
         println!("-> {c}");
-        let mut shell_cmd = Command::new("bash");
-        shell_cmd.args(["-lc", c]);
+        let mut shell_cmd = Command::new(&argv[0]);
+        shell_cmd.args(&argv[1..]);
         if let Err(e) = run_command_status_with_timeout(shell_cmd, "cxfix_run command") {
             crate::cx_eprintln!(
                 "{}",
@@ -294,5 +316,30 @@ pub fn cmd_fix_run(app_name: &str, command: &[String], execute_task: ExecuteTask
         EXIT_OK
     } else {
         ctx.exit_status
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::execute_fix_commands;
+
+    #[test]
+    fn empty_override_skips() {
+        for command in ["", "   "] {
+            for (force, allow_unsafe) in [(true, false), (false, true)] {
+                let (blocked, reason) =
+                    execute_fix_commands(&[command.to_string()], force, allow_unsafe);
+                assert!(!blocked);
+                assert!(reason.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn env_override_skips() {
+        let (blocked, reason) =
+            execute_fix_commands(&["RUST_BACKTRACE=1 cargo test".to_string()], true, false);
+        assert!(!blocked);
+        assert!(reason.is_none());
     }
 }

@@ -14,6 +14,72 @@ pub enum SafetyDecision {
     Dangerous(String),
 }
 
+fn command_tokens(cmd: &str) -> Result<Vec<String>, String> {
+    shell_words::split(cmd).map_err(|e| format!("invalid shell quoting: {e}"))
+}
+
+fn has_shell_syntax(cmd: &str) -> bool {
+    cmd.chars()
+        .any(|c| matches!(c, '|' | '&' | ';' | '<' | '>' | '\n' | '\r'))
+}
+
+fn is_interpreter(name: &str) -> bool {
+    let base = Path::new(name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    matches!(
+        base.as_str(),
+        "sh" | "bash" | "zsh" | "dash" | "fish" | "ksh" | "perl" | "ruby" | "node" | "php" | "lua"
+    ) || base.starts_with("python")
+        || base.starts_with("pypy")
+}
+
+fn is_launcher(name: &str) -> bool {
+    let base = Path::new(name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    matches!(
+        base.as_str(),
+        "env"
+            | "command"
+            | "exec"
+            | "nice"
+            | "nohup"
+            | "timeout"
+            | "stdbuf"
+            | "busybox"
+            | "xargs"
+            | "find"
+    )
+}
+
+pub(crate) fn is_env_assignment(token: &str) -> bool {
+    let Some((name, _)) = token.split_once('=') else {
+        return false;
+    };
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+pub fn safe_command_argv(cmd: &str, repo_root: &Path) -> Result<Vec<String>, String> {
+    if has_shell_syntax(cmd) {
+        return Err("contains shell control or redirection syntax".to_string());
+    }
+    let argv = command_tokens(cmd)?;
+    if argv.is_empty() {
+        return Err("empty command".to_string());
+    }
+    match evaluate_tokens(cmd, repo_root, Some(&argv)) {
+        SafetyDecision::Safe => Ok(argv),
+        SafetyDecision::Dangerous(reason) => Err(reason),
+    }
+}
+
 fn normalize_token(tok: &str) -> String {
     tok.trim_matches(|c: char| c == '"' || c == '\'' || c == '`' || c == ';' || c == ',')
         .to_string()
@@ -182,11 +248,40 @@ fn matches_protected_redirect(lower: &str) -> bool {
 }
 
 pub fn evaluate_command_safety(cmd: &str, repo_root: &Path) -> SafetyDecision {
+    evaluate_tokens(cmd, repo_root, None)
+}
+
+fn evaluate_tokens(
+    cmd: &str,
+    repo_root: &Path,
+    parsed_tokens: Option<&[String]>,
+) -> SafetyDecision {
     let compact = cmd.split_whitespace().collect::<Vec<_>>().join(" ");
     let lower = compact.to_lowercase();
+    let tokens = match parsed_tokens {
+        Some(tokens) => tokens.to_vec(),
+        None => command_tokens(cmd).unwrap_or_else(|_| {
+            compact
+                .split_whitespace()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        }),
+    };
 
     if matches_sudo(&lower) {
         return SafetyDecision::Dangerous("contains sudo".to_string());
+    }
+    if let Some(program) = tokens.first() {
+        if is_env_assignment(program) {
+            return SafetyDecision::Dangerous(
+                "leading environment assignment is unsupported".to_string(),
+            );
+        }
+        if is_launcher(program) || is_interpreter(program) {
+            return SafetyDecision::Dangerous(
+                "delegates execution through a launcher or interpreter".to_string(),
+            );
+        }
     }
     if matches_rm_rf(&lower) {
         return SafetyDecision::Dangerous("contains rm -rf pattern".to_string());
@@ -227,6 +322,8 @@ fn policy_rules() -> Vec<&'static str> {
         "Block: sudo",
         "Block: rm -rf family",
         "Block: curl | bash/sh/zsh",
+        "Block: shell/interpreter commands and command launchers in fix-run",
+        "Block: leading environment assignments in fix-run",
         "Block: chmod/chown on /System,/Library,/usr (except /usr/local)",
         "Block: write operations outside repo root",
     ]
@@ -279,6 +376,8 @@ fn print_policy_help(app_name: &str) {
     println!("- sudo (any)");
     println!("- rm -rf / rm -fr forms");
     println!("- curl | bash/sh/zsh");
+    println!("- shell/interpreter commands and command launchers");
+    println!("- leading environment assignments");
     println!("- chmod/chown on /System, /Library, /usr (except /usr/local)");
     println!("- shell redirection/tee writes to /System, /Library, /usr (except /usr/local)");
     println!();
@@ -320,6 +419,74 @@ mod tests {
         let root = Path::new("/tmp/repo");
         let decision = evaluate_command_safety("rm -rf ./target", root);
         assert!(matches!(decision, SafetyDecision::Dangerous(_)));
+    }
+
+    #[test]
+    fn blocks_rm_flags() {
+        let root = Path::new("/tmp/repo");
+        let decision = evaluate_command_safety("rm -r -f ./target", root);
+        assert!(matches!(decision, SafetyDecision::Dangerous(_)));
+    }
+
+    #[test]
+    fn blocks_shell_exec() {
+        let root = Path::new("/tmp/repo");
+        let result = safe_command_argv("bash -c 'rm -rf /tmp/victim'", root);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn blocks_inline_code() {
+        let root = Path::new("/tmp/repo");
+        let result = safe_command_argv(
+            "python3 -c 'import shutil; shutil.rmtree(\"/tmp/victim\")'",
+            root,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn blocks_attached_code() {
+        let root = Path::new("/tmp/repo");
+        for command in [
+            "python3 -c'print(1)'",
+            "python3.12 -c'print(1)'",
+            "bash -cecho",
+        ] {
+            assert!(safe_command_argv(command, root).is_err(), "{command}");
+        }
+    }
+
+    #[test]
+    fn blocks_launcher() {
+        let root = Path::new("/tmp/repo");
+        for command in [
+            "env bash -c 'rm --recursive --force /tmp/victim'",
+            "/usr/bin/env bash -c 'echo hi'",
+            "busybox sh -c 'echo hi'",
+        ] {
+            assert!(safe_command_argv(command, root).is_err(), "{command}");
+        }
+    }
+
+    #[test]
+    fn blocks_env_prefix() {
+        let root = Path::new("/tmp/repo");
+        assert!(safe_command_argv("RUST_BACKTRACE=1 cargo test", root).is_err());
+    }
+
+    #[test]
+    fn blocks_shell_syntax() {
+        let root = Path::new("/tmp/repo");
+        let result = safe_command_argv("echo hi; rm -rf /tmp/victim", root);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parses_simple_argv() {
+        let root = Path::new("/tmp/repo");
+        let argv = safe_command_argv("cargo test --quiet", root).unwrap();
+        assert_eq!(argv, vec!["cargo", "test", "--quiet"]);
     }
 
     #[test]

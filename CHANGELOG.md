@@ -22,6 +22,17 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Policy module hardening:
+  - fix-run parses suggested commands into argv, blocks shell control syntax and
+    inline shell or interpreter delegation, and executes accepted commands
+    directly instead of through `bash -lc`.
+  - the unsafe override runs parsed argv directly, so shell syntax is not
+    interpreted; empty suggestions are skipped.
+  - direct shell and interpreter commands, common command launchers, and leading
+    environment assignments are blocked by default; assignments are rejected
+    even under the unsafe override rather than invoked as programs.
+    `policy show --json` adds rules for these restrictions while retaining the
+    `policy-show.v1` marker, keys, and types.
 - Run-all persists task outcomes before reporting them and contains active workers
   when persistence fails. Critical execution halts retain already launched worker
   outcomes instead of leaving their tasks marked in progress.
