@@ -60,6 +60,16 @@ display_path() {
   esac
 }
 
+quote_literal() {
+  local value="$1"
+  printf "'"
+  while [[ "$value" == *"'"* ]]; do
+    printf '%s%s' "${value%%\'*}" "'\\''"
+    value="${value#*\'}"
+  done
+  printf "%s'" "$value"
+}
+
 resolve_cx_ops_repo() {
   if [[ -n "$cx_ops_repo" ]]; then
     [[ -d "$cx_ops_repo" ]] || {
@@ -114,8 +124,9 @@ create_launcher() {
   cat > "$launcher_path" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-export PATH="$install_bin:\$HOME/.cargo/bin:\$PATH"
-exec "$install_bin/xshelf" launch
+install_bin=$(quote_literal "$install_bin")
+export PATH="\$install_bin:\$HOME/.cargo/bin:\$PATH"
+exec "\$install_bin/xshelf" launch
 EOF
   chmod +x "$launcher_path"
   echo "xshelf-suite-install: launcher ready at $(display_path "$launcher_path")"

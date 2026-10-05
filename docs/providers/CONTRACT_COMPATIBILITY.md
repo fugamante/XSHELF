@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-08-27
+Last updated: 2026-10-05
 
 ## Scope
 
@@ -111,6 +111,14 @@ Contract stability is enforced by:
 - `cargo test --tests -- --test-threads=1`
 
 ## Change Process
+
+The execution-policy hardening retains `policy-show.v1`, its keys/types, and
+existing rule strings; its extensible rule list gains privilege-launcher and
+system/disk-control restrictions. Parsed arguments now govern suggested-command
+classification and relative write targets use the execution directory. Callers
+that intentionally suggest system-control or disk-management tools must explicitly
+opt into unsafe execution. Invalid command quoting fails closed. Diagnostic
+`policy check` retains its advisory repository-local redirection behavior.
 
 When changing a covered JSON contract:
 1. Update producing code.

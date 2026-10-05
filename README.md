@@ -95,6 +95,21 @@ Shell-profile uninstall wrappers are available as `./bin/xshelf-uninstall`,
 `./bin/xs-uninstall`, and `./bin/cx-uninstall`; source-installed man pages are
 managed separately.
 
+Source installers quote checkout and installation paths as literal shell operands.
+Reinstalling replaces the matching legacy registration without loading it, and
+uninstalling removes the matching registration while preserving other profile text.
+
+Leak scanning reads filenames as literal operands, scans tracked symlink text
+without following it, and fails when tracked content cannot be inspected.
+
+`fix-run` checks the parsed executable and arguments before direct execution.
+Recursive force removal, privilege launchers, system control, and disk management
+commands require an explicit unsafe override. This includes read forms such as
+`diskutil list` when suggested for execution. Repository-local file/image writes
+remain supported; relative targets are checked from the execution directory.
+`policy check` remains advisory and can accept repository-local redirection that
+`fix-run` rejects. The policy is a command filter, not a sandbox for arbitrary tools.
+
 Developer ID signed and Apple-notarized macOS binary assets for
 [`v2026.08.29`](https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29)
 are published for native Apple Silicon and Intel hosts. The archives provide a

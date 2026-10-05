@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && printf '%s/' "$PWD")"
+REPO_ROOT="${REPO_ROOT%/}"
 if [[ -n "${CX_SHELL_RC:-}" ]]; then
   SHELL_RC="${CX_SHELL_RC}"
 elif [[ -f "${HOME}/.bash_profile" ]]; then
@@ -11,7 +12,60 @@ elif [[ -f "${HOME}/.profile" ]]; then
 else
   SHELL_RC="${HOME}/.bash_profile"
 fi
-LINE="source \"${REPO_ROOT}/cx.sh\""
+quote_literal() {
+  local value="$1"
+  printf "'"
+  while [[ "$value" == *"'"* ]]; do
+    printf '%s%s' "${value%%\'*}" "'\\''"
+    value="${value#*\'}"
+  done
+  printf "%s'" "$value"
+}
+
+LINE="source $(quote_literal "${REPO_ROOT}/cx.sh")"
+LEGACY_LINE="source \"${REPO_ROOT}/cx.sh\""
+# The previous pwd capture stripped trailing newlines from checkout paths.
+LEGACY_ROOT="$(printf '%s' "$REPO_ROOT")"
+LEGACY_TRIM="source \"${LEGACY_ROOT}/cx.sh\""
+
+filter_registration() {
+  local remaining registration ending matched
+  # Match whole records, including embedded newlines and an unterminated final line.
+  remaining="$(cat "$SHELL_RC"; printf '.')"
+  remaining="${remaining%.}"
+  registration_seen=0
+  while [[ -n "$remaining" ]]; do
+    matched=0
+    for registration in "$LINE" "$LEGACY_LINE" "$LEGACY_TRIM"; do
+      if [[ "$remaining" == "$registration" ]]; then
+        remaining=""
+        ending=""
+        matched=1
+      elif [[ "$remaining" == "$registration"$'\n'* ]]; then
+        remaining="${remaining#"$registration"$'\n'}"
+        ending=$'\n'
+        matched=1
+      fi
+      if [[ "$matched" == "1" ]]; then
+        if [[ "$registration_mode" == "install" && "$registration_seen" == "0" ]]; then
+          printf '%s%s' "$LINE" "$ending"
+        fi
+        registration_seen=1
+        break
+      fi
+    done
+    if [[ "$matched" == "1" ]]; then
+      continue
+    fi
+    if [[ "$remaining" == *$'\n'* ]]; then
+      printf '%s\n' "${remaining%%$'\n'*}"
+      remaining="${remaining#*$'\n'}"
+    else
+      printf '%s' "$remaining"
+      remaining=""
+    fi
+  done
+}
 
 if [[ ! -f "$SHELL_RC" ]]; then
   echo "No $SHELL_RC found"
@@ -19,8 +73,11 @@ if [[ ! -f "$SHELL_RC" ]]; then
 fi
 
 tmp="$(mktemp)"
-grep -Fv "$LINE" "$SHELL_RC" > "$tmp" || true
-mv "$tmp" "$SHELL_RC"
+registration_mode=uninstall
+filter_registration > "$tmp"
+# Follow the selected profile path, preserving its link, mode, and inode.
+cat "$tmp" > "$SHELL_RC"
+rm "$tmp"
 
 echo "Removed XSHELF/CX source line from $SHELL_RC (if present)."
-echo "Run: source \"$SHELL_RC\""
+printf 'Run: source %s\n' "$(quote_literal "$SHELL_RC")"

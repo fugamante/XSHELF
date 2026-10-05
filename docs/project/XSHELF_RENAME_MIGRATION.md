@@ -262,6 +262,16 @@ lock. Existing `tasks.json` arrays remain backward-readable. Stop older task
 writers before the first ledger-backed mutation; use task commands thereafter.
 Public task JSON, environment variables, aliases, and telemetry are unchanged.
 
+## Command and installer safety compatibility
+
+All three command aliases use the same parsed-argument execution policy and source
+installer registration. `CXFIX_RUN` still opts into executing suggestions;
+`--unsafe`, `CXFIX_FORCE`, and `CX_UNSAFE` retain explicit override behavior.
+System-control and disk-management suggestions, including read-only variants,
+now require that override. Invalid quoting, empty commands, and leading environment
+assignments remain non-executable. Profile registration upgrades replace the exact
+legacy registration without evaluating it; uninstall removes both supported forms.
+
 ## Task provider trust compatibility
 
 Task backend/model keys and `CX_*` names remain supported. Applying provider/model

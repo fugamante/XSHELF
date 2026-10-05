@@ -24,11 +24,7 @@ fn has_shell_syntax(cmd: &str) -> bool {
 }
 
 fn is_interpreter(name: &str) -> bool {
-    let base = Path::new(name)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(name)
-        .to_ascii_lowercase();
+    let base = command_name(name);
     matches!(
         base.as_str(),
         "sh" | "bash" | "zsh" | "dash" | "fish" | "ksh" | "perl" | "ruby" | "node" | "php" | "lua"
@@ -37,11 +33,7 @@ fn is_interpreter(name: &str) -> bool {
 }
 
 fn is_launcher(name: &str) -> bool {
-    let base = Path::new(name)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(name)
-        .to_ascii_lowercase();
+    let base = command_name(name);
     matches!(
         base.as_str(),
         "env"
@@ -74,71 +66,102 @@ pub fn safe_command_argv(cmd: &str, repo_root: &Path) -> Result<Vec<String>, Str
     if argv.is_empty() {
         return Err("empty command".to_string());
     }
-    match evaluate_tokens(cmd, repo_root, Some(&argv)) {
+    let cwd = env::current_dir()
+        .map_err(|error| format!("cannot resolve execution directory: {error}"))?;
+    match evaluate_tokens(cmd, repo_root, &cwd, Some(&argv)) {
         SafetyDecision::Safe => Ok(argv),
         SafetyDecision::Dangerous(reason) => Err(reason),
     }
 }
 
-fn normalize_token(tok: &str) -> String {
-    tok.trim_matches(|c: char| c == '"' || c == '\'' || c == '`' || c == ';' || c == ',')
-        .to_string()
+fn command_name(program: &str) -> String {
+    let name = Path::new(program)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(program)
+        .to_ascii_lowercase();
+    let name = name.strip_suffix(".exe").unwrap_or(&name);
+    // GNU coreutils may be installed alongside system tools with a g prefix.
+    match name {
+        "grm" | "gdd" | "gcp" | "gmv" | "ginstall" | "gtouch" | "gmkdir" | "gchmod" | "gchown"
+        | "gtee" | "genv" | "gnice" | "gnohup" | "gtimeout" | "gstdbuf" | "gxargs" | "gfind" => {
+            name[1..].to_string()
+        }
+        _ => name.to_string(),
+    }
 }
 
-fn command_has_write_pattern(lower: &str) -> bool {
-    lower.contains(">>")
-        || lower.contains(">")
-        || lower.contains("tee ")
-        || lower.contains("touch ")
-        || lower.contains("mkdir ")
-        || lower.contains("cp ")
-        || lower.contains("mv ")
-        || lower.contains("install ")
-        || lower.contains("dd ")
-        || lower.contains("chmod ")
-        || lower.contains("chown ")
+fn writes_files(program: &str) -> bool {
+    matches!(
+        program,
+        "tee" | "touch" | "mkdir" | "cp" | "mv" | "install" | "dd" | "chmod" | "chown" | "rm"
+    )
 }
 
-fn collect_write_candidates(cmd: &str) -> Vec<String> {
-    let tokens: Vec<String> = cmd.split_whitespace().map(normalize_token).collect();
-    let mut candidates: Vec<String> = Vec::new();
-    let last = tokens.last().cloned().unwrap_or_default();
-
-    for i in 0..tokens.len() {
-        let t = tokens[i].as_str();
-        if (t == ">" || t == ">>" || t == "tee")
-            && let Some(next) = tokens.get(i + 1)
-        {
-            candidates.push(next.clone());
+fn short_target<'a>(token: &'a str, program: &str) -> Option<&'a str> {
+    let flags = token
+        .strip_prefix('-')
+        .filter(|flags| !flags.starts_with('-'))?;
+    for (index, flag) in flags.char_indices() {
+        if flag == 't' {
+            return flags.get(index + 1..).filter(|path| !path.is_empty());
         }
-        if (t == "touch" || t == "mkdir" || t == "chmod" || t == "chown")
-            && let Some(next) = tokens.get(i + 1)
-        {
-            candidates.push(next.clone());
-        }
-        if let Some(path) = t.strip_prefix("of=") {
-            candidates.push(path.to_string());
-        }
-        if t.starts_with('/') || t.starts_with("~/") || t == "~" {
-            candidates.push(t.to_string());
-        }
-        if t.starts_with("$HOME") || t.starts_with("${HOME}") {
-            candidates.push(t.to_string());
+        // These options consume the rest of a cluster as data, not further flags.
+        if flag == 'S' || (program == "install" && matches!(flag, 'g' | 'm' | 'o')) {
+            break;
         }
     }
+    None
+}
 
-    if tokens
-        .iter()
-        .any(|t| t == "cp" || t == "mv" || t == "install")
-        && !last.is_empty()
-    {
-        candidates.push(last);
+fn collect_write_candidates(tokens: &[String]) -> Vec<String> {
+    let mut candidates = Vec::new();
+    let program = tokens
+        .first()
+        .map(|value| command_name(value))
+        .unwrap_or_default();
+    let mut operands = false;
+    for (index, token) in tokens.iter().enumerate().skip(1) {
+        if token == "--" {
+            operands = true;
+            continue;
+        }
+        if matches!(token.as_str(), ">" | ">>" | "tee")
+            && let Some(next) = tokens.get(index + 1)
+        {
+            candidates.push(next.clone());
+        }
+        if let Some(path) = token.strip_prefix("of=") {
+            candidates.push(path.to_string());
+        }
+        if !operands && matches!(program.as_str(), "cp" | "mv" | "install") {
+            if let Some(path) = short_target(token, &program) {
+                candidates.push(path.to_string());
+            }
+            if let Some((option, path)) = token
+                .strip_prefix("--")
+                .and_then(|option| option.split_once('='))
+                && !option.is_empty()
+                && "target-directory".starts_with(option)
+            {
+                candidates.push(path.to_string());
+            }
+        }
+        if token.starts_with('/')
+            || token.starts_with("~/")
+            || token == "~"
+            || token.starts_with("$HOME")
+            || token.starts_with("${HOME}")
+            || (writes_files(&program) && program != "dd" && (operands || !token.starts_with('-')))
+        {
+            candidates.push(token.clone());
+        }
     }
     candidates
 }
 
-fn path_is_outside_repo(p: &str, repo_root: &Path) -> bool {
-    let path = p.trim();
+fn path_is_outside_repo(p: &str, repo_root: &Path, cwd: &Path) -> bool {
+    let path = p;
     if path.is_empty() {
         return false;
     }
@@ -147,7 +170,7 @@ fn path_is_outside_repo(p: &str, repo_root: &Path) -> bool {
     }
 
     let root_abs = canonical_or_owned(repo_root);
-    let candidate = resolve_candidate_path(path, repo_root);
+    let candidate = resolve_candidate_path(path, cwd);
     let Some(candidate) = candidate else {
         return true;
     };
@@ -155,9 +178,8 @@ fn path_is_outside_repo(p: &str, repo_root: &Path) -> bool {
         let canon = canonical_or_owned(&candidate);
         return !canon_starts_with(&canon, &root_abs);
     }
-    if let Some(parent) = candidate.parent()
-        && parent.exists()
-    {
+    // Check the nearest existing ancestor, including symlinks above missing parents.
+    if let Some(parent) = candidate.ancestors().skip(1).find(|parent| parent.exists()) {
         let parent_canon = canonical_or_owned(parent);
         if !canon_starts_with(&parent_canon, &root_abs) {
             return true;
@@ -166,10 +188,10 @@ fn path_is_outside_repo(p: &str, repo_root: &Path) -> bool {
     !lexically_inside_root(&candidate, repo_root)
 }
 
-fn write_targets_outside_repo(cmd: &str, repo_root: &Path) -> bool {
-    collect_write_candidates(cmd)
+fn write_targets_outside_repo(tokens: &[String], repo_root: &Path, cwd: &Path) -> bool {
+    collect_write_candidates(tokens)
         .into_iter()
-        .any(|p| path_is_outside_repo(&p, repo_root))
+        .any(|p| path_is_outside_repo(&p, repo_root, cwd))
 }
 
 fn canonical_or_owned(path: &Path) -> PathBuf {
@@ -210,15 +232,41 @@ fn lexically_inside_root(candidate: &Path, repo_root: &Path) -> bool {
     cand == root_s || cand.starts_with(&(root_s + "/"))
 }
 
-fn matches_sudo(lower: &str) -> bool {
-    lower.contains(" sudo ") || lower.starts_with("sudo ") || lower.ends_with(" sudo")
+fn destructive_program(program: &str) -> bool {
+    matches!(
+        program,
+        "reboot"
+            | "shutdown"
+            | "halt"
+            | "poweroff"
+            | "fdisk"
+            | "sfdisk"
+            | "cfdisk"
+            | "diskutil"
+            | "diskpart"
+            | "newfs"
+    ) || program.starts_with("mkfs")
+        || program.starts_with("newfs_")
 }
 
-fn matches_rm_rf(lower: &str) -> bool {
-    lower.contains("rm -rf")
-        || lower.contains("rm -fr")
-        || lower.contains("rm -r -f")
-        || lower.contains("rm -f -r")
+fn matches_rm_flags(tokens: &[String]) -> bool {
+    let mut recursive = false;
+    let mut force = false;
+    for token in tokens
+        .iter()
+        .skip(1)
+        .take_while(|token| token.as_str() != "--")
+    {
+        if let Some(option) = token.strip_prefix("--") {
+            // GNU rm accepts unambiguous long-option abbreviations.
+            recursive |= !option.is_empty() && "recursive".starts_with(option);
+            force |= !option.is_empty() && "force".starts_with(option);
+        } else if let Some(flags) = token.strip_prefix('-') {
+            recursive |= flags.contains('r') || flags.contains('R');
+            force |= flags.contains('f');
+        }
+    }
+    recursive && force
 }
 
 fn matches_curl_pipe_shell(lower: &str) -> bool {
@@ -248,54 +296,86 @@ fn matches_protected_redirect(lower: &str) -> bool {
 }
 
 pub fn evaluate_command_safety(cmd: &str, repo_root: &Path) -> SafetyDecision {
-    evaluate_tokens(cmd, repo_root, None)
+    let cwd = env::current_dir().unwrap_or_else(|_| repo_root.to_path_buf());
+    evaluate_tokens(cmd, repo_root, &cwd, None)
 }
 
 fn evaluate_tokens(
     cmd: &str,
     repo_root: &Path,
+    cwd: &Path,
     parsed_tokens: Option<&[String]>,
 ) -> SafetyDecision {
     let compact = cmd.split_whitespace().collect::<Vec<_>>().join(" ");
     let lower = compact.to_lowercase();
     let tokens = match parsed_tokens {
         Some(tokens) => tokens.to_vec(),
-        None => command_tokens(cmd).unwrap_or_else(|_| {
-            compact
-                .split_whitespace()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-        }),
+        None => match command_tokens(cmd) {
+            Ok(tokens) => tokens,
+            Err(reason) => return SafetyDecision::Dangerous(reason),
+        },
     };
-
-    if matches_sudo(&lower) {
-        return SafetyDecision::Dangerous("contains sudo".to_string());
+    let Some(program) = tokens.first() else {
+        return SafetyDecision::Dangerous("empty command".to_string());
+    };
+    let name = command_name(program);
+    if matches!(name.as_str(), "sudo" | "su" | "doas" | "pkexec") {
+        return SafetyDecision::Dangerous("contains sudo or privilege launcher".to_string());
     }
-    if let Some(program) = tokens.first() {
-        if is_env_assignment(program) {
-            return SafetyDecision::Dangerous(
-                "leading environment assignment is unsupported".to_string(),
-            );
-        }
-        if is_launcher(program) || is_interpreter(program) {
-            return SafetyDecision::Dangerous(
-                "delegates execution through a launcher or interpreter".to_string(),
-            );
-        }
+    if is_env_assignment(program) {
+        return SafetyDecision::Dangerous(
+            "leading environment assignment is unsupported".to_string(),
+        );
     }
-    if matches_rm_rf(&lower) {
+    if is_launcher(program) || is_interpreter(program) {
+        return SafetyDecision::Dangerous(
+            "delegates execution through a launcher or interpreter".to_string(),
+        );
+    }
+    if destructive_program(&name) {
+        return SafetyDecision::Dangerous("system control or disk management command".to_string());
+    }
+    if matches!(name.as_str(), "systemctl" | "launchctl")
+        && tokens.iter().skip(1).any(|argument| {
+            matches!(
+                argument.as_str(),
+                "reboot" | "poweroff" | "halt" | "kexec" | "soft-reboot"
+            )
+        })
+    {
+        return SafetyDecision::Dangerous("system control command".to_string());
+    }
+    if name == "launchctl"
+        && tokens
+            .iter()
+            .skip(1)
+            .any(|argument| matches!(argument.as_str(), "asuser" | "bsexec"))
+    {
+        return SafetyDecision::Dangerous(
+            "delegates execution through a launcher or interpreter".to_string(),
+        );
+    }
+    if name == "rm" && matches_rm_flags(&tokens) {
         return SafetyDecision::Dangerous("contains rm -rf pattern".to_string());
     }
     if matches_curl_pipe_shell(&lower) {
         return SafetyDecision::Dangerous("contains curl pipe shell pattern".to_string());
     }
-    if matches_protected_chmod_chown(&lower) {
+    if matches!(name.as_str(), "chmod" | "chown")
+        && matches_protected_chmod_chown(&format!(
+            "{} {}",
+            name,
+            tokens[1..].join(" ").to_lowercase()
+        ))
+    {
         return SafetyDecision::Dangerous("chmod/chown on protected system path".to_string());
     }
     if matches_protected_redirect(&lower) {
         return SafetyDecision::Dangerous("write redirection to protected system path".to_string());
     }
-    if command_has_write_pattern(&lower) && write_targets_outside_repo(&compact, repo_root) {
+    if (writes_files(&name) || lower.contains('>'))
+        && write_targets_outside_repo(&tokens, repo_root, cwd)
+    {
         return SafetyDecision::Dangerous("write target outside repo root".to_string());
     }
     SafetyDecision::Safe
@@ -320,6 +400,8 @@ fn handle_policy_check(args: &[String], app_name: &str) -> i32 {
 fn policy_rules() -> Vec<&'static str> {
     vec![
         "Block: sudo",
+        "Block: privilege launchers",
+        "Block: system control and disk management commands",
         "Block: rm -rf family",
         "Block: curl | bash/sh/zsh",
         "Block: shell/interpreter commands and command launchers in fix-run",
@@ -411,132 +493,5 @@ pub fn cmd_policy(args: &[String], app_name: &str) -> i32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn blocks_rm_rf() {
-        let root = Path::new("/tmp/repo");
-        let decision = evaluate_command_safety("rm -rf ./target", root);
-        assert!(matches!(decision, SafetyDecision::Dangerous(_)));
-    }
-
-    #[test]
-    fn blocks_rm_flags() {
-        let root = Path::new("/tmp/repo");
-        let decision = evaluate_command_safety("rm -r -f ./target", root);
-        assert!(matches!(decision, SafetyDecision::Dangerous(_)));
-    }
-
-    #[test]
-    fn blocks_shell_exec() {
-        let root = Path::new("/tmp/repo");
-        let result = safe_command_argv("bash -c 'rm -rf /tmp/victim'", root);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn blocks_inline_code() {
-        let root = Path::new("/tmp/repo");
-        let result = safe_command_argv(
-            "python3 -c 'import shutil; shutil.rmtree(\"/tmp/victim\")'",
-            root,
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn blocks_attached_code() {
-        let root = Path::new("/tmp/repo");
-        for command in [
-            "python3 -c'print(1)'",
-            "python3.12 -c'print(1)'",
-            "bash -cecho",
-        ] {
-            assert!(safe_command_argv(command, root).is_err(), "{command}");
-        }
-    }
-
-    #[test]
-    fn blocks_launcher() {
-        let root = Path::new("/tmp/repo");
-        for command in [
-            "env bash -c 'rm --recursive --force /tmp/victim'",
-            "/usr/bin/env bash -c 'echo hi'",
-            "busybox sh -c 'echo hi'",
-        ] {
-            assert!(safe_command_argv(command, root).is_err(), "{command}");
-        }
-    }
-
-    #[test]
-    fn blocks_env_prefix() {
-        let root = Path::new("/tmp/repo");
-        assert!(safe_command_argv("RUST_BACKTRACE=1 cargo test", root).is_err());
-    }
-
-    #[test]
-    fn blocks_shell_syntax() {
-        let root = Path::new("/tmp/repo");
-        let result = safe_command_argv("echo hi; rm -rf /tmp/victim", root);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parses_simple_argv() {
-        let root = Path::new("/tmp/repo");
-        let argv = safe_command_argv("cargo test --quiet", root).unwrap();
-        assert_eq!(argv, vec!["cargo", "test", "--quiet"]);
-    }
-
-    #[test]
-    fn allows_write_inside_repo() {
-        let root = Path::new("/tmp/repo");
-        let decision = evaluate_command_safety("echo hi > /tmp/repo/out.txt", root);
-        assert!(matches!(decision, SafetyDecision::Safe));
-    }
-
-    #[test]
-    fn blocks_write_outside_repo() {
-        let root = Path::new("/tmp/repo");
-        let decision = evaluate_command_safety("echo hi > /etc/out.txt", root);
-        assert!(matches!(decision, SafetyDecision::Dangerous(_)));
-    }
-
-    #[test]
-    fn blocks_chmod_usr_and_allows_usr_local_rule_only() {
-        let root = Path::new("/tmp/repo");
-        let blocked = evaluate_command_safety("chmod 755 /usr/bin/tool", root);
-        assert!(matches!(blocked, SafetyDecision::Dangerous(_)));
-        let not_protected_rule = evaluate_command_safety("chmod 755 /usr/local/bin/tool", root);
-        assert!(matches!(not_protected_rule, SafetyDecision::Dangerous(_)));
-    }
-
-    #[test]
-    fn allows_write_to_repo_root_path() {
-        let root = Path::new("/tmp/repo");
-        let decision = evaluate_command_safety("touch /tmp/repo/output.txt", root);
-        assert!(matches!(decision, SafetyDecision::Safe));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn blocks_symlink_escape_write_target() {
-        use std::os::unix::fs::symlink;
-        let base = std::env::temp_dir().join(format!(
-            "cx-policy-test-{}-{}",
-            std::process::id(),
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-        ));
-        let repo = base.join("repo");
-        let outside = base.join("outside");
-        let _ = fs::create_dir_all(&repo);
-        let _ = fs::create_dir_all(&outside);
-        let link = repo.join("link");
-        let _ = symlink(&outside, &link);
-        let cmd = format!("echo hi > {}/escape.txt", link.display());
-        let decision = evaluate_command_safety(&cmd, &repo);
-        let _ = fs::remove_dir_all(&base);
-        assert!(matches!(decision, SafetyDecision::Dangerous(_)));
-    }
-}
+#[path = "policy_tests.rs"]
+mod tests;

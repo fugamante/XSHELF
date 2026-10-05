@@ -22,6 +22,14 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Leak scanning reads literal filenames and immutable staged blobs, handles NUL
+  inventories, and blocks inspection failures instead of reporting a clean scan.
+- Suggested-command policy checks parsed executable names, removal flags, and
+  write operands, including quoted paths and nested execution directories.
+  System control, disk management, and privilege launchers require an explicit
+  unsafe override. Existing direct execution and policy JSON contracts remain.
+- Source installers and generated suite launchers quote literal shell operands;
+  legacy profile registration upgrades and uninstall preserve unrelated text.
 - Provider URL policy uses structured host parsing across inference and model discovery;
   userinfo and query/fragment text cannot bypass loopback TLS or host allowlists.
   Redirects obey the configured TLS boundary and are rejected with host allowlists.

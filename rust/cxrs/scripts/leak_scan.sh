@@ -40,14 +40,27 @@ find_matches() {
   local pattern="$1"
   local physical_path="$2"
 
-  CX_LEAK_PATTERN="$pattern" perl -ne '
-    our $re //= qr/$ENV{CX_LEAK_PATTERN}/;
-    if ($_ =~ $re) {
-      print $.;
-      print ":";
-      print $_;
+  CX_LEAK_PATTERN="$pattern" perl -e '
+    use strict;
+    use warnings;
+    use Fcntl qw(O_RDONLY O_NONBLOCK O_NOFOLLOW S_ISREG);
+    my $re = qr/$ENV{CX_LEAK_PATTERN}/;
+    my $path = shift @ARGV;
+    sysopen(my $fh, $path, O_RDONLY | O_NONBLOCK | O_NOFOLLOW)
+      or die "leak-scan: cannot open input: $!\n";
+    S_ISREG((stat($fh))[2]) or die "leak-scan: input is not a regular file\n";
+    my $line = 0;
+    while (1) {
+      $! = 0;
+      my $text = <$fh>;
+      die "leak-scan: input read failed: $!\n" if $!;
+      last if !defined($text);
+      ++$line;
+      print "$line:$text" if $text =~ $re;
     }
-  ' "$physical_path"
+    eof($fh) or die "leak-scan: input read failed: $!\n";
+    close($fh) or die "leak-scan: input close failed: $!\n";
+  ' -- "$physical_path"
 }
 
 scan_file_path() {
@@ -59,7 +72,10 @@ scan_file_path() {
     local check_name="${spec%%|*}"
     local pattern="${spec#*|}"
     local matches
-    matches="$(find_matches "$pattern" "$physical_path" || true)"
+    if ! matches="$(find_matches "$pattern" "$physical_path")"; then
+      echo "leak-scan: failed to inspect $logical_file" >&2
+      return 1
+    fi
     [[ -z "$matches" ]] && continue
 
     while IFS= read -r hit; do
@@ -78,47 +94,50 @@ scan_file_path() {
   return "$had_match"
 }
 
+# Materialize inventories before reading them so Git failures cannot become PASS.
+scan_tmp="$(mktemp -d)"
+trap 'rm -rf -- "$scan_tmp"' EXIT
+
 scan_staged() {
-  local failed=0
-  local staged
-  staged="$(git diff --cached --name-only --diff-filter=ACMR)"
-  [[ -z "$staged" ]] && return 0
-
-  while IFS= read -r file; do
-    [[ -z "$file" ]] && continue
-    if ! git cat-file -e ":$file" 2>/dev/null; then
-      continue
-    fi
-
-    local tmp
-    tmp="$(mktemp)"
-    git show ":$file" > "$tmp" 2>/dev/null || true
-    if scan_file_path "$file" "$tmp"; then
-      :
-    else
-      failed=1
-    fi
-    rm -f "$tmp"
-  done <<< "$staged"
-
+  local failed=0 record meta file old_file oid mode
+  git diff --cached --raw -z --no-abbrev --diff-filter=ACMR -- > "$scan_tmp/inventory" || return 1
+  while IFS= read -r -d '' meta <&3; do
+    IFS= read -r -d '' file <&3 || return 1
+    # Rename/copy raw records contain both old and new paths.
+    case "${meta##* }" in
+      R*|C*) old_file="$file"; IFS= read -r -d '' file <&3 || return 1 ;;
+    esac
+    record="${meta#:}"
+    mode="${record#* }"; mode="${mode%% *}"
+    oid="${record#* * * }"; oid="${oid%% *}"
+    [[ "$mode" == 160000 ]] && continue
+    git cat-file blob "$oid" > "$scan_tmp/blob" || return 1
+    scan_file_path "$file" "$scan_tmp/blob" || failed=1
+  done 3< "$scan_tmp/inventory"
   return "$failed"
 }
 
 scan_repo() {
-  local failed=0
-  local files
-  files="$(git ls-files)"
-  [[ -z "$files" ]] && return 0
-
-  while IFS= read -r file; do
-    [[ -z "$file" ]] && continue
-    if scan_file_path "$file" "$file"; then
-      :
-    else
-      failed=1
-    fi
-  done <<< "$files"
-
+  local failed=0 record meta file mode oid stage
+  git ls-files --stage -z -- > "$scan_tmp/inventory" || return 1
+  while IFS= read -r -d '' record; do
+    meta="${record%%$'\t'*}"
+    file="${record#*$'\t'}"
+    mode="${meta%% *}"
+    oid="${meta#* }"; oid="${oid%% *}"
+    stage="${meta##* }"
+    [[ "$stage" == 0 ]] || { echo "leak-scan: unmerged index" >&2; return 1; }
+    case "$mode" in
+      160000) continue ;;
+      120000)
+        # Scan the tracked link text without following it outside the repository.
+        git cat-file blob "$oid" > "$scan_tmp/blob" || return 1
+        scan_file_path "$file" "$scan_tmp/blob" || failed=1
+        ;;
+      100644|100755) scan_file_path "$file" "./$file" || failed=1 ;;
+      *) echo "leak-scan: unsupported index mode" >&2; return 1 ;;
+    esac
+  done < "$scan_tmp/inventory"
   return "$failed"
 }
 
