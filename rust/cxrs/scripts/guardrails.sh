@@ -42,6 +42,8 @@ echo "guardrails: python3 -m unittest tools.test_release_check"
 python3 -m unittest tools.test_release_check
 
 echo "guardrails: packaging lifecycle tests"
+python3 "$REPO_ROOT/test/installer_security_test.py"
+python3 "$REPO_ROOT/test/leak_security_test.py"
 python3 "$REPO_ROOT/test/package_release_test.py"
 python3 "$REPO_ROOT/test/package_signing_test.py"
 python3 "$REPO_ROOT/test/reproduce_packages_test.py"

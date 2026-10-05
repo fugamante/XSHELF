@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-08-27
+Last updated: 2026-10-05
 
 ## Scope
 
@@ -111,6 +111,18 @@ Contract stability is enforced by:
 - `cargo test --tests -- --test-threads=1`
 
 ## Change Process
+
+The execution-policy hardening retains `policy-show.v1`, its keys/types, and
+existing rule strings; its extensible rule list gains privilege-launcher and
+system/disk-control restrictions. Parsed arguments now govern suggested-command
+classification and relative write targets use the execution directory. Callers
+that intentionally suggest system-control or disk-management tools must explicitly
+opt into unsafe execution. Invalid command quoting fails closed. Diagnostic
+`policy check` retains its advisory repository-local redirection behavior.
+`watch` delegates execution and requires an unsafe override, as do disruptive
+`systemctl` sleep actions. Copy source operands may be external reads while copy
+destinations remain repository-contained; source-derived `--parents` forms, directory sources and hardlink creation retain
+conservative checks. Move sources still require containment because they are removed.
 
 When changing a covered JSON contract:
 1. Update producing code.
