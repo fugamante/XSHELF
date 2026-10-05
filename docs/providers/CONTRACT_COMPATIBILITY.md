@@ -68,9 +68,10 @@ Minor releases:
 Major releases:
 - breaking contract changes allowed only with migration notes and version bump
 
-The fix-run policy hardening changes command acceptance and execution, not the
-`xshelf policy show --json` payload. Its `policy-show.v1` marker, keys, and
-types remain unchanged.
+The fix-run policy hardening changes command acceptance and execution. The
+`xshelf policy show --json` `rules` list adds launcher/interpreter and leading
+assignment restrictions. Its `policy-show.v1` marker, keys, and types remain
+unchanged; clients should treat rule entries as an extensible list.
 
 ## CI Enforcement
 

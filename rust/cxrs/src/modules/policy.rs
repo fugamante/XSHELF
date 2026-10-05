@@ -31,35 +31,39 @@ fn is_interpreter(name: &str) -> bool {
         .to_ascii_lowercase();
     matches!(
         base.as_str(),
-        "sh" | "bash"
-            | "zsh"
-            | "dash"
-            | "fish"
-            | "ksh"
-            | "python"
-            | "python3"
-            | "python2"
-            | "perl"
-            | "ruby"
-            | "node"
-            | "php"
-            | "lua"
+        "sh" | "bash" | "zsh" | "dash" | "fish" | "ksh" | "perl" | "ruby" | "node" | "php" | "lua"
+    ) || base.starts_with("python")
+        || base.starts_with("pypy")
+}
+
+fn is_launcher(name: &str) -> bool {
+    let base = Path::new(name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(name)
+        .to_ascii_lowercase();
+    matches!(
+        base.as_str(),
+        "env"
+            | "command"
+            | "exec"
+            | "nice"
+            | "nohup"
+            | "timeout"
+            | "stdbuf"
+            | "busybox"
+            | "xargs"
+            | "find"
     )
 }
 
-fn runs_inline_code(tokens: &[String]) -> bool {
-    let Some(program) = tokens.first() else {
+pub(crate) fn is_env_assignment(token: &str) -> bool {
+    let Some((name, _)) = token.split_once('=') else {
         return false;
     };
-    if !is_interpreter(program) {
-        return false;
-    }
-    tokens.iter().skip(1).any(|arg| {
-        matches!(
-            arg.as_str(),
-            "-c" | "-e" | "-E" | "-r" | "--command" | "--eval" | "--execute"
-        )
-    })
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 pub fn safe_command_argv(cmd: &str, repo_root: &Path) -> Result<Vec<String>, String> {
@@ -69,9 +73,6 @@ pub fn safe_command_argv(cmd: &str, repo_root: &Path) -> Result<Vec<String>, Str
     let argv = command_tokens(cmd)?;
     if argv.is_empty() {
         return Err("empty command".to_string());
-    }
-    if runs_inline_code(&argv) {
-        return Err("delegates execution to a shell or interpreter".to_string());
     }
     match evaluate_tokens(cmd, repo_root, Some(&argv)) {
         SafetyDecision::Safe => Ok(argv),
@@ -270,10 +271,17 @@ fn evaluate_tokens(
     if matches_sudo(&lower) {
         return SafetyDecision::Dangerous("contains sudo".to_string());
     }
-    if runs_inline_code(&tokens) {
-        return SafetyDecision::Dangerous(
-            "delegates execution to a shell or interpreter".to_string(),
-        );
+    if let Some(program) = tokens.first() {
+        if is_env_assignment(program) {
+            return SafetyDecision::Dangerous(
+                "leading environment assignment is unsupported".to_string(),
+            );
+        }
+        if is_launcher(program) || is_interpreter(program) {
+            return SafetyDecision::Dangerous(
+                "delegates execution through a launcher or interpreter".to_string(),
+            );
+        }
     }
     if matches_rm_rf(&lower) {
         return SafetyDecision::Dangerous("contains rm -rf pattern".to_string());
@@ -314,6 +322,8 @@ fn policy_rules() -> Vec<&'static str> {
         "Block: sudo",
         "Block: rm -rf family",
         "Block: curl | bash/sh/zsh",
+        "Block: shell/interpreter commands and command launchers in fix-run",
+        "Block: leading environment assignments in fix-run",
         "Block: chmod/chown on /System,/Library,/usr (except /usr/local)",
         "Block: write operations outside repo root",
     ]
@@ -366,6 +376,8 @@ fn print_policy_help(app_name: &str) {
     println!("- sudo (any)");
     println!("- rm -rf / rm -fr forms");
     println!("- curl | bash/sh/zsh");
+    println!("- shell/interpreter commands and command launchers");
+    println!("- leading environment assignments");
     println!("- chmod/chown on /System, /Library, /usr (except /usr/local)");
     println!("- shell redirection/tee writes to /System, /Library, /usr (except /usr/local)");
     println!();
@@ -431,6 +443,36 @@ mod tests {
             root,
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn blocks_attached_code() {
+        let root = Path::new("/tmp/repo");
+        for command in [
+            "python3 -c'print(1)'",
+            "python3.12 -c'print(1)'",
+            "bash -cecho",
+        ] {
+            assert!(safe_command_argv(command, root).is_err(), "{command}");
+        }
+    }
+
+    #[test]
+    fn blocks_launcher() {
+        let root = Path::new("/tmp/repo");
+        for command in [
+            "env bash -c 'rm --recursive --force /tmp/victim'",
+            "/usr/bin/env bash -c 'echo hi'",
+            "busybox sh -c 'echo hi'",
+        ] {
+            assert!(safe_command_argv(command, root).is_err(), "{command}");
+        }
+    }
+
+    #[test]
+    fn blocks_env_prefix() {
+        let root = Path::new("/tmp/repo");
+        assert!(safe_command_argv("RUST_BACKTRACE=1 cargo test", root).is_err());
     }
 
     #[test]

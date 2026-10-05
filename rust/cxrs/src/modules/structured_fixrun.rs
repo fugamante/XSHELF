@@ -7,7 +7,7 @@ use crate::capture::run_system_command_capture;
 use crate::config::app_config;
 use crate::error::{EXIT_OK, EXIT_RUNTIME, EXIT_USAGE, format_error};
 use crate::paths::repo_root;
-use crate::policy::safe_command_argv;
+use crate::policy::{is_env_assignment, safe_command_argv};
 use crate::process::run_command_status_with_timeout;
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::schema::load_schema;
@@ -258,6 +258,13 @@ fn execute_fix_commands(
             crate::cx_eprintln!("{}", format_error("fix-run", "empty suggested command"));
             continue;
         }
+        if is_env_assignment(&argv[0]) {
+            crate::cx_eprintln!(
+                "{}",
+                format_error("fix-run", "leading environment assignment is unsupported")
+            );
+            continue;
+        }
         println!("-> {c}");
         let mut shell_cmd = Command::new(&argv[0]);
         shell_cmd.args(&argv[1..]);
@@ -326,5 +333,13 @@ mod tests {
                 assert!(reason.is_none());
             }
         }
+    }
+
+    #[test]
+    fn env_override_skips() {
+        let (blocked, reason) =
+            execute_fix_commands(&["RUST_BACKTRACE=1 cargo test".to_string()], true, false);
+        assert!(!blocked);
+        assert!(reason.is_none());
     }
 }
