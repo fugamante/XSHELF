@@ -239,7 +239,7 @@ fn execute_fix_commands(
                     );
                     continue;
                 }
-                crate::cx_eprintln!("WARN unsafe override active; executing: {c}");
+                crate::cx_eprintln!("WARN unsafe override active; parsing: {c}");
                 match shell_words::split(c) {
                     Ok(argv) => argv,
                     Err(e) => {
@@ -252,6 +252,10 @@ fn execute_fix_commands(
                 }
             }
         };
+        if argv.is_empty() {
+            crate::cx_eprintln!("{}", format_error("fix-run", "empty suggested command"));
+            continue;
+        }
         println!("-> {c}");
         let mut shell_cmd = Command::new(&argv[0]);
         shell_cmd.args(&argv[1..]);
@@ -303,5 +307,22 @@ pub fn cmd_fix_run(app_name: &str, command: &[String], execute_task: ExecuteTask
         EXIT_OK
     } else {
         ctx.exit_status
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::execute_fix_commands;
+
+    #[test]
+    fn empty_override_skips() {
+        for command in ["", "   "] {
+            for (force, allow_unsafe) in [(true, false), (false, true)] {
+                let (blocked, reason) =
+                    execute_fix_commands(&[command.to_string()], force, allow_unsafe);
+                assert!(!blocked);
+                assert!(reason.is_none());
+            }
+        }
     }
 }

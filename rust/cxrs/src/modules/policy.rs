@@ -18,12 +18,12 @@ fn command_tokens(cmd: &str) -> Result<Vec<String>, String> {
     shell_words::split(cmd).map_err(|e| format!("invalid shell quoting: {e}"))
 }
 
-fn contains_shell_control_syntax(cmd: &str) -> bool {
+fn has_shell_syntax(cmd: &str) -> bool {
     cmd.chars()
         .any(|c| matches!(c, '|' | '&' | ';' | '<' | '>' | '\n' | '\r'))
 }
 
-fn is_shell_or_interpreter(name: &str) -> bool {
+fn is_interpreter(name: &str) -> bool {
     let base = Path::new(name)
         .file_name()
         .and_then(|s| s.to_str())
@@ -47,11 +47,11 @@ fn is_shell_or_interpreter(name: &str) -> bool {
     )
 }
 
-fn invokes_inline_code_or_shell(tokens: &[String]) -> bool {
+fn runs_inline_code(tokens: &[String]) -> bool {
     let Some(program) = tokens.first() else {
         return false;
     };
-    if !is_shell_or_interpreter(program) {
+    if !is_interpreter(program) {
         return false;
     }
     tokens.iter().skip(1).any(|arg| {
@@ -63,17 +63,17 @@ fn invokes_inline_code_or_shell(tokens: &[String]) -> bool {
 }
 
 pub fn safe_command_argv(cmd: &str, repo_root: &Path) -> Result<Vec<String>, String> {
-    if contains_shell_control_syntax(cmd) {
+    if has_shell_syntax(cmd) {
         return Err("contains shell control or redirection syntax".to_string());
     }
     let argv = command_tokens(cmd)?;
     if argv.is_empty() {
         return Err("empty command".to_string());
     }
-    if invokes_inline_code_or_shell(&argv) {
+    if runs_inline_code(&argv) {
         return Err("delegates execution to a shell or interpreter".to_string());
     }
-    match evaluate_command_safety_tokens(cmd, repo_root, Some(&argv)) {
+    match evaluate_tokens(cmd, repo_root, Some(&argv)) {
         SafetyDecision::Safe => Ok(argv),
         SafetyDecision::Dangerous(reason) => Err(reason),
     }
@@ -247,10 +247,10 @@ fn matches_protected_redirect(lower: &str) -> bool {
 }
 
 pub fn evaluate_command_safety(cmd: &str, repo_root: &Path) -> SafetyDecision {
-    evaluate_command_safety_tokens(cmd, repo_root, None)
+    evaluate_tokens(cmd, repo_root, None)
 }
 
-fn evaluate_command_safety_tokens(
+fn evaluate_tokens(
     cmd: &str,
     repo_root: &Path,
     parsed_tokens: Option<&[String]>,
@@ -270,7 +270,7 @@ fn evaluate_command_safety_tokens(
     if matches_sudo(&lower) {
         return SafetyDecision::Dangerous("contains sudo".to_string());
     }
-    if invokes_inline_code_or_shell(&tokens) {
+    if runs_inline_code(&tokens) {
         return SafetyDecision::Dangerous(
             "delegates execution to a shell or interpreter".to_string(),
         );
@@ -410,21 +410,21 @@ mod tests {
     }
 
     #[test]
-    fn blocks_reordered_rm_rf() {
+    fn blocks_rm_flags() {
         let root = Path::new("/tmp/repo");
         let decision = evaluate_command_safety("rm -r -f ./target", root);
         assert!(matches!(decision, SafetyDecision::Dangerous(_)));
     }
 
     #[test]
-    fn fixrun_blocks_shell_delegation_with_quoted_dangerous_command() {
+    fn blocks_shell_exec() {
         let root = Path::new("/tmp/repo");
         let result = safe_command_argv("bash -c 'rm -rf /tmp/victim'", root);
         assert!(result.is_err());
     }
 
     #[test]
-    fn fixrun_blocks_interpreter_inline_code() {
+    fn blocks_inline_code() {
         let root = Path::new("/tmp/repo");
         let result = safe_command_argv(
             "python3 -c 'import shutil; shutil.rmtree(\"/tmp/victim\")'",
@@ -434,14 +434,14 @@ mod tests {
     }
 
     #[test]
-    fn fixrun_blocks_shell_control_syntax() {
+    fn blocks_shell_syntax() {
         let root = Path::new("/tmp/repo");
         let result = safe_command_argv("echo hi; rm -rf /tmp/victim", root);
         assert!(result.is_err());
     }
 
     #[test]
-    fn fixrun_parses_simple_command_to_argv() {
+    fn parses_simple_argv() {
         let root = Path::new("/tmp/repo");
         let argv = safe_command_argv("cargo test --quiet", root).unwrap();
         assert_eq!(argv, vec!["cargo", "test", "--quiet"]);

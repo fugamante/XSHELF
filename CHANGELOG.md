@@ -21,7 +21,8 @@ Notes:
     directly instead of through `bash -lc`.
   - the unsafe override still permits explicitly approved commands, but runs
     parsed argv directly; shell syntax is no longer interpreted by a shell.
-    `policy show --json` retains the `policy-show.v1` payload and keys.
+    Empty suggestions are skipped under the override. `policy show --json`
+    retains the `policy-show.v1` payload and keys.
 
 ### Added
 - Repository governance:
