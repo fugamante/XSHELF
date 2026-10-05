@@ -481,4 +481,3 @@ fn run_preflight_blocked() {
         "{text}"
     );
 }
-
