@@ -139,12 +139,26 @@ Current status:
 - uninstall flow now supports `bin/xs-uninstall`
 - man-page install now publishes `xshelf.1`, `xs.1`, and `cx.1`
 - top-level help and usage errors now follow the invoked command name
+- `version`, `core --json`, `diag --json`, and `doctor` now expose additive
+  operator context that identifies XSHELF first, names `xshelf` as canonical,
+  and preserves `xs` / `cx` as aliases
 - task orchestration docs/examples now include `xshelf task sandbox ...`,
   including `task sandbox check --json` readiness diagnostics, while keeping
   `cx task ...` compatibility intact
 - shell helpers preserve canonical `xshelf`, short `xs`, and compatibility
   `cx` invocation names
+- `routes` / `routes --json` derives its listing from the shared native and
+  compatibility command-name registry so canonical `xshelf` routes and `cx`
+  aliases remain visible together
 - `cx` remains fully supported as the compatibility path
+- `health` and compatibility `cxhealth` share the same fail-closed provider
+  version probe behavior; a nonzero backend exit stops both checks
+- `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
+  read-only evidence; `cxo` remains the compatibility/agentic interpretation
+  lane when provider-backed natural-language output is explicitly desired
+- Absolute-path `xshelf` invocations from another repository write telemetry to
+  the caller repo by default; set `CX_LOG_FILE` when capture/budget/trace
+  telemetry should live outside that repo.
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift
@@ -192,9 +206,17 @@ These rules apply unless a later approved phase explicitly changes them.
 - `bin/cx` remains supported
 - `bin/xs` remains a short alias, not the canonical product name
 - `CX_*` environment variables remain supported
+- `task run-all` human progress uses stderr across `xshelf`, `xs`, and `cx`;
+  `CX_TASK_RUN_ALL_PROGRESS=0` or `false` disables those messages without renaming
+  the setting or changing the existing task-event and JSON result contracts
+- bounded task prompts retain the shared `CX_TASK_OBJECTIVE_MAX_CHARS`,
+  `CX_TASK_OBJECTIVE_MAX_LINES`, `CX_TASK_CONTEXT_MAX_CHARS`, and
+  `CX_TASK_CONTEXT_MAX_LINES` settings across all three entrypoints
 - `.cx/` remains the runtime state location
 - machine-readable JSON contracts are not renamed purely for branding
 - downstream repos may continue consuming `cx` compatibility surfaces
+- packaged distributions install one native `xshelf` executable and retain
+  `xs` / `cx` as invoked-name-aware symlink aliases
 
 ## What Should Change Immediately
 
@@ -232,3 +254,10 @@ A successful migration path:
 - avoids breaking contracts for aesthetic reasons
 - keeps the runtime substrate deterministic and reviewable
 - gives maintainers a clear decision rule for future rename-related edits
+
+## Local task persistence
+
+Task mutations through `xshelf`, `xs`, and `cx` use the same local ledger and
+lock. Existing `tasks.json` arrays remain backward-readable. Stop older task
+writers before the first ledger-backed mutation; use task commands thereafter.
+Public task JSON, environment variables, aliases, and telemetry are unchanged.

@@ -7,7 +7,7 @@ use crate::execmeta::utc_now_iso;
 use crate::process::run_command_output_with_timeout;
 use crate::types::TaskRecord;
 
-use super::{next_task_id, read_tasks, write_tasks};
+use super::{TaskMutation, mutate_tasks, next_task_id};
 
 fn collect_source_text(source: &str) -> Result<String, i32> {
     let out = match source {
@@ -220,15 +220,6 @@ pub fn cmd_task_fanout(app_name: &str, objective: &str, from: Option<&str>) -> i
         crate::cx_eprintln!("Usage: {app_name} task fanout <objective>");
         return 2;
     }
-    let mut tasks = match read_tasks() {
-        Ok(v) => v,
-        Err(e) => {
-            crate::cx_eprintln!("{e}");
-            return 1;
-        }
-    };
-
-    let parent_id = add_fanout_parent(&mut tasks, obj);
     let source = from.unwrap_or("worktree");
     let diff = match collect_source_text(source) {
         Ok(v) => v,
@@ -240,18 +231,24 @@ pub fn cmd_task_fanout(app_name: &str, objective: &str, from: Option<&str>) -> i
         chunk_text_by_budget(&diff, app_config().budget_chars)
     };
 
-    let created = create_fanout_children(
-        &mut tasks,
-        &parent_id,
-        obj,
-        !chunks.is_empty(),
-        chunks.len().clamp(1, 6),
-    );
-
-    if let Err(e) = write_tasks(&tasks) {
-        crate::cx_eprintln!("{} task fanout: {e}", cli_app_name());
-        return 1;
-    }
+    let objective = obj.to_string();
+    let has_chunks = !chunks.is_empty();
+    let chunk_count = chunks.len().clamp(1, 6);
+    let (parent_id, created) = match mutate_tasks("fanout", None, 0, move |tasks| {
+        let parent_id = add_fanout_parent(tasks, &objective);
+        let created =
+            create_fanout_children(tasks, &parent_id, &objective, has_chunks, chunk_count);
+        Ok(TaskMutation {
+            result: (parent_id.clone(), created),
+            task_id: Some(parent_id),
+        })
+    }) {
+        Ok(result) => result,
+        Err(e) => {
+            crate::cx_eprintln!("{} task fanout: {e}", cli_app_name());
+            return 1;
+        }
+    };
     print_fanout_table(&parent_id, created);
     0
 }

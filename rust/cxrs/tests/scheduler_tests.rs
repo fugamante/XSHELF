@@ -3,8 +3,135 @@ mod common;
 use common::*;
 use serde_json::Value;
 use std::fs;
+use std::path::Path;
+use std::sync::{Arc, mpsc};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+
+#[cfg(unix)]
+fn wait_for_file(path: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !path.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {}",
+            path.display()
+        );
+        sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(unix)]
+fn status_failure_breaker(repo: &TempRepo) -> std::thread::JoinHandle<()> {
+    let ready = repo.root.join(".cx/run-all-worker-ready");
+    let release = repo.root.join(".cx/run-all-worker-release");
+    let lock = repo.root.join(".cx/tasks.lock");
+    let tasks = repo.tasks_file();
+    std::thread::spawn(move || {
+        wait_for_file(&ready);
+        let current: Value =
+            serde_json::from_str(&fs::read_to_string(&tasks).expect("read task projection"))
+                .expect("parse task projection");
+        assert_eq!(current[0]["status"].as_str(), Some("in_progress"));
+        fs::remove_file(&lock).expect("remove task lock");
+        fs::create_dir(&lock).expect("replace task lock with directory");
+        fs::write(&release, b"release\n").expect("release worker");
+    })
+}
+
+#[cfg(unix)]
+fn restore_task_lock(repo: &TempRepo) {
+    let lock = repo.root.join(".cx/tasks.lock");
+    fs::remove_dir(&lock).expect("remove injected task lock directory");
+    fs::write(&lock, b"").expect("restore task lock file");
+}
+
+#[cfg(unix)]
+fn run_all_events(out: &std::process::Output) -> Vec<Value> {
+    stderr_str(out)
+        .lines()
+        .filter(|line| line.trim_start().starts_with('{'))
+        .map(|line| serde_json::from_str::<Value>(line).expect("valid event jsonl"))
+        .collect()
+}
+
+#[cfg(unix)]
+fn assert_status_failure(mock: &str, expected_status: &str, json: bool) {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock_primary(mock);
+    let add = repo.run(&[
+        "task",
+        "add",
+        "cxo echo persistence-gate",
+        "--role",
+        "implementer",
+        "--backend",
+        "primary",
+        "--mode",
+        "parallel",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    let breaker = status_failure_breaker(&repo);
+    let format = if json { "--json" } else { "--text" };
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--mode",
+        "parallel",
+        "--backend-pool",
+        "primary",
+        "--max-workers",
+        "1",
+        "--events-jsonl",
+        format,
+    ]);
+    breaker.join().expect("join status failure breaker");
+
+    assert_eq!(out.status.code(), Some(1), "stderr={}", stderr_str(&out));
+    if json {
+        assert!(
+            stdout_str(&out).trim().is_empty(),
+            "stdout={}",
+            stdout_str(&out)
+        );
+    } else {
+        assert!(
+            !stdout_str(&out).contains("run-all summary:"),
+            "stdout={}",
+            stdout_str(&out)
+        );
+    }
+    assert!(
+        stderr_str(&out).contains("authoritative status transition")
+            && stderr_str(&out).contains(&format!("to {expected_status} failed")),
+        "stderr={}",
+        stderr_str(&out)
+    );
+    let events = run_all_events(&out);
+    let names: Vec<&str> = events
+        .iter()
+        .filter_map(|event| event.get("event").and_then(Value::as_str))
+        .collect();
+    assert!(
+        names.contains(&"queued") && names.contains(&"started"),
+        "{names:?}"
+    );
+    assert!(
+        !names
+            .iter()
+            .any(|name| matches!(*name, "completed" | "failed" | "critical_error" | "summary")),
+        "unpersisted outcome or summary emitted: {names:?}"
+    );
+
+    restore_task_lock(&repo);
+    let list = repo.run(&["task", "list", "--json"]);
+    assert!(list.status.success(), "stderr={}", stderr_str(&list));
+    let tasks: Value = serde_json::from_str(&stdout_str(&list)).expect("task list json");
+    assert_eq!(tasks["tasks"][0]["status"].as_str(), Some("in_progress"));
+}
 
 #[test]
 fn run_all_enforces_backend_cap_records_queue() {
@@ -48,6 +175,10 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "3",
     ]);
     let elapsed_ms = started.elapsed().as_millis() as u64;
+    let progress = stderr_str(&out);
+    assert!(progress.contains("launch [1/3]"), "{progress}");
+    assert!(progress.contains("done [3/3]"), "{progress}");
+    assert!(!stdout_str(&out).contains("launch ["));
     assert!(
         out.status.success(),
         "stdout={} stderr={}",
@@ -170,6 +301,168 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         elapsed_ms < 9000,
         "parallel lane appears stalled; elapsed_ms={elapsed_ms}"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn unpersisted_success_halts() {
+    assert_status_failure(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+: > .cx/run-all-worker-ready
+while [ ! -f .cx/run-all-worker-release ]; do sleep 0.01; done
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+        "complete",
+        true,
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn unpersisted_failure_halts() {
+    assert_status_failure(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+: > .cx/run-all-worker-ready
+while [ ! -f .cx/run-all-worker-release ]; do sleep 0.01; done
+exit 7
+"#,
+        "failed",
+        false,
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn status_error_containment() {
+    let repo = Arc::new(TempRepo::new("cxrs-it"));
+    repo.write_mock_primary(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+ready=".cx/${CX_TASK_ID}-ready"
+release=".cx/${CX_TASK_ID}-release"
+: > "$ready"
+while [ ! -f "$release" ]; do sleep 0.01; done
+if [ "$CX_TASK_ID" = "task_002" ]; then
+  if [ -f .cx/run-all-returned ]; then
+    : > .cx/worker-orphaned
+  else
+    : > .cx/worker-contained
+  fi
+fi
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+    for objective in ["cxo echo containment-a", "cxo echo containment-b"] {
+        let add = repo.run(&[
+            "task",
+            "add",
+            objective,
+            "--role",
+            "implementer",
+            "--backend",
+            "primary",
+            "--mode",
+            "parallel",
+        ]);
+        assert!(add.status.success(), "stderr={}", stderr_str(&add));
+    }
+
+    let ready_1 = repo.root.join(".cx/task_001-ready");
+    let ready_2 = repo.root.join(".cx/task_002-ready");
+    let release_1 = repo.root.join(".cx/task_001-release");
+    let release_2 = repo.root.join(".cx/task_002-release");
+    let returned = repo.root.join(".cx/run-all-returned");
+    let lock = repo.root.join(".cx/tasks.lock");
+    let run_repo = Arc::clone(&repo);
+    let (run_tx, run_rx) = mpsc::channel();
+    let runner = std::thread::spawn(move || {
+        let out = run_repo.run(&[
+            "task",
+            "run-all",
+            "--status",
+            "pending",
+            "--mode",
+            "parallel",
+            "--backend-pool",
+            "primary",
+            "--max-workers",
+            "2",
+            "--events-jsonl",
+            "--continue-on-critical",
+            "--json",
+        ]);
+        run_tx.send(out).expect("send run-all output");
+    });
+
+    wait_for_file(&ready_1);
+    wait_for_file(&ready_2);
+    fs::remove_file(&lock).expect("remove task lock");
+    fs::create_dir(&lock).expect("replace task lock with directory");
+    fs::write(&release_1, b"release\n").expect("release first worker");
+
+    let out = match run_rx.recv_timeout(Duration::from_secs(2)) {
+        Ok(out) => {
+            fs::write(&returned, b"returned\n").expect("record early run-all return");
+            fs::write(&release_2, b"release\n").expect("release orphaned worker");
+            out
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            fs::write(&release_2, b"release\n").expect("release contained worker");
+            let out = run_rx
+                .recv_timeout(Duration::from_secs(10))
+                .expect("run-all did not return after active worker finished");
+            fs::write(&returned, b"returned\n").expect("record contained run-all return");
+            out
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => panic!("run-all thread disconnected"),
+    };
+    runner.join().expect("join run-all thread");
+    let contained = repo.root.join(".cx/worker-contained");
+    let orphaned = repo.root.join(".cx/worker-orphaned");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !contained.exists() && !orphaned.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "worker did not record containment"
+        );
+        sleep(Duration::from_millis(10));
+    }
+
+    assert_eq!(out.status.code(), Some(1), "stderr={}", stderr_str(&out));
+    assert!(
+        stdout_str(&out).trim().is_empty(),
+        "stdout={}",
+        stdout_str(&out)
+    );
+    assert!(
+        stderr_str(&out).contains("authoritative status transition")
+            && stderr_str(&out).contains("to complete failed"),
+        "stderr={}",
+        stderr_str(&out)
+    );
+    assert!(
+        contained.exists() && !orphaned.exists(),
+        "a launched worker continued after run-all returned"
+    );
+    let events = run_all_events(&out);
+    assert!(
+        !events.iter().any(|event| matches!(
+            event.get("event").and_then(Value::as_str),
+            Some("completed" | "failed" | "critical_error" | "summary")
+        )),
+        "unpersisted outcome or summary emitted: {events:?}"
+    );
+
+    restore_task_lock(&repo);
+    let list = repo.run(&["task", "list", "--json"]);
+    assert!(list.status.success(), "stderr={}", stderr_str(&list));
+    let tasks: Value = serde_json::from_str(&stdout_str(&list)).expect("task list json");
+    assert_eq!(tasks["tasks"][0]["status"].as_str(), Some("in_progress"));
+    assert_eq!(tasks["tasks"][1]["status"].as_str(), Some("in_progress"));
 }
 
 #[test]
@@ -336,11 +629,12 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
 
 #[cfg(unix)]
 #[test]
-fn run_all_halt_on_critical_first_failure() {
+fn status_halt_error() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
-sleep 2
+: > .cx/run-all-worker-ready
+while [ ! -f .cx/run-all-worker-release ]; do sleep 0.01; done
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
 "#,
@@ -358,13 +652,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
 
-    let tasks_file = repo.tasks_file();
-    let tasks_file_for_breaker = tasks_file.clone();
-    let breaker = std::thread::spawn(move || {
-        sleep(Duration::from_millis(400));
-        let _ = fs::remove_file(&tasks_file_for_breaker);
-        let _ = fs::create_dir_all(&tasks_file_for_breaker);
-    });
+    let breaker = status_failure_breaker(&repo);
     let out = repo.run(&[
         "task",
         "run-all",
@@ -373,9 +661,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--halt-on-critical",
     ]);
     breaker.join().expect("join breaker thread");
-    if tasks_file.is_dir() {
-        let _ = fs::remove_dir_all(&tasks_file);
-    }
+    restore_task_lock(&repo);
 
     assert_eq!(
         out.status.code(),
@@ -385,29 +671,26 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         stderr_str(&out)
     );
     let stderr = stderr_str(&out);
-    let critical_count = stderr.matches("critical error for task_").count();
+    let critical_count = stderr.matches("authoritative status transition").count();
     assert_eq!(
         critical_count, 1,
-        "expected one critical error before halt; stderr={stderr}"
+        "expected one authoritative persistence error; stderr={stderr}"
     );
     let stdout = stdout_str(&out);
     assert!(
-        stdout.contains("run-all halted_on_critical: true"),
-        "expected halt summary line; stdout={stdout}"
-    );
-    assert!(
-        stdout.contains("run-all halted_remaining: 1"),
-        "expected halted remaining count; stdout={stdout}"
+        !stdout.contains("run-all summary:") && !stdout.contains("halted_on_critical"),
+        "authoritative failure must not emit an outcome summary; stdout={stdout}"
     );
 }
 
 #[cfg(unix)]
 #[test]
-fn run_all_continue_on_critical_remaining_tasks() {
+fn status_continue_error() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
-sleep 2
+: > .cx/run-all-worker-ready
+while [ ! -f .cx/run-all-worker-release ]; do sleep 0.01; done
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
 "#,
@@ -428,13 +711,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
 
-    let tasks_file = repo.tasks_file();
-    let tasks_file_for_breaker = tasks_file.clone();
-    let breaker = std::thread::spawn(move || {
-        sleep(Duration::from_millis(400));
-        let _ = fs::remove_file(&tasks_file_for_breaker);
-        let _ = fs::create_dir_all(&tasks_file_for_breaker);
-    });
+    let breaker = status_failure_breaker(&repo);
     let out = repo.run(&[
         "task",
         "run-all",
@@ -443,9 +720,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "--continue-on-critical",
     ]);
     breaker.join().expect("join breaker thread");
-    if tasks_file.is_dir() {
-        let _ = fs::remove_dir_all(&tasks_file);
-    }
+    restore_task_lock(&repo);
 
     assert_eq!(
         out.status.code(),
@@ -455,15 +730,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         stderr_str(&out)
     );
     let stderr = stderr_str(&out);
-    let critical_count = stderr.matches("critical error for task_").count();
+    let critical_count = stderr.matches("authoritative status transition").count();
     assert_eq!(
-        critical_count, 2,
-        "expected two critical errors in continue mode; stderr={stderr}"
+        critical_count, 1,
+        "expected fatal persistence error despite continue mode; stderr={stderr}"
     );
     let stdout = stdout_str(&out);
     assert!(
-        stdout.contains("critical_errors=2"),
-        "expected summary to include critical_errors=2; stdout={stdout}"
+        !stdout.contains("run-all summary:") && !stdout.contains("critical_errors="),
+        "authoritative failure must not emit an outcome summary; stdout={stdout}"
     );
 }
 
@@ -759,6 +1034,46 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         }),
         "{v}"
     );
+}
+
+#[test]
+fn json_status_persists() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock_primary(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
+"#,
+    );
+    let add = repo.run(&[
+        "task",
+        "add",
+        "cxo echo json-status",
+        "--role",
+        "implementer",
+        "--backend",
+        "primary",
+    ]);
+    assert!(add.status.success(), "stderr={}", stderr_str(&add));
+
+    let out = repo.run(&[
+        "task",
+        "run-all",
+        "--status",
+        "pending",
+        "--backend-pool",
+        "primary",
+        "--json",
+    ]);
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let summary: Value = serde_json::from_str(&stdout_str(&out)).expect("run-all json");
+    assert_eq!(summary["complete"].as_u64(), Some(1));
+
+    let list = repo.run(&["task", "list", "--json"]);
+    assert!(list.status.success(), "stderr={}", stderr_str(&list));
+    let tasks: Value = serde_json::from_str(&stdout_str(&list)).expect("task list json");
+    assert_eq!(tasks["tasks"][0]["status"].as_str(), Some("complete"));
 }
 
 #[test]

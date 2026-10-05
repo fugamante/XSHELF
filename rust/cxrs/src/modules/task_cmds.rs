@@ -590,6 +590,12 @@ struct ActiveLaunch {
     join: thread::JoinHandle<Result<(i32, Option<String>), String>>,
 }
 
+#[cfg(test)]
+thread_local! {
+    static JOIN_ACTIVE_NOTICE: std::cell::RefCell<Option<std::sync::mpsc::Sender<()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
 #[derive(Debug, Clone)]
 struct TaskWaveMeta {
     index: u64,
@@ -1074,6 +1080,18 @@ fn parse_execution_id(stdout: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+fn progress_enabled() -> bool {
+    env::var("CX_TASK_RUN_ALL_PROGRESS")
+        .map(|v| !(v == "0" || v.eq_ignore_ascii_case("false")))
+        .unwrap_or(true)
+}
+
+fn emit_progress(message: &str) {
+    if progress_enabled() {
+        crate::cx_eprintln!("{message}");
+    }
+}
+
 fn retry_backoff_ms(retry_index: u32) -> u64 {
     let power = retry_index.min(4);
     250u64.saturating_mul(1u64 << power).min(2000)
@@ -1498,6 +1516,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     } else {
         let mut summary = RunAllSummary::default();
         let mut halt_all = false;
+        let total = schedule.len();
         for (idx, id) in schedule.iter().enumerate() {
             if halt_all {
                 break;
@@ -1510,6 +1529,17 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 requested_backend.clone(),
                 &available_pool(&options.backend_pool),
             );
+            if !options.as_json {
+                emit_progress(&format!(
+                    "cxrs task run-all: start [{}/{}] task={} backend={} retries={}",
+                    idx + 1,
+                    total,
+                    id,
+                    backend_selected.as_deref().unwrap_or("auto"),
+                    max_retries
+                ));
+            }
+            let run_started = Instant::now();
             let wave_meta = wave_meta_map
                 .get(id)
                 .cloned()
@@ -1528,6 +1558,12 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 event.wave_size = Some(wave_meta.size);
                 event
             });
+            if options.as_json
+                && let Err(error) = persist_run_status(id, "in_progress", set_task_status_quiet)
+            {
+                crate::cx_eprintln!("{} task run-all: {error}", cli_app_name());
+                return 1;
+            }
             emit_start_event(
                 &options,
                 id,
@@ -1550,6 +1586,11 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         wave: Some(wave_meta.clone()),
                     },
                 );
+                if let Err(error) = persist_parallel_outcome(id, &run_result, set_task_status_quiet)
+                {
+                    crate::cx_eprintln!("{} task run-all: {error}", cli_app_name());
+                    return 1;
+                }
                 match run_result {
                     Ok((code, execution_id)) => {
                         if code == 0 {
@@ -1641,6 +1682,14 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
+                            emit_progress(&format!(
+                                "cxrs task run-all: done [{}/{}] task={} status=complete attempts={} duration_ms={}",
+                                idx + 1,
+                                total,
+                                id,
+                                attempt,
+                                run_started.elapsed().as_millis()
+                            ));
                             let event = TaskRunEvent {
                                 id: id.clone(),
                                 backend: backend_selected
@@ -1681,6 +1730,15 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             continue;
                         }
                         summary.record_failure(failure.class);
+                        emit_progress(&format!(
+                            "cxrs task run-all: done [{}/{}] task={} status=failed reason={} attempts={} duration_ms={}",
+                            idx + 1,
+                            total,
+                            id,
+                            failure.reason,
+                            attempt,
+                            run_started.elapsed().as_millis()
+                        ));
                         crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
                         let event = TaskRunEvent {
                             id: id.clone(),
@@ -1703,37 +1761,22 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     }
                     Err(e) => {
                         crate::cx_eprintln!(
-                            "{} task run-all: critical error for {id}: {e}",
+                            "{} task run-all: authoritative status transition for {id} failed: {e}",
                             cli_app_name()
                         );
-                        summary.record_critical_error();
-                        let event = TaskRunEvent {
-                            id: id.clone(),
-                            backend: backend_selected
-                                .clone()
-                                .unwrap_or_else(|| "unknown".to_string()),
-                            requested_backend: requested_backend.clone(),
-                            status: "critical_error".to_string(),
-                            execution_id: None,
-                            failure_class: Some("critical_error".to_string()),
-                            queue_ms: 0,
-                            wave_index: wave_meta.index,
-                            wave_mode: wave_meta.mode.clone(),
-                            wave_size: wave_meta.size,
-                        };
-                        emit_result_event(&options, &event);
-                        summary.add_task_run(event);
-                        if options.halt_on_critical {
-                            summary.halted_on_critical = true;
-                            halt_all = true;
-                        }
-                        finished = true;
-                        break;
+                        return 1;
                     }
                 }
             }
             if !finished {
                 summary.record_failure(FailureClass::NonRetryable);
+                emit_progress(&format!(
+                    "cxrs task run-all: done [{}/{}] task={} status=failed reason=unknown duration_ms={}",
+                    idx + 1,
+                    total,
+                    id,
+                    run_started.elapsed().as_millis()
+                ));
                 crate::cx_eprintln!("{} task run-all: task failed: {id}", cli_app_name());
                 let event = TaskRunEvent {
                     id: id.clone(),
@@ -2789,6 +2832,108 @@ fn set_task_status_quiet(id: &str, status: &str) -> Result<(), String> {
     set_task_status(id, status)
 }
 
+fn persist_run_status<F>(id: &str, status: &str, persist: F) -> Result<(), String>
+where
+    F: FnOnce(&str, &str) -> Result<(), String>,
+{
+    persist(id, status).map_err(|error| {
+        format!("authoritative status transition for {id} to {status} failed: {error}")
+    })
+}
+
+fn persist_parallel_outcome<F>(
+    id: &str,
+    result: &Result<(i32, Option<String>), String>,
+    persist: F,
+) -> Result<(), String>
+where
+    F: FnOnce(&str, &str) -> Result<(), String>,
+{
+    let status = match result {
+        Ok((0, _)) => "complete",
+        Ok(_) | Err(_) => "failed",
+    };
+    persist_run_status(id, status, persist)
+}
+
+fn join_active_workers(active: &mut Vec<ActiveLaunch>) {
+    #[cfg(test)]
+    JOIN_ACTIVE_NOTICE.with(|slot| {
+        if let Some(notice) = slot.borrow().as_ref() {
+            let _ = notice.send(());
+        }
+    });
+    for launch in active.drain(..) {
+        let _ = launch.join.join();
+    }
+}
+
+fn halt_parallel_critical<F>(
+    options: &RunAllOptions,
+    summary: &mut RunAllSummary,
+    active: &mut Vec<ActiveLaunch>,
+    mut persist: F,
+) -> Result<bool, String>
+where
+    F: FnMut(&str, &str) -> Result<(), String>,
+{
+    if !options.halt_on_critical {
+        return Ok(false);
+    }
+    summary.halted_on_critical = true;
+    // Already launched commands must finish and have their outcomes recorded;
+    // halting stops future launches, not ownership of active workers.
+    #[cfg(test)]
+    JOIN_ACTIVE_NOTICE.with(|slot| {
+        if let Some(notice) = slot.borrow().as_ref() {
+            let _ = notice.send(());
+        }
+    });
+    while !active.is_empty() {
+        let done = active.remove(0);
+        let outcome = done.join.join().unwrap_or_else(|_| {
+            Err(format!(
+                "task run-all: worker thread panicked for {}",
+                done.id
+            ))
+        });
+        if let Err(error) = persist_parallel_outcome(&done.id, &outcome, &mut persist) {
+            join_active_workers(active);
+            return Err(error);
+        }
+        let (status, execution_id, failure_class) = match outcome {
+            Ok((0, execution_id)) => {
+                summary.record_success();
+                ("complete", execution_id, None)
+            }
+            Ok((_, execution_id)) => {
+                let failure = classify_failure_for_execution(execution_id.as_deref());
+                summary.record_failure(failure.class);
+                ("failed", execution_id, Some(failure.reason))
+            }
+            Err(_) => {
+                summary.record_critical_error();
+                ("critical_error", None, Some("critical_error".to_string()))
+            }
+        };
+        let event = TaskRunEvent {
+            id: done.id,
+            backend: done.backend,
+            requested_backend: done.requested_backend,
+            status: status.to_string(),
+            execution_id,
+            failure_class,
+            queue_ms: done.queue_ms,
+            wave_index: done.wave_index,
+            wave_mode: done.wave_mode,
+            wave_size: done.wave_size,
+        };
+        emit_result_event(options, &event);
+        summary.add_task_run(event);
+    }
+    Ok(true)
+}
+
 fn emit_runall_event(options: &RunAllOptions, event: TaskEvent<'_>) {
     emit_task_event(options.events_jsonl, event);
 }
@@ -2907,6 +3052,9 @@ fn run_schedule_parallel(
     let mut backend_active: HashMap<String, usize> = HashMap::new();
     let mut summary = RunAllSummary::default();
     let mut next_worker = 1usize;
+    let total = schedule.len();
+    let mut launched = 0usize;
+    let mut completed = 0usize;
 
     while !pending.is_empty() || !active.is_empty() {
         while active.len() < options.max_workers && !pending.is_empty() {
@@ -2930,7 +3078,11 @@ fn run_schedule_parallel(
                 break;
             };
             let launch = pending.remove(pos);
-            set_task_status_quiet(&launch.id, "in_progress")?;
+            if let Err(error) = persist_run_status(&launch.id, "in_progress", set_task_status_quiet)
+            {
+                join_active_workers(&mut active);
+                return Err(error);
+            }
             let queue_ms = launch.queue_since.elapsed().as_millis() as u64;
             let start_wave = TaskWaveMeta {
                 index: launch.wave_index,
@@ -2951,6 +3103,14 @@ fn run_schedule_parallel(
             } else {
                 next_worker + 1
             };
+            launched += 1;
+            emit_progress(&format!(
+                "cxrs task run-all: launch [{launched}/{total}] task={} backend={} active={} pending={}",
+                launch.id,
+                launch.backend,
+                active.len() + 1,
+                pending.len()
+            ));
             *backend_active.entry(launch.backend.clone()).or_insert(0) += 1;
             let id = launch.id.clone();
             let backend = launch.backend.clone();
@@ -2995,20 +3155,33 @@ fn run_schedule_parallel(
 
         if !active.is_empty() {
             let done = active.remove(0);
-            let join_out = done
-                .join
-                .join()
-                .map_err(|_| format!("task run-all: worker thread panicked for {}", done.id))?;
+            let join_out = match done.join.join() {
+                Ok(result) => result,
+                Err(_) => {
+                    let error = format!("task run-all: worker thread panicked for {}", done.id);
+                    join_active_workers(&mut active);
+                    return Err(error);
+                }
+            };
             if let Some(v) = backend_active.get_mut(&done.backend)
                 && *v > 0
             {
                 *v -= 1;
             }
+            if let Err(error) = persist_parallel_outcome(&done.id, &join_out, set_task_status_quiet)
+            {
+                join_active_workers(&mut active);
+                return Err(error);
+            }
             match join_out {
                 Ok((code, execution_id)) => {
+                    completed += 1;
                     if code == 0 {
                         summary.record_success();
-                        let _ = set_task_status_quiet(&done.id, "complete");
+                        emit_progress(&format!(
+                            "cxrs task run-all: done [{completed}/{total}] task={} backend={} status=complete",
+                            done.id, done.backend
+                        ));
                         let event = TaskRunEvent {
                             id: done.id,
                             backend: done.backend,
@@ -3026,7 +3199,10 @@ fn run_schedule_parallel(
                     } else {
                         let failure = classify_failure_for_execution(execution_id.as_deref());
                         summary.record_failure(failure.class);
-                        let _ = set_task_status_quiet(&done.id, "failed");
+                        emit_progress(&format!(
+                            "cxrs task run-all: done [{completed}/{total}] task={} backend={} status=failed reason={}",
+                            done.id, done.backend, failure.reason
+                        ));
                         crate::cx_eprintln!(
                             "{} task run-all: task failed: {}",
                             cli_app_name(),
@@ -3049,8 +3225,12 @@ fn run_schedule_parallel(
                     }
                 }
                 Err(e) => {
+                    completed += 1;
                     summary.record_critical_error();
-                    let _ = set_task_status_quiet(&done.id, "failed");
+                    emit_progress(&format!(
+                        "cxrs task run-all: done [{completed}/{total}] task={} backend={} status=critical_error",
+                        done.id, done.backend
+                    ));
                     crate::cx_eprintln!(
                         "{} task run-all: critical error for {}: {e}",
                         cli_app_name(),
@@ -3070,8 +3250,12 @@ fn run_schedule_parallel(
                     };
                     emit_result_event(options, &event);
                     summary.add_task_run(event);
-                    if options.halt_on_critical {
-                        summary.halted_on_critical = true;
+                    if halt_parallel_critical(
+                        options,
+                        &mut summary,
+                        &mut active,
+                        set_task_status_quiet,
+                    )? {
                         return Ok(summary);
                     }
                 }
@@ -3701,5 +3885,131 @@ mod tests {
         assert!(!should_retry(FailureClass::Retryable, 3, 2));
         assert!(!should_retry(FailureClass::NonRetryable, 1, 2));
         assert!(!should_retry(FailureClass::Blocked, 1, 2));
+    }
+
+    #[test]
+    fn success_status_gate() {
+        let result = Ok((0, None));
+        let error = persist_parallel_outcome("task_001", &result, |id, status| {
+            assert_eq!(id, "task_001");
+            assert_eq!(status, "complete");
+            Err("injected status failure".to_string())
+        })
+        .expect_err("status failure must propagate");
+        assert!(error.contains("to complete failed"), "{error}");
+    }
+
+    #[test]
+    fn failure_status_gate() {
+        let result = Ok((1, None));
+        let error = persist_parallel_outcome("task_001", &result, |id, status| {
+            assert_eq!(id, "task_001");
+            assert_eq!(status, "failed");
+            Err("injected status failure".to_string())
+        })
+        .expect_err("status failure must propagate");
+        assert!(error.contains("to failed failed"), "{error}");
+    }
+
+    #[test]
+    fn worker_error_gate() {
+        let result = Err("injected worker error".to_string());
+        let error = persist_parallel_outcome("task_001", &result, |id, status| {
+            assert_eq!(id, "task_001");
+            assert_eq!(status, "failed");
+            Err("injected status failure".to_string())
+        })
+        .expect_err("status failure must propagate");
+        assert!(error.contains("to failed failed"), "{error}");
+    }
+
+    #[test]
+    fn critical_halt_join() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+
+        let args = vec![
+            "run-all".to_string(),
+            "--mode".to_string(),
+            "parallel".to_string(),
+            "--max-workers".to_string(),
+            "2".to_string(),
+            "--halt-on-critical".to_string(),
+        ];
+        let options = parse_run_all_options("cx", &args).expect("parse options");
+        let returned = Arc::new(AtomicBool::new(false));
+        let mut active = Vec::new();
+        let mut releases = Vec::new();
+        let (done_tx, done_rx) = mpsc::channel();
+        for index in 0..2 {
+            let (release_tx, release_rx) = mpsc::channel();
+            releases.push(release_tx);
+            let returned = Arc::clone(&returned);
+            let done_tx = done_tx.clone();
+            active.push(ActiveLaunch {
+                id: format!("task_{:03}", index + 2),
+                backend: "primary".to_string(),
+                requested_backend: None,
+                queue_ms: 0,
+                wave_index: 1,
+                wave_mode: "parallel".to_string(),
+                wave_size: 3,
+                join: thread::spawn(move || {
+                    release_rx.recv().expect("release worker");
+                    assert!(!returned.load(Ordering::SeqCst));
+                    done_tx.send(index).expect("record worker completion");
+                    Ok((0, None))
+                }),
+            });
+        }
+        drop(done_tx);
+
+        let (join_tx, join_rx) = mpsc::channel();
+        let (result_tx, result_rx) = mpsc::channel();
+        let returned_after_join = Arc::clone(&returned);
+        let halter = thread::spawn(move || {
+            JOIN_ACTIVE_NOTICE.with(|slot| *slot.borrow_mut() = Some(join_tx));
+            let mut summary = RunAllSummary::default();
+            summary.record_critical_error();
+            let mut persisted = Vec::new();
+            let halted =
+                halt_parallel_critical(&options, &mut summary, &mut active, |id, status| {
+                    persisted.push((id.to_string(), status.to_string()));
+                    Ok(())
+                })
+                .expect("persist drained workers");
+            assert_eq!(
+                persisted,
+                vec![
+                    ("task_002".to_string(), "complete".to_string()),
+                    ("task_003".to_string(), "complete".to_string()),
+                ]
+            );
+            assert_eq!(summary.ok, 2);
+            returned_after_join.store(true, Ordering::SeqCst);
+            result_tx
+                .send((halted, summary, active.len()))
+                .expect("send halt result");
+        });
+
+        join_rx
+            .recv()
+            .expect("halt path did not enter worker drain");
+        assert!(result_rx.try_recv().is_err(), "halt returned before drain");
+        for release in releases {
+            release.send(()).expect("release active worker");
+        }
+        assert!(done_rx.recv().expect("first worker completion") < 2);
+        assert!(done_rx.recv().expect("second worker completion") < 2);
+        let (halted, summary, active_count) = result_rx.recv().expect("receive halt result");
+        halter.join().expect("join halt thread");
+
+        assert!(halted);
+        assert!(summary.halted_on_critical);
+        assert_eq!(summary.critical_errors, 1);
+        assert_eq!(active_count, 0);
     }
 }

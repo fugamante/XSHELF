@@ -7,6 +7,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::capture::{BudgetConfig, clip_text_with_config};
+use crate::config::app_config;
 use crate::config::cli_app_name;
 use crate::local_models::resolve_model_for_backend;
 use crate::logs::file_len;
@@ -31,11 +33,10 @@ impl fmt::Display for TaskRunError {
 
 pub struct TaskRunner {
     pub read_tasks: fn() -> Result<Vec<TaskRecord>, String>,
-    pub write_tasks: fn(&[TaskRecord]) -> Result<(), String>,
+    pub set_task_status: fn(&str, &str) -> Result<(), String>,
     pub current_task_id: fn() -> Option<String>,
     pub current_task_parent_id: fn() -> Option<String>,
     pub set_state_path: fn(&str, Value) -> Result<(), String>,
-    pub utc_now_iso: fn() -> String,
     pub cmd_commitjson: fn() -> i32,
     pub cmd_commitmsg: fn() -> i32,
     pub cmd_diffsum: fn(bool) -> i32,
@@ -435,16 +436,63 @@ fn command_status_or_usage(run: fn(&[String]) -> i32, args: &[String]) -> i32 {
     if args.is_empty() { 2 } else { run(args) }
 }
 
+fn env_usize(name: &str, default: usize) -> usize {
+    env::var(name)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(default)
+}
+
+fn clip_for_prompt(input: &str, max_chars: usize, max_lines: usize) -> String {
+    let cfg = BudgetConfig {
+        budget_chars: max_chars.max(1),
+        budget_lines: max_lines.max(1),
+        clip_mode: "smart".to_string(),
+        clip_footer: false,
+    };
+    let (clipped, _) = clip_text_with_config(input, &cfg);
+    clipped
+}
+
+fn compact_prompt_text(input: &str) -> String {
+    input
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<&str>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
 fn task_prompt(task: &TaskRecord) -> String {
-    if task.context_ref.trim().is_empty() {
+    let cfg = app_config();
+    let objective_chars = env_usize("CX_TASK_OBJECTIVE_MAX_CHARS", cfg.budget_chars.min(3000));
+    let objective_lines = env_usize("CX_TASK_OBJECTIVE_MAX_LINES", cfg.budget_lines.min(120));
+    let context_chars = env_usize(
+        "CX_TASK_CONTEXT_MAX_CHARS",
+        cfg.budget_chars.saturating_mul(2).min(6000),
+    );
+    let context_lines = env_usize("CX_TASK_CONTEXT_MAX_LINES", cfg.budget_lines.min(180));
+    let objective = compact_prompt_text(&clip_for_prompt(
+        task.objective.trim(),
+        objective_chars,
+        objective_lines,
+    ));
+    let context = compact_prompt_text(&clip_for_prompt(
+        task.context_ref.trim(),
+        context_chars,
+        context_lines,
+    ));
+    if context.is_empty() {
         return format!(
             "Task Objective:\n{}\n\nRespond with concise execution notes and next actions.",
-            task.objective
+            objective
         );
     }
     format!(
         "Task Objective:\n{}\n\nContext Ref:\n{}\n\nRespond with concise execution notes and next actions.",
-        task.objective, task.context_ref
+        objective, context
     )
 }
 
@@ -1056,6 +1104,7 @@ fn log_convergence_summary(
         schema_attempt: None,
         timed_out: None,
         timeout_secs: None,
+        system_status: Some(winner.status_code),
         command_label: Some("task_converge"),
         duration_ms: 0,
         usage: Some(&usage),
@@ -1101,20 +1150,12 @@ fn finalize_task_status(
     id: &str,
     status_code: i32,
 ) -> Result<(), TaskRunError> {
-    let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
-    let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
-        TaskRunError::Critical(format!(
-            "{} task run: task disappeared: {id}",
-            cli_app_name()
-        ))
-    })?;
-    tasks[idx].status = if status_code == 0 {
-        "complete".to_string()
+    let status = if status_code == 0 {
+        "complete"
     } else {
-        "failed".to_string()
+        "failed"
     };
-    tasks[idx].updated_at = (runner.utc_now_iso)();
-    (runner.write_tasks)(&tasks).map_err(TaskRunError::Critical)?;
+    (runner.set_task_status)(id, status).map_err(TaskRunError::Critical)?;
     if (runner.current_task_id)().as_deref() == Some(id) {
         let _ = (runner.set_state_path)("runtime.current_task_id", Value::Null);
     }
@@ -1129,7 +1170,7 @@ pub fn run_task_by_id(
     managed_by_parent: bool,
     emit_output: bool,
 ) -> Result<(i32, Option<String>), TaskRunError> {
-    let mut tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
+    let tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
     let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
         TaskRunError::Critical(format!("{} task run: task not found: {id}", cli_app_name()))
     })?;
@@ -1137,9 +1178,7 @@ pub fn run_task_by_id(
         return Ok((0, None));
     }
     if !managed_by_parent {
-        tasks[idx].status = "in_progress".to_string();
-        tasks[idx].updated_at = (runner.utc_now_iso)();
-        (runner.write_tasks)(&tasks).map_err(TaskRunError::Critical)?;
+        (runner.set_task_status)(id, "in_progress").map_err(TaskRunError::Critical)?;
     }
     let prev_task_id = if managed_by_parent {
         None
@@ -1292,5 +1331,37 @@ mod tests {
     fn winner_judge_breaks_tie_by_lowest_index() {
         let winner = select_winner("judge", &[out(2, 1), out(1, 1)]);
         assert_eq!(winner.index, 1);
+    }
+
+    #[test]
+    fn prompt_clips_context() {
+        let t = TaskRecord {
+            id: "task_001".to_string(),
+            parent_id: None,
+            role: "implementer".to_string(),
+            objective: "Do something useful".to_string(),
+            context_ref: (0..600)
+                .map(|i| format!("line-{i}"))
+                .collect::<Vec<String>>()
+                .join("\n"),
+            status: "pending".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            updated_at: "2026-01-01T00:00:00Z".to_string(),
+            backend: "auto".to_string(),
+            model: None,
+            profile: "balanced".to_string(),
+            converge: "none".to_string(),
+            replicas: 1,
+            max_concurrency: None,
+            run_mode: "sequential".to_string(),
+            depends_on: Vec::new(),
+            resource_keys: Vec::new(),
+            max_retries: None,
+            timeout_secs: None,
+        };
+        let prompt = task_prompt(&t);
+        assert!(prompt.contains("Task Objective:"));
+        assert!(prompt.contains("Context Ref:"));
+        assert!(prompt.len() < t.context_ref.len() + 200);
     }
 }
