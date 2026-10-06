@@ -293,13 +293,15 @@ Validation:
 - real MLX checks remain opt-in because local model availability varies
 - registry-backed verification and local smoke paths refresh `last_used_at`
   metadata; MLX smoke verification also records `last_smoke_status`
-- registry-backed MLX aliases and IDs may carry `preferred_args`; the
-  process-backed MLX runtime and smoke verification path apply them before
-  `CX_MLX_ARGS`, so explicit env args remain the final override layer
+- registry-backed MLX aliases and IDs may carry `preferred_args` as metadata;
+  runtime, smoke and benchmark paths apply them only with explicit
+  `CX_MLX_TRUST_REGISTRY_ARGS` approval, before `CX_MLX_ARGS`
 - the optional MLX benchmark profile now maps the supported sampler/runtime
   subset from registry `preferred_args` plus `CX_MLX_ARGS` into the direct
   probe harness and records the resulting `raw_probe.runtime_config` for
   provenance rather than guessing about unsupported CLI flags
+- benchmark requires an operator-selected `CX_MLX_VERIFY_SCRIPT` and keeps its
+  output in exclusive private temporary storage, removed on return
 
 ### Slice 6: Resident Server Opt-In
 

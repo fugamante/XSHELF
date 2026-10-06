@@ -324,6 +324,23 @@ Backend-specific entry points:
 - MLX verification: `./bin/xshelf llm verify mlx --profile smoke --json`
 - local HTTP resident probe: `./bin/xshelf llm resident probe-models --json`
 
+MLX registry `preferred_args` are stored metadata and are ignored for execution
+by default. Set `CX_MLX_TRUST_REGISTRY_ARGS=true` only after reviewing the selected
+registry; runtime, smoke, and benchmark execution then apply those arguments before
+the operator's `CX_MLX_ARGS`. `trust_remote_code` metadata does not grant this trust.
+
+Benchmark verification requires an explicit, nonblank `CX_MLX_VERIFY_SCRIPT`
+pointing to a reviewed probe; it no longer executes a repository probe by default.
+
+```bash
+CX_MLX_VERIFY_SCRIPT=/absolute/path/to/trusted/tq_mlx_probe.py \
+  ./bin/xshelf llm verify mlx --profile benchmark --json
+```
+
+Benchmark output uses an exclusive file inside a private temporary directory and
+is removed after success or failure. These controls do not authenticate models,
+isolate Python imports, or sandbox explicitly trusted arguments and scripts.
+
 Backend planning and contract notes live in
 [docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md](docs/orchestration/PHASE_VIII_LOCAL_MODEL_SUBSTRATE.md).
 Optional local provider sidecar requirements live in

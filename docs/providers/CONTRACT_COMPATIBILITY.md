@@ -134,6 +134,13 @@ that replacement occurred without claiming rollback or confirmed durability.
 New files use `0600` (including the replaced source), and new directories use
 `0700`. Publication sync does not guarantee persistence of newly created ancestors.
 
+MLX verification preserves `llm-verify.v1` keys/types and stored model metadata.
+`preferred_args` presence does not imply execution: execution is disabled unless
+`CX_MLX_TRUST_REGISTRY_ARGS` explicitly enables it. Operator `CX_MLX_ARGS` remains
+the final override. Benchmark now requires nonblank `CX_MLX_VERIFY_SCRIPT`;
+otherwise it returns an actionable stderr error with no JSON payload or interpreter
+invocation. Temporary benchmark storage is private and removed on return.
+
 When changing a covered JSON contract:
 1. Update producing code.
 2. Update fixture contract file(s).

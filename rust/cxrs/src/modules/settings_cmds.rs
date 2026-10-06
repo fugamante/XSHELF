@@ -12,11 +12,10 @@ use crate::contract_versions::{
     LLM_RESIDENT_JSON_CONTRACT_VERSION, LLM_VERIFY_JSON_CONTRACT_VERSION,
 };
 use crate::execmeta::utc_now_iso;
-use crate::llm::run_mlx_plain;
+use crate::llm::{mlx_registry_trusted, run_mlx_plain};
 use crate::local_models::{
     find_record_for_backend, resolve_model_for_backend, selector_preferred_args, touch_model_record,
 };
-use crate::paths::repo_root_hint;
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
     http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
@@ -685,17 +684,24 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            repo_root_hint()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("scripts")
-                .join("tq_mlx_probe.py")
-        });
-    let out_file = env::temp_dir().join(format!(
-        "cxrs-mlx-verify-{}-{}.json",
-        std::process::id(),
-        Instant::now().elapsed().as_nanos()
-    ));
+        .ok_or_else(|| {
+            "benchmark requires explicit CX_MLX_VERIFY_SCRIPT; select a trusted probe script"
+                .to_string()
+        })?;
+    let mut directory = tempfile::Builder::new();
+    directory.prefix("xshelf-mlx-verify-");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        directory.permissions(fs::Permissions::from_mode(0o700));
+    }
+    let private_dir = directory
+        .tempdir()
+        .map_err(|e| format!("create private benchmark directory: {e}"))?;
+    // Keep both guards alive through readback and every error return.
+    let output = tempfile::NamedTempFile::new_in(private_dir.path())
+        .map_err(|e| format!("create private benchmark output: {e}"))?;
+    let out_file = output.path();
     let resolved_model = model_info
         .get("resolved")
         .and_then(Value::as_str)
@@ -726,7 +732,9 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
         "--python",
         python.as_str(),
     ]);
-    if let Some(raw_args) = preferred_args {
+    if mlx_registry_trusted()
+        && let Some(raw_args) = preferred_args
+    {
         cmd.args(["--preferred-args", raw_args]);
     }
     if let Some(raw_args) = env_args.as_deref() {
@@ -742,7 +750,7 @@ fn run_mlx_benchmark_profile(ctx: u64, model_info: &Value) -> Result<Value, Stri
             format!("benchmark runner failed: {stderr}")
         });
     }
-    let raw = fs::read_to_string(&out_file)
+    let raw = fs::read_to_string(out_file)
         .map_err(|e| format!("benchmark output missing at {}: {e}", out_file.display()))?;
     let payload = serde_json::from_str::<Value>(&raw)
         .map_err(|e| format!("benchmark output invalid JSON: {e}"))?;

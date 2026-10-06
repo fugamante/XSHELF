@@ -22,6 +22,9 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- MLX registry arguments require explicit `CX_MLX_TRUST_REGISTRY_ARGS` approval
+  at execution. Benchmark verification requires a selected `CX_MLX_VERIFY_SCRIPT`
+  and uses exclusive private output storage with cleanup on all return paths.
 - Log migration anchors directory operations, snapshots input once, and creates
   exclusive private staging files. In-place backups precede source replacement;
   collisions and prepublication failures preserve prior source and output files.

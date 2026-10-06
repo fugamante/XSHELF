@@ -194,7 +194,8 @@ pub fn run_mlx_plain(
     {
         cmd.args(["--max-tokens", max_tokens.trim()]);
     }
-    if let Some(raw_args) = preferred_args
+    if mlx_registry_trusted()
+        && let Some(raw_args) = preferred_args
         && !raw_args.trim().is_empty()
     {
         let extra = shell_words::split(raw_args).map_err(|e| {
@@ -226,6 +227,10 @@ pub fn run_mlx_plain(
     } else {
         Ok(normalize_mlx_output(&raw))
     }
+}
+
+pub(crate) fn mlx_registry_trusted() -> bool {
+    env_bool("CX_MLX_TRUST_REGISTRY_ARGS", false)
 }
 
 fn env_bool(name: &str, default: bool) -> bool {
