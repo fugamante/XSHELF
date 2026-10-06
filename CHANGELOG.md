@@ -22,6 +22,9 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Branch-protection auditing uses a protected environment, explicit activation
+  and an approved immutable revision. Its review floor preserves stronger
+  settings and rejects malformed protection metadata before mutation.
 - MLX registry arguments require explicit `CX_MLX_TRUST_REGISTRY_ARGS` approval
   at execution. Benchmark verification requires a selected `CX_MLX_VERIFY_SCRIPT`
   and uses exclusive private output storage with cleanup on all return paths.
