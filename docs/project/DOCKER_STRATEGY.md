@@ -90,20 +90,32 @@ Landed shape:
 - runtime records whether execution happened on host or in container
 
 Current floor:
-- repo-scoped task sandbox config via `.cx/state.json`
-- `task sandbox show|set-image|enable|disable|clear-image`
-- `task sandbox check --json` readiness diagnostics for Docker availability,
-  image availability, writable `.cx/` state, and `xshelf`/`cx` entrypoint
-  availability
-- Docker-backed inner task execution for `task run` / `task run-all`
-- container image must provide `xshelf`/`cx` on `PATH` or a repo-local
-  `./bin/xshelf` / `./bin/cx` entrypoint
-- additive execution-lane provenance in run logs and `task show`
+- repo-scoped configuration requests a sandbox; process-only
+  `CX_TASK_TRUST_SANDBOX=1` authorizes runtime and readiness
+- process `CX_TASK_SANDBOX_IMAGE` must be a reviewed full local `sha256:` image ID;
+  inspect confirms the exact immutable ID and both paths use `--pull=never`
+- deliberate `/bin/bash` entrypoint, fixed startup/path controls and disabled
+  image healthchecks; no repository startup scripts are sourced automatically
+- image application selected from fixed absolute paths or the operator's absolute
+  `CX_TASK_SANDBOX_EXECUTABLE`; reviewed repository wrappers need separate
+  `CX_TASK_TRUST_REPO_EXEC=1` (including the toolchain-only compatibility image)
+- credentials/proxies shared only through explicit process named-variable
+  selection; authority/provenance/path keys are reserved, not shareable
+- disabled or unauthorized readiness runs no Docker process; admitted readiness
+  uses a read-only root/repository and no network, without sharing credentials
+- authorized runtime uses a writable repository and normal Docker networking;
+  command/provider grants and existing unsafe controls are transported separately
+- stable sandbox/task/log contracts; container provenance uses the immutable ID
 
 Guardrails:
-- no automatic Docker requirement for normal XSHELF use
-- no hidden repo writes outside the mounted workspace
-- preserve log/schema/quarantine determinism across host and container lanes
+- no automatic Docker requirement for ordinary host tasks
+- preserve log/schema/quarantine contracts across host and container lanes
+- operator image/executable/credential approval is not container escape
+  prevention, a credential scrubber, or a boundary against same-user code
+- readiness checks host `.cx` permissions and container executable access;
+  its read-only probe does not establish actual runtime write permissions
+- external Git metadata in linked worktrees remains a task-lane limitation;
+  maintainer compatibility tooling has its separate explicit Git mount handling
 
 Exit criteria:
 - a project can say “run this task in the project container”

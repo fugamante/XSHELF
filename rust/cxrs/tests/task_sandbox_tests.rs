@@ -3,6 +3,8 @@ mod common;
 use common::*;
 use serde_json::Value;
 
+const IMAGE: &str = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
 #[test]
 fn sandbox_show_mutate() {
     let repo = TempRepo::new("cxrs-it");
@@ -114,7 +116,7 @@ case "${1:-}" in
     ;;
   image)
     test "${2:-}" = "inspect"
-    test "${3:-}" = "xshelf-compat:local"
+    printf '%s\n' 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     ;;
   run)
     exit 0
@@ -135,7 +137,14 @@ esac
     let enable = repo.run(&["task", "sandbox", "enable"]);
     assert!(enable.status.success(), "stderr={}", stderr_str(&enable));
 
-    let check = repo.run(&["task", "sandbox", "check", "--json"]);
+    let check = repo.run_with_env(
+        &["task", "sandbox", "check", "--json"],
+        &[
+            ("CX_TASK_TRUST_SANDBOX", "1"),
+            ("CX_TASK_SANDBOX_IMAGE", IMAGE),
+            ("CX_TASK_TRUST_REPO_EXEC", "1"),
+        ],
+    );
     assert!(
         check.status.success(),
         "stdout={} stderr={}",
@@ -183,6 +192,10 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         "docker",
         r#"#!/usr/bin/env bash
 set -euo pipefail
+case "${1:-}" in
+ image) printf '%s\n' 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; exit 0 ;;
+ --version) echo mock; exit 0 ;;
+esac
 script="${!#}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -193,7 +206,8 @@ while [[ $# -gt 0 ]]; do
   esac
   shift || true
 done
-bash -c "$script"
+# Model a provider deliberately installed in the approved image.
+PATH="$MOCK_IMAGE_BIN:/usr/bin:/bin" bash -c "$script"
 "#,
     );
 
@@ -218,7 +232,17 @@ bash -c "$script"
     assert!(add.status.success(), "stderr={}", stderr_str(&add));
     let id = stdout_str(&add).trim().to_string();
 
-    let run = repo.run(&["task", "run", &id]);
+    let image_bin = &repo.mock_bin;
+    let run = repo.run_with_env(
+        &["task", "run", &id],
+        &[
+            ("CX_TASK_TRUST_SANDBOX", "1"),
+            ("CX_TASK_SANDBOX_IMAGE", IMAGE),
+            ("CX_TASK_TRUST_REPO_EXEC", "1"),
+            ("CX_TASK_SANDBOX_SHARE_ENV", "MOCK_IMAGE_BIN"),
+            ("MOCK_IMAGE_BIN", image_bin.to_str().unwrap()),
+        ],
+    );
     assert!(
         run.status.success(),
         "stdout={} stderr={}",
@@ -236,7 +260,7 @@ bash -c "$script"
     );
     assert_eq!(
         latest.get("execution_lane_detail").and_then(Value::as_str),
-        Some("docker:xshelf-compat:local")
+        Some(format!("docker:{IMAGE}").as_str())
     );
 
     let runs = parse_jsonl(&repo.runs_log());

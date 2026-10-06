@@ -73,9 +73,10 @@ Validation preference for maintainers:
   age or claim publication. Standalone `main` freshness remains red meanwhile.
 - Include the merged execution-filter, installer, anchored log, MLX and
   branch-audit and task-command authority fixes in the next maintenance
-  candidate. The two Docker runtime/readiness, image and credential trust reports
-  remain validated and open; review their complete remediation and release
-  impact before publication. Do not treat command admission as Docker isolation.
+  candidate. Include complete Docker runtime/readiness, immutable-image, executable and
+  credential authority remediation only after independent merged-source
+  verification. Review the remaining live findings and release impact before
+  publication. Do not treat command admission as Docker isolation.
 - Prepare truthful candidate version/release notes and run the complete pre-tag
   checklist on its exact head. Resolve unavailable platform/signing evidence or
   record the release decision before tagging, packaging or publication.

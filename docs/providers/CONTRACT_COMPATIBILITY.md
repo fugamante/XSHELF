@@ -159,3 +159,16 @@ When changing a covered JSON contract:
 3. Update tests validating contract keys/types.
 4. Update `CHANGELOG.md`.
 5. Bump `contract_version` only for breaking changes.
+
+## Docker authority migration (2026-10-06)
+
+Repository sandbox requests no longer authorize image or repository executable
+execution. Runtime and readiness require process sandbox approval and a reviewed
+full local immutable image ID; repository wrappers and named credential sharing
+have separate opt-ins. Disabled or denied readiness executes no container, and
+runtime denial does not fall back to host execution. See orchestration execution
+guidance for migration and limits. Task, readiness, status, event and log keys,
+types and contract versions remain unchanged. Existing readiness booleans are
+false when checks are not admitted; issues/recommended_action explain denial.
+The existing container lane-detail string now records the approved immutable
+image ID instead of a mutable tag. No new credential values enter log contracts.
