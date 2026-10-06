@@ -21,6 +21,13 @@ Notes:
 
 ## [Unreleased]
 
+### Changed
+
+- Release planning audits actual GitHub publication age separately from VERSION
+  commit age. Explicit API evidence and a positive age limit are required; PR
+  cadence exceptions do not bypass the publication audit. Existing checks retain
+  their behavior when publication audit options are omitted.
+
 ### Fixed
 
 - Require operator process authority and approved local immutable images for task Docker runtime and readiness; gate repository executables separately, prevent implicit pulls, and share credentials only by reviewed exact names. Preserve task/output contracts and document the deliberate migration.

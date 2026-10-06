@@ -2,6 +2,16 @@
 
 Snapshot date: 2026-09-19
 
+## Release recovery review (2026-10-06)
+
+The latest published release remains `v2026.08.29` (GitHub publication time
+2026-08-29T18:44:31Z). Publication cadence is overdue. Source validation below
+is historical September candidate evidence; it does not sign off later security
+merges or a new release head. Reconcile the merged fixes in `Unreleased`, validate
+the exact selected head, and complete native packaging/publication before closure.
+The release maintainer owns the October 9 target in `RELEASE_CADENCE.md`; record
+unavailable gates and any revised date there.
+
 ## Current State
 
 XSHELF is in production-readiness hardening rather than broad substrate buildout.

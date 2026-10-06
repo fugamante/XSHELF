@@ -42,6 +42,29 @@ def age_exceeds_limit(now: datetime, updated_at: datetime, max_age_days: int) ->
     return age_seconds > max_age_seconds
 
 
+def validate_publication(payload: object, now: datetime, limit: int) -> str | None:
+    # VERSION commits and Git tags cannot establish GitHub publication time.
+    if not isinstance(payload, dict):
+        return "published release evidence must be a JSON object"
+    if payload.get("draft") is not False or payload.get("prerelease") is not False:
+        return "published release evidence must identify a final non-draft release"
+    tag = payload.get("tag_name")
+    if not isinstance(tag, str) or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
+        return "published release evidence has no final release tag"
+    raw = payload.get("published_at")
+    if not isinstance(raw, str) or not re.search(r"(?:Z|[+-][0-9]{2}:[0-9]{2})$", raw):
+        return "published release evidence has no timezone-qualified publication time"
+    try:
+        published = parse_iso_datetime(raw)
+    except ValueError:
+        return "published release evidence has an invalid publication time"
+    if published > now:
+        return "published release evidence has a future publication time"
+    if age_exceeds_limit(now, published, limit):
+        return f"published release {tag} is overdue: {(now - published).days}d > {limit}d"
+    return None
+
+
 def has_pr_exception_label(label: str, event_name: str, event_path: str | None) -> bool:
     if event_name != "pull_request" or not event_path:
         return False
@@ -154,6 +177,10 @@ def validate_release_source_docs(
 def main() -> int:
     ap = argparse.ArgumentParser(description="cx release metadata checks")
     ap.add_argument("--repo-root", default=None, help="repo root path")
+    ap.add_argument("--published-release-json", type=pathlib.Path,
+                    help="fresh GitHub /releases/latest API response for publication audit")
+    ap.add_argument("--max-published-age-days", type=int, default=0,
+                    help="fail when publication evidence is older than N days; no PR bypass")
     ap.add_argument(
         "--max-version-age-days",
         type=int,
@@ -197,6 +224,21 @@ def main() -> int:
         ),
     )
     args = ap.parse_args()
+
+    if args.max_published_age_days < 0:
+        return fail("--max-published-age-days must be >= 0")
+    if args.published_release_json is not None or args.max_published_age_days > 0:
+        if args.published_release_json is None or args.max_published_age_days <= 0:
+            return fail("publication audit requires evidence and a positive age limit")
+        try:
+            payload = json.loads(args.published_release_json.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return fail(f"unable to read published release evidence: {exc}")
+        error = validate_publication(payload, datetime.now(timezone.utc),
+                                     args.max_published_age_days)
+        if error:
+            return fail(error)
+        print("publication_cadence_ok")
 
     if args.repo_root:
         root = pathlib.Path(args.repo_root).resolve()

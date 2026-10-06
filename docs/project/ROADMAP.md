@@ -2,6 +2,13 @@
 
 ## Now (0-4 weeks)
 
+- Release recovery: maintainer review/cut target October 9, 2026. Freeze the
+  maintenance scope, reconcile candidate/security notes, validate the exact
+  source, then complete native packaging and publication gates. Publication
+  age must pass the explicit audit in `RELEASE_CADENCE.md`; VERSION changes
+  alone cannot close this milestone. Historical candidate validation does not
+  cover later merges. Record a blocker and revised date if the target slips.
+
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Security remediation sequence: preserve anchored log migration, explicit MLX
   registry argument trust, selected benchmark scripts and private output storage.

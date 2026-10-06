@@ -60,6 +60,30 @@ Validation preference for maintainers:
 
 ## Cadence Enforcement
 
+Candidate age and published-release age are separate controls. A VERSION update
+does not deliver a release to users. The existing CI gate below measures only
+candidate metadata age; it must not be reported as publication freshness.
+
+At release planning and before closing a release pass, fetch fresh publication
+evidence and run the independent 14-day publication audit:
+
+```bash
+release_audit_dir=$(mktemp -d "${TMPDIR:-/tmp}/xshelf-release-audit.XXXXXX")
+gh api repos/fugamante/XSHELF/releases/latest > "$release_audit_dir/latest.json" &&
+python3 rust/cxrs/tools/release_check.py \
+  --published-release-json "$release_audit_dir/latest.json" \
+  --max-published-age-days 14
+```
+
+The weekly target remains the planning goal; 14 days is the escalation threshold.
+This audit is explicit and read-only: no automatic network call in local tests
+or extra CI job. Use a fresh API response each time; the validator checks its
+contents, not authenticity or retrieval time. Missing, malformed, draft,
+prerelease, future-dated, or overdue evidence fails. `release-exception` cannot
+bypass publication age. An overdue audit requires an owner, blocker, and dated
+recovery plan and stays red until publication. A tag alone cannot establish
+publication. Passing age does not establish asset integrity or release signoff.
+
 - CI enforces release recency with `python3 rust/cxrs/tools/release_check.py --max-version-age-days 14`.
 - The check fails when `VERSION` has not changed for more than 14 days.
 - Temporary bypass is allowed only on pull requests carrying label `release-exception`.
@@ -82,6 +106,13 @@ Validation preference for maintainers:
   record the release decision before tagging, packaging or publication.
 - If the target cannot be met, the maintainer records the blocker and a revised
   date. Do not extend the age limit, remove the gate, or claim a release occurred.
+- Freeze maintenance scope and reconcile September candidate notes with merged
+  security fixes under `Unreleased`. Select a new dated candidate only when its
+  exact source is selected; refresh source-validation claims after that head passes.
+- Exit evidence: full native release signoff and Docker CI parity on selected
+  source, Intel/ARM package reproduction, signed/notarized inventory, verified
+  GitHub public bytes and Homebrew lifecycle, and a fresh publication-age audit.
+  External release actions retain separate operator authorization gates.
 
 ## Versioning Policy
 
