@@ -157,7 +157,36 @@ stored model overrides still require the opt-in. Existing task keys and JSON
 contract versions are preserved. Existing workflows that intentionally use stored
 provider/model selection must add the process environment opt-in after review.
 
-Text and JSON output modes classify objectives identically. Recognized task
-command objectives retain command execution; other objectives, including text
-beginning with another top-level CLI command, are passed to the selected provider
-as task prompts. JSON output does not expand the set of executable commands.
+## Task Command Authority and Migration
+
+Repository task objectives are data, not operator authorization. Recognized
+command objectives require `CX_TASK_TRUST_COMMANDS=1` in the invoking process
+environment, after reviewing the tasks and commands they can execute:
+
+```bash
+CX_TASK_TRUST_COMMANDS=1 xshelf task run <id>
+CX_TASK_TRUST_COMMANDS=1 xshelf task run-all
+```
+
+Only the value `1` (with surrounding whitespace allowed) grants authority.
+Repository preferences, provider trust, backend/mode overrides and sandbox-active
+markers do not grant it. The grant applies to all recognized task command
+objectives, including commit/diff helpers and the `cx`, `cxj`, `cxo`, next, fix
+and fix-run aliases. Existing deliberate command workflows must add this process
+opt-in; do not place it in repository state or automatically source untrusted
+repository configuration. Inherited grants are operator authority for that
+process tree, so prefer per-invocation scope rather than a global shell export.
+
+Without authority, a command task fails before command callbacks, subprocesses,
+container handoff, replicas or model judging. It is not reinterpreted as a prompt.
+Text and JSON modes enforce the same boundary; stable status/event keys and JSON
+versions remain unchanged. Managed run-all failures retain existing generic
+failure classification; inspect a single task's stderr for the approval guidance.
+
+Ordinary prompt tasks, including unrecognized top-level command text, still use
+the selected provider without command authority. Direct operator-invoked capture
+commands are unchanged. Command authority does not grant stored provider/model
+trust or bypass existing fix-run policy/unsafe controls. It is not a command
+sandbox, environment scrubber or protection from code already running as the
+same user. Docker image, readiness-probe and credential-sharing trust require
+separate controls; this grant alone does not establish safe container operation.

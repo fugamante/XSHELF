@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 ## Scope
 
@@ -72,6 +72,18 @@ The fix-run policy hardening changes command acceptance and execution. The
 `xshelf policy show --json` `rules` list adds launcher/interpreter and leading
 assignment restrictions. Its `policy-show.v1` marker, keys, and types remain
 unchanged; clients should treat rule entries as an extensible list.
+
+## Task Command Admission
+
+Repository command-style task objectives now require the process-only
+`CX_TASK_TRUST_COMMANDS=1` opt-in. This intentional security default change applies
+equally to text, JSON, overrides, replicas and managed workers. Denied runs retain
+`task-run.v1` with status `failed`, null execution_id and nonzero exit status;
+run-all retains existing failed accounting and task status/event transitions.
+No stable keys or types change. Ordinary prompt tasks and direct operator capture
+remain unchanged. Authorized command fixtures cover the previous behavior.
+See the migration in `docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md`; provider
+trust and command trust are separate, and Docker trust remains unresolved.
 
 ## CI Enforcement
 

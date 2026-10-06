@@ -746,6 +746,18 @@ fn task_command_supported(command: &str) -> bool {
     )
 }
 
+fn task_command_authority(words: &[String]) -> Result<(), String> {
+    let command = words.first().map(String::as_str).unwrap_or("");
+    if task_command_supported(command)
+        && !env::var("CX_TASK_TRUST_COMMANDS").is_ok_and(|value| value.trim() == "1")
+    {
+        return Err(format!(
+            "repository task command '{command}' requires operator review; set CX_TASK_TRUST_COMMANDS=1 for this invocation after reviewing task objectives"
+        ));
+    }
+    Ok(())
+}
+
 fn dispatch_task_command(
     runner: &TaskRunner,
     words: &[String],
@@ -755,6 +767,8 @@ fn dispatch_task_command(
     emit_output: bool,
 ) -> Result<(i32, Option<String>), String> {
     let cmd0 = words.first().map(String::as_str).unwrap_or("");
+    // Keep both callback and subprocess dispatch behind the same process grant.
+    task_command_authority(words)?;
     let model_override = task_model_override(task);
     // Output formatting cannot grant additional command execution authority.
     if !task_command_supported(cmd0) {
@@ -1201,6 +1215,18 @@ pub fn run_task_by_id(
     }
     if !managed_by_parent {
         (runner.set_task_status)(id, "in_progress").map_err(TaskRunError::Critical)?;
+    }
+    // Admission precedes container handoff, replicas and the model judge. Repository
+    // state, provider trust and the sandbox recursion marker cannot authorize code.
+    if let Err(error) = task_command_authority(&parse_words(&tasks[idx].objective)) {
+        if !managed_by_parent {
+            finalize_task_status(runner, id, 1)?;
+        }
+        crate::cx_eprintln!(
+            "{} task run: objective failed for {id}: {error}",
+            cli_app_name()
+        );
+        return Ok((1, None));
     }
     let prev_task_id = if managed_by_parent {
         None

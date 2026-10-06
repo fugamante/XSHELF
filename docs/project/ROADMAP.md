@@ -11,7 +11,9 @@
   migration isolation boundary.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
-  verified. Validate task/Docker execution trust next, then cut the security
+  verified. Task command objectives require process authority as documented in
+  `docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md`. Validate complete Docker
+  runtime/readiness image and credential trust next, then cut the security
   maintenance release under `docs/project/RELEASE_CADENCE.md`.
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
