@@ -230,23 +230,37 @@ first ledger-backed mutation; mixed old/new writers cannot share the new lock.
 If a command reports a committed/degraded warning, inspect task state before
 manually retrying it.
 
-Project task sandboxing is opt-in. Configure it per repo with:
+Project task sandboxing requires operator approval for each invocation. Repository
+settings request a sandbox; they cannot authorize Docker execution or select a
+trusted image. Review a local image, obtain its immutable ID, and review any
+repository wrapper before using the compatibility image:
 
 ```bash
 ./bin/xshelf task sandbox set-image xshelf-compat:local
 ./bin/xshelf task sandbox enable
-./bin/xshelf task sandbox check --json
+image_id="$(docker image inspect --format '{{.Id}}' xshelf-compat:local)"
+CX_TASK_TRUST_SANDBOX=1 CX_TASK_SANDBOX_IMAGE="$image_id" \
+  CX_TASK_TRUST_REPO_EXEC=1 ./bin/xshelf task sandbox check --json
 ```
 
-When enabled, `task run` and `task run-all` execute the inner task inside the
-configured Docker image on the bind-mounted repo and stamp additive
-`execution_lane=container` provenance into run logs. The container image must
-provide `xshelf`/`cx` on `PATH` or expose a repo-local `./bin/xshelf` or
-`./bin/cx` entrypoint. Use `task sandbox check --json` as the readiness gate:
-it verifies Docker availability, configured image availability, writable
-repo-local `.cx/` state, and an available `xshelf`/`cx` entrypoint before
-returning success. `CX_TASK_SANDBOX_ENABLED` and `CX_TASK_SANDBOX_IMAGE` remain
-supported as transient overrides.
+Use the same process grants for `task run` / `task run-all`; recognized command
+objectives also require `CX_TASK_TRUST_COMMANDS=1` after reviewing their commands.
+The image must already exist locally: both runtime and readiness use its full
+`sha256:` ID with `--pull=never`. A separate `CX_TASK_TRUST_REPO_EXEC=1` permits
+reviewed repo wrappers when the image has no installed application. Otherwise
+XSHELF selects `/usr/local/bin/xshelf` or `/usr/local/bin/cx`; use a reviewed
+absolute `CX_TASK_SANDBOX_EXECUTABLE` for another image location.
+
+Readiness is denied without authorization and never starts a container while
+disabled. Authorized readiness uses a read-only, network-disabled probe and
+checks executable access; host `.cx` permissions do not prove runtime writes.
+Authorized task execution mounts the repository read-write and uses Docker's
+normal network. Logs retain container provenance with the immutable image ID.
+Provider credentials and proxy variables are excluded by default. Review their
+values and select exact names with process-only `CX_TASK_SANDBOX_SHARE_ENV` when
+sharing is necessary. See [execution guidance](docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md)
+for migration, reserved names and trust limits. `CX_TASK_SANDBOX_ENABLED` remains
+a transient request override; it does not grant execution authority.
 
 Inspect telemetry and contract health:
 

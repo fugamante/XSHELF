@@ -190,3 +190,61 @@ trust or bypass existing fix-run policy/unsafe controls. It is not a command
 sandbox, environment scrubber or protection from code already running as the
 same user. Docker image, readiness-probe and credential-sharing trust require
 separate controls; this grant alone does not establish safe container operation.
+
+## Docker Task Authority and Migration
+
+Repository sandbox settings are requested configuration. Before runtime or a
+readiness container, the operator must approve the image and set process-only
+`CX_TASK_TRUST_SANDBOX=1` and `CX_TASK_SANDBOX_IMAGE` to a full lowercase
+`sha256:` image ID (64 hexadecimal digits). Obtain that ID by inspecting a
+reviewed local image; tags, missing IDs, whitespace, option-like operands and
+invalid process overrides are denied without fallback to repository settings.
+The local inspect result must match the approved ID; no image is pulled.
+
+The same admission controls apply before replicas and model judging, including
+text, JSON, managed and run-all paths. A missing grant fails the task before
+execution; it does not silently use the host. `CX_TASK_SANDBOX_ACTIVE` controls
+recursion only and cannot grant authority. Disabled readiness is diagnostics
+only and never starts Docker. Sandbox show/check/task JSON keys and versions
+remain stable; denied readiness returns issues and existing false availability
+fields. Process image overrides appear in the existing image field.
+
+Runtime and readiness use `/bin/bash` without login/profile startup, fixed PATH
+and startup variables, and no image healthcheck. Default image application paths
+are `/usr/local/bin/xshelf` then `/usr/local/bin/cx`. A different installation
+requires process `CX_TASK_SANDBOX_EXECUTABLE` with a reviewed absolute image path
+outside `/work`. No PATH search or repository wrapper is automatic. The
+compatibility image contains a toolchain, not XSHELF: after reviewing repository
+code, `CX_TASK_TRUST_REPO_EXEC=1` permits `./bin/xshelf` / `./bin/cx` fallback.
+Image applications remain preferred. Both probes and runtime share this rule.
+
+No broad CX, provider or proxy environment group is forwarded. To share
+necessary credentials or provider command/model configuration, explicitly select
+comma-separated exact variable names with `CX_TASK_SANDBOX_SHARE_ENV` in the
+invoking process, after reviewing both names and values. Empty means no sharing;
+unset selected variables, malformed/empty names and non-Unicode values fail.
+Wildcard/prefix selectors are unsupported. Task authority/configuration,
+execution provenance, backend/unsafe controls, Docker client controls and
+shell/path/startup keys are reserved; selectors cannot regrant authority.
+Selected values are passed through Docker's client environment by name and are
+not placed in its command arguments. They are still visible to the approved
+container and Docker daemon. Readiness shares no selected credentials.
+
+Fixed transport preserves the operator's command/provider grants and unsafe
+controls, normalized backend and replica metadata. Absent grants are explicit
+zero so image environment defaults cannot enable them. Inner task markers and
+sandbox authority are constructed by the admitted parent; inherited process
+variables still represent operator authority, so prefer per-invocation scope.
+Host-specific source/log paths are not implicitly forwarded. Provider execution
+inside the image requires deliberately installed/configured tooling or explicit
+selected configuration; sharing is not authorization to use stored providers.
+
+Authorized runtime deliberately mounts the repository read-write with normal
+Docker networking. Readiness uses a read-only root/repository, no network and
+executable-access tests; its host permission check does not prove runtime writes.
+Container logs record `docker:<immutable ID>` in the existing lane-detail string.
+This boundary does not sandbox reviewed images/repository code, prevent container
+escapes, or scrub files/credentials already inside an approved image. Linked
+worktree external Git metadata and prior log concurrency/durability limitations
+remain. These controls do not weaken `CX_TASK_TRUST_COMMANDS`, provider authority
+or deliberate fix-run unsafe overrides.

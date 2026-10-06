@@ -115,6 +115,8 @@ mod structured_replay;
 mod task_cmds;
 #[path = "modules/task_events.rs"]
 mod task_events;
+#[path = "modules/task_sandbox.rs"]
+mod task_sandbox;
 #[path = "modules/taskrun.rs"]
 mod taskrun;
 #[path = "modules/tasks.rs"]
