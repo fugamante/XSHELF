@@ -22,6 +22,9 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+- Log migration anchors directory operations, snapshots input once, and creates
+  exclusive private staging files. In-place backups precede source replacement;
+  collisions and prepublication failures preserve prior source and output files.
 - Suggested execution requires an unsafe override for `watch` and disruptive
   `systemctl` sleep actions. Copy sources are reads; destinations remain checked,
   including existing destination children and GNU target-directory options.

@@ -234,6 +234,7 @@ dependencies = [
  "chrono",
  "fs2",
  "jsonschema",
+ "rustix",
  "serde",
  "serde_json",
  "sha2",
