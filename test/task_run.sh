@@ -10,8 +10,9 @@ git init -q
 t1="$($ROOT/bin/cx task add "cxnext" --role implementer)"
 t2="$($ROOT/bin/cx task add "cxo git status" --role reviewer --parent "$t1")"
 
-$ROOT/bin/cx task run "$t1" >/dev/null || true
-$ROOT/bin/cx task run-all >/dev/null || true
+# These reviewed synthetic objectives deliberately exercise command execution.
+CX_TASK_TRUST_COMMANDS=1 $ROOT/bin/cx task run "$t1" >/dev/null || true
+CX_TASK_TRUST_COMMANDS=1 $ROOT/bin/cx task run-all >/dev/null || true
 
 s1="$($ROOT/bin/cx task show "$t1" | jq -r '.status')"
 s2="$($ROOT/bin/cx task show "$t2" | jq -r '.status')"
