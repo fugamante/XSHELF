@@ -22,6 +22,8 @@ Notes:
 ## [Unreleased]
 
 ### Fixed
+
+- Require explicit process command authority for repository task command objectives before callbacks, subprocesses, replicas, container handoff or model judging. Preserve prompt tasks and authorized command behavior, stable text/JSON/status/event contracts, and existing unsafe controls; document the `CX_TASK_TRUST_COMMANDS=1` migration.
 - Branch-protection auditing uses a protected environment, explicit activation
   and an approved immutable revision. Its review floor preserves stronger
   settings and rejects malformed protection metadata before mutation.
