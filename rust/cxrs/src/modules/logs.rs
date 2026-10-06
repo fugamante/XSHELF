@@ -8,13 +8,16 @@ use std::path::Path;
 
 #[path = "logs_cmd.rs"]
 mod logs_cmd;
+#[cfg(unix)]
+#[path = "logs_fs.rs"]
+mod logs_fs;
 #[path = "logs_migrate.rs"]
 mod logs_migrate;
 #[path = "logs_read.rs"]
 mod logs_read;
 
 pub use logs_cmd::cmd_logs;
-pub use logs_migrate::migrate_runs_jsonl;
+pub use logs_migrate::{migrate_runs_jsonl, migrate_transaction};
 pub use logs_read::{
     file_len, load_runs, load_runs_appended, load_values, validate_runs_jsonl_file,
 };

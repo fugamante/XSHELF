@@ -1,12 +1,11 @@
 use crate::error::{CxError, CxResult};
-use crate::paths::ensure_parent_dir;
 use crate::provider_adapter::normalize_provider_status;
 use crate::types::ExecutionLog;
 use crate::util::{IfEmpty, sha256_hex};
 use serde_json::Value;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
-use std::path::Path;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default, Clone)]
 pub struct MigrateSummary {
@@ -201,39 +200,158 @@ fn normalize_run_log_row(v: &Value) -> CxResult<(String, bool)> {
     Ok((line, has_modern))
 }
 
+pub struct MigrateOutcome {
+    pub summary: MigrateSummary,
+    pub backup: Option<PathBuf>,
+}
+
 pub fn migrate_runs_jsonl(in_path: &Path, out_path: &Path) -> Result<MigrateSummary, String> {
-    migrate_runs_jsonl_cx(in_path, out_path).map_err(|e| e.to_string())
+    migrate_transaction(in_path, out_path, false).map(|outcome| outcome.summary)
 }
 
-fn migrate_runs_jsonl_cx(in_path: &Path, out_path: &Path) -> CxResult<MigrateSummary> {
-    let file = File::open(in_path)
-        .map_err(|e| CxError::io(format!("cannot open {}", in_path.display()), e))?;
-    let reader = BufReader::new(file);
-    ensure_parent_dir(out_path).map_err(CxError::invalid)?;
-    let tmp = out_path.with_extension("jsonl.tmp");
-    let mut out_f = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&tmp)
-        .map_err(|e| CxError::io(format!("cannot open {}", tmp.display()), e))?;
-
-    let mut summary = MigrateSummary::default();
-    for (idx, line_res) in reader.lines().enumerate() {
-        process_migrate_line(line_res, idx + 1, in_path, &tmp, &mut out_f, &mut summary)?;
+pub fn migrate_transaction(
+    in_path: &Path,
+    out_path: &Path,
+    in_place: bool,
+) -> Result<MigrateOutcome, String> {
+    #[cfg(unix)]
+    {
+        migrate_anchored(in_path, out_path, in_place).map_err(|error| error.to_string())
     }
-    out_f
-        .flush()
-        .map_err(|e| CxError::io(format!("flush failed for {}", tmp.display()), e))?;
-    drop(out_f);
-    fs::rename(&tmp, out_path).map_err(|e| {
-        CxError::io(
-            format!("failed to move {} -> {}", tmp.display(), out_path.display()),
-            e,
-        )
-    })?;
-    Ok(summary)
+    #[cfg(not(unix))]
+    {
+        let _ = (in_path, out_path, in_place);
+        Err("secure log migration is unsupported on this platform".to_string())
+    }
 }
+
+#[cfg(unix)]
+fn migrate_anchored(in_path: &Path, out_path: &Path, in_place: bool) -> CxResult<MigrateOutcome> {
+    use super::logs_fs::{AnchoredPath, PrivateFile};
+    let input = AnchoredPath::open(in_path, false)
+        .map_err(|error| CxError::io("anchor migration source", error))?;
+    let mut source = input
+        .source()
+        .map_err(|error| CxError::io("open migration source", error))?;
+    let output = AnchoredPath::open(out_path, true)
+        .map_err(|error| CxError::io("anchor migration destination", error))?;
+    output
+        .check_target()
+        .map_err(|error| CxError::io("check migration destination", error))?;
+    if !in_place
+        && output
+            .aliases(&input, &source)
+            .map_err(|error| CxError::io("check migration alias", error))?
+    {
+        return Err(CxError::invalid(
+            "migration output aliases source; use --in-place",
+        ));
+    }
+    #[cfg(test)]
+    fault_stage(FaultStage::Anchored)?;
+    let snapshot_parent = if in_place { &input } else { &output };
+    let mut snapshot = PrivateFile::create(snapshot_parent, in_place)
+        .map_err(|error| CxError::io("create migration snapshot", error))?;
+    #[cfg(test)]
+    fault_stage(FaultStage::BackupWrite)?;
+    std::io::copy(&mut source, &mut snapshot.file)
+        .map_err(|error| CxError::io("copy opened migration source", error))?;
+    snapshot
+        .file
+        .sync_all()
+        .map_err(|error| CxError::io("sync migration snapshot", error))?;
+    #[cfg(test)]
+    fault_stage(FaultStage::BackupSync)?;
+    snapshot
+        .sync_parent()
+        .map_err(|error| CxError::io("sync snapshot directory", error))?;
+    let backup = in_place.then(|| snapshot.display.clone());
+    if in_place {
+        snapshot.retain();
+    }
+    let result = (|| {
+        #[cfg(test)]
+        fault_stage(FaultStage::Snapshot)?;
+        snapshot
+            .file
+            .seek(SeekFrom::Start(0))
+            .map_err(|error| CxError::io("rewind migration snapshot", error))?;
+        let mut staging = PrivateFile::create(&output, false)
+            .map_err(|error| CxError::io("create migration output", error))?;
+        let reader = BufReader::new(&mut snapshot.file);
+        let mut summary = MigrateSummary::default();
+        for (idx, line_res) in reader.lines().enumerate() {
+            process_migrate_line(
+                line_res,
+                idx + 1,
+                in_path,
+                &staging.display,
+                &mut staging.file,
+                &mut summary,
+            )?;
+        }
+        #[cfg(test)]
+        fault_stage(FaultStage::OutputWrite)?;
+        staging
+            .file
+            .flush()
+            .and_then(|_| staging.file.sync_all())
+            .map_err(|error| CxError::io("sync migration output", error))?;
+        #[cfg(test)]
+        fault_stage(FaultStage::Publish)?;
+        let destination = if in_place { &input } else { &output };
+        staging
+            .publish(destination)
+            .map_err(|error| CxError::io("publish migration output", error))?;
+        #[cfg(test)]
+        if let Err(error) = fault_stage(FaultStage::Published) {
+            return Err(CxError::invalid(format!(
+                "migration published; durability uncertain: {error}"
+            )));
+        }
+        destination.parent.sync_all().map_err(|error| {
+            CxError::io("migration published; directory durability uncertain", error)
+        })?;
+        Ok(MigrateOutcome {
+            summary,
+            backup: backup.clone(),
+        })
+    })();
+    result.map_err(|error: CxError| match backup {
+        Some(path) => CxError::invalid(format!("{error}; backup: {}", path.display())),
+        None => error,
+    })
+}
+
+#[cfg(all(test, unix))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FaultStage {
+    Anchored,
+    BackupWrite,
+    BackupSync,
+    Snapshot,
+    OutputWrite,
+    Publish,
+    Published,
+}
+
+#[cfg(all(test, unix))]
+thread_local! {
+    static HOOK: std::cell::RefCell<Option<MigrationHook>> = const { std::cell::RefCell::new(None) };
+}
+#[cfg(all(test, unix))]
+type MigrationHook = Box<dyn FnMut(FaultStage) -> CxResult<()>>;
+#[cfg(all(test, unix))]
+fn fault_stage(stage: FaultStage) -> CxResult<()> {
+    HOOK.with(|hook| match hook.borrow_mut().as_mut() {
+        Some(callback) => callback(stage),
+        None => Ok(()),
+    })
+}
+
+#[cfg(all(test, unix))]
+#[path = "logs_migrate_tests.rs"]
+mod tests;
 
 fn process_migrate_line(
     line_res: Result<String, std::io::Error>,

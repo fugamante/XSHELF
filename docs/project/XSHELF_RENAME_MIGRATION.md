@@ -28,6 +28,12 @@ What that means:
 - runtime compatibility is intentionally still `cx`-shaped
 - the repo needs an explicit migration policy so future edits do not drift
 
+Log migration keeps `xshelf`, `xs`, and `cx` aliases, `CX_LOG_FILE`, `.cx/`,
+normalized fields, and summary labels. Filesystem compatibility changes require
+quiescent writers: symlink descendants are rejected, source/output aliases require
+`--in-place`, and consumers must use the printed unique `backup:` path. See the
+README's Log migration section for staging and publication failure behavior.
+
 ## Goals
 
 - establish `XSHELF` as the canonical project name

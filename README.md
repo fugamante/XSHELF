@@ -272,6 +272,31 @@ For a runtime-derived route catalog, use `./bin/xshelf routes` or
 compatibility command-name registry used by dispatch, so `xshelf`, `xs`, and
 `cx` route aliases stay aligned.
 
+### Log migration
+
+Stop other log writers before migration. On Unix, migration uses opened directory
+handles and rejects symlink descendants rather than following repository-controlled
+paths. Normal output may replace an existing regular file; output equal to the
+input requires `--in-place`.
+
+```bash
+./bin/xshelf logs migrate --out runs.normalized.jsonl
+./bin/xshelf logs migrate --in-place
+```
+
+In-place migration preserves an exact private backup before replacing the source.
+Use the printed `backup:` path; backup names are unique rather than timestamp-only.
+New migration files, including a replaced source, use mode `0600`; newly created
+output directories use `0700`. Shared-log consumers may need an explicit permission
+adjustment after migration. Directory sync covers the publication parent; it does
+not establish crash durability for an entire newly created ancestor chain.
+With `--in-place`, `--out` selects the staging location and any existing output is
+preserved. Cross-filesystem replacement fails before publication. An error that
+states publication completed means the replacement occurred but durability could
+not be confirmed; preserve the backup and inspect the result before retrying.
+Migration fails closed on platforms without the required anchored filesystem APIs.
+Directory handles do not isolate arbitrary concurrent same-user changes.
+
 ## Backend Selection
 
 Choose and inspect the active backend:

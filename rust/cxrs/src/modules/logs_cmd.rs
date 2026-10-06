@@ -1,7 +1,7 @@
+use super::logs_migrate::MigrateOutcome;
 use super::logs_read::LogValidateOutcome;
-use super::{migrate_runs_jsonl, validate_runs_jsonl_file};
+use super::{migrate_runs_jsonl, migrate_transaction, validate_runs_jsonl_file};
 use crate::paths::resolve_log_file;
-use std::fs;
 use std::path::{Path, PathBuf};
 
 struct MigrateArgs {
@@ -100,33 +100,6 @@ fn handle_validate(app_name: &str, args: &[String]) -> i32 {
     validate_outcome_status(&outcome)
 }
 
-fn migrate_in_place(app_name: &str, log_file: &Path, target: &Path) -> Result<(), i32> {
-    let bak = log_file.with_extension(format!(
-        "jsonl.bak.{}",
-        chrono::Utc::now().format("%Y%m%dT%H%M%SZ")
-    ));
-    if let Err(e) = fs::copy(log_file, &bak) {
-        crate::cx_eprintln!(
-            "{app_name} logs migrate: failed to backup {} -> {}: {e}",
-            log_file.display(),
-            bak.display()
-        );
-        return Err(1);
-    }
-    if let Err(e) = fs::rename(target, log_file) {
-        crate::cx_eprintln!(
-            "{app_name} logs migrate: failed to replace {} with {}: {e}",
-            log_file.display(),
-            target.display()
-        );
-        crate::cx_eprintln!("backup: {}", bak.display());
-        return Err(1);
-    }
-    println!("backup: {}", bak.display());
-    println!("status: replaced");
-    Ok(())
-}
-
 fn handle_migrate(app_name: &str, args: &[String]) -> i32 {
     let Some(log_file) = resolve_log_file() else {
         crate::cx_eprintln!("{app_name} logs migrate: unable to resolve log file");
@@ -153,7 +126,15 @@ fn handle_migrate(app_name: &str, args: &[String]) -> i32 {
     println!("== {app_name} logs migrate ==");
     println!("in: {}", log_file.display());
     println!("out: {}", target.display());
-    let summary = match migrate_runs_jsonl(&log_file, &target) {
+    let migration = if parsed.in_place {
+        migrate_transaction(&log_file, &target, true)
+    } else {
+        migrate_runs_jsonl(&log_file, &target).map(|summary| MigrateOutcome {
+            summary,
+            backup: None,
+        })
+    };
+    let outcome = match migration {
         Ok(v) => v,
         Err(e) => {
             crate::cx_eprintln!("{app_name} logs migrate: {e}");
@@ -161,17 +142,17 @@ fn handle_migrate(app_name: &str, args: &[String]) -> i32 {
         }
     };
 
+    let summary = outcome.summary;
     println!("entries_in: {}", summary.entries_in);
     println!("entries_out: {}", summary.entries_out);
     println!("invalid_json_skipped: {}", summary.invalid_json_skipped);
     println!("legacy_normalized: {}", summary.legacy_normalized);
     println!("modern_normalized: {}", summary.modern_normalized);
 
-    if parsed.in_place {
-        return match migrate_in_place(app_name, &log_file, &target) {
-            Ok(()) => 0,
-            Err(code) => code,
-        };
+    if let Some(backup) = outcome.backup {
+        println!("backup: {}", backup.display());
+        println!("status: replaced");
+        return 0;
     }
     println!("status: wrote");
     0

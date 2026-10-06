@@ -3,6 +3,12 @@
 ## Now (0-4 weeks)
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
+- Security remediation sequence: verify and integrate anchored log migration,
+  then address registry MLX arguments and implicit benchmark probe execution.
+  Require independent reproduction, contract compatibility, and hosted Linux
+  acceptance before integration; close findings only after upstream verification.
+  Concurrent log writers and arbitrary same-user execution remain outside the
+  migration isolation boundary.
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.

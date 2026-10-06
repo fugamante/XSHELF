@@ -124,6 +124,16 @@ opt into unsafe execution. Invalid command quoting fails closed. Diagnostic
 destinations remain repository-contained; source-derived `--parents` forms, directory sources and hardlink creation retain
 conservative checks. Move sources still require containment because they are removed.
 
+Log migration retains normalized run-log fields, summary counters, and the
+`in`, `out`, `backup`, and status labels. Filesystem behavior changes intentionally:
+symlink descendants fail closed; output equal to input requires `--in-place`;
+backup names are unique and consumers must use the printed path. In-place `--out`
+selects staging, preserving any preexisting output. Migration requires quiescent
+log writers and anchored filesystem support. Errors after publication identify
+that replacement occurred without claiming rollback or confirmed durability.
+New files use `0600` (including the replaced source), and new directories use
+`0700`. Publication sync does not guarantee persistence of newly created ancestors.
+
 When changing a covered JSON contract:
 1. Update producing code.
 2. Update fixture contract file(s).
