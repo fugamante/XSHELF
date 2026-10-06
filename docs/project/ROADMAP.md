@@ -3,8 +3,8 @@
 ## Now (0-4 weeks)
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
-- Security remediation sequence: verify and integrate anchored log migration,
-  then address registry MLX arguments and implicit benchmark probe execution.
+- Security remediation sequence: preserve anchored log migration, explicit MLX
+  registry argument trust, selected benchmark scripts and private output storage.
   Require independent reproduction, contract compatibility, and hosted Linux
   acceptance before integration; close findings only after upstream verification.
   Concurrent log writers and arbitrary same-user execution remain outside the

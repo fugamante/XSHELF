@@ -947,6 +947,7 @@ printf 'OK'
         &[
             ("CX_MLX_MODEL", "tiny"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_TRUST_REGISTRY_ARGS", "true"),
             ("MLX_VERIFY_ARGS_FILE", &args_path),
         ],
     );
@@ -1098,6 +1099,8 @@ JSON
         &[
             ("CX_MLX_MODEL", "bench"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_VERIFY_SCRIPT", "/explicit/trusted/probe.py"),
+            ("CX_MLX_TRUST_REGISTRY_ARGS", "true"),
             ("CX_MLX_ARGS", "--temp 0.1 --seed 7"),
             ("MLX_BENCH_ARGS_FILE", &args_path),
         ],
@@ -1425,6 +1428,7 @@ printf 'mlx ok'
             ("CX_LLM_BACKEND", "mlx"),
             ("CX_MLX_MODEL", "tiny"),
             ("CX_MLX_PYTHON", &mlx_python),
+            ("CX_MLX_TRUST_REGISTRY_ARGS", "true"),
             ("CX_MLX_ARGS", "--temp 0.1 --seed 9"),
             ("MLX_ARGS_FILE", &alias_args_path),
         ],

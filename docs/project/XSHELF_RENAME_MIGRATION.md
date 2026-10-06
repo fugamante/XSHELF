@@ -34,6 +34,11 @@ quiescent writers: symlink descendants are rejected, source/output aliases requi
 `--in-place`, and consumers must use the printed unique `backup:` path. See the
 README's Log migration section for staging and publication failure behavior.
 
+MLX aliases and stored registry fields remain supported. Execution of registry
+arguments now requires `CX_MLX_TRUST_REGISTRY_ARGS`; explicit `CX_MLX_ARGS` remains
+last. Benchmark scripts require `CX_MLX_VERIFY_SCRIPT`. These intentional default
+changes retain CLI aliases and the `llm-verify.v1` contract.
+
 ## Goals
 
 - establish `XSHELF` as the canonical project name
