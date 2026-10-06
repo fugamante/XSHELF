@@ -9,6 +9,10 @@
   acceptance before integration; close findings only after upstream verification.
   Concurrent log writers and arbitrary same-user execution remain outside the
   migration isolation boundary.
+- Protect the branch-audit credential with owner-approved environment access;
+  keep the audit inactive until its isolated credential and server rules are
+  verified. Validate task/Docker execution trust next, then cut the security
+  maintenance release under `docs/project/RELEASE_CADENCE.md`.
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.

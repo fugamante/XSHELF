@@ -65,6 +65,21 @@ Validation preference for maintainers:
 - Temporary bypass is allowed only on pull requests carrying label `release-exception`.
 - Use `release-exception` only with explicit rationale and a follow-up release cut plan.
 
+### Security maintenance follow-up (2026-10-06)
+
+- Owner: release maintainer. Review/cut target: 2026-10-09.
+- Keep the current `2026.09.19` candidate and its actual modification date until
+  preparing a new validated release candidate; source merges do not refresh its
+  age or claim publication. Standalone `main` freshness remains red meanwhile.
+- Include the merged execution-filter, installer, anchored log, MLX and
+  branch-audit fixes in the next maintenance candidate. First validate the
+  remaining task/Docker trust reports and record their release impact.
+- Prepare truthful candidate version/release notes and run the complete pre-tag
+  checklist on its exact head. Resolve unavailable platform/signing evidence or
+  record the release decision before tagging, packaging or publication.
+- If the target cannot be met, the maintainer records the blocker and a revised
+  date. Do not extend the age limit, remove the gate, or claim a release occurred.
+
 ## Versioning Policy
 
 - Use semantic versioning intent:

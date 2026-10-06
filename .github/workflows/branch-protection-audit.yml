@@ -23,13 +23,19 @@ concurrency:
 
 jobs:
   restore-review-gate:
+    # Secret access is enforced by the environment's server-side rules.
+    # This condition keeps the unconfigured audit inactive; it is not an auth gate.
+    if: github.ref == 'refs/heads/main' && vars.BRANCH_PROTECTION_AUDIT_ENABLED == 'true'
+    environment: branch-protection-audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout approved audit revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
+          # Bind code to the reviewed run, rather than a branch tip that can move.
+          ref: ${{ github.sha }}
 
       - name: Workflow Action Pin Guardrail
         run: |

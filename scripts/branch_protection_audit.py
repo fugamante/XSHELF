@@ -123,19 +123,38 @@ def desired_gate() -> dict[str, object]:
     }
 
 
+def review_floor(gate: dict[str, object] | None) -> dict[str, object]:
+    floor = desired_gate()
+    if gate is None:
+        return floor
+    count = gate.get("required_approving_review_count")
+    if type(count) is not int or not 0 <= count <= 6:
+        raise RuntimeError("invalid required review count; protection unchanged")
+    for key in ("dismiss_stale_reviews", "require_code_owner_reviews",
+                "require_last_push_approval"):
+        value = gate.get(key)
+        if type(value) is not bool:
+            raise RuntimeError(f"invalid {key}; protection unchanged")
+        if key != "dismiss_stale_reviews":
+            floor[key] = value
+    floor["required_approving_review_count"] = max(1, count)
+    return floor
+
+
 def gate_matches(gate: dict[str, object] | None) -> bool:
     if gate is None:
         return False
-    desired = desired_gate()
-    return all(gate.get(key) == value for key, value in desired.items())
+    return all(gate.get(key) == value for key, value in review_floor(gate).items())
 
 
-def restore_gate(token: str, repo: str, branch: str) -> None:
+def restore_gate(
+    token: str, repo: str, branch: str, gate: dict[str, object] | None = None
+) -> None:
     api_request(
         token,
         "PATCH",
         f"/repos/{repo}/branches/{branch}/protection/required_pull_request_reviews",
-        desired_gate(),
+        review_floor(gate),
     )
 
 
@@ -194,7 +213,7 @@ def main() -> int:
         )
         return 1
 
-    restore_gate(token, repo, branch)
+    restore_gate(token, repo, branch, gate)
     print("restored required pull request review gate")
     return 0
 

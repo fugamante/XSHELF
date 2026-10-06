@@ -1,0 +1,17 @@
+name: branch-audit-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  environment-check:
+    environment: branch-protection-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Protected environment admission
+        # No secret expressions, checkout, or administrative operations.
+        run: printf '%s\n' 'protected environment admitted'
