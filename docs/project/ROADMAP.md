@@ -62,6 +62,12 @@
   pre-push Git context, and atomic sealed-inventory publication across Linux and
   macOS. Tagging, packaging, signing, notarization, and publication remain
   separate release gates.
+- `v2026.10.07` release source is validated; consolidated maintenance source
+  passes native full guardrails/compatibility and Docker CI parity. The October 9
+  plan next requires hosted checks, exact-head security finding disposition,
+  native ARM/Intel package reproduction and lifecycle, then separately authorized
+  tagging, signing/notarization and publication. September source is superseded;
+  the published release remains August 29.
 
 ## Next (1-2 months)
 

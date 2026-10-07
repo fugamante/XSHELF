@@ -3,13 +3,13 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.10.07` (maintenance candidate; exact-source validation and publication pending)
+- `2026.10.07` (maintenance source locally validated; packaging and publication pending)
 
 Current release candidate:
 
 | Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.10.07` | 2026-10-07 | Candidate selected; exact-source validation, packaging, signing, notarization, and publication pending. | Consolidated maintenance/security fixes, including the September candidate, and independent release health. |
+| `v2026.10.07` | 2026-10-07 | Source locally validated; hosted checks, native reproduction, signing/notarization and publication pending. | Consolidated maintenance/security fixes, including the September candidate, and independent release health. |
 
 Current published release:
 

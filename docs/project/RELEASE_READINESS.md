@@ -43,8 +43,11 @@ Current merged readiness floor:
 Current release candidate:
 - `VERSION` is `2026.10.07`, a selected maintenance candidate containing the
   September candidate and merged security fixes through `1f6007831eb5cbd252fa5f6d7940652e86101b76`.
-- Exact-source validation, native ARM/Intel package reproduction, signing,
-  notarization, GitHub publication, and Homebrew publication remain pending.
+- `v2026.10.07` release source is validated, with full native guardrails,
+  `compat_local.sh --full`, Docker `compat_docker.sh --ci`, workflow regressions,
+  version consistency, action pinning, line gates and YAML syntax passing.
+  Native ARM/Intel package reproduction, signing, notarization, GitHub
+  publication, and Homebrew publication remain pending.
 - Release health is a separate strict job after compatibility/security checks;
   this candidate selection does not refresh the August publication timestamp.
 - The candidate adds bounded task prompt inputs, stderr progress, additive
@@ -117,3 +120,12 @@ The `v2026.09.19` release source is validated for publication. This statement
 records the locally validated source candidate only; it does not claim that a
 tag, package, signature, notarization result, GitHub release, or Homebrew update
 exists. Each remains a separate fail-closed authority and evidence gate.
+
+The `v2026.10.07` release source is validated for publication. This is local
+source evidence only: full native compatibility and Docker CI parity passed.
+Hosted compatibility/CodeQL, current-head security finding disposition, native
+ARM/Intel package reproduction and lifecycle, signing/notarization, public-byte
+verification and Homebrew publication remain release gates. Do not tag or
+publish until these gates and their operator authorities are satisfied. The
+candidate freshness check passes without an exception; August publication age
+remains overdue and must not be represented as a fresh release.
