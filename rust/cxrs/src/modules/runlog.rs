@@ -256,12 +256,18 @@ fn base_run_row(tool: &str, cwd: String, scope: String, root: String) -> Executi
 }
 
 fn finalize_and_append_run(run_log: &std::path::Path, row: ExecutionLog) -> Result<(), String> {
+    if !crate::runtime::logging_enabled() {
+        return Ok(());
+    }
     validate_execution_log_row(&row)?;
     let value = serde_json::to_value(row).map_err(|e| format!("failed serialize run log: {e}"))?;
     append_jsonl(run_log, &value)
 }
 
 pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
+    if !crate::runtime::logging_enabled() {
+        return Ok(());
+    }
     let run_log = resolve_log_file().ok_or_else(|| "unable to resolve run log file".to_string())?;
     let (cwd, root, scope) = cwd_scope_root();
 
@@ -325,6 +331,9 @@ pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
 }
 
 pub fn log_task_run_all_summary(input: TaskRunAllSummaryLogInput<'_>) -> Result<(), String> {
+    if !crate::runtime::logging_enabled() {
+        return Ok(());
+    }
     let run_log = resolve_log_file().ok_or_else(|| "unable to resolve run log file".to_string())?;
     let (cwd, root, scope) = cwd_scope_root();
     let mut row = base_run_row("cxtask_runall", cwd, scope, root);
@@ -382,6 +391,10 @@ pub fn log_schema_failure(
         "raw_sha256": sha256_hex(raw)
     });
     append_jsonl(&schema_fail_log, &failure_row)?;
+
+    if !crate::runtime::logging_enabled() {
+        return Ok(qid);
+    }
 
     let run_log = resolve_log_file().ok_or_else(|| "unable to resolve run log file".to_string())?;
     let (cwd, root, scope) = cwd_scope_root();

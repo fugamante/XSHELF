@@ -183,6 +183,11 @@ export CX_LOG_FILE=/tmp/xshelf-runs.jsonl
 /path/to/xshelf/bin/xshelf trace
 ```
 
+Set `CXLOG_ENABLED=0` to suppress run telemetry, including capture rows. This
+does not disable separate schema-failure quarantine evidence. `xshelf where`
+passes requested command names and repository paths as data during Bash route
+inspection; names cannot add shell commands.
+
 Command aliases:
 
 | Command | Role |

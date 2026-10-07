@@ -101,6 +101,13 @@ publication. Passing age does not establish asset integrity or release signoff.
   credential authority remediation only after independent merged-source
   verification. Review the remaining live findings and release impact before
   publication. Do not treat command admission as Docker isolation.
+- Require merged-source verification of canonical native reproduction root
+  ownership and cleanup before packaging. Synthetic filesystem regressions do
+  not replace the two-build native archive evidence or the separate Intel gate.
+- Require merged-source verification of route lookup argument/path isolation and
+  `CXLOG_ENABLED=0` run-log opt-out before release. Review remaining live medium
+  findings on the exact candidate; a passing PR exception is not release
+  readiness.
 - Prepare truthful candidate version/release notes and run the complete pre-tag
   checklist on its exact head. Resolve unavailable platform/signing evidence or
   record the release decision before tagging, packaging or publication.
