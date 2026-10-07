@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fcntl
 import hashlib
 import json
 import os
 import platform
+import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -18,6 +21,7 @@ from pathlib import Path
 
 MARKER = ".xshelf-reproduction-root"
 LOCK = ".xshelf-reproduction-lock"
+RECEIPT = ".xshelf-reproduction-receipt"
 POLICY = "xshelf-canonical-native.v1"
 
 
@@ -29,19 +33,90 @@ def _resolved(path: Path) -> Path:
     return path.expanduser().resolve(strict=False)
 
 
-def _marker_text(root: Path) -> str:
-    return json.dumps({"policy": POLICY, "root": str(root)}, sort_keys=True) + "\n"
+def _marker_text(root: Path, token: str) -> str:
+    return json.dumps({"policy": POLICY, "root": str(root), "token": token}, sort_keys=True) + "\n"
+
+
+def _receipt_path(root: Path) -> Path:
+    return root.parent / f"{root.name}{RECEIPT}"
+
+
+def _read_receipt(root: Path) -> str:
+    receipt = _receipt_path(root)
+    try:
+        fd = os.open(receipt, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, "r", encoding="ascii") as stream:
+            info = os.fstat(stream.fileno())
+            token = stream.read(66)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) & 0o077
+            or len(token) != 65
+            or not token.endswith("\n")
+            or any(ch not in "0123456789abcdef" for ch in token[:-1])
+        ):
+            raise ReproductionError(f"invalid canonical-root receipt: {receipt}")
+        current = receipt.lstat()
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+            raise ReproductionError(f"canonical-root receipt changed: {receipt}")
+        return token[:-1]
+    except OSError as exc:
+        raise ReproductionError(f"missing or unsafe canonical-root receipt: {receipt}") from exc
+
+
+def _owned_dir(path: Path, *, shared_prefix: bool = False) -> os.stat_result:
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode):
+        raise ReproductionError(f"not a directory: {path}")
+    mode = stat.S_IMODE(info.st_mode)
+    private = info.st_uid == os.geteuid() and mode & 0o077 == 0
+    # A root-owned sticky temporary directory protects entries owned by us.
+    sticky_prefix = (
+        shared_prefix
+        and info.st_uid == 0
+        and mode & stat.S_ISVTX != 0
+        and mode & 0o022 == 0o022
+    )
+    if not (private or sticky_prefix):
+        raise ReproductionError(f"directory has unsafe owner or permissions: {path}")
+    return info
+
+
+def _safe_ancestors(path: Path) -> None:
+    for parent in path.parents:
+        info = parent.lstat()
+        mode = stat.S_IMODE(info.st_mode)
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or info.st_uid not in (0, os.geteuid())
+            or (
+                mode & 0o022
+                and not (info.st_uid == 0 and mode & stat.S_ISVTX)
+            )
+        ):
+            raise ReproductionError(f"unsafe ancestor of approved path: {parent}")
 
 
 def assert_owned_root(root: Path) -> None:
     marker = root / MARKER
-    if root.is_symlink() or not root.is_dir():
-        raise ReproductionError(f"canonical root is not an owned directory: {root}")
-    if (
-        marker.is_symlink()
-        or not marker.is_file()
-        or marker.read_text(encoding="utf-8") != _marker_text(root)
-    ):
+    _owned_dir(root)
+    expected = _marker_text(root, _read_receipt(root))
+    try:
+        fd = os.open(marker, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) & 0o022
+                or stream.read(len(expected) + 1) != expected
+            ):
+                raise ReproductionError(f"canonical root has an invalid marker: {root}")
+    except OSError as exc:
+        raise ReproductionError(f"canonical root is unowned or has an invalid marker: {root}") from exc
+    current = marker.lstat()
+    if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
         raise ReproductionError(f"canonical root is unowned or has an invalid marker: {root}")
 
 
@@ -51,12 +126,10 @@ def validate_root(root: Path, approved_prefix: Path) -> tuple[Path, Path]:
         raise ReproductionError("canonical root must not be a symlink")
     root = _resolved(root)
     approved_prefix = _resolved(approved_prefix)
-    if not approved_prefix.is_dir():
-        raise ReproductionError(
-            f"approved temporary prefix is not an existing directory: {approved_prefix}"
-        )
     if approved_prefix == Path(approved_prefix.anchor):
         raise ReproductionError("filesystem root is not an approved temporary prefix")
+    _owned_dir(approved_prefix, shared_prefix=True)
+    _safe_ancestors(approved_prefix)
     if root.parent != approved_prefix or root == approved_prefix:
         raise ReproductionError(
             f"canonical root must be one direct child of approved prefix {approved_prefix}"
@@ -75,51 +148,109 @@ def validate_output(output: Path, approved_prefix: Path, root: Path) -> Path:
         raise ReproductionError("evidence output must remain inside the approved prefix")
     if output == root or root in output.parents:
         raise ReproductionError("evidence output must be outside the canonical root")
+    for parent in output.parents:
+        if parent == approved_prefix:
+            break
+        if parent.exists() or parent.is_symlink():
+            _owned_dir(parent)
     return output
+
+
+def create_private_output(output: Path, approved_prefix: Path) -> None:
+    missing = []
+    parent = output.parent
+    while parent != approved_prefix:
+        if parent.exists() or parent.is_symlink():
+            _owned_dir(parent)
+            break
+        missing.append(parent)
+        parent = parent.parent
+    for path in reversed(missing):
+        path.mkdir(mode=0o700)
+        _owned_dir(path)
+    output.mkdir(mode=0o700)
+    _owned_dir(output)
 
 
 def create_root(root: Path) -> None:
     if not root.exists():
+        token = secrets.token_hex(32)
+        fd = os.open(_receipt_path(root), os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as stream:
+            stream.write(token + "\n")
         root.mkdir(mode=0o700)
-        (root / MARKER).write_text(
-            _marker_text(root),
-            encoding="utf-8",
-        )
+        _owned_dir(root)
+        fd = os.open(root / MARKER, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(_marker_text(root, token))
+    assert_owned_root(root)
 
 
 def clear_root(root: Path) -> None:
     assert_owned_root(root)
-    for child in root.iterdir():
-        if child.name == MARKER:
-            continue
-        if child.is_symlink() or child.is_file():
-            child.unlink()
-        elif child.is_dir():
-            if child.is_mount():
-                raise ReproductionError(f"refusing to clear mounted canonical-root entry: {child}")
-            shutil.rmtree(child)
-        else:
-            raise ReproductionError(f"unsupported canonical-root entry: {child}")
-    remaining = sorted(path.name for path in root.iterdir())
-    if remaining != [MARKER]:
-        raise ReproductionError(f"canonical root could not be completely cleared: {root}")
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        identity = os.fstat(root_fd)
+        current = root.lstat()
+        if (current.st_dev, current.st_ino) != (identity.st_dev, identity.st_ino):
+            raise ReproductionError(f"canonical root changed during use: {root}")
+        with os.scandir(root_fd) as entries:
+            names = [entry.name for entry in entries]
+        for name in names:
+            if name == MARKER:
+                continue
+            child = root / name
+            info = os.stat(name, dir_fd=root_fd, follow_symlinks=False)
+            if stat.S_ISLNK(info.st_mode) or stat.S_ISREG(info.st_mode):
+                os.unlink(name, dir_fd=root_fd)
+            elif stat.S_ISDIR(info.st_mode):
+                if child.is_mount() or info.st_dev != identity.st_dev:
+                    raise ReproductionError(f"refusing to clear mounted canonical-root entry: {child}")
+                for base, dirs, _files in os.walk(child, followlinks=False):
+                    for subname in dirs:
+                        descendant = Path(base) / subname
+                        if descendant.is_symlink():
+                            continue
+                        if descendant.is_mount() or descendant.lstat().st_dev != identity.st_dev:
+                            raise ReproductionError(
+                                f"refusing to clear mounted canonical-root entry: {descendant}"
+                            )
+                shutil.rmtree(name, dir_fd=root_fd)
+            else:
+                raise ReproductionError(f"unsupported canonical-root entry: {child}")
+        if os.listdir(root_fd) != [MARKER]:
+            raise ReproductionError(f"canonical root could not be completely cleared: {root}")
+        current = root.lstat()
+        if (current.st_dev, current.st_ino) != (identity.st_dev, identity.st_ino):
+            raise ReproductionError(f"canonical root changed during use: {root}")
+    finally:
+        os.close(root_fd)
 
 
 @contextlib.contextmanager
 def root_lock(approved_prefix: Path, root: Path):
     lock = approved_prefix / f"{root.name}{LOCK}"
+    _owned_dir(approved_prefix, shared_prefix=True)
+    fd = None
     try:
-        lock.mkdir(mode=0o700)
-    except FileExistsError as exc:
+        fd = os.open(lock, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise ReproductionError(f"canonical root has an unsafe lock: {lock}")
+        current = lock.lstat()
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+            raise ReproductionError(f"canonical root lock changed: {lock}")
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (OSError, ReproductionError) as exc:
+        if fd is not None:
+            os.close(fd)
+        if isinstance(exc, ReproductionError):
+            raise
         raise ReproductionError(f"canonical root is active or locked: {root}") from exc
     try:
-        (lock / "owner.json").write_text(
-            json.dumps({"pid": os.getpid(), "root": str(root)}, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
         yield
     finally:
-        shutil.rmtree(lock)
+        os.close(fd)
 
 
 def run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
@@ -357,7 +488,7 @@ def main(argv: list[str] | None = None) -> int:
                 raise ReproductionError(f"output directory already exists: {output}")
             create_root(root)
             snapshots = output / ".snapshots"
-            output.mkdir(parents=True)
+            create_private_output(output, prefix)
             created_output = True
             results = []
             try:
@@ -407,6 +538,8 @@ def main(argv: list[str] | None = None) -> int:
                 clear_root(root)
                 (root / MARKER).unlink()
                 root.rmdir()
+                _read_receipt(root)
+                _receipt_path(root).unlink()
         print(json.dumps(evidence, sort_keys=True))
         return 0
     except (OSError, ReproductionError) as exc:
