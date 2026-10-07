@@ -3,13 +3,13 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.10.07` (published with signed/notarized native macOS archives; Homebrew PR #19 pending)
+- `2026.10.07` (published with signed/notarized native macOS archives and the Homebrew archive formula)
 
 Current published release:
 
 | Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.10.07` | 2026-10-07 | Published; signed/notarized ARM and Intel archives, verified public bytes; Homebrew PR #19 pending. No new bottle. | Consolidated maintenance/security fixes and independent release health. |
+| `v2026.10.07` | 2026-10-07 | Published; signed/notarized ARM and Intel archives, verified public bytes and Homebrew archive delivery. No new bottle. | Consolidated maintenance/security fixes and independent release health. |
 
 Published assets:
 

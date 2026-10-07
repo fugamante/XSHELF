@@ -102,10 +102,9 @@ publication. Passing age does not establish asset integrity or release signoff.
 
 ### Recovery outcome (2026-10-07)
 
-GitHub publication and the age gate recovered on October 7; the October 9
-plan still requires Homebrew PR #19 native qualification and integration. `v2026.10.07` is published with
+The October 9 target completed on October 7. `v2026.10.07` is published with
 signed/notarized native ARM and Intel archives, verified anonymous public bytes,
-and a proposed Homebrew archive formula. Both native reproduction/lifecycle gates passed
+and a Homebrew archive formula. Both native reproduction/lifecycle gates passed
 on `f3525c08f76d58dd441a19391277a6d2058e1dbc`; six logging alerts were dispositioned
 as false positives. Fresh GitHub publication-age evidence passes. Retain the
 recovery plan below as the decision record, rather than using VERSION-only bumps.

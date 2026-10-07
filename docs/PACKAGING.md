@@ -2,7 +2,7 @@
 
 This packaging track builds and validates the native XSHELF CLI distribution.
 The signed and notarized `v2026.10.07` macOS archives, checksum manifest,
-sanitized notarization evidence are published. Homebrew PR #19 awaits native qualification.
+sanitized notarization evidence, and Homebrew archive formula are published.
 No new bottle is included in this release; August bottle provenance remains
 historical evidence in the tap.
 
@@ -22,10 +22,13 @@ timestamps, and Apple accepted both notarization submissions. The five
 anonymous public downloads match the sealed signed inventory. Native Intel
 reproduction, runtime and lifecycle evidence is retained in workflow
 [37576041904](https://github.com/fugamante/XSHELF/actions/runs/37576041904).
-ARM signed-package and proposed public-formula lifecycle checks passed locally.
+ARM signed-package and production-formula install/test passed locally.
+The tap native ARM/Intel signature, relocation and upgrade qualifications passed
+in [37633497731](https://github.com/fugamante/homebrew-tap/actions/runs/37633497731);
+tap PR #19 is merged.
 The formula preserves the tap's macOS Sequoia 15 support floor.
 Archive-embedded documentation is the immutable pre-publication source snapshot.
-The proposed source formula is tracked in https://github.com/fugamante/homebrew-tap/pull/19.
+The source formula is published at https://github.com/fugamante/homebrew-tap.
 
 ## Product Boundary
 

@@ -2,9 +2,9 @@
 
 ## Now (0-4 weeks)
 
-- GitHub publication recovery completed October 7, 2026, ahead of the October 9 target:
+- Release recovery completed October 7, 2026, ahead of the October 9 target:
   `v2026.10.07` publishes the frozen maintenance source with signed/notarized
-  native archives, verified public bytes; Homebrew PR #19 pending. The
+  native archives, verified public bytes and Homebrew archive delivery. The
   explicit publication-age audit passes. Resume release preparation when
   meaningful changes are selected or the cadence threshold needs review;
   do not advance VERSION solely to reset either age clock.
@@ -67,8 +67,8 @@
   ARM and Intel reproduction/runtime/lifecycle, signing and notarization.
   Six logging alerts were dispositioned as false positives at their exact sinks.
 - `v2026.10.07` is published; its two signed/notarized native archives,
-  checksum manifest and sanitized Apple evidence are available; Homebrew
-  archive-formula publication awaits PR #19. No new bottle is included. September remains an unpublished
+  checksum manifest, sanitized Apple evidence and Homebrew archive formula
+  are available. No new bottle is included. September remains an unpublished
   superseded candidate. Publication age passes from fresh GitHub API evidence.
 
 ## Next (1-2 months)

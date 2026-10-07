@@ -5,9 +5,9 @@ Snapshot date: 2026-10-07
 ## Release recovery completed (2026-10-07)
 
 `v2026.10.07` is published from frozen source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
-GitHub publication is complete; Homebrew qualification remains in PR #19. Completed gates: native ARM/Intel reproduction and
+The October 9 recovery target is complete: native ARM/Intel reproduction and
 runtime/lifecycle, Developer ID signing, accepted Apple notarization, anonymous
-public-byte verification are complete. Fresh
+public-byte verification and Homebrew archive delivery are complete. Fresh
 GitHub API publication-age evidence passes. The six logging alerts were
 statically dispositioned as false positives; no runtime source changed.
 
@@ -64,8 +64,9 @@ Current published release:
   two clean builds, runtime, relocation and isolated Homebrew lifecycle.
 - Both binaries are Developer ID signed with hardened runtime and secure
   timestamps; Apple accepted both notarization submissions. Public downloads
-  match the exact signed inventory. Signed ARM Homebrew lifecycle passed.
-- The proposed archive formula in tap PR #19 preserves
+  match the exact signed inventory. Signed ARM Homebrew lifecycle and production-formula install/test passed;
+  both native tap qualification jobs passed in run `37633497731` (PR #19).
+- The archive formula is published in `fugamante/homebrew-tap` and preserves
   its macOS Sequoia floor. No new bottle is included in this release.
 
 ## Release Candidate Validation
@@ -112,7 +113,7 @@ exists. Each remains a separate fail-closed authority and evidence gate.
 
 The `v2026.10.07` release source is validated for publication. The
 `v2026.10.07` release is cut. The annotated tag preserves `f3525c08f76d58dd441a19391277a6d2058e1dbc`;
-GitHub publishes five verified signed/notarized assets. Homebrew archive-formula
-publication awaits PR #19, using those immutable URLs and hashes. The publication-age
+GitHub publishes five verified signed/notarized assets, and Homebrew publishes
+an archive formula from those immutable URLs and hashes. The publication-age
 recovery gate is complete. Future source changes require their own validation;
 this signoff does not cover a later candidate.
