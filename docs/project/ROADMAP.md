@@ -65,7 +65,7 @@
 
 ## Next (1-2 months)
 
-- `v2026.09.19` is the current unpublished release candidate; use
+- `v2026.10.07` is the current unpublished maintenance candidate; use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a

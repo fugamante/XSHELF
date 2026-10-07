@@ -40,6 +40,7 @@ fi
 
 echo "guardrails: python3 -m unittest tools.test_release_check"
 python3 -m unittest tools.test_release_check
+python3 "$REPO_ROOT/test/release_workflow_test.py"
 
 echo "guardrails: packaging lifecycle tests"
 python3 "$REPO_ROOT/test/branch_audit_test.py"

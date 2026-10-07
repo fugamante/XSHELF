@@ -2,6 +2,7 @@ name: cxrs-compat
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches:
       - main
@@ -238,19 +239,16 @@ jobs:
 
       - name: Release Metadata Guard Tests
         run: |
+          python3 test/release_workflow_test.py
           cd rust/cxrs
           python3 -m unittest tools.test_release_check
 
-      - name: Release Metadata Check
+      - name: Release Metadata Integrity
         run: |
           cd rust/cxrs
           python3 tools/release_check.py \
             --repo-root "$GITHUB_WORKSPACE" \
-            --max-version-age-days 14 \
-            --require-published-status-docs \
-            --cadence-exception-label release-exception \
-            --event-name "${{ github.event_name }}" \
-            --event-path "${{ github.event_path }}"
+            --require-published-status-docs
 
       - name: Compat check
         run: |
@@ -361,6 +359,54 @@ jobs:
           path: ${{ env.CXRS_ARTIFACT_DIR }}
           retention-days: 14
           if-no-files-found: ignore
+
+  release-health:
+    # Calendar freshness must not short-circuit compatibility/security evidence.
+    needs: compat-check
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout release metadata and tags
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Candidate age
+        run: |
+          python3 rust/cxrs/tools/release_check.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --max-version-age-days 14 \
+            --require-published-status-docs \
+            --cadence-exception-label release-exception \
+            --event-name "${{ github.event_name }}" \
+            --event-path "${{ github.event_path }}"
+
+      - name: Published release age
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/latest-release.json"
+          python3 rust/cxrs/tools/release_check.py \
+            --published-release-json "$RUNNER_TEMP/latest-release.json" \
+            --max-published-age-days 14
+
+      - name: Release health summary
+        if: always()
+        run: |
+          {
+            echo '## Release health'
+            echo 'Candidate and publication ages are separate strict 14-day checks.'
+            echo 'A PR release-exception defers candidate age only; publication age stays strict.'
+            echo 'Compatibility and security evidence runs before this independent job.'
+            echo 'Owner and recovery plan: docs/project/RELEASE_CADENCE.md.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   intel-package:
     if: github.event_name == 'workflow_dispatch'

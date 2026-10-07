@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-09-19
+Snapshot date: 2026-10-07
 
 ## Release recovery review (2026-10-06)
 
@@ -33,7 +33,7 @@ Current merged readiness floor:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
   parity modes with explicit report metadata.
-- release cadence metadata is refreshed for the `v2026.09.19` candidate.
+- candidate age and publication age are independent of compatibility evidence.
 - the Docker strategy has landed guarded floors for maintainer parity, CI parity,
   task sandboxing, provider sidecar contract documentation, and explicit image
   provenance.
@@ -41,9 +41,12 @@ Current merged readiness floor:
   `task-check.v1` contract shape.
 
 Current release candidate:
-- `VERSION` is `2026.09.19`.
-- `v2026.09.19` release source is validated, with tagging, packaging, signing,
-  notarization, GitHub publication, and Homebrew publication still pending.
+- `VERSION` is `2026.10.07`, a selected maintenance candidate containing the
+  September candidate and merged security fixes through `1f6007831eb5cbd252fa5f6d7940652e86101b76`.
+- Exact-source validation, native ARM/Intel package reproduction, signing,
+  notarization, GitHub publication, and Homebrew publication remain pending.
+- Release health is a separate strict job after compatibility/security checks;
+  this candidate selection does not refresh the August publication timestamp.
 - The candidate adds bounded task prompt inputs, stderr progress, additive
   normalization diagnostics, and isolated Git context for pre-push validation
   while preserving existing structured command and telemetry contracts.

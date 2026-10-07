@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.10.07` (2026-10-07 candidate; publication pending): Consolidated maintenance/security fixes and independent release-health checks.
+
 - `v2026.09.19` (2026-09-19): Bounded task workflow observability and atomic sealed release-inventory publication.
 - `v2026.08.29` (2026-08-29): Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls.
 - `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
@@ -21,8 +23,13 @@ Notes:
 
 ## [Unreleased]
 
+## [v2026.10.07] - 2026-10-07 (candidate; publication pending)
+
 ### Changed
 
+- Compatibility and security checks finish before a separate strict release-health
+  job checks candidate and publication ages. Label changes refresh candidate
+  exception evidence; publication age cannot be bypassed.
 - Release planning audits actual GitHub publication age separately from VERSION
   commit age. Explicit API evidence and a positive age limit are required; PR
   cadence exceptions do not bypass the publication audit. Existing checks retain
