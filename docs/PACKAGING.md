@@ -279,10 +279,22 @@ python3 scripts/reproduce_packages.py \
 ```
 
 The canonical root must be one direct child of the approved temporary prefix.
-An existing root is accepted only when its marker exactly names that resolved
-path and the `xshelf-canonical-native.v1` policy. A sibling lock prevents
-concurrent use. Both builds reuse the same absolute source, HOME, Cargo, temp,
-XDG, output, and checkout-owned target paths, but the harness removes and
+An existing root is accepted only when it is owned by the current user, is
+private to that user, and has a current-user-owned regular marker that exactly
+names the resolved path, a private sibling receipt, and the
+`xshelf-canonical-native.v1` policy. Existing roots from older harnesses lack
+the receipt and must be inspected and moved aside by their owner before reuse.
+The approved prefix must be private and current-user-owned or a root-owned sticky
+temporary directory such as `/tmp`; unsafe writable ancestors and nested
+evidence-output parents are refused. On macOS, access-granting ACLs are refused
+on the prefix, its ancestors, root, marker, receipt, lock, and output directories;
+deny-only ACLs remain valid.
+The hosted native Intel workflow creates a private child of its runner temp
+directory for this purpose. A persistent private sibling file lock
+prevents concurrent use without deleting a lock pathname after use. A pre-existing
+root with unsafe ownership or permissions must be moved aside by its owner;
+the harness does not adopt or remove it. Both builds reuse the same absolute
+source, HOME, Cargo, temp, XDG, output, and checkout-owned target paths, but the harness removes and
 verifies all owned state before each clone. It refuses dirty or wrong revisions,
 compares archive, executable, UUID, platform-observed linker signing state,
 CDHash when present, manifest, and provenance bytes, writes

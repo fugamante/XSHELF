@@ -423,13 +423,15 @@ jobs:
             --manifest-path rust/cxrs/Cargo.toml \
             --test package_runtime -- --test-threads=1
 
-          packages="$evidence/packages"
+          canonical_prefix="$RUNNER_TEMP/xshelf-native-private"
+          mkdir -m 700 "$canonical_prefix"
+          packages="$canonical_prefix/packages"
           python3 ./scripts/reproduce_packages.py \
             --source-repo "$GITHUB_WORKSPACE" \
             --revision "$package_revision" \
             --target x86_64-apple-darwin \
-            --approved-prefix "$RUNNER_TEMP" \
-            --canonical-root "$RUNNER_TEMP/xshelf-canonical-native" \
+            --approved-prefix "$canonical_prefix" \
+            --canonical-root "$canonical_prefix/xshelf-canonical-native" \
             --output-dir "$packages"
           version="$(tr -d '[:space:]' < VERSION)"
           archive="$packages/xshelf-${version}-x86_64-apple-darwin.tar.gz"
