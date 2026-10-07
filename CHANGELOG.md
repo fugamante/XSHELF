@@ -4,7 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
-- `v2026.09.19` (2026-09-19): Bounded task workflow observability and atomic sealed release-inventory publication.
+- `v2026.10.07` (2026-10-07 candidate; publication pending): Consolidated maintenance/security fixes and independent release-health checks.
+
+- `v2026.09.19` (superseded unpublished candidate): Included in `v2026.10.07`.
 - `v2026.08.29` (2026-08-29): Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls.
 - `v2026.08.25` (2026-08-25): Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation.
 - `v2026.08.20` (2026-08-20): Phase XI capture-reduction reliability and linked-worktree Docker validation parity.
@@ -20,6 +22,20 @@ Notes:
 - This file tracks rolling changes under `Unreleased` until the next tagged release.
 
 ## [Unreleased]
+
+## [v2026.10.07] - 2026-10-07 (candidate; publication pending)
+
+### Changed
+
+- Compatibility and security checks finish before a separate strict release-health
+  job checks candidate and publication ages. Label changes refresh candidate
+  exception evidence; publication age cannot be bypassed.
+- Release planning audits actual GitHub publication age separately from VERSION
+  commit age. Explicit API evidence and a positive age limit are required; PR
+  cadence exceptions do not bypass the publication audit. Existing checks retain
+  their behavior when publication audit options are omitted.
+- Publication evidence requires a complete date, time, and explicit timezone;
+  date-only strings with apparent offsets cannot fabricate a midnight timestamp.
 
 ### Fixed
 
@@ -81,9 +97,9 @@ Notes:
   rejected instead of silently reset. Historical snapshot restoration retains
   exact revision/digest checks even when multiple revisions contain identical state.
 
-## [v2026.09.19] - 2026-09-19
+### Included from the superseded September candidate
 
-### Added
+#### Added
 - Bound task objective/context prompt text with `CX_TASK_OBJECTIVE_MAX_CHARS`,
   `CX_TASK_OBJECTIVE_MAX_LINES`, `CX_TASK_CONTEXT_MAX_CHARS`, and
   `CX_TASK_CONTEXT_MAX_LINES`. Defaults derive from the configured capture budget;
@@ -95,7 +111,7 @@ Notes:
   mode starts with `legacy`. Migrated rows can also count as modern; presence does
   not imply value validity. Existing keys and contract versions remain unchanged.
 
-### Fixed
+#### Fixed
 - Updated the transitive Rust TLS stack to `rustls` 0.23.45, `rustls-webpki`
   0.103.15, `aws-lc-rs` 1.18.1, and `aws-lc-sys` 0.45.0 to remediate
   `RUSTSEC-2026-0285` while preserving the existing HTTP/TLS interface.

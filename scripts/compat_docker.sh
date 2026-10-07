@@ -232,6 +232,7 @@ report = {
         "workflow": ".github/workflows/cxrs-compat.yml",
         "intentional_deltas": [
             "github-event-payload-dependent command-surface diff checks",
+            "independent hosted release-health and fresh publication API evidence",
             "hosted-runner setup and cache action behavior",
             "workflow inline contract smoke snippets",
             "artifact upload/download behavior",
@@ -298,7 +299,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
   if [[ "$MODE" == "smoke" ]]; then
     run_report_step \
       "release_metadata_guard_tests" \
-      "cd /work/rust/cxrs && python3 -m unittest tools.test_release_check"
+      "cd /work && python3 test/release_workflow_test.py && cd rust/cxrs && python3 -m unittest tools.test_release_check"
     run_report_step \
       "release_metadata_check" \
       "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --max-version-age-days 14 --require-published-status-docs"
@@ -338,7 +339,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "cd /work/rust/cxrs && python3 tools/quality_gate.py --max-file-lines 100000 --max-fn-lines 100000 --max-raw-eprintln 0"
     run_report_step \
       "release_metadata_guard_tests" \
-      "cd /work/rust/cxrs && python3 -m unittest tools.test_release_check"
+      "cd /work && python3 test/release_workflow_test.py && cd rust/cxrs && python3 -m unittest tools.test_release_check"
     run_report_step \
       "release_metadata_check" \
       "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --max-version-age-days 14 --require-published-status-docs"

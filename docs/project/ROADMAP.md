@@ -2,6 +2,13 @@
 
 ## Now (0-4 weeks)
 
+- Release recovery: maintainer review/cut target October 9, 2026. Freeze the
+  maintenance scope, reconcile candidate/security notes, validate the exact
+  source, then complete native packaging and publication gates. Publication
+  age must pass the explicit audit in `RELEASE_CADENCE.md`; VERSION changes
+  alone cannot close this milestone. Historical candidate validation does not
+  cover later merges. Record a blocker and revised date if the target slips.
+
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Security remediation sequence: preserve anchored log migration, explicit MLX
   registry argument trust, selected benchmark scripts and private output storage.
@@ -55,10 +62,16 @@
   pre-push Git context, and atomic sealed-inventory publication across Linux and
   macOS. Tagging, packaging, signing, notarization, and publication remain
   separate release gates.
+- `v2026.10.07` release source is validated; consolidated maintenance source
+  passes native full guardrails/compatibility and Docker CI parity. The October 9
+  plan next requires hosted checks, exact-head security finding disposition,
+  native ARM/Intel package reproduction and lifecycle, then separately authorized
+  tagging, signing/notarization and publication. September source is superseded;
+  the published release remains August 29.
 
 ## Next (1-2 months)
 
-- `v2026.09.19` is the current unpublished release candidate; use
+- `v2026.10.07` is the current unpublished maintenance candidate; use
   `./scripts/release_pretag_check.sh` so changelog/history coherence is
   validated before tagging.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a

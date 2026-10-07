@@ -29,6 +29,85 @@ MODULE_SPEC.loader.exec_module(release_check)
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_publication_age_uses_actual_timestamp(self) -> None:
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        payload = {"tag_name": "v2026.08.29", "draft": False,
+                   "prerelease": False, "published_at": "2026-08-29T18:44:31Z"}
+        self.assertIn("is overdue", release_check.validate_publication(payload, now, 14))
+        payload["published_at"] = (now - timedelta(days=14)).isoformat()
+        self.assertIsNone(release_check.validate_publication(payload, now, 14))
+        payload["published_at"] = (now - timedelta(days=14, seconds=1)).isoformat()
+        self.assertIn("is overdue", release_check.validate_publication(payload, now, 14))
+
+    def test_publication_rejects_unusable_evidence(self) -> None:
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        valid = {"tag_name": "v2026.10.06", "draft": False,
+                 "prerelease": False, "published_at": "2026-10-05T00:00:00Z"}
+        for payload in [None, {}, {**valid, "draft": True},
+                        {**valid, "prerelease": True},
+                        {**valid, "tag_name": "v2026.10.06-rc1"},
+                        {**valid, "published_at": "2026-10-07T00:00:00Z"},
+                        {**valid, "published_at": "2026-10-05T00:00:00"},
+                        {**valid, "published_at": "2026-10-05+00:00"},
+                        {**valid, "published_at": "2026-10-05Z"},
+                        {**valid, "published_at": "2026-10-05T00:00:00+99:00"},
+                        {**valid, "published_at": "invalidZ"}]:
+            with self.subTest(payload=payload):
+                self.assertIsNotNone(release_check.validate_publication(payload, now, 14))
+
+    def test_publication_normalizes_aware_offsets(self) -> None:
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        payload = {"tag_name": "v2026.10.05", "draft": False, "prerelease": False}
+        for value in ("2026-10-05T20:00:00-04:00", "2026-10-06T00:00:00.000Z",
+                      "2026-10-06T05:30:00+05:30"):
+            with self.subTest(value=value):
+                self.assertIsNone(release_check.validate_publication(
+                    {**payload, "published_at": value}, now, 14))
+
+    def test_publication_cannot_use_candidate_exception(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo)
+            commit_all(repo, "fresh candidate", days_ago=1)
+            evidence = repo / "publication.json"
+            evidence.write_text(json.dumps({"tag_name": "v2026.06.03",
+                "draft": False, "prerelease": False,
+                "published_at": "2026-06-03T00:00:00Z"}), encoding="utf-8")
+            event = repo / "event.json"
+            event.write_text(json.dumps({"pull_request": {"labels": [
+                {"name": "release-exception"}]}}), encoding="utf-8")
+            result = subprocess.run(["python3", str(SCRIPT_PATH), "--repo-root", str(repo),
+                "--published-release-json", str(evidence), "--max-published-age-days", "14",
+                "--event-name", "pull_request", "--event-path", str(event)],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("is overdue", result.stdout)
+
+    def test_publication_cli_evidence_paths(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo)
+            commit_all(repo, "candidate", days_ago=1)
+            evidence = repo / "publication.json"
+            base = ["python3", str(SCRIPT_PATH), "--repo-root", str(repo),
+                    "--published-release-json", str(evidence),
+                    "--max-published-age-days", "14"]
+            for content, expected in [
+                (json.dumps({"tag_name": "v2026.06.03", "draft": False,
+                    "prerelease": False, "published_at":
+                    (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()}), 0),
+                ("{", 1), ("[]", 1)]:
+                evidence.write_text(content, encoding="utf-8")
+                result = subprocess.run(base, capture_output=True, text=True)
+                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                if expected == 0:
+                    self.assertIn("publication_cadence_ok", result.stdout)
+            evidence.unlink()
+            result = subprocess.run(base, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("unable to read", result.stdout)
+            result = subprocess.run(base[:-2], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("positive age limit", result.stdout)
+
     def test_fresh_version_passes_cadence_check(self) -> None:
         with temp_repo() as repo:
             write_release_files(repo)

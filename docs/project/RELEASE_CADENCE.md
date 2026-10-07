@@ -22,9 +22,10 @@ cd ../..
 ./scripts/check_action_pins.sh .
 ```
 
-`./scripts/guardrails.sh` now covers the release-cadence age check and
-`tools.test_release_check`, so local pre-release validation matches the default
-CI metadata gate before the broader checklist runs. The pre-tag wrapper runs
+`./scripts/guardrails.sh` covers the release-cadence age check and
+`tools.test_release_check`; local release validation stays strict. CI runs
+metadata integrity inside compatibility, then calendar-age checks in the
+independent `release-health` job after compatibility completes. The pre-tag wrapper runs
 `release_check.py` with `--require-current-release-notes` and
 `--require-published-status-docs`; normal development can keep rolling notes
 under `Unreleased` and advance `VERSION` without claiming publication. The
@@ -60,10 +61,44 @@ Validation preference for maintainers:
 
 ## Cadence Enforcement
 
+Candidate age and published-release age are separate controls. A VERSION update
+does not deliver a release to users. `compat-check (ubuntu-latest)` retains version
+consistency, notes/status integrity, and all code/security checks. `release-health`
+depends on compatibility with `if: always()`, so stale metadata cannot suppress
+compatibility, shell regressions or dependency-security evidence. The health job
+does not turn a failed compatibility result green. Branch protection remains
+unchanged: compatibility is required; health remains a separate visible result.
+Release signoff and the pre-tag checklist still require fresh candidate metadata.
+
+At release planning and before closing a release pass, fetch fresh publication
+evidence and run the independent 14-day publication audit:
+
+```bash
+release_audit_dir=$(mktemp -d "${TMPDIR:-/tmp}/xshelf-release-audit.XXXXXX")
+gh api repos/fugamante/XSHELF/releases/latest > "$release_audit_dir/latest.json" &&
+python3 rust/cxrs/tools/release_check.py \
+  --published-release-json "$release_audit_dir/latest.json" \
+  --max-published-age-days 14
+```
+
+The weekly target remains the planning goal; 14 days is the escalation threshold.
+This audit is explicit and read-only locally, and runs in the separate CI health
+job using a fresh read-only GitHub API response. No network calls are added to
+local tests. Use a fresh API response each time; the validator checks its
+contents, not authenticity or retrieval time. Missing, malformed, draft,
+prerelease, future-dated, or overdue evidence fails. `release-exception` cannot
+bypass publication age. An overdue audit requires an owner, blocker, and dated
+recovery plan and stays red until publication. A tag alone cannot establish
+publication. Passing age does not establish asset integrity or release signoff.
+
 - CI enforces release recency with `python3 rust/cxrs/tools/release_check.py --max-version-age-days 14`.
 - The check fails when `VERSION` has not changed for more than 14 days.
 - Temporary bypass is allowed only on pull requests carrying label `release-exception`.
 - Use `release-exception` only with explicit rationale and a follow-up release cut plan.
+- PR label addition/removal triggers fresh checks. It applies to candidate age
+  only, never publication age, compatibility/security checks, or pre-tag signoff.
+- Publication age runs even if candidate age fails. Failure summaries link to
+  this canonical recovery plan. No age failure uses `continue-on-error`.
 
 ### Security maintenance follow-up (2026-10-06)
 
@@ -71,6 +106,12 @@ Validation preference for maintainers:
 - Keep the current `2026.09.19` candidate and its actual modification date until
   preparing a new validated release candidate; source merges do not refresh its
   age or claim publication. Standalone `main` freshness remains red meanwhile.
+- On October 7, select `2026.10.07` as the consolidated maintenance candidate,
+  including merged fixes through `1f6007831eb5cbd252fa5f6d7940652e86101b76` and
+  the release-health separation. The September candidate is superseded without
+  claiming its publication. The new version identifies this concrete release
+  scope; it is not a repeated freshness-only bump. Public August release age
+  remains red until validated assets are actually published.
 - Include the merged execution-filter, installer, anchored log, MLX and
   branch-audit and task-command authority fixes in the next maintenance
   candidate. Include complete Docker runtime/readiness, immutable-image, executable and
@@ -89,6 +130,13 @@ Validation preference for maintainers:
   record the release decision before tagging, packaging or publication.
 - If the target cannot be met, the maintainer records the blocker and a revised
   date. Do not extend the age limit, remove the gate, or claim a release occurred.
+- Freeze maintenance scope and reconcile September candidate notes with merged
+  security fixes under `Unreleased`. Select a new dated candidate only when its
+  exact source is selected; refresh source-validation claims after that head passes.
+- Exit evidence: full native release signoff and Docker CI parity on selected
+  source, Intel/ARM package reproduction, signed/notarized inventory, verified
+  GitHub public bytes and Homebrew lifecycle, and a fresh publication-age audit.
+  External release actions retain separate operator authorization gates.
 
 ## Versioning Policy
 

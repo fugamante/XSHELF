@@ -1,6 +1,16 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-09-19
+Snapshot date: 2026-10-07
+
+## Release recovery review (2026-10-06)
+
+The latest published release remains `v2026.08.29` (GitHub publication time
+2026-08-29T18:44:31Z). Publication cadence is overdue. Source validation below
+is historical September candidate evidence; it does not sign off later security
+merges or a new release head. Reconcile the merged fixes in `Unreleased`, validate
+the exact selected head, and complete native packaging/publication before closure.
+The release maintainer owns the October 9 target in `RELEASE_CADENCE.md`; record
+unavailable gates and any revised date there.
 
 ## Current State
 
@@ -23,7 +33,7 @@ Current merged readiness floor:
   `http_request_profile`, `http_provider_format`, and `http_parser_mode`.
 - local and Docker compatibility scripts distinguish quick, full, smoke, and CI
   parity modes with explicit report metadata.
-- release cadence metadata is refreshed for the `v2026.09.19` candidate.
+- candidate age and publication age are independent of compatibility evidence.
 - the Docker strategy has landed guarded floors for maintainer parity, CI parity,
   task sandboxing, provider sidecar contract documentation, and explicit image
   provenance.
@@ -31,9 +41,15 @@ Current merged readiness floor:
   `task-check.v1` contract shape.
 
 Current release candidate:
-- `VERSION` is `2026.09.19`.
-- `v2026.09.19` release source is validated, with tagging, packaging, signing,
-  notarization, GitHub publication, and Homebrew publication still pending.
+- `VERSION` is `2026.10.07`, a selected maintenance candidate containing the
+  September candidate and merged security fixes through `1f6007831eb5cbd252fa5f6d7940652e86101b76`.
+- `v2026.10.07` release source is validated, with full native guardrails,
+  `compat_local.sh --full`, Docker `compat_docker.sh --ci`, workflow regressions,
+  version consistency, action pinning, line gates and YAML syntax passing.
+  Native ARM/Intel package reproduction, signing, notarization, GitHub
+  publication, and Homebrew publication remain pending.
+- Release health is a separate strict job after compatibility/security checks;
+  this candidate selection does not refresh the August publication timestamp.
 - The candidate adds bounded task prompt inputs, stderr progress, additive
   normalization diagnostics, and isolated Git context for pre-push validation
   while preserving existing structured command and telemetry contracts.
@@ -104,3 +120,12 @@ The `v2026.09.19` release source is validated for publication. This statement
 records the locally validated source candidate only; it does not claim that a
 tag, package, signature, notarization result, GitHub release, or Homebrew update
 exists. Each remains a separate fail-closed authority and evidence gate.
+
+The `v2026.10.07` release source is validated for publication. This is local
+source evidence only: full native compatibility and Docker CI parity passed.
+Hosted compatibility/CodeQL, current-head security finding disposition, native
+ARM/Intel package reproduction and lifecycle, signing/notarization, public-byte
+verification and Homebrew publication remain release gates. Do not tag or
+publish until these gates and their operator authorities are satisfied. The
+candidate freshness check passes without an exception; August publication age
+remains overdue and must not be represented as a fresh release.

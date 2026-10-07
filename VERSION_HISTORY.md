@@ -3,13 +3,13 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.09.19` (release source validated; packaging and publication pending)
+- `2026.10.07` (maintenance source locally validated; packaging and publication pending)
 
 Current release candidate:
 
 | Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.09.19` | 2026-09-19 | Source validated; packaging, signing, notarization, and publication pending. | Bounded task workflow observability and atomic sealed release-inventory publication. |
+| `v2026.10.07` | 2026-10-07 | Source locally validated; hosted checks, native reproduction, signing/notarization and publication pending. | Consolidated maintenance/security fixes, including the September candidate, and independent release health. |
 
 Current published release:
 
@@ -24,6 +24,9 @@ Published assets:
 - `SHA256SUMS`: `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e`
 - Sanitized Apple-notarization evidence is attached beside each archive.
 
+Superseded unpublished candidate: `v2026.09.19`; its changes are included in
+`v2026.10.07`. No September tag or publication is implied.
+
 Historical tagged versions:
 
 | Tag | Date | Summary |
@@ -37,8 +40,10 @@ Historical tagged versions:
 | `v2026.02.21` | 2026-02-20 | Baseline release: schema extraction hardening, strict routing, bootstrap reliability. |
 | `v2026.02.21-20260225T151634Z` | 2026-02-25 | Snapshot milestone: manuals/docs layout and migration hooks. |
 
+Candidate release link (does not establish publication):
+- https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07
+
 Release links:
-- https://github.com/fugamante/XSHELF/releases/tag/v2026.09.19
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.20
