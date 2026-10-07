@@ -2,15 +2,14 @@
 
 Snapshot date: 2026-10-07
 
-## Release recovery review (2026-10-06)
+## Release recovery completed (2026-10-07)
 
-The latest published release remains `v2026.08.29` (GitHub publication time
-2026-08-29T18:44:31Z). Publication cadence is overdue. Source validation below
-is historical September candidate evidence; it does not sign off later security
-merges or a new release head. Reconcile the merged fixes in `Unreleased`, validate
-the exact selected head, and complete native packaging/publication before closure.
-The release maintainer owns the October 9 target in `RELEASE_CADENCE.md`; record
-unavailable gates and any revised date there.
+`v2026.10.07` is published from frozen source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
+GitHub publication is complete; Homebrew qualification remains in PR #19. Completed gates: native ARM/Intel reproduction and
+runtime/lifecycle, Developer ID signing, accepted Apple notarization, anonymous
+public-byte verification are complete. Fresh
+GitHub API publication-age evidence passes. The six logging alerts were
+statically dispositioned as false positives; no runtime source changed.
 
 ## Current State
 
@@ -19,6 +18,8 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
+- `v2026.10.07` is published, and its annotated tag resolves to immutable
+  source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 - `v2026.08.29` is published, and its annotated tag resolves to immutable
   source `b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`.
 - `v2026.08.29` release source is validated, with native ARM and Intel
@@ -40,44 +41,32 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
-Current release candidate:
-- `VERSION` is `2026.10.07`, a selected maintenance candidate containing the
-  September candidate and merged security fixes through `1f6007831eb5cbd252fa5f6d7940652e86101b76`.
+Current maintenance source:
+- `VERSION` is `2026.10.07`, including the superseded September candidate,
+  merged maintenance/security fixes and release-health separation.
 - `v2026.10.07` release source is validated, with full native guardrails,
-  `compat_local.sh --full`, Docker `compat_docker.sh --ci`, workflow regressions,
-  version consistency, action pinning, line gates and YAML syntax passing.
-  Native ARM/Intel package reproduction, signing, notarization, GitHub
-  publication, and Homebrew publication remain pending.
-- Release health is a separate strict job after compatibility/security checks;
-  this candidate selection does not refresh the August publication timestamp.
-- The candidate adds bounded task prompt inputs, stderr progress, additive
-  normalization diagnostics, and isolated Git context for pre-push validation
-  while preserving existing structured command and telemetry contracts.
-- The candidate binds the exact seven-file signed-artifact inventory before an
-  exclusive atomic publication transition. Linux uses an exclusive rename;
-  macOS uses a descriptor-bound sealed-directory clone so older native Intel
-  hosts do not require overwrite-prone directory replacement.
+  local compatibility, Docker CI parity, hosted Linux/macOS compatibility,
+  CodeQL and both native package reproduction/lifecycle gates passing on `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
+- The source binds the exact seven-file signed inventory before exclusive
+  atomic publication; the public GitHub inventory contains five files.
+- Tag-time documentation retains its pre-publication wording as history.
 
 Current published release:
-- The latest published version is `2026.08.29`; the release is available at
-  https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29.
-- Published assets are exactly:
-  - ARM64 archive `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23`;
-  - Intel archive `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c`;
-  - `SHA256SUMS` `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e`;
-  - one sanitized `.notary.json` evidence record per archive.
-- Clean ARM64 canonical reproduction and public Homebrew lifecycle validation
-  passed locally. Native Intel evidence passed in workflow `33268120729`;
-  retained artifact `9719457140` records
-  `runner_arch=x86_64`, `translated=0`, exact controller and source revisions,
-  two clean compilations, runtime, relocation, and the isolated Homebrew
-  lifecycle.
-- Both archive binaries are Developer ID signed with hardened runtime and a
-  secure timestamp, and Apple accepted both notarization submissions. A public
-  source formula is published in `fugamante/homebrew-tap`; no bottle is
-  published.
-- Archive-embedded documentation remains the immutable tag-time snapshot, so
-  its pre-publication wording is historical.
+- The latest published version is `2026.10.07`, available at
+  https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07.
+- Published assets are exactly two native archives, `SHA256SUMS`, and a sanitized
+  `.notary.json` record for each archive:
+- `xshelf-2026.10.07-aarch64-apple-darwin.tar.gz`: `db276dab7662bfbc58ff79968b6c4e9bd3295456d66c858bc93758267ef0b5b1`
+- `xshelf-2026.10.07-x86_64-apple-darwin.tar.gz`: `27af439a84495e6d68e127df5ba1dabaeaebe3593b28497b606abb246fc6686d`
+- `SHA256SUMS`: `1b2ff930dd89ea35538ee571189d0bd7b29647c059e525660be609f26326ff9c`
+- Native Intel evidence passed in workflow `37576041904`, retained artifact
+  `11463034612`, with native x86_64 execution, matching controller/source,
+  two clean builds, runtime, relocation and isolated Homebrew lifecycle.
+- Both binaries are Developer ID signed with hardened runtime and secure
+  timestamps; Apple accepted both notarization submissions. Public downloads
+  match the exact signed inventory. Signed ARM Homebrew lifecycle passed.
+- The proposed archive formula in tap PR #19 preserves
+  its macOS Sequoia floor. No new bottle is included in this release.
 
 ## Release Candidate Validation
 
@@ -101,8 +90,8 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- Homebrew bottles; the signed/notarized archives and source formula are
-  published, while bottles remain deferred
+- New maintenance-release Homebrew bottles; August bottles remain historical,
+  while this release uses the signed/notarized archives
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`
@@ -121,11 +110,9 @@ records the locally validated source candidate only; it does not claim that a
 tag, package, signature, notarization result, GitHub release, or Homebrew update
 exists. Each remains a separate fail-closed authority and evidence gate.
 
-The `v2026.10.07` release source is validated for publication. This is local
-source evidence only: full native compatibility and Docker CI parity passed.
-Hosted compatibility/CodeQL, current-head security finding disposition, native
-ARM/Intel package reproduction and lifecycle, signing/notarization, public-byte
-verification and Homebrew publication remain release gates. Do not tag or
-publish until these gates and their operator authorities are satisfied. The
-candidate freshness check passes without an exception; August publication age
-remains overdue and must not be represented as a fresh release.
+The `v2026.10.07` release source is validated for publication. The
+`v2026.10.07` release is cut. The annotated tag preserves `f3525c08f76d58dd441a19391277a6d2058e1dbc`;
+GitHub publishes five verified signed/notarized assets. Homebrew archive-formula
+publication awaits PR #19, using those immutable URLs and hashes. The publication-age
+recovery gate is complete. Future source changes require their own validation;
+this signoff does not cover a later candidate.

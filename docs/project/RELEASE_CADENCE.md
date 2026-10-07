@@ -100,7 +100,24 @@ publication. Passing age does not establish asset integrity or release signoff.
 - Publication age runs even if candidate age fails. Failure summaries link to
   this canonical recovery plan. No age failure uses `continue-on-error`.
 
-### Security maintenance follow-up (2026-10-06)
+### Recovery outcome (2026-10-07)
+
+GitHub publication and the age gate recovered on October 7; the October 9
+plan still requires Homebrew PR #19 native qualification and integration. `v2026.10.07` is published with
+signed/notarized native ARM and Intel archives, verified anonymous public bytes,
+and a proposed Homebrew archive formula. Both native reproduction/lifecycle gates passed
+on `f3525c08f76d58dd441a19391277a6d2058e1dbc`; six logging alerts were dispositioned
+as false positives. Fresh GitHub publication-age evidence passes. Retain the
+recovery plan below as the decision record, rather than using VERSION-only bumps.
+
+The ordinary pre-push guard infers published status from reachable tags, so a
+new unpublished local tag can make its documentation check circular. This
+release used the authorized annotated-tag API with exact target verification
+after all preceding guards passed. Published-status docs were reconciled only
+after publication. Keep the pre-tag source gate and actual API publication audit
+separate; the frozen archive documentation is a historical snapshot.
+
+### Historical security maintenance plan (2026-10-06)
 
 - Owner: release maintainer. Review/cut target: 2026-10-09.
 - Keep the current `2026.09.19` candidate and its actual modification date until

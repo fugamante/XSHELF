@@ -2,12 +2,12 @@
 
 ## Now (0-4 weeks)
 
-- Release recovery: maintainer review/cut target October 9, 2026. Freeze the
-  maintenance scope, reconcile candidate/security notes, validate the exact
-  source, then complete native packaging and publication gates. Publication
-  age must pass the explicit audit in `RELEASE_CADENCE.md`; VERSION changes
-  alone cannot close this milestone. Historical candidate validation does not
-  cover later merges. Record a blocker and revised date if the target slips.
+- GitHub publication recovery completed October 7, 2026, ahead of the October 9 target:
+  `v2026.10.07` publishes the frozen maintenance source with signed/notarized
+  native archives, verified public bytes; Homebrew PR #19 pending. The
+  explicit publication-age audit passes. Resume release preparation when
+  meaningful changes are selected or the cadence threshold needs review;
+  do not advance VERSION solely to reset either age clock.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Security remediation sequence: preserve anchored log migration, explicit MLX
@@ -56,24 +56,26 @@
   passed from exact source `b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`.
 - `v2026.08.29` is published; its two signed/notarized native archives,
   checksum manifest, sanitized Apple evidence, and public Homebrew source
-  formula are available. No Homebrew bottle is published.
+  formula are available. Later August bottles are recorded in the tap history.
 - `v2026.09.19` release source is validated; the candidate includes bounded task
   prompts, stderr progress, additive normalization diagnostics, isolated
   pre-push Git context, and atomic sealed-inventory publication across Linux and
   macOS. Tagging, packaging, signing, notarization, and publication remain
   separate release gates.
-- `v2026.10.07` release source is validated; consolidated maintenance source
-  passes native full guardrails/compatibility and Docker CI parity. The October 9
-  plan next requires hosted checks, exact-head security finding disposition,
-  native ARM/Intel package reproduction and lifecycle, then separately authorized
-  tagging, signing/notarization and publication. September source is superseded;
-  the published release remains August 29.
+- `v2026.10.07` release source is validated; exact source `f3525c08f76d58dd441a19391277a6d2058e1dbc`
+  passed native guardrails, Docker CI parity, hosted compatibility/CodeQL,
+  ARM and Intel reproduction/runtime/lifecycle, signing and notarization.
+  Six logging alerts were dispositioned as false positives at their exact sinks.
+- `v2026.10.07` is published; its two signed/notarized native archives,
+  checksum manifest and sanitized Apple evidence are available; Homebrew
+  archive-formula publication awaits PR #19. No new bottle is included. September remains an unpublished
+  superseded candidate. Publication age passes from fresh GitHub API evidence.
 
 ## Next (1-2 months)
 
-- `v2026.10.07` is the current unpublished maintenance candidate; use
-  `./scripts/release_pretag_check.sh` so changelog/history coherence is
-  validated before tagging.
+- Keep publication status anchored to `v2026.10.07`. For a future selected
+  candidate, run `./scripts/release_pretag_check.sh` before tagging and retain
+  source-specific native package evidence.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
 - Keep dual-surface command docs/install defaults aligned so `xshelf` is

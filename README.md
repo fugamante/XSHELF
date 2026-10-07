@@ -116,7 +116,7 @@ GNU suffix parsing.
 `fix-run` rejects. The policy is a command filter, not a sandbox for arbitrary tools.
 
 Developer ID signed and Apple-notarized macOS binary assets for
-[`v2026.08.29`](https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29)
+[`v2026.10.07`](https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07)
 are published for native Apple Silicon and Intel hosts. The archives provide a
 native `xshelf` executable,
 `xs` / `cx` aliases, packaged default schemas, and man pages without editing
