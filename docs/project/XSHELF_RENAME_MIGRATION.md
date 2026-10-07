@@ -169,7 +169,11 @@ Current status:
   lane when provider-backed natural-language output is explicitly desired
 - Absolute-path `xshelf` invocations from another repository write telemetry to
   the caller repo by default; set `CX_LOG_FILE` when capture/budget/trace
-  telemetry should live outside that repo.
+  telemetry should live outside that repo. `CXLOG_ENABLED=0` suppresses run
+  telemetry for both `xshelf` and `cx` entrypoints, including capture rows;
+  schema-failure quarantine evidence remains separate. `where` and `cxwhere`
+  retain route output while treating inspected names and repository paths as
+  data during Bash lookup.
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift

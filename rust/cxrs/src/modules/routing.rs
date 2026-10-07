@@ -13,13 +13,14 @@ use crate::runtime::{llm_backend, llm_model};
 
 pub fn bash_type_of_function(repo: &Path, name: &str) -> Option<String> {
     let cx_sh = repo.join("lib").join("cx.sh");
-    let cmd = format!(
-        "source '{}' >/dev/null 2>&1; type -a {} 2>/dev/null",
-        cx_sh.display(),
-        name
-    );
     let mut bash_cmd = Command::new("bash");
-    bash_cmd.arg("-lc").arg(cmd);
+    // Pass paths and names as data: both may originate outside this process.
+    bash_cmd
+        .arg("-lc")
+        .arg("source -- \"$1\" >/dev/null 2>&1; type -a -- \"$2\" 2>/dev/null")
+        .arg("bash")
+        .arg(&cx_sh)
+        .arg(name);
     let out = run_command_output_with_timeout(bash_cmd, "bash type -a").ok()?;
     if !out.status.success() {
         return None;
@@ -162,12 +163,12 @@ pub fn print_where(cmds: &[String], app_version: &str) -> i32 {
 
 pub fn bash_function_names(repo: &Path) -> Vec<String> {
     let cx_sh = repo.join("lib").join("cx.sh");
-    let cmd = format!(
-        "source '{}' >/dev/null 2>&1; declare -F | awk '{{print $3}}'",
-        cx_sh.display()
-    );
     let mut bash_cmd = Command::new("bash");
-    bash_cmd.arg("-lc").arg(cmd);
+    bash_cmd
+        .arg("-lc")
+        .arg("source -- \"$1\" >/dev/null 2>&1; declare -F | awk '{print $3}'")
+        .arg("bash")
+        .arg(&cx_sh);
     let out = match run_command_output_with_timeout(bash_cmd, "bash declare -F") {
         Ok(v) if v.status.success() => v,
         _ => return Vec::new(),
