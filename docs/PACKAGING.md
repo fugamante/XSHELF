@@ -286,7 +286,11 @@ names the resolved path, a private sibling receipt, and the
 the receipt and must be inspected and moved aside by their owner before reuse.
 The approved prefix must be private and current-user-owned or a root-owned sticky
 temporary directory such as `/tmp`; unsafe writable ancestors and nested
-evidence-output parents are refused. A persistent private sibling file lock
+evidence-output parents are refused. On macOS, access-granting ACLs are refused
+on the prefix, its ancestors, root, marker, receipt, lock, and output directories;
+deny-only ACLs remain valid.
+The hosted native Intel workflow creates a private child of its runner temp
+directory for this purpose. A persistent private sibling file lock
 prevents concurrent use without deleting a lock pathname after use. A pre-existing
 root with unsafe ownership or permissions must be moved aside by its owner;
 the harness does not adopt or remove it. Both builds reuse the same absolute

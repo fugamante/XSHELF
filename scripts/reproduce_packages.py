@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import secrets
 import shutil
 import stat
@@ -41,6 +42,25 @@ def _receipt_path(root: Path) -> Path:
     return root.parent / f"{root.name}{RECEIPT}"
 
 
+def _no_acl(path: Path) -> None:
+    if platform.system() != "Darwin":
+        return
+    # macOS ACL entries can grant access even when Unix mode bits are 0700.
+    result = subprocess.run(["/bin/ls", "-lde", str(path)], text=True, capture_output=True)
+    lines = result.stdout.splitlines()
+    if result.returncode != 0 or not lines:
+        raise ReproductionError(f"path has an ACL or cannot be inspected: {path}")
+    for entry in lines[1:]:
+        # Finder commonly installs deny-delete ACLs on home ancestors. They
+        # restrict access; only allow entries can widen the Unix-mode boundary.
+        if (
+            not re.match(r"^\s*\d+:\s+", entry)
+            or re.search(r"\ballow\b", entry)
+            or not re.search(r"\bdeny\b", entry)
+        ):
+            raise ReproductionError(f"path has an ACL or cannot be inspected: {path}")
+
+
 def _read_receipt(root: Path) -> str:
     receipt = _receipt_path(root)
     try:
@@ -60,6 +80,7 @@ def _read_receipt(root: Path) -> str:
         current = receipt.lstat()
         if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
             raise ReproductionError(f"canonical-root receipt changed: {receipt}")
+        _no_acl(receipt)
         return token[:-1]
     except OSError as exc:
         raise ReproductionError(f"missing or unsafe canonical-root receipt: {receipt}") from exc
@@ -80,6 +101,7 @@ def _owned_dir(path: Path, *, shared_prefix: bool = False) -> os.stat_result:
     )
     if not (private or sticky_prefix):
         raise ReproductionError(f"directory has unsafe owner or permissions: {path}")
+    _no_acl(path)
     return info
 
 
@@ -96,6 +118,7 @@ def _safe_ancestors(path: Path) -> None:
             )
         ):
             raise ReproductionError(f"unsafe ancestor of approved path: {parent}")
+        _no_acl(parent)
 
 
 def assert_owned_root(root: Path) -> None:
@@ -118,6 +141,7 @@ def assert_owned_root(root: Path) -> None:
     current = marker.lstat()
     if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
         raise ReproductionError(f"canonical root is unowned or has an invalid marker: {root}")
+    _no_acl(marker)
 
 
 def validate_root(root: Path, approved_prefix: Path) -> tuple[Path, Path]:
@@ -240,6 +264,7 @@ def root_lock(approved_prefix: Path, root: Path):
         current = lock.lstat()
         if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
             raise ReproductionError(f"canonical root lock changed: {lock}")
+        _no_acl(lock)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except (OSError, ReproductionError) as exc:
         if fd is not None:

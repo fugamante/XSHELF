@@ -113,6 +113,37 @@ class CanonicalRootTests(unittest.TestCase):
             with self.assertRaisesRegex(reproduce.ReproductionError, "unsafe ancestor"):
                 reproduce.validate_root(self.root, self.prefix)
 
+    def test_private_child_under_runner_temp_is_accepted(self) -> None:
+        runner = Path(self.temp.name) / "runner"
+        runner.mkdir(mode=0o755)
+        runner.chmod(0o755)
+        private = runner / "native"
+        private.mkdir(mode=0o700)
+        private.chmod(0o700)
+        root, prefix = reproduce.validate_root(private / "canonical", private)
+        self.assertEqual(root.parent, prefix)
+
+    @unittest.skipUnless(sys.platform == "darwin", "macOS ACL syntax")
+    def test_extended_acl_root_is_refused(self) -> None:
+        self.own_root()
+        user = subprocess.check_output(["id", "-un"], text=True).strip()
+        subprocess.run(["chmod", "+a", f"user:{user} allow read", str(self.root)], check=True)
+        try:
+            with self.assertRaisesRegex(reproduce.ReproductionError, "ACL"):
+                reproduce.assert_owned_root(self.root)
+        finally:
+            subprocess.run(["chmod", "-N", str(self.root)], check=True)
+
+    @unittest.skipUnless(sys.platform == "darwin", "macOS ACL syntax")
+    def test_deny_only_acl_ancestor_is_accepted(self) -> None:
+        ancestor = Path(self.temp.name)
+        subprocess.run(["chmod", "+a", "group:everyone deny delete", str(ancestor)], check=True)
+        try:
+            root, prefix = reproduce.validate_root(self.root, self.prefix)
+            self.assertEqual(root.parent, prefix)
+        finally:
+            subprocess.run(["chmod", "-N", str(ancestor)], check=True)
+
     def test_valid_private_root_can_be_reused(self) -> None:
         self.own_root()
         self.assertEqual(reproduce.validate_root(self.root, self.prefix), (self.root, self.prefix))
