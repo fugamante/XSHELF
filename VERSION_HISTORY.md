@@ -3,26 +3,21 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.10.07` (maintenance source locally validated; packaging and publication pending)
-
-Current release candidate:
-
-| Release tag | Date | Status | Summary |
-|---|---|---|---|
-| `v2026.10.07` | 2026-10-07 | Source locally validated; hosted checks, native reproduction, signing/notarization and publication pending. | Consolidated maintenance/security fixes, including the September candidate, and independent release health. |
+- `2026.10.07` (published with signed/notarized native macOS archives and the Homebrew archive formula)
 
 Current published release:
 
 | Release tag | Date | Status | Summary |
 |---|---|---|---|
-| `v2026.08.29` | 2026-08-29 | Published with signed/notarized native macOS assets and a Homebrew source formula; no bottle. | Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls. |
+| `v2026.10.07` | 2026-10-07 | Published; signed/notarized ARM and Intel archives, verified public bytes and Homebrew archive delivery. No new bottle. | Consolidated maintenance/security fixes and independent release health. |
 
 Published assets:
 
-- `xshelf-2026.08.29-aarch64-apple-darwin.tar.gz`: `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23`
-- `xshelf-2026.08.29-x86_64-apple-darwin.tar.gz`: `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c`
-- `SHA256SUMS`: `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e`
+- `xshelf-2026.10.07-aarch64-apple-darwin.tar.gz`: `db276dab7662bfbc58ff79968b6c4e9bd3295456d66c858bc93758267ef0b5b1`
+- `xshelf-2026.10.07-x86_64-apple-darwin.tar.gz`: `27af439a84495e6d68e127df5ba1dabaeaebe3593b28497b606abb246fc6686d`
+- `SHA256SUMS`: `1b2ff930dd89ea35538ee571189d0bd7b29647c059e525660be609f26326ff9c`
 - Sanitized Apple-notarization evidence is attached beside each archive.
+- Immutable packaged source: `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 
 Superseded unpublished candidate: `v2026.09.19`; its changes are included in
 `v2026.10.07`. No September tag or publication is implied.
@@ -31,6 +26,7 @@ Historical tagged versions:
 
 | Tag | Date | Summary |
 |---|---|---|
+| `v2026.08.29` | 2026-08-29 | Signed/notarized macOS archives; later August bottle distribution is retained in the tap history. |
 | `v2026.08.25` | 2026-08-25 | Native macOS CLI packaging, deterministic archive provenance, and isolated Homebrew lifecycle validation. |
 | `v2026.08.20` | 2026-08-20 | Phase XI capture-reduction reliability and linked-worktree Docker validation parity. |
 | `v2026.08.12` | 2026-08-12 | Process cleanup and provider health reliability, cached integration portability, release-status validation, and JSON Schema dependency maintenance. |
@@ -40,10 +36,8 @@ Historical tagged versions:
 | `v2026.02.21` | 2026-02-20 | Baseline release: schema extraction hardening, strict routing, bootstrap reliability. |
 | `v2026.02.21-20260225T151634Z` | 2026-02-25 | Snapshot milestone: manuals/docs layout and migration hooks. |
 
-Candidate release link (does not establish publication):
-- https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07
-
 Release links:
+- https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.25
 - https://github.com/fugamante/XSHELF/releases/tag/v2026.08.20

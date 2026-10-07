@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
-- `v2026.10.07` (2026-10-07 candidate; publication pending): Consolidated maintenance/security fixes and independent release-health checks.
+- `v2026.10.07` (2026-10-07): Consolidated maintenance/security fixes and independent release-health checks.
 
 - `v2026.09.19` (superseded unpublished candidate): Included in `v2026.10.07`.
 - `v2026.08.29` (2026-08-29): Fail-closed Developer ID signing, Apple notarization, and Homebrew publication controls.
@@ -23,7 +23,7 @@ Notes:
 
 ## [Unreleased]
 
-## [v2026.10.07] - 2026-10-07 (candidate; publication pending)
+## [v2026.10.07] - 2026-10-07
 
 ### Changed
 

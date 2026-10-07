@@ -1,26 +1,34 @@
 # XSHELF Packaging
 
 This packaging track builds and validates the native XSHELF CLI distribution.
-The signed and notarized `v2026.08.29` macOS archives, checksum manifest,
-sanitized notarization evidence, and Homebrew source formula are published. No
-Homebrew bottle is published.
+The signed and notarized `v2026.10.07` macOS archives, checksum manifest,
+sanitized notarization evidence, and Homebrew archive formula are published.
+No new bottle is included in this release; August bottle provenance remains
+historical evidence in the tap.
 
-## Published v2026.08.29 Assets
+## Published v2026.10.07 Assets
 
-Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.08.29
+Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07
 
 | Asset | SHA-256 |
 |---|---|
-| `xshelf-2026.08.29-aarch64-apple-darwin.tar.gz` | `8805b084205cbb5641cdd95099d5bffa615ca9d68f80a7823a4277b3279d0a23` |
-| `xshelf-2026.08.29-x86_64-apple-darwin.tar.gz` | `86a4539e93d721a25ee959d802010f2c3897b84538237a63f75ae358b21a9e9c` |
-| `SHA256SUMS` | `dc8cfa754c7024ea88d7f9e6c39d2993c5e3672ef71313ac9307f3cfcab9407e` |
+| `xshelf-2026.10.07-aarch64-apple-darwin.tar.gz` | `db276dab7662bfbc58ff79968b6c4e9bd3295456d66c858bc93758267ef0b5b1` |
+| `xshelf-2026.10.07-x86_64-apple-darwin.tar.gz` | `27af439a84495e6d68e127df5ba1dabaeaebe3593b28497b606abb246fc6686d` |
+| `SHA256SUMS` | `1b2ff930dd89ea35538ee571189d0bd7b29647c059e525660be609f26326ff9c` |
 
-The annotated tag peels to immutable packaged source
-`b8ea981b5ea0e6a64bfd92b87611f954d3c6288e`. Both binaries are Developer ID
-signed with hardened runtime and secure timestamps, and Apple accepted both
-notarization submissions. The attached `.notary.json` records are sanitized
-distribution evidence. The source formula is published at
-https://github.com/fugamante/homebrew-tap.
+The annotated tag peels to immutable packaged source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
+Both binaries are Developer ID signed with hardened runtime and secure
+timestamps, and Apple accepted both notarization submissions. The five
+anonymous public downloads match the sealed signed inventory. Native Intel
+reproduction, runtime and lifecycle evidence is retained in workflow
+[37576041904](https://github.com/fugamante/XSHELF/actions/runs/37576041904).
+ARM signed-package and production-formula install/test passed locally.
+The tap native ARM/Intel signature, relocation and upgrade qualifications passed
+in [37633497731](https://github.com/fugamante/homebrew-tap/actions/runs/37633497731);
+tap PR #19 is merged.
+The formula preserves the tap's macOS Sequoia 15 support floor.
+Archive-embedded documentation is the immutable pre-publication source snapshot.
+The source formula is published at https://github.com/fugamante/homebrew-tap.
 
 ## Product Boundary
 
