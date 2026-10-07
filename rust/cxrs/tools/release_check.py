@@ -52,10 +52,16 @@ def validate_publication(payload: object, now: datetime, limit: int) -> str | No
     if not isinstance(tag, str) or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
         return "published release evidence has no final release tag"
     raw = payload.get("published_at")
-    if not isinstance(raw, str) or not re.search(r"(?:Z|[+-][0-9]{2}:[0-9]{2})$", raw):
+    timestamp = (r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                 r"(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})")
+    if not isinstance(raw, str) or not re.fullmatch(timestamp, raw):
         return "published release evidence has no timezone-qualified publication time"
     try:
-        published = parse_iso_datetime(raw)
+        # Do not use the Git-date helper's naive-UTC fallback for API evidence.
+        published = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if published.tzinfo is None or published.utcoffset() is None:
+            return "published release evidence has no timezone-qualified publication time"
+        published = published.astimezone(timezone.utc)
     except ValueError:
         return "published release evidence has an invalid publication time"
     if published > now:

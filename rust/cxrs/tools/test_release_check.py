@@ -48,9 +48,21 @@ class ReleaseCheckTests(unittest.TestCase):
                         {**valid, "tag_name": "v2026.10.06-rc1"},
                         {**valid, "published_at": "2026-10-07T00:00:00Z"},
                         {**valid, "published_at": "2026-10-05T00:00:00"},
+                        {**valid, "published_at": "2026-10-05+00:00"},
+                        {**valid, "published_at": "2026-10-05Z"},
+                        {**valid, "published_at": "2026-10-05T00:00:00+99:00"},
                         {**valid, "published_at": "invalidZ"}]:
             with self.subTest(payload=payload):
                 self.assertIsNotNone(release_check.validate_publication(payload, now, 14))
+
+    def test_publication_normalizes_aware_offsets(self) -> None:
+        now = datetime(2026, 10, 6, tzinfo=timezone.utc)
+        payload = {"tag_name": "v2026.10.05", "draft": False, "prerelease": False}
+        for value in ("2026-10-05T20:00:00-04:00", "2026-10-06T00:00:00.000Z",
+                      "2026-10-06T05:30:00+05:30"):
+            with self.subTest(value=value):
+                self.assertIsNone(release_check.validate_publication(
+                    {**payload, "published_at": value}, now, 14))
 
     def test_publication_cannot_use_candidate_exception(self) -> None:
         with temp_repo() as repo:

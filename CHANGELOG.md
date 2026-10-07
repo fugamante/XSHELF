@@ -34,6 +34,8 @@ Notes:
   commit age. Explicit API evidence and a positive age limit are required; PR
   cadence exceptions do not bypass the publication audit. Existing checks retain
   their behavior when publication audit options are omitted.
+- Publication evidence requires a complete date, time, and explicit timezone;
+  date-only strings with apparent offsets cannot fabricate a midnight timestamp.
 
 ### Fixed
 
