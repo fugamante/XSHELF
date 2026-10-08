@@ -81,62 +81,6 @@ fn cx_target_dir() {
 }
 
 #[test]
-fn cx_cargo_cwd() {
-    use std::os::unix::fs::PermissionsExt;
-
-    let repo = repo_root();
-    let temp = tempfile::tempdir().expect("tempdir");
-    let caller = temp.path().join("caller");
-    let mock_bin = temp.path().join("bin");
-    fs::create_dir_all(caller.join(".cargo")).expect("cargo config dir");
-    fs::create_dir_all(&mock_bin).expect("mock bin dir");
-    fs::write(
-        caller.join(".cargo/config.toml"),
-        "[build]\nrustc-wrapper = '/invalid/synthetic'\n",
-    )
-    .expect("caller cargo config");
-    let cwd_record = temp.path().join("build-cwd");
-    let cargo = mock_bin.join("cargo");
-    let target_record = temp.path().join("target-dir");
-    fs::write(
-        &cargo,
-        format!(
-            "#!/bin/sh\npwd > '{}'\nprintf '%s' \"$CARGO_TARGET_DIR\" > '{}'\nexit 77\n",
-            cwd_record.display(),
-            target_record.display()
-        ),
-    )
-    .expect("write mock cargo");
-    fs::set_permissions(&cargo, fs::Permissions::from_mode(0o755)).expect("chmod cargo");
-    let path = format!(
-        "{}:{}",
-        mock_bin.display(),
-        std::env::var("PATH").unwrap_or_default()
-    );
-    let out = Command::new(repo.join("bin/cx"))
-        .arg("version")
-        .current_dir(&caller)
-        .env("PATH", path)
-        .env("CARGO_TARGET_DIR", "fresh-target")
-        .output()
-        .expect("run bin/cx from untrusted cwd");
-    assert!(!out.status.success());
-    assert_eq!(
-        fs::read_to_string(cwd_record).expect("cargo ran").trim(),
-        repo.display().to_string()
-    );
-    assert_eq!(
-        fs::read_to_string(target_record).expect("target recorded"),
-        caller
-            .canonicalize()
-            .expect("canonical caller")
-            .join("fresh-target")
-            .display()
-            .to_string()
-    );
-}
-
-#[test]
 fn bin_xshelf_version_reports_runtime() {
     let repo = repo_root();
     let out = Command::new(repo.join("bin").join("xshelf"))

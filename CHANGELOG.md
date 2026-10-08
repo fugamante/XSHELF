@@ -25,8 +25,8 @@ Notes:
 
 ### Fixed
 
-- Source `cx` builds run Cargo from the XSHELF checkout so a caller repository's
-  `.cargo/config.toml` cannot supply build hooks; the compiled command still runs
+- Source `cx` builds run Cargo from the trusted filesystem root so a caller or
+  ancestor repository's `.cargo/config.toml` cannot supply build hooks; the compiled command still runs
   in the caller's working directory. Sequential `task run-all` now fails before
   task mutation or provider execution when its requested backend pool has no
   available member, matching parallel mode. Authorized backend fallback remains.
