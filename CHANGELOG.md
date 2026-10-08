@@ -23,6 +23,14 @@ Notes:
 
 ## [Unreleased]
 
+### Fixed
+
+- Source `cx` builds run Cargo from the trusted filesystem root so a caller or
+  ancestor repository's `.cargo/config.toml` cannot supply build hooks; the compiled command still runs
+  in the caller's working directory. Sequential `task run-all` now fails before
+  task mutation or provider execution when its requested backend pool has no
+  available member, matching parallel mode. Authorized backend fallback remains.
+
 ## [v2026.10.07] - 2026-10-07
 
 ### Changed

@@ -14,6 +14,10 @@
   registry argument trust, selected benchmark scripts and private output storage.
   Require independent reproduction, contract compatibility, and hosted Linux
   acceptance before integration; close findings only after upstream verification.
+  Next, resolve the reachable quarantine path escape and repository-selected
+  model authority, then reproduce the parity schema symlink path and decide its
+  impact. A future security candidate needs fresh exact-source native ARM and
+  Intel evidence; the published October 7 signoff does not cover later commits.
   Concurrent log writers and arbitrary same-user execution remain outside the
   migration isolation boundary.
 - Protect the branch-audit credential with owner-approved environment access;
@@ -21,7 +25,7 @@
   verified. Task command objectives require process authority as documented in
   `docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md`. Verify complete Docker
   runtime/readiness image, executable and credential authority on merged source,
-  then cut the security maintenance release under `docs/project/RELEASE_CADENCE.md`.
+  before any later security maintenance release under `docs/project/RELEASE_CADENCE.md`.
 - Preserve JSON contract stability on automation surfaces (`diag/scheduler/optimize/telemetry/broker`).
 - Keep quality gates strict (`raw_eprintln=0`, function/file limits).
 - Maintain reliability matrix coverage for backend/capture/policy permutations.
