@@ -226,6 +226,10 @@ Human `task run-all` progress is written to stderr so stdout remains available
 for command results. Set `CX_TASK_RUN_ALL_PROGRESS=0` (or `false`) to disable
 these messages. The same setting applies to the `xshelf`, `xs`, and `cx`
 entrypoints; structured task events and JSON results keep their existing contracts.
+When every backend in `--backend-pool` is unavailable, sequential and parallel
+execution fail before running tasks; choose or enable an approved backend.
+Source entrypoints build from the XSHELF checkout while retaining the caller's
+working directory for the command itself.
 
 Task mutations are serialized across local XSHELF processes. `.cx/tasks.json`
 remains the backward-readable task snapshot; after `.cx/task_ledger/` exists,

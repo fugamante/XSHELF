@@ -1502,6 +1502,16 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         );
     }
 
+    // Pin an approved selection so later availability changes cannot become an implicit provider choice.
+    let approved_pool = available_pool(&options.backend_pool);
+    if approved_pool.is_empty() {
+        crate::cx_eprintln!(
+            "{} task run-all: no available backend from --backend-pool",
+            cli_app_name()
+        );
+        return 1;
+    }
+
     let scheduled_count = schedule.len();
     let summary = if options.run_mode == "parallel"
         || (options.run_mode == "mixed" && options.max_workers > 1)
@@ -1525,10 +1535,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             let max_retries = task.and_then(|t| t.max_retries).unwrap_or(0);
             let task_parent_id = task.and_then(|t| t.parent_id.clone());
             let requested_backend = choose_backend_for_task(task, &options.backend_pool, idx);
-            let backend_selected = fallback_backend(
-                requested_backend.clone(),
-                &available_pool(&options.backend_pool),
-            );
+            let backend_selected = fallback_backend(requested_backend.clone(), &approved_pool);
             if !options.as_json {
                 emit_progress(&format!(
                     "cxrs task run-all: start [{}/{}] task={} backend={} retries={}",

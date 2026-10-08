@@ -16,6 +16,10 @@ subcommand="$1"
 CXRS_WRAPPER="$REPO_ROOT/rust/cxrs/bin/cxrs"
 CXRS_MANIFEST="$REPO_ROOT/rust/cxrs/Cargo.toml"
 CXRS_TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/rust/cxrs/target}"
+if [[ "$CXRS_TARGET_DIR" != /* ]]; then
+  # Preserve caller-relative target storage while Cargo runs from the trusted checkout.
+  CXRS_TARGET_DIR="$(pwd -P)/$CXRS_TARGET_DIR"
+fi
 CXRS_BIN_RELEASE="$CXRS_TARGET_DIR/release/cxrs"
 CXRS_BIN_DEBUG="$CXRS_TARGET_DIR/debug/cxrs"
 
@@ -36,18 +40,18 @@ _cx_run_rust() {
 
   if [[ -x "$CXRS_BIN_RELEASE" ]]; then
     if _cx_needs_build "$CXRS_BIN_RELEASE" && command -v cargo >/dev/null 2>&1; then
-      cargo build --quiet --manifest-path "$CXRS_MANIFEST" --release 1>&2
+      (cd "$REPO_ROOT" && CARGO_TARGET_DIR="$CXRS_TARGET_DIR" cargo build --quiet --manifest-path "$CXRS_MANIFEST" --release) 1>&2
     fi
     cxrs_bin="$CXRS_BIN_RELEASE"
   elif [[ -x "$CXRS_BIN_DEBUG" ]]; then
     if _cx_needs_build "$CXRS_BIN_DEBUG" && command -v cargo >/dev/null 2>&1; then
-      cargo build --quiet --manifest-path "$CXRS_MANIFEST" 1>&2
+      (cd "$REPO_ROOT" && CARGO_TARGET_DIR="$CXRS_TARGET_DIR" cargo build --quiet --manifest-path "$CXRS_MANIFEST") 1>&2
     fi
     cxrs_bin="$CXRS_BIN_DEBUG"
   elif [[ -f "$CXRS_MANIFEST" ]] && command -v cargo >/dev/null 2>&1; then
     # Build once, then execute the compiled binary. Avoid `cargo run` to prevent compile warnings
     # and build logs from polluting normal CLI output.
-    cargo build --quiet --manifest-path "$CXRS_MANIFEST" --release 1>&2
+    (cd "$REPO_ROOT" && CARGO_TARGET_DIR="$CXRS_TARGET_DIR" cargo build --quiet --manifest-path "$CXRS_MANIFEST" --release) 1>&2
     if [[ -x "$CXRS_BIN_RELEASE" ]]; then
       cxrs_bin="$CXRS_BIN_RELEASE"
     fi

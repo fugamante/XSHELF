@@ -224,6 +224,9 @@ These rules apply unless a later approved phase explicitly changes them.
 - `task run-all` human progress uses stderr across `xshelf`, `xs`, and `cx`;
   `CX_TASK_RUN_ALL_PROGRESS=0` or `false` disables those messages without renaming
   the setting or changing the existing task-event and JSON result contracts
+- all three source aliases build from the XSHELF checkout and execute the
+  compiled command from the caller directory; sequential `task run-all` rejects
+  an unavailable requested backend pool before any task execution
 - bounded task prompts retain the shared `CX_TASK_OBJECTIVE_MAX_CHARS`,
   `CX_TASK_OBJECTIVE_MAX_LINES`, `CX_TASK_CONTEXT_MAX_CHARS`, and
   `CX_TASK_CONTEXT_MAX_LINES` settings across all three entrypoints
