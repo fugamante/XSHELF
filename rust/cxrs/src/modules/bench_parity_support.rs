@@ -168,15 +168,75 @@ pub fn print_bench_summary(
     }
 }
 
+#[cfg(unix)]
+unsafe extern "C" {
+    fn geteuid() -> std::os::raw::c_uint;
+}
+
+#[cfg(unix)]
+fn safe_temp_parent() -> Result<PathBuf, String> {
+    use std::os::unix::fs::MetadataExt;
+
+    let requested = std::env::temp_dir();
+    let parent = fs::canonicalize(&requested)
+        .map_err(|e| format!("cxparity: resolve temp parent {}: {e}", requested.display()))?;
+    let owner = unsafe { geteuid() };
+    let metadata = fs::metadata(&parent)
+        .map_err(|e| format!("cxparity: inspect temp parent {}: {e}", parent.display()))?;
+    let owner_only = metadata.uid() == owner && metadata.mode() & 0o022 == 0;
+    let sticky_shared =
+        metadata.mode() & 0o1000 != 0 && (metadata.uid() == owner || metadata.uid() == 0);
+    if !metadata.is_dir() || !(owner_only || sticky_shared) {
+        return Err(format!("cxparity: unsafe temp parent {}", parent.display()));
+    }
+
+    // An unsafe ancestor could replace an otherwise private TMPDIR by name.
+    let mut child = parent.as_path();
+    while let Some(upper) = child.parent() {
+        let upper_meta = fs::metadata(upper)
+            .map_err(|e| format!("cxparity: inspect temp ancestor {}: {e}", upper.display()))?;
+        // A different owner can change the directory mode after inspection.
+        if upper_meta.uid() != owner && upper_meta.uid() != 0 {
+            return Err(format!(
+                "cxparity: unsafe temp ancestor {}",
+                upper.display()
+            ));
+        }
+        if upper_meta.mode() & 0o022 != 0 {
+            let child_meta = fs::metadata(child)
+                .map_err(|e| format!("cxparity: inspect temp parent {}: {e}", child.display()))?;
+            let guarded = upper_meta.mode() & 0o1000 != 0
+                && (upper_meta.uid() == owner || upper_meta.uid() == 0)
+                && (child_meta.uid() == owner || child_meta.uid() == 0);
+            if !guarded {
+                return Err(format!(
+                    "cxparity: unsafe temp ancestor {}",
+                    upper.display()
+                ));
+            }
+        }
+        child = upper;
+    }
+    Ok(parent)
+}
+
+#[cfg(unix)]
 pub fn setup_temp_repo() -> Result<PathBuf, String> {
+    use std::os::unix::fs::DirBuilderExt;
+
     let ts = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
-    let temp_repo = std::env::temp_dir().join(format!("cxparity-{}-{}", std::process::id(), ts));
-    fs::create_dir_all(&temp_repo).map_err(|_| {
-        format!(
-            "cxparity: failed to create temp repo {}",
-            temp_repo.display()
-        )
-    })?;
+    let temp_repo = safe_temp_parent()?.join(format!("cxparity-{}-{}", std::process::id(), ts));
+    // Create the parity root privately in one step; chmod after creation
+    // leaves a window for another local user to open copied schema files.
+    fs::DirBuilder::new()
+        .mode(0o700)
+        .create(&temp_repo)
+        .map_err(|_| {
+            format!(
+                "cxparity: failed to create temp repo {}",
+                temp_repo.display()
+            )
+        })?;
     let mut init_cmd = Command::new("git");
     init_cmd.arg("init").arg("-q").current_dir(&temp_repo);
     let init_ok = run_command_status_with_timeout(init_cmd, "cxparity git init")
@@ -203,6 +263,11 @@ pub fn setup_temp_repo() -> Result<PathBuf, String> {
         return Err("cxparity: git add failed".to_string());
     }
     Ok(temp_repo)
+}
+
+#[cfg(not(unix))]
+pub fn setup_temp_repo() -> Result<PathBuf, String> {
+    Err("cxparity: secure parity setup requires Unix directory access".to_string())
 }
 
 fn json_keys_ok(stdout: &str, schema_keys: &Option<Vec<&str>>) -> bool {

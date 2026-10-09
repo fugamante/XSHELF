@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-07
+Snapshot date: 2026-10-09
 
 ## Release recovery completed (2026-10-07)
 
@@ -10,6 +10,22 @@ runtime/lifecycle, Developer ID signing, accepted Apple notarization, anonymous
 public-byte verification and Homebrew archive delivery are complete. Fresh
 GitHub API publication-age evidence passes. The six logging alerts were
 statically dispositioned as false positives; no runtime source changed.
+
+## Postrelease security decision (2026-10-09)
+
+The published October 7 archives remain bound to `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
+That source predates the Cargo/provider fixes and contains the quarantine ID,
+repository model, and parity schema paths under current remediation. Later
+source merges do not change those public bytes. A new security maintenance
+candidate is on hold while live Security Cloud findings are grouped by current
+reachability and release impact. No exact-head native ARM or Intel package
+evidence, signing, notarization, public-byte verification, or publication
+authority has been established for a later source. The October 7 signoff remains
+historical evidence for its frozen source only.
+
+Read-only triage identifies reachable mixed/parallel task dependency-wave
+execution, HTTP curl argument exposure, and unbounded repository log readers
+as remaining candidate risks; these are not closed by this authority packet.
 
 ## Current State
 

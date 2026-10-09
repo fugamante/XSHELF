@@ -4,8 +4,8 @@ use std::process::Command;
 
 use crate::config::{app_config, cli_app_name};
 use crate::local_models::{find_record_for_backend, normalize_backend};
+use crate::model_authority::{approved_pref, set_approved_pref};
 use crate::process::run_command_output_with_timeout;
-use crate::state::{read_state_value, set_state_path, value_at_path};
 
 pub fn llm_backend() -> String {
     // Task execution applies scoped operator overrides after config initialization.
@@ -36,41 +36,26 @@ pub fn logging_enabled() -> bool {
 }
 
 pub fn ollama_model_preference() -> String {
-    if !app_config().ollama_model.is_empty() {
-        return app_config().ollama_model.clone();
-    }
-    read_state_value()
-        .and_then(|v| {
-            value_at_path(&v, "preferences.ollama_model")
-                .and_then(Value::as_str)
-                .map(|s| s.to_string())
-        })
+    std::env::var("CX_OLLAMA_MODEL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| approved_pref("preferences.ollama_model").ok().flatten())
         .unwrap_or_default()
 }
 
 pub fn llama_cpp_model_preference() -> String {
-    if !app_config().llama_cpp_model.is_empty() {
-        return app_config().llama_cpp_model.clone();
-    }
-    read_state_value()
-        .and_then(|v| {
-            value_at_path(&v, "preferences.llama_cpp_model")
-                .and_then(Value::as_str)
-                .map(|s| s.to_string())
-        })
+    std::env::var("CX_LLAMA_CPP_MODEL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| approved_pref("preferences.llama_cpp_model").ok().flatten())
         .unwrap_or_default()
 }
 
 pub fn mlx_model_preference() -> String {
-    if !app_config().mlx_model.is_empty() {
-        return app_config().mlx_model.clone();
-    }
-    read_state_value()
-        .and_then(|v| {
-            value_at_path(&v, "preferences.mlx_model")
-                .and_then(Value::as_str)
-                .map(|s| s.to_string())
-        })
+    std::env::var("CX_MLX_MODEL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| approved_pref("preferences.mlx_model").ok().flatten())
         .unwrap_or_default()
 }
 
@@ -109,10 +94,7 @@ fn ollama_list_models() -> Vec<String> {
 pub fn resolve_ollama_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return match find_record_for_backend(&model, "ollama") {
-            Ok(Some(record)) => Ok(record.resolved_model),
-            Ok(None) | Err(_) => Ok(model),
-        };
+        return resolve_run_model(model, "ollama", "CX_OLLAMA_MODEL");
     }
     if !is_interactive_tty() {
         return Err(format!(
@@ -151,7 +133,7 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
     } else {
         selected_raw.to_string()
     };
-    set_state_path("preferences.ollama_model", Value::String(selected.clone()))?;
+    set_approved_pref("preferences.ollama_model", Value::String(selected.clone()))?;
     crate::cx_eprintln!(
         "{}: default Ollama model set to '{}'.",
         cli_app_name(),
@@ -163,10 +145,7 @@ pub fn resolve_ollama_model_for_run() -> Result<String, String> {
 pub fn resolve_llama_cpp_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return match find_record_for_backend(&model, "llamacpp") {
-            Ok(Some(record)) => Ok(record.resolved_model),
-            Ok(None) | Err(_) => Ok(model),
-        };
+        return resolve_run_model(model, "llamacpp", "CX_LLAMA_CPP_MODEL");
     }
     Err(format!(
         "llama.cpp model is unset; set CX_LLAMA_CPP_MODEL to a GGUF path or run '{} llm set-model <path.gguf>' while backend is llamacpp",
@@ -177,15 +156,28 @@ pub fn resolve_llama_cpp_model_for_run() -> Result<String, String> {
 pub fn resolve_mlx_model_for_run() -> Result<String, String> {
     let model = llm_model();
     if !model.trim().is_empty() {
-        return match find_record_for_backend(&model, "mlx") {
-            Ok(Some(record)) => Ok(record.resolved_model),
-            Ok(None) | Err(_) => Ok(model),
-        };
+        return resolve_run_model(model, "mlx", "CX_MLX_MODEL");
     }
     Err(format!(
         "MLX model is unset; set CX_MLX_MODEL or run '{} llm set-model <model>' while backend is mlx",
         cli_app_name()
     ))
+}
+
+fn resolve_run_model(model: String, backend: &str, env_key: &str) -> Result<String, String> {
+    match find_record_for_backend(&model, backend) {
+        Ok(Some(record)) => Ok(record.resolved_model),
+        Ok(None) => Ok(model),
+        // A broken repository registry cannot cancel an explicit process model.
+        Err(_)
+            if std::env::var(env_key)
+                .ok()
+                .is_some_and(|v| !v.trim().is_empty()) =>
+        {
+            Ok(model)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 pub fn llm_bin_name() -> &'static str {

@@ -14,12 +14,23 @@
   registry argument trust, selected benchmark scripts and private output storage.
   Require independent reproduction, contract compatibility, and hosted Linux
   acceptance before integration; close findings only after upstream verification.
-  Next, resolve the reachable quarantine path escape and repository-selected
-  model authority, then reproduce the parity schema symlink path and decide its
-  impact. A future security candidate needs fresh exact-source native ARM and
-  Intel evidence; the published October 7 signoff does not cover later commits.
+  The October 9 packet covers quarantine path escape, repository-selected
+  model authority, and parity schema exposure. A future security candidate
+  needs fresh exact-source native ARM and Intel evidence; the published October
+  7 signoff does not cover later commits.
   Concurrent log writers and arbitrary same-user execution remain outside the
   migration isolation boundary.
+- October 9 authority packet: verify the quarantine ID, repository model, and
+  parity schema boundaries on merged source. The live Security Cloud inventory
+  also contains many newer findings against historical revisions; group
+  duplicates and reproduce current reachability before selecting another
+  release-impacting fix. A security maintenance candidate remains on hold until
+  this triage, exact-head native ARM/Intel evidence, and separate release
+  authority are complete. The published `v2026.10.07` assets remain unchanged.
+  Read-only source triage places mixed/parallel `task run-all` dependency and
+  resource waves next, followed by HTTP curl argument secrets and URL handling,
+  unbounded repository log readers, and quota-catalog paths. These clusters
+  still need focused current-head reproduction and independent review.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

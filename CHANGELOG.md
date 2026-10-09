@@ -25,6 +25,23 @@ Notes:
 
 ### Fixed
 
+- Repository state and local-model registry entries no longer authorize LLM
+  backend or model execution merely by being present. Explicit `llm` selection
+  records checkout-bound authority in a private user-home receipt; changes to
+  repository preferences or approved alias targets fail closed. Existing
+  repository choices need explicit reselection after this update. Direct
+  environment model choices and authorized task provider controls remain.
+- Quarantine IDs now reject path syntax before record lookup. Quarantine reads
+  remain anchored to the selected repository or home directory, reject symlink
+  descendants and nonregular files, and bound record size. Generated records,
+  strict log validation, listing, and replay retain their supported behavior.
+- Parity mock setup creates a private temporary repository before copying
+  schemas and accepts only regular schema files opened without following
+  symlinks. Repository schema links cannot copy unrelated readable files into
+  temporary parity output. Copies are limited to 64 MiB per schema and 256 MiB
+  in total; parity requires a trusted temporary-directory parent and Unix
+  directory access for this path.
+
 - Source `cx` builds run Cargo from the trusted filesystem root so a caller or
   ancestor repository's `.cargo/config.toml` cannot supply build hooks; the compiled command still runs
   in the caller's working directory. Sequential `task run-all` now fails before

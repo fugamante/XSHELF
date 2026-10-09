@@ -3,6 +3,7 @@ use std::env;
 use std::path::Path;
 use std::sync::OnceLock;
 
+use crate::model_authority::approved_state;
 use crate::state::{read_state_value, value_at_path};
 
 /// Canonical application identity (used by routing/help/version surfaces).
@@ -164,7 +165,8 @@ fn resolve_broker_policy(state: &Option<Value>) -> String {
 
 impl AppConfig {
     pub fn from_env() -> Self {
-        let state = read_state_value();
+        let state = approved_state().ok().flatten();
+        let raw_state = read_state_value();
         Self {
             budget_chars: env_usize("CX_CONTEXT_BUDGET_CHARS", DEFAULT_CONTEXT_BUDGET_CHARS),
             budget_lines: env_usize("CX_CONTEXT_BUDGET_LINES", DEFAULT_CONTEXT_BUDGET_LINES),
@@ -184,7 +186,7 @@ impl AppConfig {
             schema_relaxed: env_bool("CX_SCHEMA_RELAXED", false),
             cxlog_enabled: env_bool("CXLOG_ENABLED", true),
             capture_provider: "native".to_string(),
-            broker_policy: resolve_broker_policy(&state),
+            broker_policy: resolve_broker_policy(&raw_state),
             cmd_timeout_secs: env_usize("CX_CMD_TIMEOUT_SECS", DEFAULT_CMD_TIMEOUT_SECS).max(1),
             task_halt_on_critical: env_bool("CX_TASK_HALT_ON_CRITICAL", false),
         }

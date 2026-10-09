@@ -85,6 +85,25 @@ remain unchanged. Authorized command fixtures cover the previous behavior.
 See the migration in `docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md`; provider
 trust and command trust are separate, and Docker trust remains unresolved.
 
+## Local Model Authority
+
+Repository `.cx/state.json` preferences and `.cx/local_models.json` records remain
+readable data, but they cannot select an executable backend, model, or alias
+target solely by being present in a checkout. The operator must reselect legacy
+repository choices with `llm use`, `llm set-backend`, or `llm set-model`, and
+approve registry aliases with `llm models add`; these actions create a private
+user-home approval bound to the checkout and exact approved values. A changed
+repository value fails closed at execution. Explicit process environment values
+and authorized task provider overrides remain separate authority paths. Existing
+JSON keys and version markers are unchanged; denied provider execution returns
+an error instead of silently switching to an unapproved model.
+
+Parity mock schema setup accepts regular `.json` entries opened without
+following symlinks. It requires a trusted temporary-directory parent and
+private Unix directory access, limits each copy to 64 MiB and all copies to
+256 MiB, and removes partial output on failure. These checks do not change the
+parity report schema.
+
 ## CI Enforcement
 
 Contract stability is enforced by:
