@@ -39,6 +39,14 @@ arguments now requires `CX_MLX_TRUST_REGISTRY_ARGS`; explicit `CX_MLX_ARGS` rema
 last. Benchmark scripts require `CX_MLX_VERIFY_SCRIPT`. These intentional default
 changes retain CLI aliases and the `llm-verify.v1` contract.
 
+Repository-local `.cx/state.json` and `.cx/local_models.json` remain compatible
+data files, but existing backend/model values need explicit `llm use` or
+`llm set-*` reselection before they can direct execution. Explicit registry
+choices require `llm models add`; an approved alias is bound to its selected
+model value. The approval receipt is private to the user's home directory and
+the current checkout. `CX_*` process overrides and authorized task provider
+controls retain their existing roles. No stable JSON keys or CLI aliases change.
+
 ## Goals
 
 - establish `XSHELF` as the canonical project name

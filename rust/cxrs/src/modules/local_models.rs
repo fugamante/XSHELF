@@ -1,11 +1,10 @@
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 
+use crate::model_authority::{approve_model, model_is_approved, revoke_model};
 use crate::paths::resolve_models_file;
-use crate::state::write_json_atomic;
+use crate::state::{read_json_secure, write_json_atomic};
 
 const CONTRACT_VERSION: &str = "local_models.v1";
 
@@ -61,14 +60,9 @@ fn empty_registry() -> Value {
 
 fn registry_value() -> Result<Value, String> {
     let path = registry_path()?;
-    if !path.exists() {
+    let Some(s) = read_json_secure(&path)? else {
         return Ok(empty_registry());
-    }
-    let mut s = String::new();
-    File::open(&path)
-        .map_err(|e| format!("cannot open {}: {e}", path.display()))?
-        .read_to_string(&mut s)
-        .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+    };
     let value = serde_json::from_str::<Value>(&s)
         .map_err(|e| format!("invalid JSON in {}: {e}", path.display()))?;
     let value = normalize_registry(value)?;
@@ -300,6 +294,9 @@ pub fn find_record_for_backend(
         if record.backend == canonical_backend
             && (record.id == q || record.alias == q || record.resolved_model == q)
         {
+            if !model_is_approved(&record)? {
+                return Ok(None);
+            }
             return Ok(Some(record));
         }
     }
@@ -316,6 +313,9 @@ pub fn selector_preferred_args(backend: &str, query: &str) -> Result<Option<Stri
     }
     for record in list_records()? {
         if record.backend == canonical_backend && (record.id == q || record.alias == q) {
+            if !model_is_approved(&record)? {
+                return Ok(None);
+            }
             return Ok(record.preferred_args);
         }
     }
@@ -404,26 +404,36 @@ pub fn add_record(input: AddLocalModelInput) -> Result<LocalModelRecord, String>
         ab.cmp(bb).then(aa.cmp(ba))
     });
     write_registry(&registry)?;
+    approve_model(&record)?;
     Ok(record)
 }
 
 pub fn remove_record(query: &str) -> Result<Option<LocalModelRecord>, String> {
-    let selected = match find_record(query)? {
-        Some(record) => record,
-        None => return Ok(None),
-    };
     let mut registry = registry_value()?;
     let models = registry
         .get_mut("models")
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "local model registry has invalid models array".to_string())?;
-    let Some(idx) = models
-        .iter()
-        .position(|item| item.get("id").and_then(Value::as_str) == Some(selected.id.as_str()))
-    else {
+    let q = query.trim();
+    let mut matches = Vec::new();
+    for (idx, item) in models.iter().enumerate() {
+        let record = record_from_value(item)?;
+        if record.id == q || record.alias == q {
+            matches.push((idx, record));
+        }
+    }
+    if matches.len() > 1 {
+        let records = matches
+            .into_iter()
+            .map(|(_, record)| record)
+            .collect::<Vec<_>>();
+        return Err(ambiguous_query_error(q, &records));
+    }
+    let Some((idx, removed)) = matches.pop() else {
         return Ok(None);
     };
-    let removed = record_from_value(&models.remove(idx))?;
+    revoke_model(&removed)?;
+    models.remove(idx);
     write_registry(&registry)?;
     Ok(Some(removed))
 }

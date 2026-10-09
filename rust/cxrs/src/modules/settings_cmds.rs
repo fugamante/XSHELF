@@ -14,8 +14,10 @@ use crate::contract_versions::{
 use crate::execmeta::utc_now_iso;
 use crate::llm::{mlx_registry_trusted, run_mlx_plain};
 use crate::local_models::{
-    find_record_for_backend, resolve_model_for_backend, selector_preferred_args, touch_model_record,
+    find_record_for_backend, list_records, resolve_model_for_backend, selector_preferred_args,
+    touch_model_record,
 };
+use crate::model_authority::{model_is_approved, set_approved_pref as set_state_path};
 use crate::process::run_command_output_with_timeout;
 use crate::provider_adapter::{
     http_profile_opt, probe_http_models_v1, resolve_provider_adapter, selected_adapter_name,
@@ -26,8 +28,8 @@ use crate::runtime::{
     ollama_model_preference,
 };
 use crate::state::{
-    ensure_state_value, parse_cli_value, set_state_path, set_value_at_path, state_cache_clear,
-    value_at_path, write_json_atomic,
+    ensure_state_value, parse_cli_value, set_value_at_path, state_cache_clear, value_at_path,
+    write_json_atomic,
 };
 
 #[path = "settings_models.rs"]
@@ -121,6 +123,17 @@ fn emit_model_resolution_line(backend: &str, model: &str, label: &str) {
 }
 
 fn resolve_model_for_use(backend: &str, model: &str) -> Result<String, String> {
+    for record in list_records()? {
+        if record.backend == backend
+            && (record.id == model || record.alias == model)
+            && !model_is_approved(&record)?
+        {
+            return Err(format!(
+                "repository model '{}' is not approved; add it with 'llm models add --replace'",
+                record.alias
+            ));
+        }
+    }
     resolve_model_for_backend(backend, model).map(|r| r.resolved_model)
 }
 
@@ -215,31 +228,42 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
         print_llm_usage(app_name);
         return 2;
     };
-    if let Err(e) = set_state_path("preferences.llm_backend", Value::String(target.clone())) {
-        crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-        return 1;
-    }
-    if target == "ollama" {
-        if let Some(model) = args.get(2) {
-            let m = model.trim();
-            if m.is_empty() {
-                print_llm_usage(app_name);
-                return 2;
-            }
-            let resolved = match resolve_model_for_use("ollama", m) {
-                Ok(v) => v,
-                Err(e) => {
-                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-                    return 1;
-                }
-            };
-            if let Err(e) =
-                set_state_path("preferences.ollama_model", Value::String(resolved.clone()))
-            {
+    // Resolve a requested alias before changing any persisted backend authority.
+    let selected_model = if target == "primary" {
+        None
+    } else if let Some(model) = args.get(2) {
+        let model = model.trim();
+        if model.is_empty() {
+            print_llm_usage(app_name);
+            return 2;
+        }
+        match resolve_model_for_use(&target, model) {
+            Ok(resolved) => Some(resolved),
+            Err(e) => {
                 crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
                 return 1;
             }
         }
+    } else {
+        None
+    };
+    if let Err(e) = set_state_path("preferences.llm_backend", Value::String(target.clone())) {
+        crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+        return 1;
+    }
+    if let Some(resolved) = &selected_model {
+        let path = match target.as_str() {
+            "ollama" => "preferences.ollama_model",
+            "llamacpp" => "preferences.llama_cpp_model",
+            "mlx" => "preferences.mlx_model",
+            _ => unreachable!("only local backends take a model"),
+        };
+        if let Err(e) = set_state_path(path, Value::String(resolved.clone())) {
+            crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
+            return 1;
+        }
+    }
+    if target == "ollama" {
         println!("ok");
         println!("llm_backend: ollama");
         let pref = ollama_model_preference();
@@ -257,27 +281,6 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
         return 0;
     }
     if target == "llamacpp" {
-        if let Some(model) = args.get(2) {
-            let m = model.trim();
-            if m.is_empty() {
-                print_llm_usage(app_name);
-                return 2;
-            }
-            let resolved = match resolve_model_for_use("llamacpp", m) {
-                Ok(v) => v,
-                Err(e) => {
-                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-                    return 1;
-                }
-            };
-            if let Err(e) = set_state_path(
-                "preferences.llama_cpp_model",
-                Value::String(resolved.clone()),
-            ) {
-                crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-                return 1;
-            }
-        }
         println!("ok");
         println!("llm_backend: llamacpp");
         let pref = llama_cpp_model_preference();
@@ -295,24 +298,6 @@ fn llm_use(app_name: &str, args: &[String]) -> i32 {
         return 0;
     }
     if target == "mlx" {
-        if let Some(model) = args.get(2) {
-            let m = model.trim();
-            if m.is_empty() {
-                print_llm_usage(app_name);
-                return 2;
-            }
-            let resolved = match resolve_model_for_use("mlx", m) {
-                Ok(v) => v,
-                Err(e) => {
-                    crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-                    return 1;
-                }
-            };
-            if let Err(e) = set_state_path("preferences.mlx_model", Value::String(resolved)) {
-                crate::cx_eprintln!("{} llm use: {e}", cli_app_name());
-                return 1;
-            }
-        }
         println!("ok");
         println!("llm_backend: mlx");
         let pref = mlx_model_preference();
@@ -656,13 +641,29 @@ fn resolve_mlx_model_for_verify() -> Result<Value, String> {
             cli_app_name()
         ));
     }
-    let resolved = resolve_model_for_backend("mlx", &input)?;
+    let direct_env = env::var("CX_MLX_MODEL")
+        .ok()
+        .is_some_and(|v| !v.trim().is_empty());
+    let resolved = match resolve_model_for_backend("mlx", &input) {
+        Ok(value) => value,
+        Err(_) if direct_env => crate::local_models::ModelResolution {
+            resolved_model: input.clone(),
+            alias: None,
+            id: None,
+        },
+        Err(e) => return Err(e),
+    };
+    let preferred_args = match selector_preferred_args("mlx", &input) {
+        Ok(value) => value,
+        Err(_) if direct_env => None,
+        Err(e) => return Err(e),
+    };
     Ok(json!({
         "input": input,
         "resolved": resolved.resolved_model,
         "alias": resolved.alias,
         "id": resolved.id,
-        "preferred_args": selector_preferred_args("mlx", &input)?
+        "preferred_args": preferred_args
     }))
 }
 
@@ -894,6 +895,15 @@ fn llm_verify(app_name: &str, args: &[String]) -> i32 {
             return 2;
         }
     };
+    let authority = if idx == 2 {
+        crate::model_authority::ensure_cli_authority("mlx")
+    } else {
+        crate::model_authority::ensure_execution_authority()
+    };
+    if let Err(e) = authority {
+        crate::cx_eprintln!("{} llm verify: {e}", cli_app_name());
+        return 1;
+    }
     let model_info = match resolve_mlx_model_for_verify() {
         Ok(v) => v,
         Err(e) => {

@@ -336,6 +336,16 @@ Local model registry support lets a backend-scoped alias or ID resolve to the
 registered `resolved_model`. Inspect uses cheap path checks by default;
 `--disk-usage` enables recursive directory accounting.
 
+Repository `.cx/state.json` and `.cx/local_models.json` may be supplied by a
+cloned repository, so their contents do not authorize provider execution by
+themselves. Select the backend and model with `llm use`, `llm set-backend`, or
+`llm set-model`; add a registry alias with `llm models add` before executing it.
+These commands record the selected values in a private user-home receipt bound
+to this checkout. Existing repository selections need to be made again once
+after upgrading. Explicit `CX_LLM_BACKEND` and backend-specific model variables
+remain process choices; an environment model string is used literally unless
+the selected registry entry has been explicitly approved.
+
 ```bash
 ./bin/xshelf llm models list --json | jq .
 ./bin/xshelf llm models add local_mlx --backend mlx --model "$MLX_MODEL_ID"

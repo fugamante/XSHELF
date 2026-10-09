@@ -963,18 +963,22 @@ impl MlxPythonAdapter {
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .unwrap_or_else(|| "python3".to_string());
-        let preferred_args = crate::local_models::selector_preferred_args("mlx", &model_selector)
-            .map_err(LlmRunError::message)?
-            .or_else(|| {
-                if env_model_selector.is_some() {
-                    None
-                } else {
-                    crate::local_models::find_record_for_backend(&model, "mlx")
-                        .ok()
-                        .flatten()
-                        .and_then(|record| record.preferred_args)
-                }
-            });
+        let selected_args =
+            match crate::local_models::selector_preferred_args("mlx", &model_selector) {
+                Ok(args) => args,
+                Err(_) if env_model_selector.is_some() => None,
+                Err(e) => return Err(LlmRunError::message(e)),
+            };
+        let preferred_args = selected_args.or_else(|| {
+            if env_model_selector.is_some() {
+                None
+            } else {
+                crate::local_models::find_record_for_backend(&model, "mlx")
+                    .ok()
+                    .flatten()
+                    .and_then(|record| record.preferred_args)
+            }
+        });
         Ok(Self {
             model,
             python,
@@ -1419,6 +1423,7 @@ pub fn resolve_provider_adapter() -> Result<Box<dyn ProviderAdapter>, LlmRunErro
             return Ok(Box::new(HttpCurlAdapter::new_from_env()?));
         }
     }
+    crate::model_authority::ensure_execution_authority().map_err(LlmRunError::message)?;
     match normalized_backend_name(&llm_backend()) {
         "ollama" => return Ok(Box::new(OllamaCliAdapter::new()?)),
         "llamacpp" => return Ok(Box::new(LlamaCppCliAdapter::new()?)),

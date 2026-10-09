@@ -63,6 +63,8 @@ mod logs_stats;
 mod logview;
 #[path = "modules/mode_cmd.rs"]
 mod mode_cmd;
+#[path = "modules/model_authority.rs"]
+mod model_authority;
 #[path = "modules/native_cmd.rs"]
 mod native_cmd;
 #[path = "modules/operator_context.rs"]
