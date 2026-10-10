@@ -52,9 +52,12 @@
   matches the reviewed patch. Exact-main Linux workflow `38052301708` and
   CodeQL workflow `38052301440` passed. Six run-log/quota findings and the two
   combined HTTP findings are verified fixed in Security Cloud on merged source.
-  Next, triage current-head local-prompt argument exposure, reducer input
-  limits, and adjacent JSONL locking and CI artifact paths by demonstrated
-  reachability before selecting another security maintenance boundary.
+  Current maintenance source moves local llama.cpp and MLX prompts from process
+  arguments into private stdin while preserving explicit backend/model choices.
+  The published October 7 source still contains the argument path. Next,
+  address the independently reproduced reducer input amplification, then the
+  conditional concurrent JSONL append race and CI artifact paths by current
+  reachability before selecting another maintenance boundary.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,

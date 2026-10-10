@@ -45,6 +45,11 @@ run, schema-failure, and task-event JSONL appends now use descriptor-anchored
 parents and reject symlinked or nonregular leaves. Task-event follow reads use
 the same protected source and bound each row and poll while retaining incomplete
 rows. A rejected catalog remains unavailable until refresh.
+Local llama.cpp and MLX process adapters now send repository-derived prompt
+content through an anonymous stdin file rather than process arguments. The
+published October 7 source predates this change. The reducer input limit and
+concurrent JSONL append findings remain separate, open local availability and
+integrity risks.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.
