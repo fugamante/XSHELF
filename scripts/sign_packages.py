@@ -24,6 +24,24 @@ from pathlib import Path, PurePosixPath
 
 
 TARGETS = {"aarch64-apple-darwin", "x86_64-apple-darwin"}
+# The v1 builder emits this fixed package shape. The archive's own manifest
+# checks bytes, but cannot authorize new paths or executable modes.
+PACKAGE_LAYOUT = {
+    "LICENSE": ("file", 0o644),
+    "README.md": ("file", 0o644),
+    "bin/xshelf": ("file", 0o755),
+    "bin/xs": ("symlink", 0o777),
+    "bin/cx": ("symlink", 0o777),
+    "share/man/man1/xshelf.1": ("file", 0o644),
+    "share/man/man1/xs.1": ("file", 0o644),
+    "share/man/man1/cx.1": ("file", 0o644),
+    "share/xshelf/schemas/commitjson.schema.json": ("file", 0o644),
+    "share/xshelf/schemas/diffsum.schema.json": ("file", 0o644),
+    "share/xshelf/schemas/fixrun.schema.json": ("file", 0o644),
+    "share/xshelf/schemas/next.schema.json": ("file", 0o644),
+    "manifest.json": ("file", 0o644),
+    "provenance.json": ("file", 0o644),
+}
 NORMALIZED_MTIME = 0
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_MEMBER_BYTES = 128 * 1024 * 1024
@@ -142,6 +160,14 @@ def _verify_manifest(package: Package) -> None:
     if not isinstance(rows, list):
         raise SignError("package manifest files must be a list")
     indexed = {member.path: member for member in package.members}
+    for path in sorted(set(indexed) - set(PACKAGE_LAYOUT)):
+        raise SignError(f"unexpected package member: {path}")
+    for path, layout in PACKAGE_LAYOUT.items():
+        member = indexed.get(path)
+        if member is None:
+            raise SignError(f"missing package member: {path}")
+        if (member.kind, member.mode) != layout:
+            raise SignError(f"package member type or mode mismatch: {path}")
     seen: set[str] = set()
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("path"), str):
@@ -160,10 +186,13 @@ def _verify_manifest(package: Package) -> None:
                 raise SignError(f"package manifest content mismatch: {path}")
         elif row.get("target") != member.link:
             raise SignError(f"package manifest symlink mismatch: {path}")
-    expected = set(indexed) - {"manifest.json", "provenance.json"}
+    expected = set(PACKAGE_LAYOUT) - {"manifest.json", "provenance.json"}
     if seen != expected:
-        extra = sorted(expected - seen)
-        raise SignError(f"package contains payload outside its manifest: {extra[0]}")
+        missing = sorted(expected - seen)
+        if missing:
+            raise SignError(f"package contains payload outside its manifest: {missing[0]}")
+        extra = sorted(seen - expected)
+        raise SignError(f"package manifest includes a non-payload member: {extra[0]}")
 
 
 def load_package(archive: Path) -> Package:

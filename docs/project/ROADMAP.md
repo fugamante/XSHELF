@@ -10,6 +10,10 @@
   do not advance VERSION solely to reset either age clock.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
+- Signing preflight for a later maintenance source now requires the builder's
+  exact v1 package member inventory before credential use. This closes the
+  self-manifested extra-file path in source; unsigned input authenticity and
+  exact-head native package evidence remain separate release gates.
 - Current maintenance source bounds repository-selected task replicas, run-all
   retries and judge calls before execution. Authorized Docker tasks hand off
   once and retain the admitted budget across the image boundary. This source

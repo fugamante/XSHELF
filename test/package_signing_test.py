@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import errno
+import hashlib
 import importlib.util
 import io
 import json
@@ -95,6 +96,80 @@ class PackageSigningTests(unittest.TestCase):
         self.assertEqual(package.provenance["architecture"], "aarch64-apple-darwin")
         self.assertFalse(package.provenance["signed"])
         self.assertFalse(package.provenance["notarized"])
+        self.assertEqual(
+            {member.path: (member.kind, member.mode) for member in package.members},
+            sign_packages.PACKAGE_LAYOUT,
+        )
+
+    def test_preflight_rejects_self_manifested_extra_payload(self) -> None:
+        arm = self.build("aarch64-apple-darwin", self.base / "arm-extra")
+        intel = self.build("x86_64-apple-darwin", self.base / "intel-extra")
+        root = arm.name[: -len(".tar.gz")]
+        extra = b"synthetic executable\n"
+        replacement = arm.with_name("replacement.tar.gz")
+        with tarfile.open(arm, "r:gz") as incoming, tarfile.open(replacement, "w:gz") as outgoing:
+            for member in incoming.getmembers():
+                stream = incoming.extractfile(member) if member.isreg() else None
+                if member.name == f"{root}/manifest.json":
+                    manifest = json.load(stream)
+                    manifest["files"].append(
+                        {
+                            "mode": "0755",
+                            "path": "bin/git",
+                            "sha256": hashlib.sha256(extra).hexdigest(),
+                            "size": len(extra),
+                            "type": "file",
+                        }
+                    )
+                    data = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+                    member.size = len(data)
+                    stream = io.BytesIO(data)
+                outgoing.addfile(member, stream)
+            member = tarfile.TarInfo(f"{root}/bin/git")
+            member.mode = 0o755
+            member.size = len(extra)
+            outgoing.addfile(member, io.BytesIO(extra))
+        replacement.replace(arm)
+        arm.with_name(arm.name + ".sha256").write_text(
+            f"{sign_packages.sha256_file(arm)}  {arm.name}\n", encoding="utf-8"
+        )
+
+        args = argparse.Namespace(
+            command="preflight", archives=[arm, intel], identifier="io.example.xshelf"
+        )
+        with mock.patch.object(sign_packages, "_tool_ready", return_value=True):
+            with self.assertRaisesRegex(sign_packages.SignError, "unexpected package member"):
+                sign_packages.execute(args)
+        args.command = "run"
+        with mock.patch.object(sign_packages, "run") as apple_command:
+            with self.assertRaisesRegex(sign_packages.SignError, "unexpected package member"):
+                sign_packages.execute(args)
+        apple_command.assert_not_called()
+
+    def test_self_manifested_payload_mode_change_is_rejected(self) -> None:
+        archive = self.build("aarch64-apple-darwin", self.base / "mode-change")
+        root = archive.name[: -len(".tar.gz")]
+        replacement = archive.with_name("replacement.tar.gz")
+        with tarfile.open(archive, "r:gz") as incoming, tarfile.open(replacement, "w:gz") as outgoing:
+            for member in incoming.getmembers():
+                stream = incoming.extractfile(member) if member.isreg() else None
+                if member.name == f"{root}/README.md":
+                    member.mode = 0o755
+                elif member.name == f"{root}/manifest.json":
+                    manifest = json.load(stream)
+                    next(row for row in manifest["files"] if row["path"] == "README.md")[
+                        "mode"
+                    ] = "0755"
+                    data = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
+                    member.size = len(data)
+                    stream = io.BytesIO(data)
+                outgoing.addfile(member, stream)
+        replacement.replace(archive)
+        archive.with_name(archive.name + ".sha256").write_text(
+            f"{sign_packages.sha256_file(archive)}  {archive.name}\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(sign_packages.SignError, "type or mode mismatch: README.md"):
+            sign_packages.load_package(archive)
 
     def test_checksum_and_manifest_tampering_fail_closed(self) -> None:
         archive = self.build("aarch64-apple-darwin", self.base / "tamper")

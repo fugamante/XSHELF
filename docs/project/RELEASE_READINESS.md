@@ -25,6 +25,16 @@ evidence, signing, notarization, public-byte verification, or publication
 authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.
 
+The later-source signing preflight now checks the builder's exact v1 member
+paths, types and modes before credential use. Owned synthetic ARM/Intel
+archives reproduced acceptance of an extra self-manifested executable on the
+previous main and verify rejection in current source; the checksum sidecar
+and manifest remain consistency checks, not proof of unsigned input origin.
+The oversized single-line chunk finding remains open pending a demonstrated
+provider path; its current in-repository callers print local output or retain
+only a capped chunk count. Neither source result supplies native package or
+publication evidence for a new release.
+
 This source change also rejects task execution above 16 effective
 replicas or 32 potential task/judge invocations, including retries and judge selection;
 the selected run-all schedule is admitted before task mutations, and an
