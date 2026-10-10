@@ -69,9 +69,18 @@ batches lost one observational row while retaining all quarantine records.
 The same `openat` failure occurred in three of twenty 64-process batches on
 exact pre-lock source `5786814f2fb0e105feb0523b2acbdba61df987af`, so the
 JSONL lock did not introduce it. The OS-level cause remains unproven. A
-private bounded retry probe recovered all 1,280 rows in twenty batches but
-is not a source fix.
-First-use behavior needs separate attribution and validation.
+private bounded retry probe recovered all 1,280 rows in twenty batches.
+Current source now retries only a transient missing final log leaf on the
+held directory descriptor for at most eight short waits. Deterministic
+fault injection and concurrent first-use and reuse regressions cover the
+source fix; other errors and permanent missing leaves still fail closed.
+Exact-head native package validation remains separate.
+CI compatibility failure artifacts now use a runner-temporary directory
+prepared before checkout. The summary reads only named generated logs, and
+upload staging accepts only regular files opened without following symlinks.
+Owned synthetic checkout-symlink and legitimate-log regressions cover this
+path. Pull-request code retains its runner's same-user file access; hosted
+failure-artifact upload has not been exercised as a separate release gate.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.
