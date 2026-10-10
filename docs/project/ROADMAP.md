@@ -10,6 +10,11 @@
   do not advance VERSION solely to reset either age clock.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
+- Current maintenance source bounds repository-selected task replicas, run-all
+  retries and judge calls before execution. Authorized Docker tasks hand off
+  once and retain the admitted budget across the image boundary. This source
+  change does not alter the published October 7 archives or satisfy native
+  package and publication gates for a later maintenance release.
 - Security remediation sequence: preserve anchored log migration, explicit MLX
   registry argument trust, selected benchmark scripts and private output storage.
   Require independent reproduction, contract compatibility, and hosted Linux

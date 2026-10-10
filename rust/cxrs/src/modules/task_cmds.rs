@@ -24,9 +24,9 @@ use crate::process::{run_command_output_with_timeout, run_command_status_with_ti
 use crate::state::{current_task_id, read_state_checked, set_state_path};
 use crate::task_events::{TaskEvent, cmd_task_events, emit as emit_task_event};
 use crate::taskrun::{TaskRunError, TaskRunner, task_sandbox_config, task_sandbox_readiness};
-use crate::tasks::set_task_status;
 use crate::tasks::task_run_state;
 use crate::tasks::task_run_view;
+use crate::tasks::{set_task_status, task_budget};
 use crate::tasks_plan::build_task_run_plan;
 use crate::types::TaskRecord;
 
@@ -47,12 +47,14 @@ type TaskRunByIdFn = fn(
     Option<&str>,
     bool,
     bool,
+    Option<u32>,
 ) -> Result<(i32, Option<String>), TaskRunError>;
 
 struct TaskRunOverrides {
     mode_override: Option<String>,
     backend_override: Option<String>,
     managed_by_parent: bool,
+    sandbox_budget: Option<u32>,
     json_out: Option<bool>,
 }
 
@@ -399,6 +401,7 @@ fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOv
     let mut mode_override: Option<String> = None;
     let mut backend_override: Option<String> = None;
     let mut managed_by_parent = false;
+    let mut sandbox_budget = None;
     let mut json_out: Option<bool> = None;
     let mut i = 2usize;
     while i < args.len() {
@@ -423,6 +426,14 @@ fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOv
                 managed_by_parent = true;
                 i += 1;
             }
+            "--sandbox-budget-v1" => {
+                let Some(v) = args.get(i + 1).and_then(|v| v.parse::<u32>().ok()) else {
+                    crate::cx_eprintln!("{} task run: invalid sandbox budget", cli_app_name());
+                    return Err(2);
+                };
+                sandbox_budget = Some(v);
+                i += 2;
+            }
             "--json" => {
                 json_out = Some(true);
                 i += 1;
@@ -437,10 +448,18 @@ fn parse_task_run_overrides(app_name: &str, args: &[String]) -> Result<TaskRunOv
             }
         }
     }
+    if sandbox_budget.is_some() && !managed_by_parent {
+        crate::cx_eprintln!(
+            "{} task run: sandbox budget requires managed execution",
+            cli_app_name()
+        );
+        return Err(2);
+    }
     Ok(TaskRunOverrides {
         mode_override,
         backend_override,
         managed_by_parent,
+        sandbox_budget,
         json_out,
     })
 }
@@ -460,6 +479,7 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         mode_override,
         backend_override,
         managed_by_parent,
+        sandbox_budget,
         json_out,
     } = overrides;
     let as_json = resolve_json_mode(json_out, false);
@@ -505,6 +525,7 @@ fn handle_run(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         backend_override.as_deref(),
         managed_by_parent,
         !as_json,
+        sandbox_budget,
     ) {
         Ok((code, execution_id)) => {
             if as_json {
@@ -1502,6 +1523,24 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         );
     }
 
+    // Admit the whole selected schedule before any task status or provider is
+    // touched. A repository task can multiply replicas by run-all retries.
+    for id in &schedule {
+        let Some(task) = task_index.get(id) else {
+            crate::cx_eprintln!(
+                "{} task run-all: planned task missing: {id}",
+                cli_app_name()
+            );
+            return 1;
+        };
+        if let Err(error) =
+            task_budget(&task.converge, task.replicas, task.max_retries.unwrap_or(0))
+        {
+            crate::cx_eprintln!("{} task run-all: task {id}: {error}", cli_app_name());
+            return 1;
+        }
+    }
+
     // Pin an approved selection so later availability changes cannot become an implicit provider choice.
     let approved_pool = available_pool(&options.backend_pool);
     if !schedule.is_empty() && approved_pool.is_empty() {
@@ -1729,6 +1768,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                             backend_selected.as_deref(),
                             false,
                             true,
+                            None,
                         )
                     },
                 );

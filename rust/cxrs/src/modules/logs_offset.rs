@@ -9,6 +9,25 @@ pub fn latest_value_since(
     offset: u64,
     required_field: Option<&str>,
 ) -> Result<Option<Value>, String> {
+    latest_value_since_for_task(log_file, offset, required_field, None)
+}
+
+// A sandbox shares the run log with other task workers. Keep its recovery
+// within the requested task even when another worker appends after handoff.
+pub fn latest_task_value_since(
+    log_file: &Path,
+    offset: u64,
+    task_id: &str,
+) -> Result<Option<Value>, String> {
+    latest_value_since_for_task(log_file, offset, Some("execution_id"), Some(task_id))
+}
+
+fn latest_value_since_for_task(
+    log_file: &Path,
+    offset: u64,
+    required_field: Option<&str>,
+    task_id: Option<&str>,
+) -> Result<Option<Value>, String> {
     let file = open_run_file(log_file).map_err(|e| format!("cannot open run log: {e}"))?;
     let mut reader = BufReader::new(file);
     reader
@@ -29,6 +48,7 @@ pub fn latest_value_since(
                     .and_then(Value::as_str)
                     .is_some_and(|value| !value.trim().is_empty())
             })
+            && task_id.is_none_or(|id| row.get("task_id").and_then(Value::as_str) == Some(id))
         {
             latest = Some(row);
         }

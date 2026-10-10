@@ -25,6 +25,13 @@ evidence, signing, notarization, public-byte verification, or publication
 authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.
 
+This source change also rejects task execution above 16 effective
+replicas or 32 potential task/judge invocations, including retries and judge selection;
+the selected run-all schedule is admitted before task mutations, and an
+authorized sandbox performs one versioned handoff. Owned synthetic task and
+mock-Docker regressions cover the source boundary. This is source evidence,
+not exact-head native ARM/Intel package or publication evidence.
+
 Mixed/parallel task dependency/resource-wave fixes were verified on merged
 source `43b7791e26d2270b280790a6e565a73e6044b2bf`, with hosted Linux and
 CodeQL passing. Actual HTTP adapter execution confirmed credential arguments

@@ -226,6 +226,7 @@ pub fn sandbox_command(
     root: &Path,
     authority: &SandboxAuthority,
     probe: bool,
+    task_id: Option<&str>,
 ) -> Result<Command, String> {
     let source = root
         .to_str()
@@ -265,6 +266,10 @@ pub fn sandbox_command(
         cmd.args(["-e", &format!("{key}={value}")]);
     }
     if !probe {
+        // Docker environment options must precede IMAGE and its shell arguments.
+        if let Some(id) = task_id {
+            cmd.env("CX_TASK_ID", id).args(["-e", "CX_TASK_ID"]);
+        }
         for (key, value) in &authority.shared {
             cmd.env(key, value).args(["-e", key]);
         }
@@ -285,6 +290,8 @@ pub fn sandbox_command(
             "CX_TASK_REPLICA_INDEX",
             "CX_TASK_REPLICA_COUNT",
             "CX_TASK_CONVERGE_MODE",
+            // A managed run-all retry budget must survive the container handoff.
+            "CX_TASK_RETRY_MAX",
         ] {
             if let Some(value) = process_value(key)? {
                 cmd.env(key, value).args(["-e", key]);
@@ -377,7 +384,7 @@ pub fn task_sandbox_readiness() -> TaskSandboxReadiness {
     let image_available = docker_available && authority.as_ref().is_ok_and(local_image);
     let entrypoint_available = image_available && repo_mount_writable && {
         let a = authority.as_ref().unwrap();
-        sandbox_command(root.as_ref().unwrap(), a, true).is_ok_and(|mut cmd| {
+        sandbox_command(root.as_ref().unwrap(), a, true, None).is_ok_and(|mut cmd| {
             cmd.arg(format!("test -d .cx && {}", sandbox_script(a)));
             crate::process::run_command_output_with_timeout(
                 cmd,

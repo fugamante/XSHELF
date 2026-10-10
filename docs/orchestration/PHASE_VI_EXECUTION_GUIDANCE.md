@@ -191,6 +191,28 @@ sandbox, environment scrubber or protection from code already running as the
 same user. Docker image, readiness-probe and credential-sharing trust require
 separate controls; this grant alone does not establish safe container operation.
 
+## Task Execution Budget
+
+Task execution admits at most 16 effective replicas and 32 potential task/judge
+invocations per task. The latter includes run-all retry attempts and one additional
+judge invocation per attempt. It does not bound calls made inside an objective.
+`converge=none` has one effective replica; its
+stored replica value remains visible, even if larger. New task records are
+checked at add time. Stored records remain inspectable through list, show and
+planning commands, while direct run and every selected run-all task reject an
+over-budget record before task status or provider changes. The run-all check
+precedes all selected tasks, including sequential and parallel plans. A task
+file changed after planning is rechecked by the worker against its inherited
+retry budget. Rejection is explicit and never clamps requested work. Preflight
+errors retain the existing stderr path; text mode may already have printed a
+parallel plan preview before the error. JSON mode emits no partial result.
+
+An authorized sandbox receives the whole admitted task once. The inner
+executable performs convergence and receives an internal, restrictive
+per-attempt invocation budget from the parent; older image executables
+reject that versioned handoff instead of running unbounded work. Task result
+and JSON keys are unchanged.
+
 ## Docker Task Authority and Migration
 
 Repository sandbox settings are requested configuration. Before runtime or a

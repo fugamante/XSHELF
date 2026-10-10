@@ -25,6 +25,13 @@ Notes:
 
 ### Fixed
 
+- Task execution now rejects more than 16 effective replicas or 32 potential
+  task/judge invocations per task, including run-all retries and judge selection. The
+  selected run-all schedule is checked before any task status or provider work;
+  direct and managed runs recheck stored records. An authorized sandbox receives
+  one bounded task handoff instead of repeating the replica loop outside and
+  inside the container. Existing task JSON keys, list/show inspection and
+  ordinary convergence behavior remain.
 - CI compatibility failure logs now start in runner temporary storage before
   checkout and only named, regular generated files are staged for upload.
   Checkout-supplied artifact symlinks cannot redirect failure summaries or
