@@ -13,6 +13,7 @@ fi
 MODE="quick"
 JSON_STDOUT=0
 OUT_FILE=""
+OUT_EXPLICIT=0
 REBUILD=0
 PASS_TTY=0
 declare -a EXTRA_ARGS=()
@@ -20,10 +21,14 @@ declare -a GIT_MOUNT_ARGS=()
 GIT_SNAPSHOT_DIR=""
 GIT_POINTER_FILE=""
 TSV_FILE=""
+REPORT_PAYLOAD=""
 
 cleanup() {
   if [[ -n "$TSV_FILE" ]]; then
     rm -f -- "$TSV_FILE"
+  fi
+  if [[ -n "$REPORT_PAYLOAD" ]]; then
+    rm -f -- "$REPORT_PAYLOAD"
   fi
   if [[ -n "$GIT_SNAPSHOT_DIR" && -d "$GIT_SNAPSHOT_DIR" ]]; then
     rm -rf -- "$GIT_SNAPSHOT_DIR"
@@ -71,6 +76,7 @@ while [[ $# -gt 0 ]]; do
     --out)
       OUT_FILE="${2:-}"
       [[ -n "$OUT_FILE" ]] || { echo "compat-docker: --out requires a path" >&2; exit 2; }
+      OUT_EXPLICIT=1
       shift 2
       ;;
     --image)
@@ -172,23 +178,22 @@ emit_report() {
   local overall_rc="$4"
   local image_tag="$5"
   local image_overridden="$6"
-  mkdir -p "$(dirname "$out_file")"
+  REPORT_PAYLOAD="$(mktemp)"
   COMPAT_MODE="$mode" \
   COMPAT_ROOT="$ROOT_DIR" \
-  COMPAT_OUT="$out_file" \
   COMPAT_TSV="$tsv_file" \
   COMPAT_RC="$overall_rc" \
   COMPAT_IMAGE_TAG="$image_tag" \
   COMPAT_IMAGE_OVERRIDDEN="$image_overridden" \
-  python3 - <<'PY'
+  python3 - > "$REPORT_PAYLOAD" <<'PY'
 import json
 import os
 import platform
 import subprocess
+import sys
 from datetime import datetime, timezone
 
 tsv = os.environ["COMPAT_TSV"]
-out_path = os.environ["COMPAT_OUT"]
 mode = os.environ["COMPAT_MODE"]
 root = os.environ["COMPAT_ROOT"]
 overall_rc = int(os.environ["COMPAT_RC"])
@@ -265,9 +270,13 @@ report = {
     "steps": steps,
 }
 
-with open(out_path, "w", encoding="utf-8") as fh:
-    json.dump(report, fh, indent=2, sort_keys=True)
+sys.stdout.write(json.dumps(report, indent=2, sort_keys=True))
 PY
+  if [[ "$OUT_EXPLICIT" -eq 1 ]]; then
+    python3 "$ROOT_DIR/scripts/compat_report.py" --out "$out_file" < "$REPORT_PAYLOAD"
+  else
+    python3 "$ROOT_DIR/scripts/compat_report.py" --default-root "$(pwd -P)" --leaf "docker_${mode}_latest.json" < "$REPORT_PAYLOAD"
+  fi
 }
 
 if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
@@ -353,7 +362,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
 
   emit_report "$MODE" "$OUT_FILE" "$TSV_FILE" "$OVERALL_RC" "$IMAGE_TAG" "$IMAGE_OVERRIDDEN"
   if [[ "$JSON_STDOUT" -eq 1 ]]; then
-    cat "$OUT_FILE"
+    cat "$REPORT_PAYLOAD"
   else
     echo "compat-docker: mode=$MODE status=$([[ "$OVERALL_RC" -eq 0 ]] && echo PASS || echo FAIL)"
     echo "compat-docker: report=$OUT_FILE"

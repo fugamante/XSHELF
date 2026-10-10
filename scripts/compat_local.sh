@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$ROOT_DIR"
 
 MODE="quick"
 JSON_STDOUT=0
 OUT_FILE=".cx/compat/latest.json"
+OUT_EXPLICIT=0
 
 if ! command -v cargo >/dev/null 2>&1; then
   for cargo_bin in "$HOME/.cargo/bin" /usr/local/cargo/bin; do
@@ -37,6 +38,7 @@ while [[ $# -gt 0 ]]; do
         echo "error: --out requires a path" >&2
         exit 2
       fi
+      OUT_EXPLICIT=1
       shift 2
       ;;
     *)
@@ -101,11 +103,11 @@ if [[ "$MODE" == "full" ]]; then
   run_step "compat_check_full" "cd rust/cxrs && ./scripts/compat_check.sh 50"
 fi
 
-mkdir -p "$(dirname "$OUT_FILE")"
-
 COMPAT_MODE="$MODE" \
 COMPAT_ROOT="$ROOT_DIR" \
 COMPAT_OUT="$OUT_FILE" \
+COMPAT_OUT_EXPLICIT="$OUT_EXPLICIT" \
+COMPAT_JSON="$JSON_STDOUT" \
 COMPAT_TSV="$TSV_FILE" \
 COMPAT_RC="$OVERALL_RC" \
 python3 - <<'PY'
@@ -113,6 +115,7 @@ import json
 import os
 import platform
 import subprocess
+import sys
 from datetime import datetime, timezone
 
 tsv = os.environ["COMPAT_TSV"]
@@ -120,6 +123,8 @@ out_path = os.environ["COMPAT_OUT"]
 mode = os.environ["COMPAT_MODE"]
 root = os.environ["COMPAT_ROOT"]
 overall_rc = int(os.environ["COMPAT_RC"])
+sys.path.insert(0, os.path.join(root, "scripts"))
+from compat_report import write_default, write_explicit
 
 def sh(cmd):
     try:
@@ -169,13 +174,20 @@ report = {
     "steps": steps,
 }
 
-with open(out_path, "w", encoding="utf-8") as fh:
-    json.dump(report, fh, indent=2, sort_keys=True)
+payload = json.dumps(report, indent=2, sort_keys=True)
+try:
+    if os.environ["COMPAT_OUT_EXPLICIT"] == "1":
+        write_explicit(out_path, payload)
+    else:
+        write_default(root, "latest.json", payload)
+except (OSError, ValueError) as exc:
+    raise SystemExit(f"compat-local: report write failed: {exc}")
+
+if os.environ["COMPAT_JSON"] == "1":
+    sys.stdout.write(payload)
 PY
 
-if [[ "$JSON_STDOUT" -eq 1 ]]; then
-  cat "$OUT_FILE"
-else
+if [[ "$JSON_STDOUT" -eq 0 ]]; then
   echo "compat-local: mode=$MODE status=$([[ "$OVERALL_RC" -eq 0 ]] && echo PASS || echo FAIL)"
   echo "compat-local: report=$OUT_FILE"
   while IFS=$'\t' read -r name rc dur cmd; do

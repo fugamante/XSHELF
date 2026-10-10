@@ -4,6 +4,7 @@ set -euo pipefail
 MODE="quick"
 JSON=0
 OUT_FILE=".cx/compat/all_latest.json"
+OUT_EXPLICIT=0
 declare -a REPOS=()
 
 usage() {
@@ -23,6 +24,7 @@ while [[ $# -gt 0 ]]; do
     --out)
       OUT_FILE="${2:-}"
       [[ -n "$OUT_FILE" ]] || { echo "compat-all: --out requires a path" >&2; exit 2; }
+      OUT_EXPLICIT=1
       shift 2
       ;;
     --repo)
@@ -51,29 +53,31 @@ if [[ ${#REPOS[@]} -eq 0 ]]; then
   done
 fi
 
-mkdir -p "$(dirname "$OUT_FILE")"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 entries_jsonl="$tmpdir/repos.jsonl"
+report_json="$tmpdir/all.json"
 : > "$entries_jsonl"
 
 overall_rc=0
 failed_repos=0
 generated_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+repo_index=0
 
 for repo in "${REPOS[@]}"; do
   repo_abs="$(cd "$repo" 2>/dev/null && pwd || true)"
   [[ -n "$repo_abs" ]] || repo_abs="$repo"
 
   compat_script="$repo_abs/scripts/compat_local.sh"
-  result_file="$tmpdir/$(basename "$repo_abs")_compat.json"
+  # Each invocation needs its own slot even when repository basenames match.
+  result_file="$tmpdir/repo_${repo_index}_compat.json"
+  repo_index=$((repo_index + 1))
   rc=0
 
   if [[ -x "$compat_script" ]]; then
-    if ! "$compat_script" "--$MODE" --json --out "$result_file" >/dev/null 2>&1; then
-      rc=$?
-    fi
+    # Keep the child's status; negating this command would replace it with zero.
+    "$compat_script" "--$MODE" --json --out "$result_file" >/dev/null 2>&1 || rc=$?
   else
     rc=127
     cat > "$result_file" <<JSON
@@ -81,8 +85,24 @@ for repo in "${REPOS[@]}"; do
 JSON
   fi
 
-  status="$(jq -r '.status // "unknown"' "$result_file" 2>/dev/null || echo "unknown")"
-  steps_failed="$(jq -r '.summary.steps_failed // 1' "$result_file" 2>/dev/null || echo "1")"
+  # A child can fail before writing its report. Keep a structured failure row
+  # so one bad child cannot erase the aggregate and the other child results.
+  if [[ -s "$result_file" ]] &&
+    result_json="$(jq -c -s '
+      if length == 1 and
+         (.[0] | type) == "object" and
+         (.[0].status | type) == "string" and
+         (.[0].summary | type) == "object" and
+         (.[0].summary.steps_failed | type) == "number"
+      then .[0] else error("invalid child report") end
+    ' "$result_file" 2>/dev/null)"; then
+    :
+  else
+    result_json='{"status":"fail","summary":{"steps_total":0,"steps_failed":1},"error":"missing or invalid compat report"}'
+  fi
+
+  status="$(jq -r '.status // "unknown"' <<< "$result_json")"
+  steps_failed="$(jq -r '.summary.steps_failed // 1' <<< "$result_json")"
   if [[ "$rc" -ne 0 || "$status" != "ok" || "$steps_failed" != "0" ]]; then
     overall_rc=1
     failed_repos=$((failed_repos + 1))
@@ -91,7 +111,7 @@ JSON
   jq -n \
     --arg path "$repo_abs" \
     --argjson exit_code "$rc" \
-    --argjson result "$(cat "$result_file")" \
+    --argjson result "$result_json" \
     '{path:$path, exit_code:$exit_code, result:$result}' >> "$entries_jsonl"
 done
 
@@ -121,14 +141,20 @@ jq -n \
     repos:$repos,
     summary:{repos_total:$repos_total,repos_failed:$repos_failed},
     status_final:$status_final
-  }' > "$OUT_FILE"
+  }' > "$report_json"
+
+if [[ "$OUT_EXPLICIT" -eq 1 ]]; then
+  python3 "$script_dir/compat_report.py" --out "$OUT_FILE" < "$report_json"
+else
+  python3 "$script_dir/compat_report.py" --default-root "$(pwd -P)" --leaf all_latest.json < "$report_json"
+fi
 
 if [[ "$JSON" -eq 1 ]]; then
-  cat "$OUT_FILE"
+  cat "$report_json"
 else
-  echo "compat-all: mode=$MODE status=$(jq -r '.status_final' "$OUT_FILE")"
+  echo "compat-all: mode=$MODE status=$(jq -r '.status_final' "$report_json")"
   echo "compat-all: report=$OUT_FILE"
-  jq -r '.repos[] | " - [" + (if (.exit_code == 0 and ((.result.summary.steps_failed // 1) == 0)) then "ok" else "fail" end) + "] " + .path' "$OUT_FILE"
+  jq -r '.repos[] | " - [" + (if (.exit_code == 0 and ((.result.summary.steps_failed // 1) == 0)) then "ok" else "fail" end) + "] " + .path' "$report_json"
 fi
 
 if [[ "$overall_rc" -eq 0 ]]; then

@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- Default local, aggregate, and Docker smoke/CI compatibility reports now
+  use private, descriptor-anchored `.cx/compat` writes that reject redirected
+  parents and unsafe existing leaves. Explicit `--out` paths keep their
+  operator-selected behavior. The aggregate runner preserves a child's
+  nonzero exit and records missing or malformed child reports as failures.
 - The `chunk` command now splits an oversized line at Unicode character
   boundaries so emitted chunks respect a positive character budget. A zero
   budget fails before chunk output or task fanout mutation; normal line
