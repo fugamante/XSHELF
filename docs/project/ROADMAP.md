@@ -10,10 +10,17 @@
   do not advance VERSION solely to reset either age clock.
 - Select `v2026.10.10` as a security maintenance candidate for the fixes merged
   after the October 7 release. The candidate is untagged and unpublished.
-  Complete exact-head host, Docker, native ARM and Intel package validation,
-  independent review, and signing preflight before source signoff. Developer ID
-  signing, notarization, public-byte checks, and Homebrew qualification remain
-  separate release steps. Keep published status anchored to `v2026.10.07`.
+  On prior merged source `526e92eeacb5f437e78d49be5ba757e3eb7fbdf9`,
+  independent review, host and Docker gates, and two-build native ARM and Intel
+  reproduction passed; Intel evidence is retained in workflow `38092777853`.
+  The next merged source head requires its own exact-head hosted, native, and
+  pre-tag checks. Developer ID signing, notarization, public-byte checks, and
+  Homebrew qualification remain separate release steps. Keep published status
+  anchored to `v2026.10.07`.
+- `v2026.10.10` release source is validated; this marker records a scoped
+  source decision for the reviewed candidate. It does not establish final-head
+  native packages, a tag, signature, notarization, public archive, or Homebrew
+  publication. Those gates require their own evidence after the signoff merge.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Signing preflight for a later maintenance source now requires the builder's
@@ -44,16 +51,18 @@
   acceptance before integration; close findings only after upstream verification.
   The October 9 packet covers quarantine path escape, repository-selected
   model authority, and parity schema exposure. The selected security candidate
-  needs fresh exact-source native ARM and Intel evidence; the published October
-  7 signoff does not cover later commits.
+  has prior-head ARM and Intel evidence but needs fresh exact-source evidence
+  after the signoff merge; the published October 7 signoff does not cover later
+  commits.
   Concurrent log writers and arbitrary same-user execution remain outside the
   migration isolation boundary.
 - October 9 authority packet: verify the quarantine ID, repository model, and
   parity schema boundaries on merged source. The live Security Cloud inventory
   also contains many newer findings against historical revisions; group
   duplicates and reproduce current reachability before selecting another
-  release-impacting fix. Release signoff for `v2026.10.10` remains on hold until
-  this triage, exact-head native ARM/Intel evidence, and separate release
+  release-impacting fix. Scoped source signoff for `v2026.10.10` accepts the
+  lower-severity issues listed in the readiness snapshot. Publication remains
+  on hold until final-head native ARM/Intel evidence and separate release
   authority are complete. The published `v2026.10.07` assets remain unchanged.
   Mixed/parallel `task run-all` dependency and resource-wave fixes were verified
   on merged source `43b7791e26d2270b280790a6e565a73e6044b2bf` with hosted
@@ -112,9 +121,9 @@
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
-  and already failed selections remain failed. Exact-head native ARM and Intel
-  package validation, signing, notarization, and separate publication authority
-  remain open for the selected maintenance candidate.
+  and already failed selections remain failed. Final-merged-head native ARM and
+  Intel package validation, signing, notarization, and separate publication
+  authority remain open for the selected maintenance candidate.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

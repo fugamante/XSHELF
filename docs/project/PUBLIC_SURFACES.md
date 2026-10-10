@@ -34,14 +34,20 @@ manual source.
 
 ## Deployment Policy
 
-If XSHELF is published as a static website, prefer serving the repository root so
-`index.html` is the public landing page. Keep manual links relative so the same
-files work from local disk, GitHub Pages, and simple static hosting.
+If XSHELF is published as a static website, serve an isolated export containing
+only `index.html`, `docs/manuals/00_README.md`, and the tracked
+`docs/manuals/02_web/{index.html,CX_MANUAL_MASTER.html,apple.css}` files.
+Preserve their relative layout and links. Never serve a live repository checkout:
+its `.git`, `.cx`, logs, quarantine, state, configuration, source, tests, and
+build outputs are outside the public website. Gate deployment on verifying the
+actual host rejects requests for those paths.
 
 Before publishing, check:
 - root `index.html` renders on desktop and mobile
 - manual web mirror renders on desktop and mobile
-- local links from `README.md`, `index.html`, and manual index resolve
+- links in the isolated website export resolve; separately check repository
+  `README.md` links against the repository source
+- the deployed host denies repository-private paths, including `.git` and `.cx`
 - README, landing page, and manual source agree on primary command flow
 
 ## Change Rule
