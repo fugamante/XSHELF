@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-10 (source decision updated for bounded log and quota reads)
+Snapshot date: 2026-10-10 (merged security boundary evidence reconciled)
 
 ## Release recovery completed (2026-10-07)
 
@@ -11,7 +11,7 @@ public-byte verification and Homebrew archive delivery are complete. Fresh
 GitHub API publication-age evidence passes. The six logging alerts were
 statically dispositioned as false positives; no runtime source changed.
 
-## Postrelease security decision (2026-10-09)
+## Postrelease security decision (2026-10-10)
 
 The published October 7 archives remain bound to `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 That source predates the Cargo/provider fixes and contains the quarantine ID,
@@ -45,10 +45,19 @@ a separate residual. A rejected catalog remains unavailable until refresh.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.
-The two combined HTTP URL findings are partly addressed in source, with explicit
-nonlocal HTTP and optional host allowlisting still requiring operator
-configuration. The security maintenance release stays on hold; the published
-`v2026.10.07` assets are unchanged.
+PR #118 merged as `d31df5e309adc26013e08e31c48d3aeaa07540a0`, with an
+identical tree to the independently reviewed patch. Pinned Rust 1.95 host
+guardrails and full compatibility, Docker CI parity, exact-main Linux workflow
+`38052301708`, and CodeQL workflow `38052301440` passed. Security Cloud now
+marks the six bounded-log/quota findings and two combined HTTP URL findings
+fixed after merged-source verification. The HTTP adapter and URL remain
+operator-selected; nonlocal HTTP and redirects require explicit overrides.
+Repository-selected JSONL append and task-event follow paths are the next
+security boundary to reproduce. The security maintenance release stays on
+hold: no exact-head native ARM or Intel package reproduction, signing,
+notarization, public-byte verification, or publication authority has been
+established for this later source. The published `v2026.10.07` assets are
+unchanged.
 
 ## Current State
 

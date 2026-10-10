@@ -32,9 +32,10 @@
   Linux and CodeQL. Actual adapter execution then confirmed HTTP curl credential
   arguments. The current source moves credentials and operator-selected URL
   parameters into an anonymous curl config descriptor on Unix. The two combined
-  HTTP URL findings remain partly open: explicit nonlocal HTTP and optional host
-  allowlisting require an operator configuration choice, with no lower-trust
-  setter demonstrated. Current maintenance source bounds recent run-log reads,
+  HTTP URL findings were closed on merged source after exact-main HTTP tests,
+  hosted Linux, and CodeQL passed; nonlocal HTTP and redirects still require
+  explicit operator choices, and no lower-trust URL setter was demonstrated.
+  Current maintenance source bounds recent run-log reads,
   task failure-row lookup, task inspection and recovery, log tailing, validation
   rows, appended scans, migration input and output, execution run-log writes,
   and quota catalog cache reads. Repository-default log and catalog reads reject symlink
@@ -44,6 +45,12 @@
   Owned synthetic data established local resource and symlink risks; remote
   write reachability has not been established. Adjacent task-event and other
   local readers still need separate reachability and failure-path assessment.
+  PR #118 merged as `d31df5e309adc26013e08e31c48d3aeaa07540a0`; its tree
+  matches the reviewed patch. Exact-main Linux workflow `38052301708` and
+  CodeQL workflow `38052301440` passed. Six run-log/quota findings and the two
+  combined HTTP findings are verified fixed in Security Cloud on merged source.
+  Next, reproduce repository-selected JSONL append and task-event follow paths
+  with owned files, then repair only demonstrated boundary failures.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
