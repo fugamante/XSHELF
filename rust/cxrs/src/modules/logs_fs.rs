@@ -133,6 +133,30 @@ impl AnchoredPath {
         Ok(file)
     }
 
+    pub fn append_regular(&self) -> io::Result<File> {
+        let file = File::from(
+            fs::openat(
+                &self.parent,
+                &self.leaf,
+                OFlags::WRONLY
+                    | OFlags::APPEND
+                    | OFlags::CREATE
+                    | OFlags::NOFOLLOW
+                    | OFlags::NONBLOCK
+                    | OFlags::CLOEXEC,
+                Mode::from_raw_mode(0o600),
+            )
+            .map_err(io_error)?,
+        );
+        if !file.metadata()?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "log destination is not a regular file",
+            ));
+        }
+        Ok(file)
+    }
+
     pub fn check_target(&self) -> io::Result<()> {
         match fs::statat(&self.parent, &self.leaf, AtFlags::SYMLINK_NOFOLLOW) {
             Ok(stat) if FileType::from_raw_mode(stat.st_mode) == FileType::RegularFile => Ok(()),

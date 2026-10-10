@@ -40,8 +40,11 @@ logs and quota catalogs reproduced excessive local reads and symlink
 redirection. Current source bounds recent run-log views, task failure-row
 lookup, task inspection and recovery, log tailing, validation, appended scans,
 migration input and output, execution run-log writes, and quota catalog reads.
-Default repository log and catalog reads reject symlinks; append path handling remains
-a separate residual. A rejected catalog remains unavailable until refresh.
+Default repository log and catalog reads reject symlinks. Repository-selected
+run, schema-failure, and task-event JSONL appends now use descriptor-anchored
+parents and reject symlinked or nonregular leaves. Task-event follow reads use
+the same protected source and bound each row and poll while retaining incomplete
+rows. A rejected catalog remains unavailable until refresh.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.
@@ -52,8 +55,9 @@ guardrails and full compatibility, Docker CI parity, exact-main Linux workflow
 marks the six bounded-log/quota findings and two combined HTTP URL findings
 fixed after merged-source verification. The HTTP adapter and URL remain
 operator-selected; nonlocal HTTP and redirects require explicit overrides.
-Repository-selected JSONL append and task-event follow paths are the next
-security boundary to reproduce. The security maintenance release stays on
+Repository-selected JSONL append and task-event follow paths have owned
+synthetic regressions for redirected writes, special files, oversized rows,
+split rows, and normal use. The security maintenance release stays on
 hold: no exact-head native ARM or Intel package reproduction, signing,
 notarization, public-byte verification, or publication authority has been
 established for this later source. The published `v2026.10.07` assets are

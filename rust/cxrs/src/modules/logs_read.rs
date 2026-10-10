@@ -10,6 +10,11 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+#[path = "logs_read_values.rs"]
+mod logs_read_values;
+pub(crate) use logs_read_values::{load_follow_values, load_values_file};
+pub use logs_read_values::{load_values, load_values_where};
+
 static RUNS_PARSE_WARNED: AtomicBool = AtomicBool::new(false);
 pub(super) const MAX_ROW_BYTES: usize = 1024 * 1024;
 pub(super) const MAX_SCAN_BYTES: u64 = 128 * 1024 * 1024;
@@ -72,10 +77,11 @@ impl RecentLines {
     fn open(path: &Path) -> Result<Self, String> {
         let file =
             open_run_file(path).map_err(|e| format!("cannot open {}: {e}", path.display()))?;
-        let remaining = file
-            .metadata()
-            .map_err(|e| format!("cannot inspect {}: {e}", path.display()))?
-            .len();
+        Self::from_file(file).map_err(|e| format!("cannot inspect {}: {e}", path.display()))
+    }
+
+    fn from_file(file: File) -> std::io::Result<Self> {
+        let remaining = file.metadata()?.len();
         Ok(Self {
             file,
             remaining,
@@ -149,6 +155,12 @@ fn check_result_budget(rows: usize, bytes: usize) -> Result<(), String> {
 // A forward scan is necessary for validation and offset-based parity reads.
 // Keep a single row bounded even when the source grows while it is open.
 pub(super) fn read_capped_line<R: BufRead>(reader: &mut R) -> std::io::Result<Option<Vec<u8>>> {
+    read_capped_line_with_end(reader).map(|row| row.map(|(bytes, _)| bytes))
+}
+
+pub(crate) fn read_capped_line_with_end<R: BufRead>(
+    reader: &mut R,
+) -> std::io::Result<Option<(Vec<u8>, bool)>> {
     let mut line = Vec::new();
     loop {
         let available = reader.fill_buf()?;
@@ -156,7 +168,7 @@ pub(super) fn read_capped_line<R: BufRead>(reader: &mut R) -> std::io::Result<Op
             return if line.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(line))
+                Ok(Some((line, false)))
             };
         }
         let newline = available.iter().position(|byte| *byte == b'\n');
@@ -171,7 +183,7 @@ pub(super) fn read_capped_line<R: BufRead>(reader: &mut R) -> std::io::Result<Op
         line.extend_from_slice(&available[..data_len]);
         reader.consume(take);
         if newline.is_some() {
-            return Ok(Some(line));
+            return Ok(Some((line, true)));
         }
     }
 }
@@ -387,39 +399,6 @@ fn validate_schema_link(
 
 pub fn load_runs(log_file: &Path, limit: usize) -> Result<Vec<RunEntry>, String> {
     load_runs_cx(log_file, limit).map_err(|e| e.to_string())
-}
-
-pub fn load_values(log_file: &Path, limit: usize) -> Result<Vec<Value>, String> {
-    load_values_where(log_file, limit, |_| true)
-}
-
-pub fn load_values_where<F: Fn(&Value) -> bool>(
-    log_file: &Path,
-    limit: usize,
-    accept: F,
-) -> Result<Vec<Value>, String> {
-    let mut reader = RecentLines::open(log_file)?;
-    let mut out: Vec<Value> = Vec::new();
-    let mut bytes = 0usize;
-    let mut seen = 0usize;
-    while let Some(line) = reader.next_line()? {
-        if line.iter().all(u8::is_ascii_whitespace) {
-            continue;
-        }
-        if let Ok(v) = serde_json::from_slice::<Value>(&line) {
-            seen += 1;
-            if accept(&v) {
-                bytes = bytes.saturating_add(line.len());
-                out.push(v);
-                check_result_budget(out.len(), bytes)?;
-            }
-            if limit > 0 && seen >= limit {
-                break;
-            }
-        }
-    }
-    out.reverse();
-    Ok(out)
 }
 
 fn load_runs_cx(log_file: &Path, limit: usize) -> CxResult<Vec<RunEntry>> {

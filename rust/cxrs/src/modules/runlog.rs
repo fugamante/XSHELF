@@ -4,7 +4,7 @@ use std::env;
 use crate::config::app_config;
 use crate::execmeta::{is_schema_tool, make_execution_id, prompt_preview, utc_now_iso};
 use crate::llm::effective_input_tokens;
-use crate::logs::{append_jsonl, validate_execution_log_row};
+use crate::logs::{append_jsonl, append_run_jsonl, validate_execution_log_row};
 use crate::paths::{repo_root_hint, resolve_log_file, resolve_schema_fail_log_file};
 use crate::provider_adapter::{
     http_profile_opt, selected_adapter_name, selected_http_parser_mode_opt,
@@ -268,7 +268,7 @@ fn finalize_and_append_run(run_log: &std::path::Path, row: ExecutionLog) -> Resu
             crate::logs::MAX_RUN_LOG_ROW_BYTES
         ));
     }
-    append_jsonl(run_log, &value)
+    append_run_jsonl(run_log, &value)
 }
 
 pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
