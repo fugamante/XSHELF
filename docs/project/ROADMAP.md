@@ -33,8 +33,12 @@
   arguments. The current source moves credentials and operator-selected URL
   parameters into an anonymous curl config descriptor on Unix. Its release impact requires
   exact-head native evidence; unbounded
-  repository log readers, task summary accounting, and quota-catalog paths need
-  separate current-head triage.
+  repository log readers and quota-catalog paths need separate current-head
+  triage. The `task run-all` accounting change includes selected planner
+  blockers in final failed/blocked outcomes. Pending selections remain
+  pending for retry; blocked `complete`/`in_progress` selections become `failed`,
+  and already failed selections remain failed. Exact-head native package
+  validation remains open.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

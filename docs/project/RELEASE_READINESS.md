@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-09 (source decision updated after HTTP transport work)
+Snapshot date: 2026-10-10 (source decision updated for run-all accounting work)
 
 ## Release recovery completed (2026-10-07)
 
@@ -31,8 +31,14 @@ CodeQL passing. Actual HTTP adapter execution confirmed credential arguments
 and operator-supplied URL parameters. Current source transports them in a
 anonymous curl config descriptor on Unix while preserving opt-in redirects. This source
 change does not supply exact-head native ARM/Intel package evidence or release
-authority. Unbounded repository log readers, task summary accounting, and
-quota-catalog paths remain for separate triage.
+authority. The `task run-all` accounting change counts selected planner
+blockers in final failed/blocked outcomes, including all-blocked JSON runs.
+Pending selections stay pending for retry; blocked `complete`/`in_progress`
+selections become `failed`, and already failed selections remain failed. This
+change still needs exact-head native package validation. Unbounded repository
+log readers and quota-catalog paths remain for separate triage. The security
+maintenance release stays on hold; the published `v2026.10.07` assets are
+unchanged.
 
 ## Current State
 
