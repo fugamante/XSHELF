@@ -21,6 +21,7 @@ Current scope:
 - process-local utility toggles: `log-off`, `alert-show`, `alert-off`
 - system capture path is internal native reduction + context clipping budgets
 - chunking utility: `chunk` (stdin -> `----- cx chunk i/N -----` blocks by char budget)
+  with a positive budget; oversized lines split on Unicode character boundaries
 - Rust command runs now emit repo-aware `runs.jsonl` entries with token usage (when available)
 - `cx-compat` shim for bash-style command names (also auto-routed via `cx <cxcommand>`)
 - typed `runs.jsonl` + `state.json` models

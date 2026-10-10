@@ -23,8 +23,8 @@ mod logs_read;
 
 pub use logs_cmd::cmd_logs;
 pub use logs_migrate::{migrate_runs_jsonl, migrate_transaction};
-pub(crate) use logs_offset::latest_task_value_since;
 pub use logs_offset::latest_value_since;
+pub(crate) use logs_offset::task_value_since;
 pub use logs_read::{
     file_len, find_execution_row, find_field_value, load_runs, load_runs_appended, load_values,
     load_values_where, tail_log_lines, validate_runs_jsonl_file,

@@ -461,6 +461,11 @@ Common runtime knobs:
   `CX_HTTP_REQUEST_PROFILE`, `CX_HTTP_PROVIDER_MODEL`,
   `CX_HTTP_ALLOWED_HOSTS`, `CX_HTTP_REQUIRE_HTTPS`
 
+`xshelf chunk` requires a positive `CX_CONTEXT_BUDGET_CHARS` value. It splits
+long lines at Unicode character boundaries to keep each emitted chunk within
+that budget. Chunking limits size; it does not redact secrets. Task fanout
+keeps its existing child count for the same source text at positive budgets.
+
 HTTP/TLS operator guidance:
 [docs/providers/HTTP_PROVIDER_TLS.md](docs/providers/HTTP_PROVIDER_TLS.md)
 

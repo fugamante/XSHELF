@@ -222,7 +222,7 @@ fn inherited_retry_budget() {
 }
 
 #[test]
-fn sandbox_budget_binds_stored_task() {
+fn sandbox_budget_binding() {
     for (mode, limit) in [("majority", "1"), ("judge", "2")] {
         let repo = TempRepo::new("cxrs-task-budget-handoff");
         write_tasks(&repo, vec![record("task_001", 2, 0, mode)]);

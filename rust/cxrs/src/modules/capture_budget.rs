@@ -230,28 +230,45 @@ pub(crate) fn assemble_sections_with_config(
     }
 }
 
-pub fn chunk_text_by_budget(input: &str, chunk_chars: usize) -> Vec<String> {
+pub fn chunk_text_by_budget(input: &str, chunk_chars: usize) -> Result<Vec<String>, &'static str> {
+    if chunk_chars == 0 {
+        return Err("context budget chars must be > 0");
+    }
     let mut chunks: Vec<String> = Vec::new();
     let mut cur = String::new();
     let mut cur_chars = 0usize;
     for line in input.lines() {
         let line_chars = line.chars().count() + 1;
-        if cur_chars > 0 && cur_chars + line_chars > chunk_chars {
+        if cur_chars > 0 && line_chars > chunk_chars.saturating_sub(cur_chars) {
             chunks.push(cur);
             cur = String::new();
             cur_chars = 0;
         }
-        cur.push_str(line);
-        cur.push('\n');
-        cur_chars += line_chars;
+        if line_chars > chunk_chars {
+            // Keep normal lines intact, but split a single oversized line on
+            // Unicode character boundaries so no chunk exceeds the budget.
+            for ch in line.chars().chain(std::iter::once('\n')) {
+                if cur_chars == chunk_chars {
+                    chunks.push(cur);
+                    cur = String::new();
+                    cur_chars = 0;
+                }
+                cur.push(ch);
+                cur_chars += 1;
+            }
+        } else {
+            cur.push_str(line);
+            cur.push('\n');
+            cur_chars += line_chars;
+        }
     }
     if !cur.is_empty() {
         chunks.push(cur);
     }
     if chunks.is_empty() {
-        vec![String::new()]
+        Ok(vec![String::new()])
     } else {
-        chunks
+        Ok(chunks)
     }
 }
 
@@ -372,5 +389,50 @@ mod tests {
         assert!(result.text.chars().count() <= 24);
         assert_eq!(result.omissions.len(), 1);
         assert_eq!(result.omissions[0].reason, "clipped_section");
+    }
+
+    #[test]
+    fn chunk_splits_long() {
+        let input = "abcdefghijklmnop\n";
+        let chunks = chunk_text_by_budget(input, 8).expect("valid budget");
+        assert_eq!(chunks, ["abcdefgh", "ijklmnop", "\n"]);
+        assert!(chunks.iter().all(|chunk| chunk.chars().count() <= 8));
+        assert_eq!(chunks.concat(), input);
+    }
+
+    #[test]
+    fn chunk_keeps_lines() {
+        let input = "one\ntwo\nthree\n";
+        let chunks = chunk_text_by_budget(input, 8).expect("valid budget");
+        assert_eq!(chunks, ["one\ntwo\n", "three\n"]);
+        assert_eq!(chunks.concat(), input);
+        assert_eq!(chunk_text_by_budget("", 8).unwrap(), [""]);
+        assert_eq!(chunk_text_by_budget("one", 8).unwrap(), ["one\n"]);
+        assert_eq!(chunk_text_by_budget("one\n\n", 8).unwrap(), ["one\n\n"]);
+    }
+
+    #[test]
+    fn chunk_preserves_unicode() {
+        let input = "é🙂界é🙂界\n";
+        let chunks = chunk_text_by_budget(input, 3).expect("valid budget");
+        assert!(chunks.iter().all(|chunk| chunk.chars().count() <= 3));
+        assert_eq!(chunks.concat(), input);
+    }
+
+    #[test]
+    fn chunk_mixes_lines() {
+        let input = "a\nabcdefghijklmnop\nz\n";
+        let chunks = chunk_text_by_budget(input, 8).expect("valid budget");
+        assert_eq!(chunks.first().map(String::as_str), Some("a\n"));
+        assert!(chunks.iter().all(|chunk| chunk.chars().count() <= 8));
+        assert_eq!(chunks.concat(), input);
+    }
+
+    #[test]
+    fn chunk_rejects_zero() {
+        assert_eq!(
+            chunk_text_by_budget("one\ntwo\n", 0),
+            Err("context budget chars must be > 0")
+        );
     }
 }

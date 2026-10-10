@@ -1,7 +1,6 @@
 use std::fs;
 use std::process::Command;
 
-use crate::capture::chunk_text_by_budget;
 use crate::config::{app_config, cli_app_name};
 use crate::execmeta::utc_now_iso;
 use crate::process::run_command_output_with_timeout;
@@ -47,6 +46,20 @@ fn collect_source_text(source: &str) -> Result<String, i32> {
             }
         })
         .unwrap_or_default())
+}
+
+fn count_fanout_groups(input: &str, budget: usize) -> usize {
+    let mut groups = 0usize;
+    let mut used = 0usize;
+    for line in input.lines() {
+        let line_chars = line.chars().count().saturating_add(1);
+        if used > 0 && line_chars > budget.saturating_sub(used) {
+            groups = groups.saturating_add(1);
+            used = 0;
+        }
+        used = used.saturating_add(line_chars);
+    }
+    groups.saturating_add(usize::from(used > 0))
 }
 
 fn make_subtask(
@@ -220,20 +233,25 @@ pub fn cmd_task_fanout(app_name: &str, objective: &str, from: Option<&str>) -> i
         crate::cx_eprintln!("Usage: {app_name} task fanout <objective>");
         return 2;
     }
+    let budget = app_config().budget_chars;
+    if budget == 0 {
+        crate::cx_eprintln!("{app_name} task fanout: context budget chars must be > 0");
+        return 2;
+    }
     let source = from.unwrap_or("worktree");
     let diff = match collect_source_text(source) {
         Ok(v) => v,
         Err(code) => return code,
     };
-    let chunks = if diff.trim().is_empty() {
-        Vec::new()
-    } else {
-        chunk_text_by_budget(&diff, app_config().budget_chars)
-    };
-
     let objective = obj.to_string();
-    let has_chunks = !chunks.is_empty();
-    let chunk_count = chunks.len().clamp(1, 6);
+    let has_chunks = !diff.trim().is_empty();
+    // Fanout stores symbolic refs only. Keep its prior line-group count so
+    // splitting an oversized CLI chunk does not create extra provider tasks.
+    let chunk_count = if has_chunks {
+        count_fanout_groups(&diff, budget).clamp(1, 6)
+    } else {
+        1
+    };
     let (parent_id, created) = match mutate_tasks("fanout", None, 0, move |tasks| {
         let parent_id = add_fanout_parent(tasks, &objective);
         let created =
@@ -251,4 +269,16 @@ pub fn cmd_task_fanout(app_name: &str, objective: &str, from: Option<&str>) -> i
     };
     print_fanout_table(&parent_id, created);
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::count_fanout_groups;
+
+    #[test]
+    fn fanout_keeps_groups() {
+        assert_eq!(count_fanout_groups("abcdefghijklmnop\n", 8), 1);
+        assert_eq!(count_fanout_groups("one\ntwo\nthree\n", 8), 2);
+        assert_eq!(count_fanout_groups("", 8), 0);
+    }
 }

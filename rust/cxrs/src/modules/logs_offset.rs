@@ -9,20 +9,20 @@ pub fn latest_value_since(
     offset: u64,
     required_field: Option<&str>,
 ) -> Result<Option<Value>, String> {
-    latest_value_since_for_task(log_file, offset, required_field, None)
+    latest_row_since(log_file, offset, required_field, None)
 }
 
 // A sandbox shares the run log with other task workers. Keep its recovery
 // within the requested task even when another worker appends after handoff.
-pub fn latest_task_value_since(
+pub fn task_value_since(
     log_file: &Path,
     offset: u64,
     task_id: &str,
 ) -> Result<Option<Value>, String> {
-    latest_value_since_for_task(log_file, offset, Some("execution_id"), Some(task_id))
+    latest_row_since(log_file, offset, Some("execution_id"), Some(task_id))
 }
 
-fn latest_value_since_for_task(
+fn latest_row_since(
     log_file: &Path,
     offset: u64,
     required_field: Option<&str>,
