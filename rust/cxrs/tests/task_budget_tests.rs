@@ -188,6 +188,13 @@ fn valid_reuse() {
 fn valid_runall_json() {
     for mode in ["sequential", "parallel"] {
         let repo = TempRepo::new("cxrs-task-budget-valid-all");
+        repo.write_mock_primary(
+            r#"#!/usr/bin/env bash
+cat >/dev/null
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":2,"output_tokens":1}}'
+"#,
+        );
         write_tasks(&repo, vec![record("task_001", 2, 1, "majority")]);
         let out = run_mock(&repo, &["task", "run-all", "--mode", mode, "--json"]);
         assert!(out.status.success(), "mode={mode} {}", stderr_str(&out));
@@ -243,6 +250,11 @@ fn sandbox_budget_binds_stored_task() {
 #[test]
 fn sandbox_single_handoff() {
     const IMAGE: &str = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let image_root = tempfile::tempdir().unwrap();
+    let image_bin = image_root.path().join("xshelf-image");
+    fs::copy(env!("CARGO_BIN_EXE_cxrs"), &image_bin).unwrap();
+    assert!(!image_bin.starts_with("/work"));
+    let image_bin = image_bin.to_str().unwrap();
     for converge in ["majority", "first_valid"] {
         for format in ["--json", "--text"] {
             let repo = TempRepo::new("cxrs-task-budget-sandbox");
@@ -289,7 +301,6 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":2,"output_tokens
             ]);
             assert!(add.status.success(), "{}", stderr_str(&add));
             let id = stdout_str(&add).trim().to_string();
-            let bin = env!("CARGO_BIN_EXE_cxrs");
             let mock_bin = repo.mock_bin.to_str().unwrap();
             let inject_foreign = if converge == "majority" && format == "--json" {
                 "1"
@@ -302,7 +313,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":2,"output_tokens
                     ("CX_LLM_BACKEND", "primary"),
                     ("CX_TASK_TRUST_SANDBOX", "1"),
                     ("CX_TASK_SANDBOX_IMAGE", IMAGE),
-                    ("CX_TASK_SANDBOX_EXECUTABLE", bin),
+                    ("CX_TASK_SANDBOX_EXECUTABLE", image_bin),
                     ("CX_TASK_SANDBOX_SHARE_ENV", "MOCK_IMAGE_BIN"),
                     ("MOCK_IMAGE_BIN", mock_bin),
                     ("MOCK_FOREIGN_LOG", inject_foreign),
