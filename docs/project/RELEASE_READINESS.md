@@ -16,7 +16,9 @@ statically dispositioned as false positives; no runtime source changed.
 The published October 7 archives remain bound to `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 That source predates the Cargo/provider fixes and contains the quarantine ID,
 repository model, and parity schema paths later fixed on main. Later
-source merges do not change those public bytes. A new security maintenance
+source merges do not change those public bytes. The tagged source also passes
+HTTP credentials and operator-selected URL values through curl arguments; the
+current source repair does not change those archives. A new security maintenance
 candidate is on hold while live Security Cloud findings are grouped by current
 reachability and release impact. No exact-head native ARM or Intel package
 evidence, signing, notarization, public-byte verification, or publication
