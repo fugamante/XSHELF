@@ -25,6 +25,10 @@ Notes:
 
 ### Fixed
 
+- Signing preflight now requires the fixed v1 package member inventory and
+  modes before any credential use. A self-consistent unsigned archive cannot
+  add or omit payload files through its own manifest and checksum sidecar;
+  the published October 7 archives are unchanged.
 - Task execution now rejects more than 16 effective replicas or 32 potential
   task/judge invocations per task, including run-all retries and judge selection. The
   selected run-all schedule is checked before any task status or provider work;

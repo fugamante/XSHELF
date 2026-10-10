@@ -99,6 +99,11 @@ xshelf-<VERSION>-<target>/
 
 Archive headers have deterministic ordering, ownership, modes, and timestamps.
 The `xshelf-package-manifest.v1` record inventories installed paths and hashes.
+Signing preflight also requires the exact v1 file and symlink inventory shown
+above, including member types and modes. An archive cannot authorize extra or
+omitted payload paths by updating its own manifest and checksum sidecar.
+The sidecar and manifest establish consistency, not who built the unsigned
+archive; clean-source reproduction remains a separate release requirement.
 The `xshelf-package-provenance.v1` record identifies the version, source
 revision and content fingerprint, dirty state, target, Rust compiler,
 Cargo version, deployment floor, archive format, and explicit
