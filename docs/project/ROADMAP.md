@@ -69,9 +69,12 @@
   syscall probe observed `openat` return `ENOENT` when creating the first
   schema-failure log leaf through a valid held `.cx/cxlogs` descriptor; three
   of ten 64-process cold batches lost one observational row, but all quarantine
-  records remained. This open path predates the JSONL record lock, and the
-  underlying cause and baseline failure rate are unproven. A private bounded
-  retry probe recovered 1,280 of 1,280 rows, but no source fix is selected yet.
+  records remained. The same `openat` failure occurred in three of twenty
+  64-process batches on exact pre-lock baseline
+  `5786814f2fb0e105feb0523b2acbdba61df987af`, establishing that the JSONL
+  lock did not introduce it. The OS-level cause remains unproven. A private
+  bounded retry probe recovered 1,280 of 1,280
+  rows, but no source fix is selected yet.
   Next, attribute the first-use failure and separately contain CI failure
   artifacts; noncooperating JSONL writers remain an explicit limit.
   The `task run-all` accounting change includes selected planner blockers in

@@ -66,9 +66,11 @@ function still receives its expected arguments. A separate macOS syscall
 probe observed `openat` return `ENOENT` for the first schema-failure log leaf
 through a valid held `.cx/cxlogs` descriptor. Three of ten 64-process cold
 batches lost one observational row while retaining all quarantine records.
-The leaf-open source is unchanged from before the JSONL lock; the OS-level
-cause and baseline failure rate remain unproven. A private bounded retry
-probe recovered all 1,280 rows in twenty batches but is not a source fix.
+The same `openat` failure occurred in three of twenty 64-process batches on
+exact pre-lock source `5786814f2fb0e105feb0523b2acbdba61df987af`, so the
+JSONL lock did not introduce it. The OS-level cause remains unproven. A
+private bounded retry probe recovered all 1,280 rows in twenty batches but
+is not a source fix.
 First-use behavior needs separate attribution and validation.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
