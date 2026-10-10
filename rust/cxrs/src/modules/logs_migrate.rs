@@ -4,7 +4,7 @@ use crate::types::ExecutionLog;
 use crate::util::{IfEmpty, sha256_hex};
 use serde_json::Value;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
+use std::io::{BufReader, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default, Clone)]
@@ -278,12 +278,17 @@ fn migrate_anchored(in_path: &Path, out_path: &Path, in_place: bool) -> CxResult
             .map_err(|error| CxError::io("rewind migration snapshot", error))?;
         let mut staging = PrivateFile::create(&output, false)
             .map_err(|error| CxError::io("create migration output", error))?;
-        let reader = BufReader::new(&mut snapshot.file);
+        let mut reader = BufReader::new(&mut snapshot.file);
         let mut summary = MigrateSummary::default();
-        for (idx, line_res) in reader.lines().enumerate() {
+        let mut line_no = 0;
+        while let Some(bytes) = super::logs_read::read_capped_line(&mut reader)
+            .map_err(|error| CxError::io("read bounded migration source", error))?
+        {
+            line_no += 1;
             process_migrate_line(
-                line_res,
-                idx + 1,
+                String::from_utf8(bytes)
+                    .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
+                line_no,
                 in_path,
                 &staging.display,
                 &mut staging.file,
@@ -379,6 +384,11 @@ fn process_migrate_line(
         }
     };
     let (normalized, is_modern) = normalize_run_log_row(&parsed)?;
+    if normalized.len() > super::logs_read::MAX_ROW_BYTES {
+        return Err(CxError::invalid(
+            "normalized run log row exceeds 1048576 bytes",
+        ));
+    }
     if is_modern {
         summary.modern_normalized += 1;
     } else {

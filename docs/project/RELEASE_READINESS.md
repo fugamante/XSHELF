@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-10 (source decision updated for run-all accounting work)
+Snapshot date: 2026-10-10 (source decision updated for bounded log and quota reads)
 
 ## Release recovery completed (2026-10-07)
 
@@ -35,14 +35,20 @@ authority. The `task run-all` accounting change counts selected planner
 blockers in final failed/blocked outcomes, including all-blocked JSON runs.
 Pending selections stay pending for retry; blocked `complete`/`in_progress`
 selections become `failed`, and already failed selections remain failed. This
-change still needs exact-head native package validation. Current-head static
-triage found reachable unbounded run-log reads, repeated full-log task failure
-classification, and whole-file quota catalog reads from repository-local data;
-remote write reachability is unproven. The two combined HTTP URL findings are
-partly addressed in source, with explicit nonlocal HTTP and optional host
-allowlisting still requiring operator configuration. The security
-maintenance release stays on hold; the published `v2026.10.07` assets are
-unchanged.
+change still needs exact-head native package validation. Owned synthetic run
+logs and quota catalogs reproduced excessive local reads and symlink
+redirection. Current source bounds recent run-log views, task failure-row
+lookup, task inspection and recovery, log tailing, validation, appended scans,
+migration input and output, execution run-log writes, and quota catalog reads.
+Default repository log and catalog reads reject symlinks; append path handling remains
+a separate residual. A rejected catalog remains unavailable until refresh.
+Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
+unproven, and adjacent task-event and other local readers require separate
+assessment.
+The two combined HTTP URL findings are partly addressed in source, with explicit
+nonlocal HTTP and optional host allowlisting still requiring operator
+configuration. The security maintenance release stays on hold; the published
+`v2026.10.07` assets are unchanged.
 
 ## Current State
 

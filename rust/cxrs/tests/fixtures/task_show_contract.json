@@ -21,6 +21,7 @@
     "created_at",
     "updated_at",
     "latest_run",
+    "latest_run_lookup",
     "run_readiness"
   ],
   "latest_run_keys": [

@@ -261,6 +261,13 @@ fn finalize_and_append_run(run_log: &std::path::Path, row: ExecutionLog) -> Resu
     }
     validate_execution_log_row(&row)?;
     let value = serde_json::to_value(row).map_err(|e| format!("failed serialize run log: {e}"))?;
+    let encoded = serde_json::to_vec(&value).map_err(|e| format!("failed encode run log: {e}"))?;
+    if encoded.len() > crate::logs::MAX_RUN_LOG_ROW_BYTES {
+        return Err(format!(
+            "run log row exceeds {} bytes",
+            crate::logs::MAX_RUN_LOG_ROW_BYTES
+        ));
+    }
     append_jsonl(run_log, &value)
 }
 

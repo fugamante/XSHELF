@@ -159,6 +159,21 @@ Contract stability is enforced by:
 - `CX_LOG_FILE` may relocate the run-log destination for `capture`, `budget`,
   and `trace` without changing the JSONL row contract; when unset, repository
   state remains under `.cx/cxlogs/runs.jsonl`
+- bounded recent log readers preserve chronological results and JSON keys but
+  reject rows over 1 MiB, scans over 128 MiB, and results over 50,000 rows or
+  4 MiB of raw row data; task failure-row lookups scan at most 16 MiB and
+  `logs validate` bounds each row and its issue list.
+  Appended scans, migration input and output, and execution run-log writes bound
+  row size; other JSONL writers keep their contracts. `task show` adds
+  `latest_run_lookup` (`found`, `not_found`, `unavailable`) and keeps successful
+  JSON with a warning on stderr when lookup is unavailable; `latest_run` stays
+  null for no match or unavailable lookup. Diagnostic last-run and task recovery
+  fields retain optional fallback.
+  Default repository log reads reject symlinks; append path behavior is
+  unchanged. Explicit `CX_LOG_FILE` remains an operator-selected path. Quota
+  catalog cache reads use the 4 MiB regular-file and no-symlink guard; rejected
+  caches stay unavailable until explicit or enabled automatic refresh rebuilds them from
+  embedded defaults
 - modern `capture` run-log rows must include integer `system_status` so
   `xshelf logs validate --strict` can catch regressions where wrapped command
   exit status telemetry is lost

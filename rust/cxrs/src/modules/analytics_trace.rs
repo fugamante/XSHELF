@@ -10,6 +10,13 @@ fn show_field<T: ToString>(label: &str, value: Option<T>) {
 }
 
 pub fn print_trace(n: usize) -> i32 {
+    if n == 0 {
+        crate::cx_eprintln!(
+            "{} trace: run index out of range (requested 0, available 0)",
+            cli_app_name()
+        );
+        return 2;
+    }
     let Some(log_file) = resolve_log_file() else {
         crate::cx_eprintln!("{}: unable to resolve log file", cli_app_name());
         return 1;
@@ -23,7 +30,7 @@ pub fn print_trace(n: usize) -> i32 {
         return 1;
     }
 
-    let runs = match load_runs(&log_file, usize::MAX) {
+    let runs = match load_runs(&log_file, n) {
         Ok(v) => v,
         Err(e) => {
             crate::cx_eprintln!("{} trace: {e}", cli_app_name());
@@ -38,7 +45,7 @@ pub fn print_trace(n: usize) -> i32 {
         );
         return 1;
     }
-    if n == 0 || n > runs.len() {
+    if n > runs.len() {
         crate::cx_eprintln!(
             "{} trace: run index out of range (requested {}, available {})",
             cli_app_name(),

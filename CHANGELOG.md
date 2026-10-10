@@ -25,6 +25,25 @@ Notes:
 
 ### Fixed
 
+- Recent run-log consumers now read backward within explicit scan, row, and
+  result limits instead of loading every historical row for a small window.
+  Task failure classification looks up the newest matching execution row, while
+  task inspection, diagnostics, run recovery, log tailing, and validation use
+  bounded rows. Appended scans, migration input and output, and the execution
+  run-log writer also enforce row limits; other JSONL writers retain their
+  contracts. Direct log views and validation report exceeded limits. `task show`
+  keeps successful JSON on lookup failure, warns on stderr, and adds
+  `latest_run_lookup` (`found`, `not_found`, or `unavailable`) alongside
+  `latest_run`. Diagnostic last-run and task recovery fields keep their
+  optional fallback. Normal chronology and existing JSON keys remain unchanged.
+  Repository-default log reads reject symlinks; explicit `CX_LOG_FILE` keeps its
+  operator-selected path behavior. Append path handling is unchanged.
+- Quota catalog show, probe, and automatic refresh now read the repository
+  cache through a 4 MiB regular-file and symlink guard. Invalid, oversized,
+  or redirected cache data is ignored: without automatic refresh, show reports
+  it missing and probe has no catalog-derived values. Explicit or enabled
+  automatic refresh can rebuild from embedded defaults. Legitimate current
+  caches retain `--if-stale` reuse and output contracts.
 - HTTP inference and resident model probes pass URLs, bearer/Basic/custom
   credentials, and mTLS options through an anonymous curl config descriptor
   on Unix instead of process arguments. The curl child does not inherit `CX_HTTP_*`

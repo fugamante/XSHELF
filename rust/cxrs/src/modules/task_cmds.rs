@@ -1,7 +1,6 @@
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::env;
-use std::fs;
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -19,7 +18,7 @@ use crate::doctor::{
 };
 use crate::execmeta::utc_now_iso;
 use crate::json_mode::resolve_json_mode;
-use crate::logs::load_values;
+use crate::logs::{find_execution_row, load_values};
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
 use crate::state::{current_task_id, read_state_checked, set_state_path};
@@ -1035,19 +1034,13 @@ fn classify_failure_for_execution(execution_id: Option<&str>) -> FailureInfo {
             reason: "missing_log_file".to_string(),
         };
     };
-    let Ok(content) = fs::read_to_string(log_file) else {
+    let Ok(found) = find_execution_row(&log_file, exec_id) else {
         return FailureInfo {
             class: FailureClass::NonRetryable,
             reason: "unreadable_log_file".to_string(),
         };
     };
-    for line in content.lines().rev() {
-        let Ok(v) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        if v.get("execution_id").and_then(Value::as_str) != Some(exec_id) {
-            continue;
-        }
+    if let Some(v) = found {
         if v.get("policy_blocked").and_then(Value::as_bool) == Some(true) {
             let reason = v
                 .get("policy_reason")

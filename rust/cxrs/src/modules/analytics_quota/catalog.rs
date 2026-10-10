@@ -1,10 +1,11 @@
 use chrono::Utc;
 use serde_json::{Value, json};
-use std::fs;
 use std::path::PathBuf;
 
 use crate::paths::resolve_quota_catalog_file;
-use crate::state::{read_state_value, set_state_path, value_at_path, write_json_atomic};
+use crate::state::{
+    read_json_limit, read_state_value, set_state_path, value_at_path, write_json_atomic,
+};
 
 pub(super) fn quota_catalog_path() -> Option<PathBuf> {
     resolve_quota_catalog_file()
@@ -43,10 +44,8 @@ fn embedded_quota_catalog() -> Value {
 
 fn load_quota_catalog() -> Option<Value> {
     let path = quota_catalog_path()?;
-    if !path.exists() {
-        return None;
-    }
-    let text = fs::read_to_string(&path).ok()?;
+    // Repository-local cache bytes must remain bounded and cannot escape via symlinks.
+    let text = read_json_limit(&path, 4 * 1024 * 1024).ok().flatten()?;
     serde_json::from_str::<Value>(&text).ok()
 }
 

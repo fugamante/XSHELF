@@ -1,8 +1,6 @@
 use serde_json::Value;
 use std::env;
 use std::fmt;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -11,7 +9,7 @@ use crate::capture::{BudgetConfig, clip_text_with_config};
 use crate::config::app_config;
 use crate::config::cli_app_name;
 use crate::local_models::resolve_model_for_backend;
-use crate::logs::file_len;
+use crate::logs::{file_len, latest_value_since};
 use crate::paths::{repo_root, resolve_log_file};
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::runtime::llm_backend;
@@ -386,36 +384,14 @@ fn capture_log_cursor() -> Option<(PathBuf, u64)> {
 }
 
 fn recover_execution_id_from_log(log_file: &Path, offset: u64) -> Option<String> {
-    let file = File::open(log_file).ok()?;
-    let mut reader = BufReader::new(file);
-    if offset > 0 && reader.seek(SeekFrom::Start(offset)).is_err() {
-        return None;
-    }
-    let mut line = String::new();
-    let mut latest: Option<String> = None;
-    loop {
-        line.clear();
-        let n = reader.read_line(&mut line).ok()?;
-        if n == 0 {
-            break;
-        }
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let Ok(v) = serde_json::from_str::<Value>(trimmed) else {
-            continue;
-        };
-        if let Some(exec_id) = v
-            .get("execution_id")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-        {
-            latest = Some(exec_id.to_string());
-        }
-    }
-    latest
+    latest_value_since(log_file, offset, Some("execution_id"))
+        .ok()
+        .flatten()?
+        .get("execution_id")?
+        .as_str()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(ToString::to_string)
 }
 
 fn task_command_supported(command: &str) -> bool {

@@ -74,6 +74,7 @@ const TASK_SHOW_REQUIRED_KEYS: &[&str] = &[
     "id",
     "status",
     "latest_run",
+    "latest_run_lookup",
     "run_readiness",
 ];
 const TASK_RUN_REQUIRED_KEYS: &[&str] = &["contract_version", "task_id", "status", "execution_id"];
