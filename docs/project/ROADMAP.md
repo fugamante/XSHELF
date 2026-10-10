@@ -43,8 +43,12 @@
   appends now anchor parent traversal and reject symlinked or nonregular leaves;
   explicit `CX_LOG_FILE` remains an operator-selected run-log path. Task-event
   follow mode now bounds rows and per-poll work while retaining incomplete rows.
-  Explicit `CX_LOG_FILE` remains operator-selected. Rejected quota caches stay
-  unavailable until refreshed.
+  Current source serializes complete append records among cooperating writers
+  with a bounded advisory lock on the opened file, including explicit run-log aliases.
+  On a failed partial write, it attempts rollback only when the file length
+  still matches its own bytes; a failed rollback or changed length is reported.
+  Noncooperating writers can interleave, and writes racing rollback can be lost.
+  Rejected quota caches stay unavailable until refreshed.
   Owned synthetic data established local resource and symlink risks; remote
   write reachability has not been established. Adjacent task-event and other
   local readers still need separate reachability and failure-path assessment.
@@ -58,8 +62,11 @@
   maintenance source bounds test-output warning retention and unfamiliar-output
   fallback before prompt clipping, removing the separately reproduced reducer
   allocations while leaving raw child-output capture as a distinct limit. Next,
-  assess the conditional concurrent JSONL append race and CI artifact paths by
-  current reachability before selecting another maintenance boundary.
+  assess noncooperating JSONL writers, first-use log directory creation, and CI
+  artifact paths by current reachability before selecting another maintenance
+  boundary. A 64-process synthetic cold-start probe intermittently lost one
+  schema-failure log row after an `ENOENT` during open; all quarantine records
+  remained. Its exact failing syscall and baseline origin are unproven.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,

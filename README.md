@@ -304,12 +304,14 @@ return at most 50,000 rows or 4 MiB of raw row data. Narrow the requested
 window if a log view reports a limit error. Task failure-row lookups scan at
 most 16 MiB of recent history. `logs validate` also bounds each row
 and its issue list. Appended scans, migration input and output, and the
-execution run-log writer also bound rows; other JSONL writers are unchanged.
+execution run-log writer also bound rows. Schema-failure and task-event row
+formats remain unchanged.
 `task show` keeps successful JSON if its latest-run lookup fails, warns on
 stderr, and sets `latest_run_lookup` to `unavailable`. A match reports `found`;
 no match reports `not_found` with `latest_run: null`. Diagnostic last-run and
 task recovery fields retain optional fallbacks. Repository-default log reads
-reject symlinks, while the append path is unchanged; explicit `CX_LOG_FILE`
+reject symlinks. Run, schema-failure, and task-event appends use protected
+repository paths and bounded advisory file locks; explicit `CX_LOG_FILE`
 remains operator-selected.
 The repository quota catalog is read as a regular, non-symlink file up to 4 MiB.
 If the cache is unavailable, `quota catalog show` reports it missing and
