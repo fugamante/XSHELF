@@ -60,8 +60,7 @@ fn task_in_sandbox(
     let root =
         repo_root().ok_or_else(|| "task sandbox: not inside a git repository".to_string())?;
     let log_cursor = capture_log_cursor();
-    let mut docker = crate::task_sandbox::sandbox_command(&root, authority, false)?;
-    docker.env("CX_TASK_ID", id).args(["-e", "CX_TASK_ID"]);
+    let mut docker = crate::task_sandbox::sandbox_command(&root, authority, false, Some(id))?;
     let mut inner_args = vec![
         "task".to_string(),
         "run".to_string(),

@@ -266,11 +266,24 @@ case "${1:-}" in
  run) printf 'x\n' >> docker-calls ;;
  *) exit 1 ;;
 esac
-script="${!#}"
+# Docker options must precede IMAGE; shell arguments start immediately after it.
+task_env=0
 while [[ $# -gt 0 ]]; do
-  case "$1" in -e) shift; export "$1" ;; esac
-  shift || true
+  [[ "$1" == sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]] && break
+  if [[ "$1" == -e ]]; then
+    shift
+    [[ "$1" == CX_TASK_ID ]] && task_env=1
+    export "$1"
+  fi
+  shift
 done
+[[ "$task_env" == 1 && "${CX_TASK_ID:-}" == "$MOCK_EXPECT_TASK_ID" ]]
+[[ "${1:-}" == sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ]]
+shift
+[[ "${1:-}" == --noprofile && "${2:-}" == --norc && "${3:-}" == -c ]]
+shift 3
+[[ $# == 1 ]]
+script="$1"
 PATH="$MOCK_IMAGE_BIN:/usr/bin:/bin" /bin/bash -c "$script"
 if [[ "${MOCK_FOREIGN_LOG:-}" == "1" ]]; then
   printf '%s\n' '{"tool":"cxtask_converge","task_id":"task_foreign","execution_id":"foreign"}' >> .cx/cxlogs/runs.jsonl
@@ -317,6 +330,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":2,"output_tokens
                     ("CX_TASK_SANDBOX_SHARE_ENV", "MOCK_IMAGE_BIN"),
                     ("MOCK_IMAGE_BIN", mock_bin),
                     ("MOCK_FOREIGN_LOG", inject_foreign),
+                    ("MOCK_EXPECT_TASK_ID", &id),
                 ],
             );
             assert!(
