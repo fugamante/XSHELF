@@ -277,6 +277,26 @@ fn wait_exit(child: &mut std::process::Child) -> Option<std::process::ExitStatus
     None
 }
 
+fn wait_event(repo: &TempRepo, child: &mut std::process::Child, expected: &str) {
+    let path = repo.home.join("follow.out");
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        let output = fs::read_to_string(&path).unwrap();
+        if output.contains(expected) {
+            return;
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("follower exited {status} before {expected}: {output}");
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("follower did not emit {expected}: {output}");
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
 #[test]
 fn follow_oversized() {
     let repo = TempRepo::new("cxrs-log-boundary");
@@ -286,7 +306,7 @@ fn follow_oversized() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     let mut file = OpenOptions::new().append(true).open(&path).unwrap();
     file.write_all(b"{\"event\":\"").unwrap();
     file.write_all(&vec![b'x'; 1024 * 1024 + 1]).unwrap();
@@ -309,10 +329,10 @@ fn follow_append() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     let mut file = OpenOptions::new().append(true).open(&path).unwrap();
     file.write_all(b"{\"event\":\"later\"}\n").unwrap();
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"later\"");
     child.kill().unwrap();
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
@@ -329,12 +349,12 @@ fn follow_split() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     let mut file = OpenOptions::new().append(true).open(&path).unwrap();
     file.write_all(b"{\"event\":\"split").unwrap();
     thread::sleep(Duration::from_millis(650));
     file.write_all(b"-row\"}\n").unwrap();
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "split-row");
     child.kill().unwrap();
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
@@ -350,14 +370,14 @@ fn follow_start_partial() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     OpenOptions::new()
         .append(true)
         .open(&path)
         .unwrap()
         .write_all(b"-row\"}\n")
         .unwrap();
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "split-row");
     child.kill().unwrap();
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
@@ -375,7 +395,7 @@ fn follow_symlink() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     fs::rename(&path, repo.home.join("old-events.jsonl")).unwrap();
     symlink(&victim, &path).unwrap();
     let status = wait_exit(&mut child);
@@ -394,10 +414,10 @@ fn follow_rotation() {
     thread::sleep(Duration::from_millis(650));
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(&path, b"{\"event\":\"created\"}\n").unwrap();
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"created\"");
     fs::rename(&path, repo.home.join("old-events.jsonl")).unwrap();
     fs::write(&path, b"{\"event\":\"rotated\"}\n").unwrap();
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"rotated\"");
     child.kill().unwrap();
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
@@ -414,7 +434,7 @@ fn follow_burst() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
     let mut writer = BufWriter::new(OpenOptions::new().append(true).open(&path).unwrap());
     for id in 0..1100 {
         writeln!(writer, "{{\"event\":\"burst\",\"id\":{id}}}").unwrap();
@@ -447,16 +467,33 @@ fn follow_touch() {
     let out = File::create(repo.home.join("follow.out")).unwrap();
     let err = File::create(repo.home.join("follow.err")).unwrap();
     let mut child = follow_process(&repo, &out, &err);
-    thread::sleep(Duration::from_millis(650));
+    wait_event(&repo, &mut child, "\"event\":\"seed\"");
+    OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap()
+        .write_all(b"{\"event\":\"ready\"}\n")
+        .unwrap();
+    wait_event(&repo, &mut child, "\"event\":\"ready\"");
     OpenOptions::new()
         .write(true)
         .open(&path)
         .unwrap()
         .set_modified(std::time::SystemTime::now() + Duration::from_secs(5))
         .unwrap();
-    thread::sleep(Duration::from_millis(650));
+    // Leave the length unchanged across two follow polls before the liveness row.
+    thread::sleep(Duration::from_millis(1100));
+    OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap()
+        .write_all(b"{\"event\":\"after-touch\"}\n")
+        .unwrap();
+    wait_event(&repo, &mut child, "after-touch");
     child.kill().unwrap();
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
     assert_eq!(output.matches("\"event\":\"seed\"").count(), 1, "{output}");
+    assert_eq!(output.matches("\"event\":\"ready\"").count(), 1, "{output}");
+    assert_eq!(output.matches("after-touch").count(), 1, "{output}");
 }
