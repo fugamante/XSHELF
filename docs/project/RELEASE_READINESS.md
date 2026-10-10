@@ -75,6 +75,12 @@ held directory descriptor for at most eight short waits. Deterministic
 fault injection and concurrent first-use and reuse regressions cover the
 source fix; other errors and permanent missing leaves still fail closed.
 Exact-head native package validation remains separate.
+CI compatibility failure artifacts now use a runner-temporary directory
+prepared before checkout. The summary reads only named generated logs, and
+upload staging accepts only regular files opened without following symlinks.
+Owned synthetic checkout-symlink and legitimate-log regressions cover this
+path. Pull-request code retains its runner's same-user file access; hosted
+failure-artifact upload has not been exercised as a separate release gate.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.

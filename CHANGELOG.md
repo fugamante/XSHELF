@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- CI compatibility failure logs now start in runner temporary storage before
+  checkout and only named, regular generated files are staged for upload.
+  Checkout-supplied artifact symlinks cannot redirect failure summaries or
+  enter the uploaded artifact. This does not isolate code executed by the
+  pull-request job from its own runner files.
 - First-use repository JSONL appends now retry a transient missing leaf on the
   same held directory descriptor for at most eight short waits. Symlinks,
   special files, and persistent failures still fail closed; record locking

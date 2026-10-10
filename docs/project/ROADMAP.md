@@ -76,8 +76,11 @@
   bounded retry probe recovered 1,280 of 1,280 rows, and current source now
   retries only a transient missing final log leaf on the same held directory
   descriptor. Deterministic fault injection and owned concurrent first-use
-  and reuse tests cover the change. Continue to assess CI failure artifacts
-  separately; noncooperating JSONL writers remain an explicit limit.
+  and reuse tests cover the change. CI compatibility artifacts now start in
+  runner temporary storage before checkout, and only named regular logs enter
+  failure upload staging. Checkout-supplied log symlinks cannot enter that
+  path; pull-request code still runs with its runner's file access.
+  Noncooperating JSONL writers remain an explicit limit.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
