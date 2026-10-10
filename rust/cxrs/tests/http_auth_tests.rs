@@ -72,7 +72,7 @@ fn header_auth_cov() {
             ("CX_HTTP_PROVIDER_URL", &url),
             ("CX_HTTP_AUTH_PROFILE", "header"),
             ("CX_HTTP_AUTH_HEADER", "X-API-Key"),
-            ("CX_HTTP_AUTH_VALUE", "key-123"),
+            ("CX_HTTP_AUTH_VALUE", "key-123\\\"tail"),
         ],
     );
     assert!(
@@ -91,7 +91,7 @@ fn header_auth_cov() {
         .expect("captured request");
     assert_eq!(
         req.headers.get("x-api-key").map(String::as_str),
-        Some("key-123")
+        Some("key-123\\\"tail")
     );
 }
 

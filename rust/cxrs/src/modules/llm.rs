@@ -289,18 +289,7 @@ fn run_http_body(
     options: &HttpRequestOptions,
 ) -> Result<String, LlmRunError> {
     let mut cmd = Command::new("curl");
-    cmd.args([
-        "-sS",
-        "-f",
-        "-X",
-        "POST",
-        url,
-        "-H",
-        content_type,
-        "--data-binary",
-        "@-",
-    ]);
-    if let Some((name, value)) = options
+    let auth = options
         .auth_hdr
         .as_deref()
         .map(str::trim)
@@ -311,42 +300,29 @@ fn run_http_body(
                 .as_deref()
                 .map(str::trim)
                 .filter(|v| !v.is_empty()),
-        )
-    {
-        cmd.args(["-H", &format!("{name}: {value}")]);
-    }
-    if let Some(pinned) = options
-        .tls_pinned_pubkey
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-    {
-        cmd.args(["--pinnedpubkey", pinned]);
-    }
-    if let Some(ca_bundle) = options
-        .tls_ca_bundle
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-    {
-        cmd.args(["--cacert", ca_bundle]);
-    }
-    if let Some(client_cert) = options
-        .tls_client_cert
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-    {
-        cmd.args(["--cert", client_cert]);
-    }
-    if let Some(client_key) = options
-        .tls_client_key
-        .as_deref()
-        .map(str::trim)
-        .filter(|v| !v.is_empty())
-    {
-        cmd.args(["--key", client_key]);
-    }
+        );
+    let _private = crate::http_curl::add_private(
+        &mut cmd,
+        crate::http_curl::CurlValues {
+            url,
+            auth,
+            pinned: options.tls_pinned_pubkey.as_deref(),
+            ca: options.tls_ca_bundle.as_deref(),
+            cert: options.tls_client_cert.as_deref(),
+            key: options.tls_client_key.as_deref(),
+        },
+    )
+    .map_err(LlmRunError::message)?;
+    cmd.args([
+        "-sS",
+        "-f",
+        "-X",
+        "POST",
+        "-H",
+        content_type,
+        "--data-binary",
+        "@-",
+    ]);
     match options
         .tls_min_version
         .as_deref()

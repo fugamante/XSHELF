@@ -27,13 +27,14 @@
   release-impacting fix. A security maintenance candidate remains on hold until
   this triage, exact-head native ARM/Intel evidence, and separate release
   authority are complete. The published `v2026.10.07` assets remain unchanged.
-  Synthetic execution reproduced mixed/parallel `task run-all` dependency and
-  resource-wave bypasses, including one-worker and completed-task rerun paths. The
-  source fix and regressions require merged-source and hosted verification
-  before those findings can close. Actual adapter execution
-  also confirmed HTTP curl credential arguments and operator-supplied URL
-  parameters; that cluster remains open for a focused fix. Unbounded repository
-  log readers and quota-catalog paths need separate current-head triage.
+  Mixed/parallel `task run-all` dependency and resource-wave fixes were verified
+  on merged source `43b7791e26d2270b280790a6e565a73e6044b2bf` with hosted
+  Linux and CodeQL. Actual adapter execution then confirmed HTTP curl credential
+  arguments. The current source moves credentials and operator-selected URL
+  parameters into an anonymous curl config descriptor on Unix. Its release impact requires
+  exact-head native evidence; unbounded
+  repository log readers, task summary accounting, and quota-catalog paths need
+  separate current-head triage.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

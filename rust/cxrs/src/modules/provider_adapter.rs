@@ -718,6 +718,15 @@ fn models_probe_url(raw: &str) -> Result<String, LlmRunError> {
     Ok(parsed.to_string())
 }
 
+fn public_probe_url(raw: &str) -> String {
+    let Some(mut parsed) = parse_provider_url(raw) else {
+        return "[invalid provider URL]".to_string();
+    };
+    let _ = parsed.set_password(None);
+    let _ = parsed.set_username("");
+    parsed.to_string()
+}
+
 pub(crate) fn validate_redirects(raw: &str, follow: bool) -> Result<(), LlmRunError> {
     if !follow {
         return Ok(());
@@ -824,33 +833,28 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
     })?;
     validate_http_url(&url)?;
     let probe_url = models_probe_url(&url)?;
+    let safe_probe_url = public_probe_url(&probe_url);
     let auth = http_auth_pair()?;
-
+    let pinned = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY");
+    let ca = env_nonempty("CX_HTTP_CA_BUNDLE");
+    let cert = env_nonempty("CX_HTTP_CLIENT_CERT");
+    let key = env_nonempty("CX_HTTP_CLIENT_KEY");
     let mut cmd = std::process::Command::new("curl");
-    cmd.args([
-        "-sS",
-        "-f",
-        "-X",
-        "GET",
-        &probe_url,
-        "-H",
-        "Accept: application/json",
-    ]);
-    if let Some((name, value)) = auth {
-        cmd.args(["-H", &format!("{name}: {value}")]);
-    }
-    if let Some(pinned) = env_nonempty("CX_HTTP_TLS_PINNEDPUBKEY") {
-        cmd.args(["--pinnedpubkey", &pinned]);
-    }
-    if let Some(ca_bundle) = env_nonempty("CX_HTTP_CA_BUNDLE") {
-        cmd.args(["--cacert", &ca_bundle]);
-    }
-    if let Some(client_cert) = env_nonempty("CX_HTTP_CLIENT_CERT") {
-        cmd.args(["--cert", &client_cert]);
-    }
-    if let Some(client_key) = env_nonempty("CX_HTTP_CLIENT_KEY") {
-        cmd.args(["--key", &client_key]);
-    }
+    let _private = crate::http_curl::add_private(
+        &mut cmd,
+        crate::http_curl::CurlValues {
+            url: &probe_url,
+            auth: auth
+                .as_ref()
+                .map(|(name, value)| (name.as_str(), value.as_str())),
+            pinned: pinned.as_deref(),
+            ca: ca.as_deref(),
+            cert: cert.as_deref(),
+            key: key.as_deref(),
+        },
+    )
+    .map_err(LlmRunError::message)?;
+    cmd.args(["-sS", "-f", "-X", "GET", "-H", "Accept: application/json"]);
     match http_tlsver() {
         "1.3" => {
             cmd.arg("--tlsv1.3");
@@ -883,7 +887,7 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
     let parsed = serde_json::from_slice::<Value>(&out.stdout).map_err(|e| {
         LlmRunError::message(format!(
             "http models probe expected JSON payload from {}: {e}",
-            probe_url
+            safe_probe_url
         ))
     })?;
     let model_ids: Vec<String> = parsed
@@ -898,7 +902,7 @@ pub fn probe_http_models_v1() -> Result<Value, LlmRunError> {
         })
         .unwrap_or_default();
     Ok(json!({
-        "probe_url": probe_url,
+        "probe_url": safe_probe_url,
         "model_count": model_ids.len(),
         "model_ids": model_ids
     }))
@@ -1687,6 +1691,15 @@ mod tests {
         assert_eq!(
             super::models_probe_url("https://api.example.local/anything").expect("probe url"),
             "https://api.example.local/v1/models"
+        );
+    }
+
+    #[test]
+    fn probe_url_redacts() {
+        let raw = "http://synthetic-user:synthetic-pass@127.0.0.1:11434/v1/models";
+        assert_eq!(
+            super::public_probe_url(raw),
+            "http://127.0.0.1:11434/v1/models"
         );
     }
 

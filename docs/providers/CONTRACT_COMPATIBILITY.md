@@ -115,6 +115,14 @@ private Unix directory access, limits each copy to 64 MiB and all copies to
 256 MiB, and removes partial output on failure. These checks do not change the
 parity report schema.
 
+HTTP inference and resident model probes retain their request and JSON output
+shapes. URLs, authentication, and TLS options now travel through an anonymous
+curl config descriptor on Unix rather than process arguments. The curl child does not
+inherit `CX_HTTP_*` variables or ambient curlrc options. Existing redirect
+behavior, HTTPS defaults, and explicit testing overrides are unchanged. The
+`llm-resident.v1` `probe_url` key and type remain stable; URL userinfo is
+redacted from its value and from invalid-JSON errors.
+
 ## CI Enforcement
 
 Contract stability is enforced by:
