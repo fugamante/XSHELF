@@ -154,7 +154,7 @@ if [[ "$JSON" -eq 1 ]]; then
 else
   echo "compat-all: mode=$MODE status=$(jq -r '.status_final' "$report_json")"
   echo "compat-all: report=$OUT_FILE"
-  jq -r '.repos[] | " - [" + (if (.exit_code == 0 and ((.result.summary.steps_failed // 1) == 0)) then "ok" else "fail" end) + "] " + .path' "$report_json"
+  jq -r '.repos[] | " - [" + (if (.exit_code == 0 and .result.status == "ok" and ((.result.summary.steps_failed // 1) == 0)) then "ok" else "fail" end) + "] " + .path' "$report_json"
 fi
 
 if [[ "$overall_rc" -eq 0 ]]; then

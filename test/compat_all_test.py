@@ -148,6 +148,20 @@ class CompatAllTest(unittest.TestCase):
             "missing or invalid compat report",
         )
 
+    def test_text_row_matches_failed_child_status(self):
+        child = self.child("failed-status", 0, status="failed", steps_failed=0)
+        report_path = self.root / "text-report.json"
+        completed = subprocess.run(
+            [str(RUNNER), "--quick", "--out", str(report_path), "--repo", str(child)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("status=FAIL", completed.stdout)
+        self.assertIn(" - [fail] ", completed.stdout)
+        self.assertEqual(json.loads(report_path.read_text())["status_final"], "FAIL")
+
     def test_default_report_reuses_private_caller_path(self):
         caller = self.root / "caller"
         caller.mkdir()
