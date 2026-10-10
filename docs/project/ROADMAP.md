@@ -31,10 +31,13 @@
   on merged source `43b7791e26d2270b280790a6e565a73e6044b2bf` with hosted
   Linux and CodeQL. Actual adapter execution then confirmed HTTP curl credential
   arguments. The current source moves credentials and operator-selected URL
-  parameters into an anonymous curl config descriptor on Unix. Its release impact requires
-  exact-head native evidence; unbounded
-  repository log readers and quota-catalog paths need separate current-head
-  triage. The `task run-all` accounting change includes selected planner
+  parameters into an anonymous curl config descriptor on Unix. The two combined
+  HTTP URL findings remain partly open: explicit nonlocal HTTP and optional host
+  allowlisting require an operator configuration choice, with no lower-trust
+  setter demonstrated. Current-head triage confirms that run-log readers and
+  task failure classification can consume full local logs before row limits,
+  while quota catalog reads the full repository cache. Bound these readers next;
+  remote write reachability has not been established. The `task run-all` accounting change includes selected planner
   blockers in final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
   and already failed selections remain failed. Exact-head native package

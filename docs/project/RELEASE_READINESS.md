@@ -35,8 +35,12 @@ authority. The `task run-all` accounting change counts selected planner
 blockers in final failed/blocked outcomes, including all-blocked JSON runs.
 Pending selections stay pending for retry; blocked `complete`/`in_progress`
 selections become `failed`, and already failed selections remain failed. This
-change still needs exact-head native package validation. Unbounded repository
-log readers and quota-catalog paths remain for separate triage. The security
+change still needs exact-head native package validation. Current-head static
+triage found reachable unbounded run-log reads, repeated full-log task failure
+classification, and whole-file quota catalog reads from repository-local data;
+remote write reachability is unproven. The two combined HTTP URL findings are
+partly addressed in source, with explicit nonlocal HTTP and optional host
+allowlisting still requiring operator configuration. The security
 maintenance release stays on hold; the published `v2026.10.07` assets are
 unchanged.
 
