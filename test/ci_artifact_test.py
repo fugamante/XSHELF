@@ -204,8 +204,36 @@ class CiArtifactTests(unittest.TestCase):
                 WORKFLOW,
             )
             self.assertEqual(
-                WORKFLOW.count("if: failure() && steps.artifact_setup.outcome == 'success'"),
-                3,
+                WORKFLOW.count("if: failure() && steps.artifact_setup.outcome == 'success' && steps.checkout.outcome == 'success'"),
+                2,
+            )
+
+    def test_checkout_failure_uploads_only_its_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            workspace, artifacts, env = self.fixture(root)
+            outside = root / "outside.txt"
+            outside.write_text("SYNTHETIC_OUTSIDE_MARKER\n")
+            (workspace / ".github/ci-artifacts").mkdir(parents=True)
+            (workspace / ".github/ci-artifacts/fake.log").symlink_to(outside)
+            (workspace / "scripts").mkdir()
+            (workspace / "scripts/ci_artifacts.py").symlink_to(outside)
+
+            result = run_step("Build failure summary", env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            summary = (artifacts / f"summary_{OS_NAME}.txt").read_text()
+            self.assertIn("captured logs:\n(none)", summary)
+            self.assertNotIn("SYNTHETIC_OUTSIDE_MARKER", summary)
+            self.assertEqual(outside.read_text(), "SYNTHETIC_OUTSIDE_MARKER\n")
+            self.assertIn("id: checkout\n", WORKFLOW)
+            self.assertIn("id: failure_summary\n", WORKFLOW)
+            self.assertIn(
+                "if: failure() && steps.artifact_setup.outcome == 'success' && steps.checkout.outcome == 'failure' && steps.failure_summary.outcome == 'success'",
+                WORKFLOW,
+            )
+            self.assertIn(
+                "path: ${{ runner.temp }}/cxrs-compat-artifacts/summary_${{ matrix.os }}.txt",
+                WORKFLOW,
             )
 
 

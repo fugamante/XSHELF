@@ -45,6 +45,7 @@ jobs:
           mkdir -m 700 "$RUNNER_TEMP/$CXRS_ARTIFACT_DIR"
 
       - name: Checkout
+        id: checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
@@ -304,6 +305,7 @@ jobs:
         continue-on-error: true
 
       - name: Build failure summary
+        id: failure_summary
         if: failure() && steps.artifact_setup.outcome == 'success'
         run: |
           set -euo pipefail
@@ -350,7 +352,7 @@ jobs:
           } > "$summary"
 
       - name: Extract reliability failure report
-        if: failure() && steps.artifact_setup.outcome == 'success'
+        if: failure() && steps.artifact_setup.outcome == 'success' && steps.checkout.outcome == 'success'
         run: |
           set -euo pipefail
           set -C
@@ -374,7 +376,7 @@ jobs:
 
       - name: Stage failure artifacts
         id: artifact_stage
-        if: failure() && steps.artifact_setup.outcome == 'success'
+        if: failure() && steps.artifact_setup.outcome == 'success' && steps.checkout.outcome == 'success'
         run: |
           set -euo pipefail
           python3 "$GITHUB_WORKSPACE/scripts/ci_artifacts.py" \
@@ -390,6 +392,15 @@ jobs:
           path: ${{ runner.temp }}/cxrs-compat-upload
           retention-days: 14
           if-no-files-found: ignore
+
+      - name: Upload checkout failure summary
+        if: failure() && steps.artifact_setup.outcome == 'success' && steps.checkout.outcome == 'failure' && steps.failure_summary.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: cxrs-compat-artifacts-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/cxrs-compat-artifacts/summary_${{ matrix.os }}.txt
+          retention-days: 14
+          if-no-files-found: error
 
   release-health:
     # Calendar freshness must not short-circuit compatibility/security evidence.
