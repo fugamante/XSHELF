@@ -182,6 +182,17 @@ Current status:
   schema-failure quarantine evidence remains separate. `where` and `cxwhere`
   retain route output while treating inspected names and repository paths as
   data during Bash lookup.
+- Log and quota reader limits apply equally through `xshelf`, `xs`, and `cx`:
+  recent run-log views bound scanned bytes, row size, and returned history;
+  validation, appended scans, migration, and execution run-log writes bound row
+  size; other JSONL writers keep their contracts. `task show` keeps successful
+  JSON and adds `latest_run_lookup` (`found`, `not_found`, `unavailable`), with a
+  stderr warning on unavailable lookup. Diagnostic last-run and task recovery
+  fields retain optional fallbacks.
+  Default repository log and quota catalog reads reject symlinks; log append
+  path handling is unchanged. Explicit `CX_LOG_FILE` retains its operator-selected
+  path behavior. Unreadable quota caches remain unavailable until refreshed.
+  Existing JSON fields and alias names remain.
 - CI now requires command-surface changes to update `README.md`,
   `CHANGELOG.md`, and this migration policy together so canonical and
   compatibility guidance do not drift

@@ -191,6 +191,7 @@ impl TempRepo {
             // These synthetic repositories deliberately exercise trusted command tasks.
             // Security tests override/remove this grant to verify default admission.
             .env("CX_TASK_TRUST_COMMANDS", "1")
+            .env_remove("CX_LOG_FILE")
             .env_remove("GIT_DIR")
             .env_remove("GIT_WORK_TREE")
             .env_remove("GIT_INDEX_FILE");

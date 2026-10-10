@@ -299,6 +299,24 @@ Run logs may include nullable `system_status` for lanes that wrap a repository
 command, including `capture`, so nonzero child exits remain visible without
 provider token usage.
 
+Recent log views scan at most 128 MiB of history, accept rows up to 1 MiB, and
+return at most 50,000 rows or 4 MiB of raw row data. Narrow the requested
+window if a log view reports a limit error. Task failure-row lookups scan at
+most 16 MiB of recent history. `logs validate` also bounds each row
+and its issue list. Appended scans, migration input and output, and the
+execution run-log writer also bound rows; other JSONL writers are unchanged.
+`task show` keeps successful JSON if its latest-run lookup fails, warns on
+stderr, and sets `latest_run_lookup` to `unavailable`. A match reports `found`;
+no match reports `not_found` with `latest_run: null`. Diagnostic last-run and
+task recovery fields retain optional fallbacks. Repository-default log reads
+reject symlinks, while the append path is unchanged; explicit `CX_LOG_FILE`
+remains operator-selected.
+The repository quota catalog is read as a regular, non-symlink file up to 4 MiB.
+If the cache is unavailable, `quota catalog show` reports it missing and
+`quota probe` has no catalog-derived values. Run
+`quota catalog refresh` or enable automatic refresh to rebuild from embedded
+defaults. Existing JSON keys remain stable.
+
 For the full command catalog, use the operator manuals:
 - [docs/manuals/00_README.md](docs/manuals/00_README.md)
 - [docs/manuals/02_web/index.html](docs/manuals/02_web/index.html)

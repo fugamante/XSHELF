@@ -34,14 +34,22 @@
   parameters into an anonymous curl config descriptor on Unix. The two combined
   HTTP URL findings remain partly open: explicit nonlocal HTTP and optional host
   allowlisting require an operator configuration choice, with no lower-trust
-  setter demonstrated. Current-head triage confirms that run-log readers and
-  task failure classification can consume full local logs before row limits,
-  while quota catalog reads the full repository cache. Bound these readers next;
-  remote write reachability has not been established. The `task run-all` accounting change includes selected planner
-  blockers in final failed/blocked outcomes. Pending selections remain
+  setter demonstrated. Current maintenance source bounds recent run-log reads,
+  task failure-row lookup, task inspection and recovery, log tailing, validation
+  rows, appended scans, migration input and output, execution run-log writes,
+  and quota catalog cache reads. Repository-default log and catalog reads reject symlink
+  redirection; run-log append path handling remains a separate residual.
+  Explicit `CX_LOG_FILE` remains operator-selected. Rejected quota caches stay
+  unavailable until refreshed.
+  Owned synthetic data established local resource and symlink risks; remote
+  write reachability has not been established. Adjacent task-event and other
+  local readers still need separate reachability and failure-path assessment.
+  The `task run-all` accounting change includes selected planner blockers in
+  final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
-  and already failed selections remain failed. Exact-head native package
-  validation remains open.
+  and already failed selections remain failed. Exact-head native ARM and Intel
+  package validation, signing, notarization, and separate publication authority
+  remain open for any new maintenance candidate.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

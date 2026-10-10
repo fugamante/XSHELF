@@ -1,9 +1,7 @@
 use serde_json::Value;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 use crate::config::{app_config, cli_app_name};
-use crate::logs::load_runs;
+use crate::logs::{load_runs, tail_log_lines};
 use crate::paths::resolve_log_file;
 
 fn show_field<T: ToString>(label: &str, value: Option<T>) {
@@ -75,26 +73,14 @@ pub fn cmd_log_tail(n: usize) -> i32 {
         );
         return 1;
     }
-    let file = match File::open(&log_file) {
+    let lines = match tail_log_lines(&log_file, n) {
         Ok(v) => v,
         Err(e) => {
-            crate::cx_eprintln!(
-                "{} log-tail: cannot open {}: {e}",
-                cli_app_name(),
-                log_file.display()
-            );
+            crate::cx_eprintln!("{} log-tail: {e}", cli_app_name());
             return 1;
         }
     };
-    let reader = BufReader::new(file);
-    let mut lines: Vec<String> = Vec::new();
-    for line in reader.lines().map_while(Result::ok) {
-        if !line.trim().is_empty() {
-            lines.push(line);
-        }
-    }
-    let start = lines.len().saturating_sub(n);
-    for line in &lines[start..] {
+    for line in &lines {
         if let Ok(v) = serde_json::from_str::<Value>(line) {
             match serde_json::to_string_pretty(&v) {
                 Ok(s) => println!("{s}"),

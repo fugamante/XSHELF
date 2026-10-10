@@ -1,7 +1,6 @@
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -16,7 +15,7 @@ use crate::doctor::{
 use crate::execmeta::{toolchain_version_string, utc_now_iso};
 use crate::json_mode::resolve_json_mode;
 use crate::logs::file_len;
-use crate::logs::load_values;
+use crate::logs::{latest_value_since, load_values};
 use crate::operator_context::{operator_lines, operator_value};
 use crate::paths::{repo_root_hint, resolve_log_file};
 use crate::provider_adapter::{
@@ -2138,14 +2137,7 @@ pub fn last_appended_json_value(log_file: &Path, offset: u64) -> Option<Value> {
     if !log_file.exists() {
         return None;
     }
-    let mut file = File::open(log_file).ok()?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes).ok()?;
-    let start = (offset as usize).min(bytes.len());
-    let tail = String::from_utf8_lossy(&bytes[start..]);
-    tail.lines()
-        .rev()
-        .find_map(|line| serde_json::from_str::<Value>(line).ok())
+    latest_value_since(log_file, offset, None).ok().flatten()
 }
 
 pub fn has_required_log_fields(v: &Value) -> bool {

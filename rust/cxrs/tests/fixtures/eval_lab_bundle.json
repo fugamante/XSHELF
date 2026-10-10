@@ -74,6 +74,7 @@
         "id",
         "status",
         "latest_run",
+        "latest_run_lookup",
         "run_readiness"
       ]
     },

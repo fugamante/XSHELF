@@ -1,6 +1,7 @@
 use crate::config::{cli_app_name, command_with_cli};
 use crate::contract_versions::TASK_SHOW_JSON_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
+use crate::logs::find_field_value;
 use crate::paths::resolve_log_file;
 use crate::tasks_plan::{TaskRunPlan, build_task_run_plan};
 use crate::types::TaskRecord;
@@ -525,6 +526,17 @@ pub fn cmd_task_show(id: &str) -> i32 {
         return 1;
     };
     let plan = build_task_run_plan(&tasks, "pending");
+    let (latest_run, lookup_status) = match task_run_latest(id) {
+        Ok(Value::Null) => (Value::Null, "not_found"),
+        Ok(value) => (value, "found"),
+        Err(error) => {
+            crate::cx_eprintln!(
+                "{} task show: latest run unavailable: {error}",
+                cli_app_name()
+            );
+            (Value::Null, "unavailable")
+        }
+    };
     let mut out = match serde_json::to_value(&task) {
         Ok(v) => v,
         Err(e) => {
@@ -537,7 +549,11 @@ pub fn cmd_task_show(id: &str) -> i32 {
             "contract_version".to_string(),
             Value::String(TASK_SHOW_JSON_CONTRACT_VERSION.to_string()),
         );
-        obj.insert("latest_run".to_string(), task_run_latest(id));
+        obj.insert("latest_run".to_string(), latest_run);
+        obj.insert(
+            "latest_run_lookup".to_string(),
+            Value::String(lookup_status.to_string()),
+        );
         obj.insert(
             "run_readiness".to_string(),
             task_run_view(&task, &tasks, &plan),
@@ -668,35 +684,29 @@ pub fn task_run_state(task: &TaskRecord, tasks: &[TaskRecord]) -> Value {
     task_run_view(task, tasks, &plan)
 }
 
-fn task_run_latest(id: &str) -> Value {
+fn task_run_latest(id: &str) -> Result<Value, String> {
     let Some(path) = resolve_log_file() else {
-        return Value::Null;
+        return Ok(Value::Null);
     };
-    let Ok(content) = std::fs::read_to_string(path) else {
-        return Value::Null;
-    };
-    for line in content.lines().rev() {
-        let Ok(v) = serde_json::from_str::<Value>(line) else {
-            continue;
-        };
-        if v.get("task_id").and_then(Value::as_str) != Some(id) {
-            continue;
-        }
-        return serde_json::json!({
-            "execution_id": v.get("execution_id").and_then(Value::as_str),
-            "timestamp": v.get("timestamp").and_then(Value::as_str),
-            "tool": v.get("tool").and_then(Value::as_str),
-            "backend_used": v.get("backend_used").and_then(Value::as_str),
-            "execution_lane": v.get("execution_lane").and_then(Value::as_str),
-            "execution_lane_detail": v.get("execution_lane_detail").and_then(Value::as_str),
-            "execution_mode": v.get("execution_mode").and_then(Value::as_str),
-            "duration_ms": v.get("duration_ms").and_then(Value::as_u64),
-            "schema_valid": v.get("schema_valid").and_then(Value::as_bool),
-            "timed_out": v.get("timed_out").and_then(Value::as_bool),
-            "policy_blocked": v.get("policy_blocked").and_then(Value::as_bool)
-        });
+    if !path.exists() {
+        return Ok(Value::Null);
     }
-    Value::Null
+    let Some(v) = find_field_value(&path, "task_id", id)? else {
+        return Ok(Value::Null);
+    };
+    Ok(serde_json::json!({
+        "execution_id": v.get("execution_id").and_then(Value::as_str),
+        "timestamp": v.get("timestamp").and_then(Value::as_str),
+        "tool": v.get("tool").and_then(Value::as_str),
+        "backend_used": v.get("backend_used").and_then(Value::as_str),
+        "execution_lane": v.get("execution_lane").and_then(Value::as_str),
+        "execution_lane_detail": v.get("execution_lane_detail").and_then(Value::as_str),
+        "execution_mode": v.get("execution_mode").and_then(Value::as_str),
+        "duration_ms": v.get("duration_ms").and_then(Value::as_u64),
+        "schema_valid": v.get("schema_valid").and_then(Value::as_bool),
+        "timed_out": v.get("timed_out").and_then(Value::as_bool),
+        "policy_blocked": v.get("policy_blocked").and_then(Value::as_bool)
+    }))
 }
 
 pub fn set_task_status(id: &str, new_status: &str) -> Result<(), String> {

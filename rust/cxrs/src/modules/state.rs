@@ -156,9 +156,13 @@ fn json_parent(path: &Path, create: bool) -> Result<Option<(File, std::ffi::OsSt
 
 #[cfg(unix)]
 pub fn read_json_secure(path: &Path) -> Result<Option<String>, String> {
+    read_json_limit(path, 16 * 1024 * 1024)
+}
+
+#[cfg(unix)]
+pub fn read_json_limit(path: &Path, max_bytes: u64) -> Result<Option<String>, String> {
     use rustix::fs::{self as rfs, Mode, OFlags};
 
-    const MAX_JSON_BYTES: u64 = 16 * 1024 * 1024;
     let Some((parent, leaf)) = json_parent(path, false)? else {
         return Ok(None);
     };
@@ -176,17 +180,17 @@ pub fn read_json_secure(path: &Path) -> Result<Option<String>, String> {
     let meta = file
         .metadata()
         .map_err(|e| format!("cannot inspect JSON file {}: {e}", path.display()))?;
-    if !meta.is_file() || meta.len() > MAX_JSON_BYTES {
+    if !meta.is_file() || meta.len() > max_bytes {
         return Err(format!(
             "JSON file {} is not a bounded regular file",
             path.display()
         ));
     }
     let mut bytes = String::new();
-    file.take(MAX_JSON_BYTES + 1)
+    file.take(max_bytes + 1)
         .read_to_string(&mut bytes)
         .map_err(|e| format!("cannot read JSON file {}: {e}", path.display()))?;
-    if bytes.len() as u64 > MAX_JSON_BYTES {
+    if bytes.len() as u64 > max_bytes {
         return Err(format!("JSON file {} exceeds size limit", path.display()));
     }
     Ok(Some(bytes))
@@ -194,6 +198,11 @@ pub fn read_json_secure(path: &Path) -> Result<Option<String>, String> {
 
 #[cfg(not(unix))]
 pub fn read_json_secure(_path: &Path) -> Result<Option<String>, String> {
+    Err("safe JSON reads require Unix directory descriptors".to_string())
+}
+
+#[cfg(not(unix))]
+pub fn read_json_limit(_path: &Path, _max_bytes: u64) -> Result<Option<String>, String> {
     Err("safe JSON reads require Unix directory descriptors".to_string())
 }
 

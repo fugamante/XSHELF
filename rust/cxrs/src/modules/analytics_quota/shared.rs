@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-use crate::logs::load_values;
+use crate::logs::load_values_where;
 use crate::paths::resolve_log_file;
 
 fn parse_ts_epoch(v: &Value) -> Option<i64> {
@@ -22,14 +22,12 @@ pub(super) fn read_window_rows(days: usize) -> Result<(std::path::PathBuf, Vec<V
     if !log_file.exists() {
         return Ok((log_file, Vec::new()));
     }
-    let rows = load_values(&log_file, 10_000)?;
     let now = Utc::now().timestamp();
     let cutoff = now - (days as i64 * 86_400);
-    let filtered = rows
-        .into_iter()
-        .filter(|row| parse_ts_epoch(row).is_some_and(|t| t >= cutoff))
-        .collect::<Vec<Value>>();
-    Ok((log_file, filtered))
+    let rows = load_values_where(&log_file, 10_000, |row| {
+        parse_ts_epoch(row).is_some_and(|t| t >= cutoff)
+    })?;
+    Ok((log_file, rows))
 }
 
 pub(super) fn top_commands(rows: &[Value]) -> Vec<Value> {
