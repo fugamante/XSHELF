@@ -175,11 +175,10 @@ fn process_capture(
     prompt_profile: CapturePromptProfile,
     cfg: &BudgetConfig,
 ) -> (String, CaptureStats) {
-    let processed = raw_out.clone();
     let reduction = if native_reduce {
-        native_reduce_output_with_metadata(cmd, &processed)
+        native_reduce_output_with_metadata(cmd, &raw_out)
     } else {
-        passthrough_result(processed)
+        passthrough_result(raw_out)
     };
     let use_shadow_prompt = native_reduce
         && prompt_profile == CapturePromptProfile::ShadowNarrow

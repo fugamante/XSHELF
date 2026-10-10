@@ -1,6 +1,10 @@
 use std::collections::{HashSet, VecDeque};
 use std::env;
 
+#[path = "capture_reduce_bounds.rs"]
+mod bounds;
+use self::bounds::{HEAD_LIMIT, TAIL_LIMIT, bounded_fallback, test_markers, visible_line};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReduceProfile {
     Fast,
@@ -150,7 +154,11 @@ fn reduction_metadata(
     let reduced_lines = output.lines().count();
     ReductionMetadata {
         reducer_kind: kind.as_str(),
-        reducer_version: 1,
+        reducer_version: if matches!(kind, ReducerKind::TestOutput | ReducerKind::DeepFallback) {
+            2
+        } else {
+            1
+        },
         profile: profile.as_str(),
         lossiness_level: kind.lossiness_level(),
         raw_chars,
@@ -280,53 +288,43 @@ fn reduce_grep_like(input: &str) -> String {
 }
 
 fn reduce_test_output(input: &str) -> String {
-    const HEAD_LIMIT: usize = 380;
-    const TAIL_LIMIT: usize = 20;
+    reduce_test_count(input).0
+}
+
+fn reduce_test_count(input: &str) -> (String, usize) {
     let mut out: Vec<String> = Vec::new();
     let mut tail: VecDeque<String> = VecDeque::new();
-    let mut seen_warnings: HashSet<String> = HashSet::new();
+    let mut seen_warnings: HashSet<&str> = HashSet::new();
     let mut context_lines = 0usize;
 
     for line in input.lines() {
-        let lower = line.to_ascii_lowercase();
-        let lower_trim = lower.trim_start();
-        let actual_panic = lower_trim.starts_with("thread ") && lower.contains("panicked");
-        let actual_assertion = lower_trim.starts_with("assertion ");
-        let keep = lower.contains("fail")
-            || lower.contains("error")
-            || actual_panic
-            || lower.contains("warning")
-            || actual_assertion
-            || lower.contains("test result")
-            || lower.contains("running ")
-            || lower_trim.starts_with("left:")
-            || lower_trim.starts_with("right:")
-            || lower_trim.starts_with("note:")
-            || lower_trim.starts_with("failures:");
+        let markers = test_markers(line);
 
-        if keep {
-            if lower.contains("warning") && !seen_warnings.insert(line.to_string()) {
-                continue;
-            }
+        if markers.keep {
+            let shown = visible_line(line);
             if out.len() < HEAD_LIMIT {
-                out.push(line.to_string());
-            } else if !lower.contains("warning") && !tail.iter().any(|saved| saved == line) {
+                if markers.warning && !seen_warnings.insert(line) {
+                    continue;
+                }
+                out.push(shown.into_owned());
+            } else if !markers.warning && !tail.iter().any(|saved| saved == shown.as_ref()) {
                 if tail.len() == TAIL_LIMIT {
                     tail.pop_front();
                 }
-                tail.push_back(line.to_string());
+                tail.push_back(shown.into_owned());
             }
-            if actual_panic || actual_assertion {
+            if markers.panic || markers.assertion {
                 context_lines = context_lines.max(3);
             }
         } else if context_lines > 0 {
+            let shown = visible_line(line);
             if out.len() < HEAD_LIMIT {
-                out.push(line.to_string());
-            } else if !tail.iter().any(|saved| saved == line) {
+                out.push(shown.into_owned());
+            } else if !tail.iter().any(|saved| saved == shown.as_ref()) {
                 if tail.len() == TAIL_LIMIT {
                     tail.pop_front();
                 }
-                tail.push_back(line.to_string());
+                tail.push_back(shown.into_owned());
             }
             context_lines -= 1;
         }
@@ -334,7 +332,7 @@ fn reduce_test_output(input: &str) -> String {
 
     out.extend(tail);
 
-    out.join("\n")
+    (out.join("\n"), seen_warnings.len())
 }
 
 fn reduce_tree_or_ls(input: &str) -> String {
@@ -355,11 +353,17 @@ pub fn native_reduce_output_with_metadata(cmd: &[String], input: &str) -> Reduct
     let profile = reduce_profile_from_env();
     let kind = select_reducer(cmd, profile);
     let mut reduced = reduce_by_kind(kind, input);
-    if kind == ReducerKind::TestOutput && !input.is_empty() && reduced.is_empty() {
-        reduced = input.to_string();
+    let unknown = kind == ReducerKind::TestOutput && !input.is_empty() && reduced.is_empty();
+    if unknown {
+        reduced = bounded_fallback(input);
     }
     let text = normalize_generic(&reduced);
-    let metadata = reduction_metadata(kind, profile, input, &text);
+    let mut metadata = reduction_metadata(kind, profile, input, &text);
+    if unknown && input.len() > bounds::FALLBACK_BYTES {
+        metadata.lossiness_level = "uncertain_fallback";
+        metadata.uncertainty = "high";
+        metadata.critical_sections_kept.clear();
+    }
     ReductionResult { text, metadata }
 }
 
