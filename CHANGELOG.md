@@ -25,6 +25,10 @@ Notes:
 
 ### Fixed
 
+- Local llama.cpp and MLX process adapters now send prompts through an anonymous
+  private stdin file instead of process arguments. The llama.cpp file path
+  preserves its prompt newline behavior, and MLX retains its existing literal
+  escape handling. Model selection and explicit adapter arguments are unchanged.
 - Recent run-log consumers now read backward within explicit scan, row, and
   result limits instead of loading every historical row for a small window.
   Task failure classification looks up the newest matching execution row, while

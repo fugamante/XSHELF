@@ -1,8 +1,15 @@
 use serde_json::{Value, json};
 use std::env;
-use std::process::Command;
+use std::io::{Seek, SeekFrom, Write};
+use std::process::{Command, Stdio};
 
-use crate::process::{TimeoutInfo, run_command_with_stdin_output_with_timeout_meta};
+#[cfg(unix)]
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+use crate::process::{
+    TimeoutInfo, run_command_output_with_timeout_meta,
+    run_command_with_stdin_output_with_timeout_meta,
+};
 use crate::types::UsageStats;
 
 #[derive(Clone, Debug, Default)]
@@ -150,14 +157,70 @@ fn llama_cpp_uses_hf_repo(model: &str) -> bool {
     model.contains('/')
 }
 
+fn private_prompt_stdin(
+    prompt: &str,
+    backend: &str,
+    append_newline: bool,
+) -> Result<Stdio, LlmRunError> {
+    let mut file = tempfile::tempfile().map_err(|e| {
+        LlmRunError::message(format!(
+            "{backend} adapter could not create private prompt: {e}"
+        ))
+    })?;
+    #[cfg(unix)]
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| {
+            LlmRunError::message(format!(
+                "{backend} adapter could not protect private prompt: {e}"
+            ))
+        })?;
+    #[cfg(unix)]
+    {
+        let links = file.metadata().map_err(|e| {
+            LlmRunError::message(format!(
+                "{backend} adapter could not inspect private prompt: {e}"
+            ))
+        })?;
+        // Some Unix tempfile paths may survive a failed unlink. Never write a
+        // prompt unless the open file has no directory entry.
+        if links.nlink() != 0 {
+            return Err(LlmRunError::message(format!(
+                "{backend} adapter could not unlink private prompt"
+            )));
+        }
+    }
+    file.write_all(prompt.as_bytes())
+        .and_then(|_| {
+            if append_newline {
+                // llama-cli's -f parser strips one final newline from its file input.
+                file.write_all(b"\n")
+            } else {
+                Ok(())
+            }
+        })
+        .and_then(|_| file.flush())
+        .and_then(|_| file.seek(SeekFrom::Start(0)).map(|_| ()))
+        .map_err(|e| {
+            LlmRunError::message(format!(
+                "{backend} adapter could not write private prompt: {e}"
+            ))
+        })?;
+    Ok(Stdio::from(file))
+}
+
 pub fn run_llama_cpp_plain(prompt: &str, model: &str, bin: &str) -> Result<String, LlmRunError> {
+    if !cfg!(unix) {
+        return Err(LlmRunError::message(
+            "llama.cpp private prompt input requires Unix /dev/stdin".to_string(),
+        ));
+    }
     let mut cmd = Command::new(bin);
     let model_flag = if llama_cpp_uses_hf_repo(model) {
         "-hf"
     } else {
         "-m"
     };
-    cmd.args([model_flag, model, "-p", prompt, "--no-display-prompt"]);
+    cmd.args([model_flag, model, "-f", "/dev/stdin", "--no-display-prompt"]);
     if let Ok(raw_args) = env::var("CX_LLAMA_CPP_ARGS") {
         let extra = shell_words::split(&raw_args).map_err(|e| {
             LlmRunError::message(format!(
@@ -166,7 +229,8 @@ pub fn run_llama_cpp_plain(prompt: &str, model: &str, bin: &str) -> Result<Strin
         })?;
         cmd.args(extra);
     }
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, "", "llama.cpp llama-cli")
+    cmd.stdin(private_prompt_stdin(prompt, "llama.cpp", true)?);
+    let out = run_command_output_with_timeout_meta(cmd, "llama.cpp llama-cli")
         .map_err(LlmRunError::from_process)?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
@@ -187,7 +251,7 @@ pub fn run_mlx_plain(
 ) -> Result<String, LlmRunError> {
     let mut cmd = Command::new(python);
     cmd.args([
-        "-m", "mlx_lm", "generate", "--model", model, "--prompt", prompt,
+        "-m", "mlx_lm", "generate", "--model", model, "--prompt", "-",
     ]);
     if let Ok(max_tokens) = env::var("CX_MLX_MAX_TOKENS")
         && !max_tokens.trim().is_empty()
@@ -211,7 +275,11 @@ pub fn run_mlx_plain(
         })?;
         cmd.args(extra);
     }
-    let out = run_command_with_stdin_output_with_timeout_meta(cmd, "", "MLX mlx_lm generate")
+    // mlx_lm expands these escapes when --prompt carries text in argv. Preserve
+    // that behavior before its "-" path reads the prompt from stdin.
+    let mlx_prompt = prompt.replace("\\n", "\n").replace("\\t", "\t");
+    cmd.stdin(private_prompt_stdin(&mlx_prompt, "MLX", false)?);
+    let out = run_command_output_with_timeout_meta(cmd, "MLX mlx_lm generate")
         .map_err(LlmRunError::from_process)?;
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
