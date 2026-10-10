@@ -53,7 +53,14 @@ Notes:
   events --follow` securely reopens the event log, bounds each row and poll,
   retains incomplete rows, and continues across log creation or rotation.
   Explicit `CX_LOG_FILE` aliases remain available for operator-selected run
-  logs. Event JSONL keys and ordinary append/follow output remain unchanged.
+  logs. Appends wait up to ten seconds for an advisory lock on the opened file
+  and hold it through each complete record, including aliases of an
+  operator-selected run log. A failed partial write attempts to
+  restore the prior length only when the file still has the expected length;
+  cleanup failure or a changed length is reported, and a fragment may remain.
+  Writers that do not take the lock can still interleave records, and a write
+  racing the length check and rollback may be lost. Event JSONL
+  keys and ordinary append/follow output remain unchanged.
 - Quota catalog show, probe, and automatic refresh now read the repository
   cache through a 4 MiB regular-file and symlink guard. Invalid, oversized,
   or redirected cache data is ignored: without automatic refresh, show reports

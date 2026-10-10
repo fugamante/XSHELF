@@ -3,8 +3,11 @@ use crate::paths::ensure_parent_dir;
 use crate::types::ExecutionLog;
 use serde_json::Value;
 use std::fs::File;
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::Path;
+use std::time::{Duration, Instant};
+
+const LOCK_WAIT: Duration = Duration::from_secs(10);
 
 #[path = "logs_cmd.rs"]
 mod logs_cmd;
@@ -93,7 +96,7 @@ pub(crate) fn open_repo_file(path: &Path) -> std::io::Result<File> {
 
 fn append_jsonl_cx(path: &Path, value: &Value, explicit: bool) -> CxResult<()> {
     #[cfg(unix)]
-    let mut f = if explicit {
+    let f = if explicit {
         use rustix::fs::{self, Mode, OFlags};
         ensure_parent_dir(path).map_err(CxError::invalid)?;
         let file = File::from(
@@ -122,7 +125,7 @@ fn append_jsonl_cx(path: &Path, value: &Value, explicit: bool) -> CxResult<()> {
             .map_err(|e| CxError::io(format!("failed opening {}", path.display()), e))?
     };
     #[cfg(not(unix))]
-    let mut f = {
+    let f = {
         if !explicit {
             return Err(CxError::invalid(
                 "safe repository log writes require Unix directory descriptors",
@@ -138,8 +141,264 @@ fn append_jsonl_cx(path: &Path, value: &Value, explicit: bool) -> CxResult<()> {
     let mut line =
         serde_json::to_string(value).map_err(|e| CxError::json("log json serialize", e))?;
     line.push('\n');
-    f.write_all(line.as_bytes())
-        .map_err(|e| CxError::io(format!("failed writing {}", path.display()), e))
+    append_record(f, path, line.as_bytes(), Write::write)
+}
+
+// Lock the opened inode, not a pathname: explicit CX_LOG_FILE aliases must share
+// the same record boundary. Dropping file releases the lock on every return.
+fn append_record<F>(mut file: File, path: &Path, line: &[u8], mut write: F) -> CxResult<()>
+where
+    F: FnMut(&mut File, &[u8]) -> io::Result<usize>,
+{
+    lock_record(&file, path, LOCK_WAIT)?;
+    let before = file
+        .metadata()
+        .map_err(|e| CxError::io("inspect log destination", e))?
+        .len();
+    let mut written = 0;
+    while written < line.len() {
+        let remaining = &line[written..];
+        match write(&mut file, remaining) {
+            Ok(0) => {
+                let error = io::Error::new(io::ErrorKind::WriteZero, "failed to write log row");
+                return Err(append_error(&file, path, before, written, error));
+            }
+            Ok(count) if count <= remaining.len() => written += count,
+            Ok(_) => {
+                let error = io::Error::new(io::ErrorKind::InvalidData, "invalid write count");
+                return Err(append_error(&file, path, before, written, error));
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(append_error(&file, path, before, written, error)),
+        }
+    }
+    Ok(())
+}
+
+fn lock_record(file: &File, path: &Path, timeout: Duration) -> CxResult<()> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match fs2::FileExt::try_lock_exclusive(file) {
+            Ok(()) => return Ok(()),
+            Err(error)
+                if error.kind() == io::ErrorKind::Interrupted
+                    || error.raw_os_error() == fs2::lock_contended_error().raw_os_error() =>
+            {
+                if Instant::now() >= deadline {
+                    return Err(CxError::io(
+                        format!("timed out locking {}", path.display()),
+                        error,
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => {
+                return Err(CxError::io(
+                    format!("failed locking {}", path.display()),
+                    error,
+                ));
+            }
+        }
+    }
+}
+
+fn append_error(
+    file: &File,
+    path: &Path,
+    before: u64,
+    written: usize,
+    error: io::Error,
+) -> CxError {
+    let mut context = format!("failed writing {}", path.display());
+    if written > 0 {
+        let expected = u64::try_from(written)
+            .ok()
+            .and_then(|count| before.checked_add(count));
+        match (file.metadata(), expected) {
+            (Ok(metadata), Some(end)) if metadata.len() == end => {
+                if let Err(cleanup) = file.set_len(before) {
+                    context.push_str(&format!("; partial row cleanup failed: {cleanup}"));
+                }
+            }
+            (Ok(_), _) => context.push_str("; partial row retained after concurrent file change"),
+            (Err(inspect), _) => {
+                context.push_str(&format!("; partial row may remain: {inspect}"));
+            }
+        }
+    }
+    CxError::io(context, error)
+}
+
+#[cfg(test)]
+mod append_record_tests {
+    use super::{append_record, lock_record};
+    use std::fs::{self, File, OpenOptions};
+    use std::io::{self, Write};
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    fn open(path: &Path) -> File {
+        OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .expect("owned log")
+    }
+
+    #[test]
+    fn lock_timeout() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        let first = open(&path);
+        fs2::FileExt::lock_exclusive(&first).expect("hold first lock");
+        let second = open(&path);
+        let error = lock_record(&second, &path, Duration::from_millis(50))
+            .expect_err("lock must be bounded");
+        assert!(error.to_string().contains("timed out locking"));
+        fs2::FileExt::unlock(&first).expect("release first lock");
+        lock_record(&second, &path, Duration::from_secs(1)).expect("reuse after lock release");
+        fs2::FileExt::unlock(&second).expect("release second lock");
+    }
+
+    #[test]
+    fn short_writes() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        let row = b"{\"execution_id\":\"synthetic\"}\n";
+        append_record(open(&path), &path, row, |file, remaining| {
+            file.write(&remaining[..remaining.len().min(3)])
+        })
+        .expect("complete short writes");
+        assert_eq!(fs::read(&path).expect("read log"), row);
+    }
+
+    #[test]
+    fn malformed_history() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        fs::write(&path, b"not-json\n").expect("existing malformed row");
+        let row = b"{\"execution_id\":\"synthetic\"}\n";
+        append_record(open(&path), &path, row, Write::write).expect("append after malformed row");
+        assert_eq!(
+            fs::read(&path).expect("read log"),
+            [b"not-json\n".as_slice(), row.as_slice()].concat()
+        );
+    }
+
+    #[test]
+    fn error_cleanup() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        let old = b"{\"execution_id\":\"old\"}\n";
+        fs::write(&path, old).expect("existing row");
+        let row = b"{\"execution_id\":\"next\"}\n";
+        let mut first = true;
+        let error = append_record(open(&path), &path, row, |file, remaining| {
+            if first {
+                first = false;
+                file.write(&remaining[..5])
+            } else {
+                Err(io::Error::other("synthetic EIO"))
+            }
+        })
+        .expect_err("injected failure");
+        assert!(error.to_string().contains("synthetic EIO"));
+        assert_eq!(fs::read(&path).expect("read log"), old);
+        append_record(open(&path), &path, row, Write::write).expect("reuse after error");
+        assert_eq!(
+            fs::read(&path).expect("read log"),
+            [old.as_slice(), row.as_slice()].concat()
+        );
+    }
+
+    #[test]
+    fn foreign_append() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        let mut first = true;
+        let error = append_record(open(&path), &path, b"{\"id\":1}\n", |file, remaining| {
+            if first {
+                first = false;
+                file.write(&remaining[..3])
+            } else {
+                open(&path).write_all(b"foreign\n")?;
+                Err(io::Error::other("synthetic EIO"))
+            }
+        })
+        .expect_err("injected failure");
+        assert!(error.to_string().contains("concurrent file change"));
+        assert_eq!(fs::read(&path).expect("read log"), b"{\"iforeign\n");
+    }
+
+    #[test]
+    fn alias_lock() {
+        let dir = tempfile::tempdir().expect("owned directory");
+        let path = dir.path().join("runs.jsonl");
+        let alias = dir.path().join("alias.jsonl");
+        fs::write(&path, b"").expect("create log");
+        fs::hard_link(&path, &alias).expect("alias same inode");
+        let (first_tx, first_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (attempt_tx, attempt_rx) = mpsc::channel();
+        let (second_tx, second_rx) = mpsc::channel();
+        let a_path = path.clone();
+        let first = thread::spawn(move || {
+            let mut split = true;
+            append_record(
+                open(&a_path),
+                &a_path,
+                b"{\"id\":\"first\"}\n",
+                |file, remaining| {
+                    if split {
+                        split = false;
+                        let count = file.write(&remaining[..4])?;
+                        first_tx.send(()).expect("signal first write");
+                        release_rx.recv().expect("release first writer");
+                        Ok(count)
+                    } else {
+                        file.write(remaining)
+                    }
+                },
+            )
+        });
+        first_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("first writer entered");
+        let b_path = alias.clone();
+        let second = thread::spawn(move || {
+            attempt_tx.send(()).expect("signal lock attempt");
+            append_record(
+                open(&b_path),
+                &b_path,
+                b"{\"id\":\"second\"}\n",
+                |file, bytes| {
+                    second_tx.send(()).expect("signal second writer");
+                    file.write(bytes)
+                },
+            )
+        });
+        attempt_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("second writer started");
+        let blocked = second_rx.recv_timeout(Duration::from_millis(200)).is_err();
+        release_tx.send(()).expect("release first writer");
+        first.join().expect("first thread").expect("first row");
+        second.join().expect("second thread").expect("second row");
+        assert!(
+            blocked,
+            "second alias wrote while the first row was incomplete"
+        );
+        let data = fs::read_to_string(&path).expect("read log");
+        let rows: Vec<_> = data
+            .lines()
+            .map(serde_json::from_str::<serde_json::Value>)
+            .collect();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].as_ref().expect("first JSON")["id"], "first");
+        assert_eq!(rows[1].as_ref().expect("second JSON")["id"], "second");
+    }
 }
 
 #[cfg(test)]

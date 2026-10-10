@@ -50,8 +50,19 @@ content through an anonymous stdin file rather than process arguments. The
 published October 7 source predates this change. Current maintenance source
 caps test-output warning retention, clips selected lines before copying, and
 bounds unfamiliar-output fallback. Full child-output capture remains a separate
-availability limit. The concurrent JSONL append race remains an open local
-integrity risk.
+availability limit. Current source locks the opened JSONL file across each
+run, schema-failure, and task-event append, including explicit run-log aliases.
+A failed partial write attempts rollback only when the file length still
+matches this writer's bytes; cleanup failure or a changed length is reported,
+and a fragment may remain. Lock waits are bounded to ten seconds. Noncooperating
+writers can still interleave records, and a write racing rollback may be lost.
+Focused synthetic regressions cover short writes, partial-write errors,
+noncooperating appends, and inode aliases. This evidence does not establish
+later-release readiness.
+A separate 64-process cold-start probe intermittently failed to open the new
+`schema_failures.jsonl` path with `ENOENT`, losing one observational row while
+retaining all quarantine records. Its exact failing syscall and baseline
+origin are unproven; first-use directory creation needs separate diagnosis.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.
