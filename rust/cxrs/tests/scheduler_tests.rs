@@ -367,6 +367,8 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "primary",
             "--mode",
             "parallel",
+            "--resource-keys",
+            "repo:read",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }
