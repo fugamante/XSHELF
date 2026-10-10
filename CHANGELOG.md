@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- The `chunk` command now splits an oversized line at Unicode character
+  boundaries so emitted chunks respect a positive character budget. A zero
+  budget fails before chunk output or task fanout mutation; normal line
+  grouping and fanout child counts remain. Three internal Rust names now
+  satisfy the strict host naming gate without changing their behavior.
 - Signing preflight now requires the fixed v1 package member inventory and
   modes before any credential use. A self-consistent unsigned archive cannot
   add or omit payload files through its own manifest and checksum sidecar;

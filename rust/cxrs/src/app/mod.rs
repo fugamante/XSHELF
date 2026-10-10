@@ -166,7 +166,13 @@ fn cmd_chunk() -> i32 {
         return 1;
     }
     let budget = app_config().budget_chars;
-    let chunks = chunk_text_by_budget(&buf, budget);
+    let chunks = match chunk_text_by_budget(&buf, budget) {
+        Ok(chunks) => chunks,
+        Err(error) => {
+            crate::cx_eprintln!("{} chunk: {error}", cli_app_name());
+            return 2;
+        }
+    };
     let total = chunks.len();
     for (i, ch) in chunks.iter().enumerate() {
         println!("----- {} chunk {}/{} -----", cli_app_name(), i + 1, total);

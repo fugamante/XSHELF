@@ -9,7 +9,7 @@ use crate::capture::{BudgetConfig, clip_text_with_config};
 use crate::config::app_config;
 use crate::config::cli_app_name;
 use crate::local_models::resolve_model_for_backend;
-use crate::logs::{file_len, latest_task_value_since, latest_value_since};
+use crate::logs::{file_len, latest_value_since, task_value_since};
 use crate::paths::{repo_root, resolve_log_file};
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::runtime::llm_backend;
@@ -398,9 +398,7 @@ fn recover_execution_id_from_log(log_file: &Path, offset: u64) -> Option<String>
 }
 
 fn recover_sandbox_id(log_file: &Path, offset: u64, task_id: &str) -> Option<String> {
-    let row = latest_task_value_since(log_file, offset, task_id)
-        .ok()
-        .flatten()?;
+    let row = task_value_since(log_file, offset, task_id).ok().flatten()?;
     if row.get("tool").and_then(Value::as_str) == Some("cxtask_converge") {
         let votes = row.get("converge_votes")?;
         let winner = votes.get("winner")?.as_u64()?;

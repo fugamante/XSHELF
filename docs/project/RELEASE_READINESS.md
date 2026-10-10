@@ -30,15 +30,17 @@ paths, types and modes before credential use. Owned synthetic ARM/Intel
 archives reproduced acceptance of an extra self-manifested executable on the
 previous main and verify rejection in current source; the checksum sidecar
 and manifest remain consistency checks, not proof of unsigned input origin.
-The oversized single-line chunk finding remains open pending a demonstrated
-provider path; its current in-repository callers print local output or retain
-only a capped chunk count. Neither source result supplies native package or
-publication evidence for a new release.
-The strict host `compat_local.sh --full` gate also fails on three Rust function
-names already present on starting main `10ed4095`. Docker CI parity passed;
-its naming check and the hosted compatibility naming check omit the strict
-three-segment rule. Repair those names and rerun the strict full gate before
-treating a later candidate as ready.
+The current source bounds each local `chunk` payload to a positive character
+budget, including oversized single lines, and rejects a zero budget. Task
+fanout keeps its prior child count and stores only symbolic chunk references;
+no in-repository provider payload path was established. The published October 7
+source still has the oversized-line behavior. This source repair does not
+supply native package or publication evidence for a new release.
+The three Rust function names that failed the strict host naming check on
+starting main `10ed4095` were renamed without changing the three-segment rule
+or its allowlist. The pinned Rust 1.95 `compat_local.sh --full` gate now passes
+on this maintenance source. Docker CI parity and hosted checks are separate
+evidence; none of these source gates makes a later release ready.
 
 This source change also rejects task execution above 16 effective
 replicas or 32 potential task/judge invocations, including retries and judge selection;

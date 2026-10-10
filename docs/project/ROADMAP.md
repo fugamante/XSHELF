@@ -14,8 +14,14 @@
   exact v1 package member inventory before credential use. This closes the
   self-manifested extra-file path in source; unsigned input authenticity and
   exact-head native package evidence remain separate release gates.
-- Before a later release signoff, repair the three Rust naming violations on
-  starting main `10ed4095` and rerun the strict host full compatibility gate.
+- The three Rust naming violations on starting main `10ed4095` are repaired;
+  the pinned Rust 1.95 strict host full compatibility gate passes on this
+  maintenance source. Keep exact-head hosted and native package evidence
+  separate for any later release signoff.
+- The local `chunk` utility now bounds oversized lines by positive character
+  budgets, while task fanout retains its prior child count and symbolic refs.
+  No in-repository provider payload path was demonstrated. The published
+  October 7 archives retain their original source and behavior.
 - Current maintenance source bounds repository-selected task replicas, run-all
   retries and judge calls before execution. Authorized Docker tasks hand off
   once and retain the admitted budget across the image boundary. This source

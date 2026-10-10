@@ -55,6 +55,12 @@ uses one internal versioned handoff for the admitted task, so older image
 executables reject the new handoff before doing task work. Rebuild and review
 the image executable before using it for task execution.
 
+The `xshelf`, `xs`, and `cx` chunk aliases still use
+`CX_CONTEXT_BUDGET_CHARS`. The `chunk` command now bounds oversized lines by
+Unicode characters and rejects a zero budget. Task fanout rejects zero before
+mutating tasks while preserving its established child count for positive
+budgets. No CLI alias or machine-readable key changes.
+
 ## Goals
 
 - establish `XSHELF` as the canonical project name
