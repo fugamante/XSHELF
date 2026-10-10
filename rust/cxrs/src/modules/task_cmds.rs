@@ -1513,10 +1513,17 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     }
 
     let scheduled_count = schedule.len();
+    let scheduled_ids: HashSet<String> = schedule.iter().cloned().collect();
     let summary = if options.run_mode == "parallel"
         || (options.run_mode == "mixed" && options.max_workers > 1)
     {
-        match run_schedule_parallel(&schedule, &task_index, &options, &wave_meta_map) {
+        match run_schedule_parallel(
+            &schedule,
+            &scheduled_ids,
+            &task_index,
+            &options,
+            &wave_meta_map,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 crate::cx_eprintln!("{} task run-all: {e}", cli_app_name());
@@ -1525,6 +1532,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
     } else {
         let mut summary = RunAllSummary::default();
+        let mut completed_ok: HashSet<String> = HashSet::new();
         let mut halt_all = false;
         let total = schedule.len();
         for (idx, id) in schedule.iter().enumerate() {
@@ -1565,6 +1573,36 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 event.wave_size = Some(wave_meta.size);
                 event
             });
+            if let Some(task) = task {
+                let unmet = unmet_run_deps(task, &task_index, &scheduled_ids, &completed_ok);
+                if !unmet.is_empty() {
+                    if let Err(error) = persist_run_status(id, "failed", set_task_status_quiet) {
+                        crate::cx_eprintln!("{} task run-all: {error}", cli_app_name());
+                        return 1;
+                    }
+                    summary.record_failure(FailureClass::Blocked);
+                    crate::cx_eprintln!(
+                        "{} task run-all: dependency blocked for {id}: {}",
+                        cli_app_name(),
+                        unmet.join(", ")
+                    );
+                    let event = TaskRunEvent {
+                        id: id.clone(),
+                        backend: event_backend,
+                        requested_backend,
+                        status: "failed".to_string(),
+                        execution_id: None,
+                        failure_class: Some("dependency_blocked".to_string()),
+                        queue_ms: 0,
+                        wave_index: wave_meta.index,
+                        wave_mode: wave_meta.mode,
+                        wave_size: wave_meta.size,
+                    };
+                    emit_result_event(&options, &event);
+                    summary.add_task_run(event);
+                    continue;
+                }
+            }
             if options.as_json
                 && let Err(error) = persist_run_status(id, "in_progress", set_task_status_quiet)
             {
@@ -1602,6 +1640,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
+                            completed_ok.insert(id.clone());
                             let event = TaskRunEvent {
                                 id: id.clone(),
                                 backend,
@@ -1689,6 +1728,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                     Ok((code, execution_id)) => {
                         if code == 0 {
                             summary.record_success();
+                            completed_ok.insert(id.clone());
                             emit_progress(&format!(
                                 "cxrs task run-all: done [{}/{}] task={} status=complete attempts={} duration_ms={}",
                                 idx + 1,
@@ -2992,7 +3032,10 @@ fn emit_result_event(options: &RunAllOptions, event: &TaskRunEvent) {
         "complete" => "completed",
         "critical_error" => "critical_error",
         "failed" => {
-            if event.failure_class.as_deref() == Some("policy_blocked") {
+            if matches!(
+                event.failure_class.as_deref(),
+                Some("policy_blocked" | "dependency_blocked")
+            ) {
                 "blocked"
             } else {
                 "failed"
@@ -3029,8 +3072,32 @@ fn emit_summary_event(
     emit_runall_event(options, event);
 }
 
+fn unmet_run_deps(
+    task: &TaskRecord,
+    tasks: &HashMap<String, TaskRecord>,
+    scheduled: &HashSet<String>,
+    completed: &HashSet<String>,
+) -> Vec<String> {
+    let deps = if task.depends_on.is_empty() {
+        task.parent_id.iter().cloned().collect()
+    } else {
+        task.depends_on.clone()
+    };
+    deps.into_iter()
+        .filter(|id| {
+            // A scheduled prerequisite needs a successful current-run outcome.
+            !completed.contains(id)
+                && (scheduled.contains(id)
+                    || tasks
+                        .get(id)
+                        .is_none_or(|record| record.status != "complete"))
+        })
+        .collect()
+}
+
 fn run_schedule_parallel(
     schedule: &[String],
+    scheduled_ids: &HashSet<String>,
     task_index: &HashMap<String, TaskRecord>,
     options: &RunAllOptions,
     wave_meta_map: &HashMap<String, TaskWaveMeta>,
@@ -3068,6 +3135,7 @@ fn run_schedule_parallel(
     let mut active: Vec<ActiveLaunch> = Vec::new();
     let mut backend_active: HashMap<String, usize> = HashMap::new();
     let mut summary = RunAllSummary::default();
+    let mut completed_ok: HashSet<String> = HashSet::new();
     let mut next_worker = 1usize;
     let total = schedule.len();
     let mut launched = 0usize;
@@ -3075,26 +3143,71 @@ fn run_schedule_parallel(
 
     while !pending.is_empty() || !active.is_empty() {
         while active.len() < options.max_workers && !pending.is_empty() {
+            // A later plan wave cannot consume a free worker until every member
+            // of the current wave has finished and its status is persisted.
+            let wave_index = active
+                .first()
+                .map(|launch| launch.wave_index)
+                .or_else(|| pending.first().map(|launch| launch.wave_index));
             let maybe_idx = if options.fairness == "least_loaded" {
                 pending
                     .iter()
                     .enumerate()
                     .filter(|(_, p)| {
                         let cur = backend_active.get(&p.backend).copied().unwrap_or(0);
-                        cur < backend_cap_for(options, &p.backend)
+                        Some(p.wave_index) == wave_index
+                            && cur < backend_cap_for(options, &p.backend)
                     })
                     .min_by_key(|(_, p)| backend_active.get(&p.backend).copied().unwrap_or(0))
                     .map(|(idx, _)| idx)
             } else {
                 pending.iter().position(|p| {
                     let cur = backend_active.get(&p.backend).copied().unwrap_or(0);
-                    cur < backend_cap_for(options, &p.backend)
+                    Some(p.wave_index) == wave_index && cur < backend_cap_for(options, &p.backend)
                 })
             };
             let Some(pos) = maybe_idx else {
                 break;
             };
             let launch = pending.remove(pos);
+            let task = match task_index.get(&launch.id) {
+                Some(task) => task,
+                None => {
+                    join_active_workers(&mut active);
+                    return Err(format!("task run-all: planned task missing: {}", launch.id));
+                }
+            };
+            let unmet = unmet_run_deps(task, task_index, scheduled_ids, &completed_ok);
+            if !unmet.is_empty() {
+                if let Err(error) = persist_run_status(&launch.id, "failed", set_task_status_quiet)
+                {
+                    join_active_workers(&mut active);
+                    return Err(error);
+                }
+                completed += 1;
+                summary.record_failure(FailureClass::Blocked);
+                crate::cx_eprintln!(
+                    "{} task run-all: dependency blocked for {}: {}",
+                    cli_app_name(),
+                    launch.id,
+                    unmet.join(", ")
+                );
+                let event = TaskRunEvent {
+                    id: launch.id,
+                    backend: launch.backend,
+                    requested_backend: launch.requested_backend,
+                    status: "failed".to_string(),
+                    execution_id: None,
+                    failure_class: Some("dependency_blocked".to_string()),
+                    queue_ms: launch.queue_since.elapsed().as_millis() as u64,
+                    wave_index: launch.wave_index,
+                    wave_mode: launch.wave_mode,
+                    wave_size: launch.wave_size,
+                };
+                emit_result_event(options, &event);
+                summary.add_task_run(event);
+                continue;
+            }
             if let Err(error) = persist_run_status(&launch.id, "in_progress", set_task_status_quiet)
             {
                 join_active_workers(&mut active);
@@ -3194,6 +3307,7 @@ fn run_schedule_parallel(
                 Ok((code, execution_id)) => {
                     completed += 1;
                     if code == 0 {
+                        completed_ok.insert(done.id.clone());
                         summary.record_success();
                         emit_progress(&format!(
                             "cxrs task run-all: done [{completed}/{total}] task={} backend={} status=complete",

@@ -27,10 +27,13 @@
   release-impacting fix. A security maintenance candidate remains on hold until
   this triage, exact-head native ARM/Intel evidence, and separate release
   authority are complete. The published `v2026.10.07` assets remain unchanged.
-  Read-only source triage places mixed/parallel `task run-all` dependency and
-  resource waves next, followed by HTTP curl argument secrets and URL handling,
-  unbounded repository log readers, and quota-catalog paths. These clusters
-  still need focused current-head reproduction and independent review.
+  Synthetic execution reproduced mixed/parallel `task run-all` dependency and
+  resource-wave bypasses, including one-worker and completed-task rerun paths. The
+  source fix and regressions require merged-source and hosted verification
+  before those findings can close. Actual adapter execution
+  also confirmed HTTP curl credential arguments and operator-supplied URL
+  parameters; that cluster remains open for a focused fix. Unbounded repository
+  log readers and quota-catalog paths need separate current-head triage.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in

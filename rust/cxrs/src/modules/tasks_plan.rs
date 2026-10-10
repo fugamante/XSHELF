@@ -86,9 +86,11 @@ pub fn build_task_run_plan(tasks: &[TaskRecord], status_filter: &str) -> TaskRun
         .cloned()
         .collect();
     let selected = selected_tasks.len();
+    let selected_ids: HashSet<String> = selected_tasks.iter().map(|t| t.id.clone()).collect();
+    // A task selected for rerun must satisfy its dependencies in this run.
     let complete_ids: HashSet<String> = tasks
         .iter()
-        .filter(|t| t.status == "complete")
+        .filter(|t| t.status == "complete" && !selected_ids.contains(&t.id))
         .map(|t| t.id.clone())
         .collect();
 

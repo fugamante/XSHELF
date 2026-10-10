@@ -15,7 +15,7 @@ statically dispositioned as false positives; no runtime source changed.
 
 The published October 7 archives remain bound to `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 That source predates the Cargo/provider fixes and contains the quarantine ID,
-repository model, and parity schema paths under current remediation. Later
+repository model, and parity schema paths later fixed on main. Later
 source merges do not change those public bytes. A new security maintenance
 candidate is on hold while live Security Cloud findings are grouped by current
 reachability and release impact. No exact-head native ARM or Intel package
@@ -23,9 +23,12 @@ evidence, signing, notarization, public-byte verification, or publication
 authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.
 
-Read-only triage identifies reachable mixed/parallel task dependency-wave
-execution, HTTP curl argument exposure, and unbounded repository log readers
-as remaining candidate risks; these are not closed by this authority packet.
+Synthetic runs reproduced mixed/parallel task dependency/resource-wave bypasses
+and the one-worker and completed-task rerun paths. The source fix is subject to
+merged-tree and hosted verification before closure. Actual HTTP
+adapter execution confirmed credential arguments and operator-supplied URL
+parameters. The HTTP argument findings and unbounded repository log readers
+remain open.
 
 ## Current State
 
