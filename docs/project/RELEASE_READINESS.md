@@ -28,9 +28,9 @@ That source predates the Cargo/provider fixes and contains the quarantine ID,
 repository model, and parity schema paths later fixed on main. Later
 source merges do not change those public bytes. The tagged source also passes
 HTTP credentials and operator-selected URL values through curl arguments; the
-current source repair does not change those archives. A new security maintenance
-candidate is on hold while live Security Cloud findings are grouped by current
-reachability and release impact. No exact-head native ARM or Intel package
+current source repair does not change those archives. The `v2026.10.10`
+candidate is selected, while release signoff remains on hold pending current-head
+finding triage by reachability and release impact. No exact-head native ARM or Intel package
 evidence, signing, notarization, public-byte verification, or publication
 authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.

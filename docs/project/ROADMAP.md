@@ -43,7 +43,7 @@
   Require independent reproduction, contract compatibility, and hosted Linux
   acceptance before integration; close findings only after upstream verification.
   The October 9 packet covers quarantine path escape, repository-selected
-  model authority, and parity schema exposure. A future security candidate
+  model authority, and parity schema exposure. The selected security candidate
   needs fresh exact-source native ARM and Intel evidence; the published October
   7 signoff does not cover later commits.
   Concurrent log writers and arbitrary same-user execution remain outside the
@@ -52,7 +52,7 @@
   parity schema boundaries on merged source. The live Security Cloud inventory
   also contains many newer findings against historical revisions; group
   duplicates and reproduce current reachability before selecting another
-  release-impacting fix. A security maintenance candidate remains on hold until
+  release-impacting fix. Release signoff for `v2026.10.10` remains on hold until
   this triage, exact-head native ARM/Intel evidence, and separate release
   authority are complete. The published `v2026.10.07` assets remain unchanged.
   Mixed/parallel `task run-all` dependency and resource-wave fixes were verified
@@ -114,7 +114,7 @@
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
   and already failed selections remain failed. Exact-head native ARM and Intel
   package validation, signing, notarization, and separate publication authority
-  remain open for any new maintenance candidate.
+  remain open for the selected maintenance candidate.
 - Protect the branch-audit credential with owner-approved environment access;
   keep the audit inactive until its isolated credential and server rules are
   verified. Task command objectives require process authority as documented in
@@ -172,8 +172,8 @@
 
 ## Next (1-2 months)
 
-- Keep publication status anchored to `v2026.10.07`. For a future selected
-  candidate, run `./scripts/release_pretag_check.sh` before tagging and retain
+- Keep publication status anchored to `v2026.10.07`. Before tagging the
+  selected `v2026.10.10` candidate, run `./scripts/release_pretag_check.sh` and retain
   source-specific native package evidence.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
