@@ -3,7 +3,17 @@
 `VERSION` is intentionally machine-readable and current-only.
 
 Current:
-- `2026.10.07` (published with signed/notarized native macOS archives and the Homebrew archive formula)
+- `2026.10.10` (security maintenance candidate; not tagged or published)
+
+Selected candidate:
+
+| Candidate tag | Date | Status | Summary |
+|---|---|---|---|
+| `v2026.10.10` | 2026-10-10 | Validation pending; no tag or public assets. | Merged security and reliability changes since the October 7 release. |
+
+The planned release URL `https://github.com/fugamante/XSHELF/releases/tag/v2026.10.10`
+is a future reference, not publication evidence. Its source, native packages,
+signing, notarization, and public bytes need separate verification.
 
 Current published release:
 

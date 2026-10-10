@@ -31,7 +31,7 @@ class CompatDockerReportTest(unittest.TestCase):
             [
                 "git", "-C", str(self.repo),
                 "-c", "user.name=Synthetic Test",
-                "-c", "user.email=synthetic@example.invalid",
+                "-c", "user.email=synthetic@example.com",
                 "-c", "commit.gpgsign=false",
                 "commit", "-q", "-m", "synthetic",
             ],

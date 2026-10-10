@@ -8,6 +8,12 @@
   explicit publication-age audit passes. Resume release preparation when
   meaningful changes are selected or the cadence threshold needs review;
   do not advance VERSION solely to reset either age clock.
+- Select `v2026.10.10` as a security maintenance candidate for the fixes merged
+  after the October 7 release. The candidate is untagged and unpublished.
+  Complete exact-head host, Docker, native ARM and Intel package validation,
+  independent review, and signing preflight before source signoff. Developer ID
+  signing, notarization, public-byte checks, and Homebrew qualification remain
+  separate release steps. Keep published status anchored to `v2026.10.07`.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Signing preflight for a later maintenance source now requires the builder's
