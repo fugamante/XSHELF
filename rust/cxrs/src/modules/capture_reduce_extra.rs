@@ -102,3 +102,98 @@ fn cargo_omissions() {
         assert_eq!(result.text, input);
     }
 }
+
+#[test]
+fn warning_flood_tail() {
+    let mut input = (0..380)
+        .map(|index| format!("running step {index}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    for index in 0..20_000 {
+        input.push_str(&format!("\nwarning: distinct synthetic {index}"));
+    }
+    input.push_str(
+        "\nthread 'test' panicked at synthetic late failure\nassertion `left == right` failed\nleft: 1\nright: 2\ntest result: FAILED. 0 passed; 1 failed\n",
+    );
+
+    let (_, retained_warnings) = super::reduce_test_count(&input);
+    assert_eq!(retained_warnings, 0);
+    let result = native_reduce_output_with_metadata(&["cargo".into(), "test".into()], &input);
+    assert_eq!(result.metadata.reducer_kind, "test_output");
+    assert!(result.text.lines().count() <= 400);
+    assert!(result.text.contains("running step 0"));
+    assert!(!result.text.contains("warning: distinct synthetic"));
+    for span in [
+        "thread 'test' panicked",
+        "assertion `left == right` failed",
+        "left: 1",
+        "right: 2",
+        "test result: FAILED. 0 passed; 1 failed",
+    ] {
+        assert!(result.text.contains(span), "missing late span: {span}");
+    }
+}
+
+#[test]
+fn mixed_panic_context() {
+    let mut input = "running step\n".repeat(380);
+    input.push_str("thread 'test' panicked with warning: synthetic\n");
+    input.push_str("opaque context 1\nopaque context 2\nopaque context 3\n");
+    let result = native_reduce_output_with_metadata(&["test".into()], &input);
+    assert!(!result.text.contains("panicked with warning"));
+    for context in ["opaque context 1", "opaque context 2", "opaque context 3"] {
+        assert!(result.text.contains(context), "missing {context}");
+    }
+}
+
+#[test]
+fn long_panic_context() {
+    let mut input = "running step\n".repeat(380);
+    input.push_str(&format!(
+        "thread '{} ' panicked at late failure\n",
+        "x".repeat(700)
+    ));
+    input.push_str("opaque panic context 1\nopaque panic context 2\nopaque panic context 3\n");
+    let result = native_reduce_output_with_metadata(&["test".into()], &input);
+    assert!(result.text.lines().count() <= 400);
+    for context in [
+        "opaque panic context 1",
+        "opaque panic context 2",
+        "opaque panic context 3",
+    ] {
+        assert!(result.text.contains(context), "missing {context}");
+    }
+}
+
+#[test]
+fn unknown_output_bound() {
+    let mut rows = (0..1_000)
+        .map(|index| format!("opaque synthetic row {index} {}", "x".repeat(1_100)))
+        .collect::<Vec<_>>();
+    rows[500] = "é".repeat(900);
+    let input = rows.join("\n");
+    let result = native_reduce_output_with_metadata(&["cargo".into(), "test".into()], &input);
+    assert_eq!(result.text.lines().count(), 400);
+    assert_eq!(result.metadata.reducer_version, 2);
+    assert_eq!(result.metadata.lossiness_level, "uncertain_fallback");
+    assert_eq!(result.metadata.uncertainty, "high");
+    assert!(result.metadata.critical_sections_kept.is_empty());
+    assert!(result.text.contains("opaque synthetic row 0"));
+    assert!(result.text.contains("opaque synthetic row 999"));
+    assert!(!result.text.contains("opaque synthetic row 500"));
+    assert_eq!(result.metadata.omitted_lines, 600);
+
+    let huge = "opaque synthetic ".repeat(100_000);
+    let fallback = super::bounds::bounded_fallback(&huge);
+    assert_eq!(fallback.chars().count(), 603);
+    assert!(fallback.ends_with("..."));
+    let result = native_reduce_output_with_metadata(&["test".into()], &huge);
+    assert_eq!(result.text.chars().count(), 604);
+
+    let ordinary = (0..1_000)
+        .map(|index| format!("opaque synthetic row {index}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let result = native_reduce_output_with_metadata(&["test".into()], &ordinary);
+    assert_eq!(result.text, normalize_generic(&ordinary));
+}

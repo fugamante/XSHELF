@@ -47,9 +47,11 @@ the same protected source and bound each row and poll while retaining incomplete
 rows. A rejected catalog remains unavailable until refresh.
 Local llama.cpp and MLX process adapters now send repository-derived prompt
 content through an anonymous stdin file rather than process arguments. The
-published October 7 source predates this change. The reducer input limit and
-concurrent JSONL append findings remain separate, open local availability and
-integrity risks.
+published October 7 source predates this change. Current maintenance source
+caps test-output warning retention, clips selected lines before copying, and
+bounds unfamiliar-output fallback. Full child-output capture remains a separate
+availability limit. The concurrent JSONL append race remains an open local
+integrity risk.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.

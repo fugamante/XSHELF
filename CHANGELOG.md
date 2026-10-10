@@ -25,6 +25,12 @@ Notes:
 
 ### Fixed
 
+- Test-output capture reduction now caps warning de-duplication at the retained
+  head, clips retained lines before copying, and bounds unfamiliar output to a
+  380-line head and 20-line tail above 1 MiB.
+  Small unfamiliar output and late failure context keep their established
+  behavior. The reducer no longer makes a full raw-output clone; capture still
+  holds the child output before reduction.
 - Local llama.cpp and MLX process adapters now send prompts through an anonymous
   private stdin file instead of process arguments. The llama.cpp file path
   preserves its prompt newline behavior, and MLX retains its existing literal
