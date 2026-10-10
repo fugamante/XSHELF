@@ -25,6 +25,10 @@ Notes:
 
 ### Fixed
 
+- First-use repository JSONL appends now retry a transient missing leaf on the
+  same held directory descriptor for at most eight short waits. Symlinks,
+  special files, and persistent failures still fail closed; record locking
+  and JSONL contracts are unchanged.
 - The opt-in parity diagnostic now passes its repository script path and
   catalog arguments to Bash as positional data. Repository directory names
   containing shell syntax cannot add commands; trusted parity functions and

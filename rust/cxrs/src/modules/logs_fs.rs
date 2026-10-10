@@ -6,8 +6,11 @@ use std::io;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+const APPEND_OPEN_RETRIES: usize = 8;
+const APPEND_OPEN_WAIT: Duration = Duration::from_millis(1);
 const DIR_FLAGS: OFlags = OFlags::RDONLY
     .union(OFlags::DIRECTORY)
     .union(OFlags::NOFOLLOW)
@@ -21,6 +24,21 @@ pub(super) struct AnchoredPath {
 
 fn io_error(error: rustix::io::Errno) -> io::Error {
     error.into()
+}
+
+fn retry_append_open<T>(mut open: impl FnMut() -> rustix::io::Result<T>) -> io::Result<T> {
+    for attempt in 0..=APPEND_OPEN_RETRIES {
+        match open() {
+            Ok(file) => return Ok(file),
+            // Concurrent first creation can transiently report NOENT even with
+            // a valid held parent descriptor. Reopen only the same leaf.
+            Err(rustix::io::Errno::NOENT) if attempt < APPEND_OPEN_RETRIES => {
+                std::thread::sleep(APPEND_OPEN_WAIT);
+            }
+            Err(error) => return Err(io_error(error)),
+        }
+    }
+    unreachable!("final open attempt returns")
 }
 
 fn trusted_start(path: &Path) -> io::Result<(File, PathBuf)> {
@@ -134,7 +152,7 @@ impl AnchoredPath {
     }
 
     pub fn append_regular(&self) -> io::Result<File> {
-        let file = File::from(
+        let file = File::from(retry_append_open(|| {
             fs::openat(
                 &self.parent,
                 &self.leaf,
@@ -146,8 +164,7 @@ impl AnchoredPath {
                     | OFlags::CLOEXEC,
                 Mode::from_raw_mode(0o600),
             )
-            .map_err(io_error)?,
-        );
+        })?);
         if !file.metadata()?.is_file() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,

@@ -73,10 +73,11 @@
   64-process batches on exact pre-lock baseline
   `5786814f2fb0e105feb0523b2acbdba61df987af`, establishing that the JSONL
   lock did not introduce it. The OS-level cause remains unproven. A private
-  bounded retry probe recovered 1,280 of 1,280
-  rows, but no source fix is selected yet.
-  Next, attribute the first-use failure and separately contain CI failure
-  artifacts; noncooperating JSONL writers remain an explicit limit.
+  bounded retry probe recovered 1,280 of 1,280 rows, and current source now
+  retries only a transient missing final log leaf on the same held directory
+  descriptor. Deterministic fault injection and owned concurrent first-use
+  and reuse tests cover the change. Continue to assess CI failure artifacts
+  separately; noncooperating JSONL writers remain an explicit limit.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,
