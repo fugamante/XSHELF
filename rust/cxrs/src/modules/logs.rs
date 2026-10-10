@@ -2,7 +2,7 @@ use crate::error::{CxError, CxResult};
 use crate::paths::ensure_parent_dir;
 use crate::types::ExecutionLog;
 use serde_json::Value;
-use std::fs::OpenOptions;
+use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
@@ -25,6 +25,7 @@ pub use logs_read::{
     file_len, find_execution_row, find_field_value, load_runs, load_runs_appended, load_values,
     load_values_where, tail_log_lines, validate_runs_jsonl_file,
 };
+pub(crate) use logs_read::{load_follow_values, load_values_file, read_capped_line_with_end};
 
 pub const MAX_RUN_LOG_ROW_BYTES: usize = logs_read::MAX_ROW_BYTES;
 
@@ -66,16 +67,74 @@ pub fn validate_execution_log_row(row: &ExecutionLog) -> Result<(), String> {
 }
 
 pub fn append_jsonl(path: &Path, value: &Value) -> Result<(), String> {
-    append_jsonl_cx(path, value).map_err(|e| e.to_string())
+    append_jsonl_cx(path, value, false).map_err(|e| e.to_string())
 }
 
-fn append_jsonl_cx(path: &Path, value: &Value) -> CxResult<()> {
-    ensure_parent_dir(path).map_err(CxError::invalid)?;
-    let mut f = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| CxError::io(format!("failed opening {}", path.display()), e))?;
+// Only the run log accepts a path explicitly selected through CX_LOG_FILE.
+pub fn append_run_jsonl(path: &Path, value: &Value) -> Result<(), String> {
+    let explicit = std::env::var_os("CX_LOG_FILE").as_deref() == Some(path.as_os_str());
+    append_jsonl_cx(path, value, explicit).map_err(|e| e.to_string())
+}
+
+pub(crate) fn open_repo_file(path: &Path) -> std::io::Result<File> {
+    #[cfg(unix)]
+    {
+        logs_fs::AnchoredPath::open(path, false)?.source()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "safe repository log reads require Unix directory descriptors",
+        ))
+    }
+}
+
+fn append_jsonl_cx(path: &Path, value: &Value, explicit: bool) -> CxResult<()> {
+    #[cfg(unix)]
+    let mut f = if explicit {
+        use rustix::fs::{self, Mode, OFlags};
+        ensure_parent_dir(path).map_err(CxError::invalid)?;
+        let file = File::from(
+            fs::open(
+                path,
+                OFlags::WRONLY
+                    | OFlags::APPEND
+                    | OFlags::CREATE
+                    | OFlags::NONBLOCK
+                    | OFlags::CLOEXEC,
+                Mode::from_raw_mode(0o600),
+            )
+            .map_err(|e| CxError::io(format!("failed opening {}", path.display()), e.into()))?,
+        );
+        if !file
+            .metadata()
+            .map_err(|e| CxError::io("inspect log destination", e))?
+            .is_file()
+        {
+            return Err(CxError::invalid("log destination is not a regular file"));
+        }
+        file
+    } else {
+        logs_fs::AnchoredPath::open(path, true)
+            .and_then(|target| target.append_regular())
+            .map_err(|e| CxError::io(format!("failed opening {}", path.display()), e))?
+    };
+    #[cfg(not(unix))]
+    let mut f = {
+        if !explicit {
+            return Err(CxError::invalid(
+                "safe repository log writes require Unix directory descriptors",
+            ));
+        }
+        ensure_parent_dir(path).map_err(CxError::invalid)?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(|e| CxError::io(format!("failed opening {}", path.display()), e))?
+    };
     let mut line =
         serde_json::to_string(value).map_err(|e| CxError::json("log json serialize", e))?;
     line.push('\n');

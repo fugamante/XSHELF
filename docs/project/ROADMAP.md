@@ -39,7 +39,10 @@
   task failure-row lookup, task inspection and recovery, log tailing, validation
   rows, appended scans, migration input and output, execution run-log writes,
   and quota catalog cache reads. Repository-default log and catalog reads reject symlink
-  redirection; run-log append path handling remains a separate residual.
+  redirection. Repository-selected run, schema-failure, and task-event JSONL
+  appends now anchor parent traversal and reject symlinked or nonregular leaves;
+  explicit `CX_LOG_FILE` remains an operator-selected run-log path. Task-event
+  follow mode now bounds rows and per-poll work while retaining incomplete rows.
   Explicit `CX_LOG_FILE` remains operator-selected. Rejected quota caches stay
   unavailable until refreshed.
   Owned synthetic data established local resource and symlink risks; remote
@@ -49,8 +52,9 @@
   matches the reviewed patch. Exact-main Linux workflow `38052301708` and
   CodeQL workflow `38052301440` passed. Six run-log/quota findings and the two
   combined HTTP findings are verified fixed in Security Cloud on merged source.
-  Next, reproduce repository-selected JSONL append and task-event follow paths
-  with owned files, then repair only demonstrated boundary failures.
+  Next, triage current-head local-prompt argument exposure, reducer input
+  limits, and adjacent JSONL locking and CI artifact paths by demonstrated
+  reachability before selecting another security maintenance boundary.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,

@@ -1,15 +1,20 @@
 use serde_json::Value;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use std::io::{BufReader, Seek, SeekFrom};
 use std::path::Path;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use crate::config::cli_app_name;
 use crate::contract_versions::TASK_EVENTS_JSONL_CONTRACT_VERSION;
 use crate::execmeta::utc_now_iso;
-use crate::logs::{append_jsonl, file_len, load_values};
+use crate::logs::{
+    append_jsonl, load_follow_values, load_values_file, open_repo_file, read_capped_line_with_end,
+};
 use crate::paths::task_events_log;
+
+const FOLLOW_BYTES: usize = 4 * 1024 * 1024;
+const FOLLOW_ROWS: usize = 1024;
 
 #[derive(Debug, Clone)]
 pub struct TaskEvent<'a> {
@@ -158,18 +163,55 @@ pub fn cmd_task_events(app_name: &str, args: &[String]) -> i32 {
         );
         return 2;
     }
-    if !path.exists() {
+    let initial = if follow {
+        match open_repo_file(&path) {
+            Ok(file) => {
+                let identity = match file_identity(&file) {
+                    Ok(value) => value,
+                    Err(e) => {
+                        crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                        return 1;
+                    }
+                };
+                match load_follow_values(file, limit) {
+                    Ok((rows, offset)) => Some((rows, offset, Some(identity))),
+                    Err(e) => {
+                        crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                        return 1;
+                    }
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => {
+                crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                return 1;
+            }
+        }
+    } else {
+        match open_repo_file(&path) {
+            Ok(file) => match load_values_file(file, limit) {
+                Ok(rows) => Some((rows, 0, None)),
+                Err(e) => {
+                    crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                    return 1;
+                }
+            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => {
+                crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                return 1;
+            }
+        }
+    };
+    let Some((rows, offset, identity)) = initial else {
         if as_json {
             println!("[]");
         }
-        return if follow { follow_events(&path, 0) } else { 0 };
-    }
-    let rows = match load_values(&path, limit) {
-        Ok(v) => v,
-        Err(e) => {
-            crate::cx_eprintln!("{} task events: {e}", cli_app_name());
-            return 1;
-        }
+        return if follow {
+            follow_events(&path, 0, None)
+        } else {
+            0
+        };
     };
     if as_json {
         match serde_json::to_string_pretty(&rows) {
@@ -194,16 +236,86 @@ pub fn cmd_task_events(app_name: &str, args: &[String]) -> i32 {
         }
     }
     if follow {
-        follow_events(&path, file_len(&path))
+        follow_events(&path, offset, identity)
     } else {
         0
     }
 }
 
-fn follow_events(path: &Path, mut offset: u64) -> i32 {
+#[cfg(unix)]
+fn file_identity(file: &File) -> std::io::Result<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = file.metadata()?;
+    Ok((metadata.dev(), metadata.ino()))
+}
+
+#[cfg(not(unix))]
+fn file_identity(_file: &File) -> std::io::Result<(u64, u64)> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "safe task event following requires Unix directory descriptors",
+    ))
+}
+
+fn follow_events(path: &Path, mut offset: u64, mut identity: Option<(u64, u64)>) -> i32 {
+    let mut observed: Option<(u64, Option<SystemTime>)> = None;
     loop {
-        let rows = read_appended_values(path, offset);
-        offset = file_len(path);
+        let file = match open_repo_file(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                observed = None;
+                thread::sleep(Duration::from_millis(500));
+                continue;
+            }
+            Err(e) => {
+                crate::cx_eprintln!(
+                    "{} task events: cannot follow {}: {e}",
+                    cli_app_name(),
+                    path.display()
+                );
+                return 1;
+            }
+        };
+        let current = match file_identity(&file) {
+            Ok(value) => value,
+            Err(e) => {
+                crate::cx_eprintln!(
+                    "{} task events: cannot inspect followed log: {e}",
+                    cli_app_name()
+                );
+                return 1;
+            }
+        };
+        let (length, modified) = match file.metadata() {
+            Ok(value) => (value.len(), value.modified().ok()),
+            Err(e) => {
+                crate::cx_eprintln!(
+                    "{} task events: cannot inspect followed log: {e}",
+                    cli_app_name()
+                );
+                return 1;
+            }
+        };
+        if identity == Some(current) && observed == Some((length, modified)) {
+            thread::sleep(Duration::from_millis(500));
+            continue;
+        }
+        if identity != Some(current) || length < offset {
+            offset = 0;
+        }
+        identity = Some(current);
+        let (rows, pending) = match read_appended_values(file, &mut offset) {
+            Ok(result) => result,
+            Err(e) => {
+                crate::cx_eprintln!("{} task events: {e}", cli_app_name());
+                return 1;
+            }
+        };
+        observed = if pending || offset >= length {
+            Some((length, modified))
+        } else {
+            None
+        };
         for row in rows {
             match serde_json::to_string(&row) {
                 Ok(s) => println!("{s}"),
@@ -220,33 +332,42 @@ fn follow_events(path: &Path, mut offset: u64) -> i32 {
     }
 }
 
-fn read_appended_values(path: &Path, offset: u64) -> Vec<Value> {
-    let Ok(file) = File::open(path) else {
-        return Vec::new();
-    };
+fn read_appended_values(file: File, offset: &mut u64) -> Result<(Vec<Value>, bool), String> {
     let mut reader = BufReader::new(file);
-    if offset > 0 && reader.seek(SeekFrom::Start(offset)).is_err() {
-        return Vec::new();
-    }
+    reader
+        .seek(SeekFrom::Start(*offset))
+        .map_err(|e| format!("cannot seek followed log: {e}"))?;
     let mut out = Vec::new();
-    let mut line = String::new();
+    let mut scanned = 0usize;
+    let mut pending = false;
     loop {
-        line.clear();
-        let Ok(n) = reader.read_line(&mut line) else {
-            break;
-        };
-        if n == 0 {
+        let start = reader
+            .stream_position()
+            .map_err(|e| format!("cannot inspect followed offset: {e}"))?;
+        let row = read_capped_line_with_end(&mut reader)
+            .map_err(|e| format!("cannot read followed log: {e}"))?;
+        let Some((line, complete)) = row else { break };
+        if !complete {
+            // A writer may still be completing this JSONL row.
+            *offset = start;
+            pending = true;
             break;
         }
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
+        let end = reader
+            .stream_position()
+            .map_err(|e| format!("cannot inspect followed offset: {e}"))?;
+        *offset = end;
+        scanned = scanned.saturating_add((end - start) as usize);
+        if !line.iter().all(u8::is_ascii_whitespace)
+            && let Ok(v) = serde_json::from_slice::<Value>(&line)
+        {
             out.push(v);
         }
+        if scanned >= FOLLOW_BYTES || out.len() >= FOLLOW_ROWS {
+            break;
+        }
     }
-    out
+    Ok((out, pending))
 }
 
 fn insert_str(obj: &mut serde_json::Map<String, Value>, key: &str, value: Option<&str>) {
