@@ -162,6 +162,27 @@ class CompatAllTest(unittest.TestCase):
         self.assertIn(" - [fail] ", completed.stdout)
         self.assertEqual(json.loads(report_path.read_text())["status_final"], "FAIL")
 
+    def test_text_and_json_share_typed_child_decision(self):
+        cases = (
+            ("newline-status", '{"status":"ok\\n","summary":{"steps_total":0,"steps_failed":0}}', 1, "FAIL", "fail"),
+            ("numeric-zero", '{"status":"ok","summary":{"steps_total":0,"steps_failed":0.0}}', 0, "PASS", "ok"),
+        )
+        for name, raw, expected_rc, final, row in cases:
+            with self.subTest(name=name):
+                child = self.child(name, 0, raw=raw)
+                report_path = self.root / f"{name}.json"
+                completed = subprocess.run(
+                    [str(RUNNER), "--quick", "--out", str(report_path), "--repo", str(child)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                report = json.loads(report_path.read_text())
+                self.assertEqual(completed.returncode, expected_rc)
+                self.assertEqual(report["status_final"], final)
+                self.assertEqual(report["summary"]["repos_failed"], expected_rc)
+                self.assertIn(f" - [{row}] ", completed.stdout)
+
     def test_default_report_reuses_private_caller_path(self):
         caller = self.root / "caller"
         caller.mkdir()

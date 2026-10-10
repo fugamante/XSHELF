@@ -58,7 +58,9 @@ trap 'rm -rf "$tmpdir"' EXIT
 
 entries_jsonl="$tmpdir/repos.jsonl"
 report_json="$tmpdir/all.json"
+text_rows="$tmpdir/text_rows"
 : > "$entries_jsonl"
+: > "$text_rows"
 
 overall_rc=0
 failed_repos=0
@@ -101,12 +103,15 @@ JSON
     result_json='{"status":"fail","summary":{"steps_total":0,"steps_failed":1},"error":"missing or invalid compat report"}'
   fi
 
-  status="$(jq -r '.status // "unknown"' <<< "$result_json")"
-  steps_failed="$(jq -r '.summary.steps_failed // 1' <<< "$result_json")"
-  if [[ "$rc" -ne 0 || "$status" != "ok" || "$steps_failed" != "0" ]]; then
+  if [[ "$rc" -eq 0 ]] &&
+    jq -e '.status == "ok" and .summary.steps_failed == 0' <<< "$result_json" >/dev/null; then
+    row_state="ok"
+  else
+    row_state="fail"
     overall_rc=1
     failed_repos=$((failed_repos + 1))
   fi
+  printf ' - [%s] %s\n' "$row_state" "$repo_abs" >> "$text_rows"
 
   jq -n \
     --arg path "$repo_abs" \
@@ -154,7 +159,7 @@ if [[ "$JSON" -eq 1 ]]; then
 else
   echo "compat-all: mode=$MODE status=$(jq -r '.status_final' "$report_json")"
   echo "compat-all: report=$OUT_FILE"
-  jq -r '.repos[] | " - [" + (if (.exit_code == 0 and .result.status == "ok" and ((.result.summary.steps_failed // 1) == 0)) then "ok" else "fail" end) + "] " + .path' "$report_json"
+  cat "$text_rows"
 fi
 
 if [[ "$overall_rc" -eq 0 ]]; then
