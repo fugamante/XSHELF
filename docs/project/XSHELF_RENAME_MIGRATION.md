@@ -232,6 +232,9 @@ These rules apply unless a later approved phase explicitly changes them.
 - `task run-all` human progress uses stderr across `xshelf`, `xs`, and `cx`;
   `CX_TASK_RUN_ALL_PROGRESS=0` or `false` disables those messages without renaming
   the setting or changing the existing task-event and JSON result contracts
+- mixed and parallel `task run-all` preserve planned wave order across aliases;
+  failed prerequisites block dependent provider execution, while tasks in one
+  compatible parallel wave may still overlap
 - all three source aliases build with Cargo outside the checkout ancestor chain and execute the
   compiled command from the caller directory; sequential `task run-all` rejects
   an unavailable requested backend pool before any task execution

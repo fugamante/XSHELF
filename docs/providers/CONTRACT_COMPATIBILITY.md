@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-10-06
+Last updated: 2026-10-09
 
 ## Scope
 
@@ -84,6 +84,15 @@ No stable keys or types change. Ordinary prompt tasks and direct operator captur
 remain unchanged. Authorized command fixtures cover the previous behavior.
 See the migration in `docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md`; provider
 trust and command trust are separate, and Docker trust remains unresolved.
+
+The planned `task run-all` dependency/resource waves now gate provider launch in
+mixed and parallel modes. If a scheduled prerequisite has not completed
+successfully, its dependent is persisted as failed and reported with the
+`dependency_blocked` failure class and a blocked task event. Existing
+`task-run-all.v1` keys and types remain. Blocked dependents count in the failed
+and blocked totals and produce a nonzero exit; the failure-class value is
+additive. Independent tasks in a compatible wave retain parallel execution,
+and explicit backend selection remains authoritative.
 
 ## Local Model Authority
 

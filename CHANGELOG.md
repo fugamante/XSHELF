@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- Mixed and parallel `task run-all` now execute planned dependency/resource waves
+  in order. Failed prerequisites block their dependents before provider launch,
+  including one-worker mixed runs; independent tasks within a parallel wave
+  retain concurrency. Blocked runs report `dependency_blocked` without changing
+  the `task-run-all.v1` keys or types.
 - Repository state and local-model registry entries no longer authorize LLM
   backend or model execution merely by being present. Explicit `llm` selection
   records checkout-bound authority in a private user-home receipt; changes to
