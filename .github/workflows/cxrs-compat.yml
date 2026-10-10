@@ -35,8 +35,15 @@ jobs:
       run:
         shell: bash
     env:
-      CXRS_ARTIFACT_DIR: .github/ci-artifacts
+      CXRS_ARTIFACT_DIR: cxrs-compat-artifacts
     steps:
+      - name: Prepare failure artifacts
+        id: artifact_setup
+        run: |
+          set -euo pipefail
+          # The checkout may contain symlinks under .github; keep artifacts outside it.
+          mkdir -m 700 "$RUNNER_TEMP/$CXRS_ARTIFACT_DIR"
+
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -63,6 +70,7 @@ jobs:
           python3 ./test/package_release_test.py
           python3 ./test/package_signing_test.py
           python3 ./test/reproduce_packages_test.py
+          python3 ./test/ci_artifact_test.py
 
       - name: Command Surface Changelog Gate
         run: |
@@ -91,8 +99,7 @@ jobs:
       - name: Rust check
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/rust_check_${{ matrix.os }}.log"
+          log="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR/rust_check_${{ matrix.os }}.log"
           cd rust/cxrs
           {
             echo "== cargo fmt --check =="
@@ -253,8 +260,7 @@ jobs:
       - name: Compat check
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/compat_check_${{ matrix.os }}.log"
+          log="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR/compat_check_${{ matrix.os }}.log"
           cd rust/cxrs
           ./scripts/compat_check.sh 50 2>&1 | tee "$log"
           exit "${PIPESTATUS[0]}"
@@ -262,8 +268,7 @@ jobs:
       - name: Shell Regression Suite
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/shell_regression_${{ matrix.os }}.log"
+          log="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR/shell_regression_${{ matrix.os }}.log"
           cd "$GITHUB_WORKSPACE"
           {
             for t in test/*.sh; do
@@ -292,20 +297,26 @@ jobs:
       - name: Cargo Outdated Drift Report
         run: |
           set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          log="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR/cargo_outdated_${{ matrix.os }}.log"
+          log="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR/cargo_outdated_${{ matrix.os }}.log"
           cd rust/cxrs
           cargo outdated -R 2>&1 | tee "$log"
           exit "${PIPESTATUS[0]}"
         continue-on-error: true
 
       - name: Build failure summary
-        if: failure()
+        if: failure() && steps.artifact_setup.outcome == 'success'
         run: |
           set -euo pipefail
-          dir="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          mkdir -p "$dir"
+          set -C
+          dir="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR"
+          [[ -d "$dir" && ! -L "$dir" ]] || exit 1
           summary="$dir/summary_${{ matrix.os }}.txt"
+          logs=(
+            "rust_check_${{ matrix.os }}.log"
+            "compat_check_${{ matrix.os }}.log"
+            "shell_regression_${{ matrix.os }}.log"
+            "cargo_outdated_${{ matrix.os }}.log"
+          )
           {
             echo "cxrs-compat failure summary"
             echo "os: ${{ matrix.os }}"
@@ -315,10 +326,19 @@ jobs:
             echo "sha: $GITHUB_SHA"
             echo
             echo "captured logs:"
-            ls -1 "$dir"/*.log 2>/dev/null || echo "(none)"
+            found=0
+            for name in "${logs[@]}"; do
+              f="$dir/$name"
+              if [[ -f "$f" && ! -L "$f" ]]; then
+                echo "$f"
+                found=1
+              fi
+            done
+            (( found )) || echo "(none)"
             echo
-            for f in "$dir"/*.log; do
-              [[ -f "$f" ]] || continue
+            for name in "${logs[@]}"; do
+              f="$dir/$name"
+              [[ -f "$f" && ! -L "$f" ]] || continue
               echo "---- $(basename "$f") ----"
               # Include error-like lines first for quick triage.
               grep -Ei '(^error:|^thread .* panicked|panic|failed|FAIL|timed out|mismatch|assertion)' "$f" | tail -n 80 || true
@@ -330,11 +350,12 @@ jobs:
           } > "$summary"
 
       - name: Extract reliability failure report
-        if: failure()
+        if: failure() && steps.artifact_setup.outcome == 'success'
         run: |
           set -euo pipefail
-          dir="$GITHUB_WORKSPACE/$CXRS_ARTIFACT_DIR"
-          mkdir -p "$dir"
+          set -C
+          dir="$RUNNER_TEMP/$CXRS_ARTIFACT_DIR"
+          [[ -d "$dir" && ! -L "$dir" ]] || exit 1
           src="$dir/rust_check_${{ matrix.os }}.log"
           out="$dir/reliability_${{ matrix.os }}.txt"
           {
@@ -344,19 +365,29 @@ jobs:
             echo "run_id: $GITHUB_RUN_ID"
             echo "sha: $GITHUB_SHA"
             echo
-            if [[ ! -f "$src" ]]; then
+            if [[ ! -f "$src" || -L "$src" ]]; then
               echo "rust check log unavailable"
               exit 0
             fi
             python3 "$GITHUB_WORKSPACE/rust/cxrs/scripts/reliability_report.py" "$src"
           } > "$out"
 
+      - name: Stage failure artifacts
+        id: artifact_stage
+        if: failure() && steps.artifact_setup.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/scripts/ci_artifacts.py" \
+            "$RUNNER_TEMP/$CXRS_ARTIFACT_DIR" \
+            "$RUNNER_TEMP/cxrs-compat-upload" \
+            "${{ matrix.os }}"
+
       - name: Upload failure artifacts
-        if: failure()
+        if: failure() && steps.artifact_stage.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: cxrs-compat-artifacts-${{ matrix.os }}-${{ github.run_id }}
-          path: ${{ env.CXRS_ARTIFACT_DIR }}
+          path: ${{ runner.temp }}/cxrs-compat-upload
           retention-days: 14
           if-no-files-found: ignore
 

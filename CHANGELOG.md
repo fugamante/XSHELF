@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- CI compatibility failure logs now start in runner temporary storage before
+  checkout and only named, regular generated files are staged for upload.
+  Checkout-supplied artifact symlinks cannot redirect failure summaries or
+  enter the uploaded artifact. This does not isolate code executed by the
+  pull-request job from its own runner files.
 - The opt-in parity diagnostic now passes its repository script path and
   catalog arguments to Bash as positional data. Repository directory names
   containing shell syntax cannot add commands; trusted parity functions and
