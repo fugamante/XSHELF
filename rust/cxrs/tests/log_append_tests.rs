@@ -469,6 +469,13 @@ fn follow_touch() {
     let mut child = follow_process(&repo, &out, &err);
     wait_event(&repo, &mut child, "\"event\":\"seed\"");
     OpenOptions::new()
+        .append(true)
+        .open(&path)
+        .unwrap()
+        .write_all(b"{\"event\":\"ready\"}\n")
+        .unwrap();
+    wait_event(&repo, &mut child, "\"event\":\"ready\"");
+    OpenOptions::new()
         .write(true)
         .open(&path)
         .unwrap()
@@ -487,5 +494,6 @@ fn follow_touch() {
     child.wait().unwrap();
     let output = fs::read_to_string(repo.home.join("follow.out")).unwrap();
     assert_eq!(output.matches("\"event\":\"seed\"").count(), 1, "{output}");
+    assert_eq!(output.matches("\"event\":\"ready\"").count(), 1, "{output}");
     assert_eq!(output.matches("after-touch").count(), 1, "{output}");
 }
