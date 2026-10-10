@@ -543,6 +543,9 @@ Release confidence:
   locally. Its JSON report includes `ci_parity.intentional_deltas` for
   workflow-only, hosted-runner, artifact, and dependency-security gates that
   local Docker does not claim to reproduce.
+- Default local, aggregate, and Docker compatibility reports under
+  `.cx/compat/` reject symlinked parents or report leaves and replace ordinary
+  reports privately. `--out` remains an explicit operator-selected path.
 
 ## Development
 

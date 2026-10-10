@@ -42,6 +42,17 @@ or its allowlist. The pinned Rust 1.95 `compat_local.sh --full` gate now passes
 on this maintenance source. Docker CI parity and hosted checks are separate
 evidence; none of these source gates makes a later release ready.
 
+The maintenance source now writes default local, aggregate, and Docker
+smoke/CI compatibility reports through held `.cx/compat` directory descriptors
+and private atomic replacement. Symlinked parents or leaves and nonregular
+report destinations fail without following their targets; explicit `--out`
+paths retain operator-selected behavior. The aggregate runner now records a
+child's actual nonzero exit code and fails the overall result even when the
+child's JSON claims success; missing or malformed child reports also produce
+structured failures. These later-source changes do not alter the
+published October 7 archives or establish native package or publication
+readiness.
+
 This source change also rejects task execution above 16 effective
 replicas or 32 potential task/judge invocations, including retries and judge selection;
 the selected run-all schedule is admitted before task mutations, and an

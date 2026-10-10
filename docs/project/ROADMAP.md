@@ -22,6 +22,11 @@
   budgets, while task fanout retains its prior child count and symbolic refs.
   No in-repository provider payload path was demonstrated. The published
   October 7 archives retain their original source and behavior.
+- Default local, aggregate, and Docker smoke/CI compatibility reports now
+  refuse redirected `.cx/compat` paths and replace ordinary reports through
+  a held directory descriptor. Aggregate results retain a child's real exit
+  status. Explicit `--out` destinations remain operator-selected; this
+  source change does not alter the published October 7 archives.
 - Current maintenance source bounds repository-selected task replicas, run-all
   retries and judge calls before execution. Authorized Docker tasks hand off
   once and retain the admitted budget across the image boundary. This source
