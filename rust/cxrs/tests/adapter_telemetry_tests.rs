@@ -294,18 +294,18 @@ fn ca_bundle_cov() {
     repo.write_mock(
         "curl",
         r#"#!/usr/bin/env bash
-seen=0
+config=
 while [ $# -gt 0 ]; do
-  if [ "$1" = "--cacert" ]; then
-    seen=1
+  if [ "$1" = "--config" ]; then
+    config=$2
     shift 2
     continue
   fi
   shift
 done
 cat >/dev/null
-if [ "$seen" != "1" ]; then
-  echo "missing --cacert" >&2
+if [ ! -f "$config" ] || ! grep -q '^cacert = "/tmp/test-ca.pem"$' "$config"; then
+  echo "missing private CA config" >&2
   exit 2
 fi
 printf '%s\n' '{"text":"http ca ok"}'

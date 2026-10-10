@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-09
+Snapshot date: 2026-10-09 (source decision updated after HTTP transport work)
 
 ## Release recovery completed (2026-10-07)
 
@@ -23,12 +23,14 @@ evidence, signing, notarization, public-byte verification, or publication
 authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.
 
-Synthetic runs reproduced mixed/parallel task dependency/resource-wave bypasses
-and the one-worker and completed-task rerun paths. The source fix is subject to
-merged-tree and hosted verification before closure. Actual HTTP
-adapter execution confirmed credential arguments and operator-supplied URL
-parameters. The HTTP argument findings and unbounded repository log readers
-remain open.
+Mixed/parallel task dependency/resource-wave fixes were verified on merged
+source `43b7791e26d2270b280790a6e565a73e6044b2bf`, with hosted Linux and
+CodeQL passing. Actual HTTP adapter execution confirmed credential arguments
+and operator-supplied URL parameters. Current source transports them in a
+anonymous curl config descriptor on Unix while preserving opt-in redirects. This source
+change does not supply exact-head native ARM/Intel package evidence or release
+authority. Unbounded repository log readers, task summary accounting, and
+quota-catalog paths remain for separate triage.
 
 ## Current State
 

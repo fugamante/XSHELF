@@ -29,14 +29,14 @@ Rules:
   - `http://127.0.0.1`
   - `http://[::1]`
 - `CX_HTTP_ALLOWED_HOSTS` (optional CSV): host allowlist gate for the parsed provider host. Userinfo, query strings and fragments cannot select another allowed host.
-- `CX_HTTP_TLS_PINNEDPUBKEY` (optional): passed to curl `--pinnedpubkey` for TLS pinning.
-- `CX_HTTP_CA_BUNDLE` (optional): passed to curl `--cacert` for custom trust bundles.
-- `CX_HTTP_CLIENT_CERT` / `CX_HTTP_CLIENT_KEY` (optional): passed to curl `--cert` / `--key` for mTLS.
+- `CX_HTTP_TLS_PINNEDPUBKEY` (optional): passed to curl as a private `pinnedpubkey` option for TLS pinning.
+- `CX_HTTP_CA_BUNDLE` (optional): passed to curl as a private `cacert` option for custom trust bundles.
+- `CX_HTTP_CLIENT_CERT` / `CX_HTTP_CLIENT_KEY` (optional): passed to curl as private `cert` / `key` options for mTLS.
 - `CX_HTTP_TLS_MIN_VERSION` (optional): explicit TLS version floor:
   - `1.2` (default)
   - `1.3`
   - `default` to defer to system curl defaults
-- `CX_HTTP_FOLLOW_REDIRECTS` (optional, default `0`): opt into redirects. Redirects are rejected when a host allowlist is configured because curl cannot enforce that allowlist at every hop. With HTTPS required, only HTTPS origins and HTTPS redirect destinations are allowed; loopback HTTP redirects are rejected. Controlled testing with `CX_HTTP_REQUIRE_HTTPS=0` allows HTTP and HTTPS redirects.
+- `CX_HTTP_FOLLOW_REDIRECTS` (optional, default `0`): opt into redirects. Redirects are rejected when a host allowlist is configured because curl cannot enforce that allowlist at every hop. With HTTPS required, only HTTPS origins and HTTPS redirect destinations are allowed; loopback HTTP redirects are rejected. Controlled testing with `CX_HTTP_REQUIRE_HTTPS=0` allows HTTP and HTTPS redirects. Curl may forward custom authentication headers to a redirect destination, so use this override only with trusted redirect targets.
 - `CX_HTTP_MAX_REDIRECTS` (optional, default `3` when redirects are enabled): redirect cap.
 
 Behavior:
@@ -44,6 +44,14 @@ Behavior:
 - URL parsing is shared by inference, model discovery and local endpoint classification. Ambiguous backslashes, embedded whitespace and invalid ports are rejected before execution.
 - `http://...` non-loopback is rejected by default.
 - Set `CX_HTTP_REQUIRE_HTTPS=0` only for controlled local testing.
+- Curl receives URLs, authentication, and TLS options through an anonymous
+  inherited config descriptor on Unix, without a named secret file to survive
+  abrupt termination. Other platforms use a short-lived private config file.
+  `CX_HTTP_*` variables are removed from the curl child's environment, and
+  ambient curlrc settings are ignored. The
+  configured URL remains an operator choice and may carry sensitive userinfo or
+  query parameters; these values are kept out of curl arguments. Run the
+  command under a trusted local account and protect its environment.
 
 ## Deployment pattern (out-of-process TLS termination)
 

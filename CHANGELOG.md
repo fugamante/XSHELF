@@ -25,6 +25,11 @@ Notes:
 
 ### Fixed
 
+- HTTP inference and resident model probes pass URLs, bearer/Basic/custom
+  credentials, and mTLS options through an anonymous curl config descriptor
+  on Unix instead of process arguments. The curl child does not inherit `CX_HTTP_*`
+  secret variables, and its ambient curl configuration is disabled. Existing
+  redirect controls and explicit HTTPS testing overrides remain.
 - Mixed and parallel `task run-all` now execute planned dependency/resource waves
   in order. Failed prerequisites block their dependents before provider launch,
   including one-worker mixed runs; independent tasks within a parallel wave

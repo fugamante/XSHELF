@@ -43,6 +43,8 @@ mod execution;
 mod execution_logging;
 #[path = "modules/help.rs"]
 mod help;
+#[path = "modules/http_curl.rs"]
+mod http_curl;
 #[path = "modules/introspect.rs"]
 mod introspect;
 #[path = "modules/json_mode.rs"]

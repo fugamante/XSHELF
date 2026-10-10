@@ -17,24 +17,19 @@ fn mtls_cov() {
     repo.write_mock(
         "curl",
         r#"#!/usr/bin/env bash
-seen_cert=0
-seen_key=0
+config=
 while [ $# -gt 0 ]; do
-  if [ "$1" = "--cert" ]; then
-    seen_cert=1
-    shift 2
-    continue
-  fi
-  if [ "$1" = "--key" ]; then
-    seen_key=1
+  if [ "$1" = "--config" ]; then
+    config=$2
     shift 2
     continue
   fi
   shift
 done
 cat >/dev/null
-if [ "$seen_cert" != "1" ] || [ "$seen_key" != "1" ]; then
-  echo "missing --cert/--key" >&2
+config_text=$(cat "$config")
+if ! printf '%s\n' "$config_text" | grep -q '^cert = "/tmp/test-client.pem"$' || ! printf '%s\n' "$config_text" | grep -q '^key = "/tmp/test-client.key"$'; then
+  echo "missing private cert/key config" >&2
   exit 2
 fi
 printf '%s\n' '{"text":"http mtls ok"}'
