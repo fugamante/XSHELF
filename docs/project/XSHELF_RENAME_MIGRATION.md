@@ -47,6 +47,14 @@ model value. The approval receipt is private to the user's home directory and
 the current checkout. `CX_*` process overrides and authorized task provider
 controls retain their existing roles. No stable JSON keys or CLI aliases change.
 
+Task execution now rejects stored records whose effective replicas exceed 16
+or whose maximum task/judge invocations exceed 32 after run-all retries and judge
+selection. Existing task files remain readable for inspection and repair;
+there is no automatic clamp or contract-version change. An authorized sandbox
+uses one internal versioned handoff for the admitted task, so older image
+executables reject the new handoff before doing task work. Rebuild and review
+the image executable before using it for task execution.
+
 ## Goals
 
 - establish `XSHELF` as the canonical project name

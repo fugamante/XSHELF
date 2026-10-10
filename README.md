@@ -222,6 +222,13 @@ Task provider and model fields are metadata unless the operator sets
 remains authoritative; JSON output preserves the same execution boundary as text.
 See [task execution guidance](docs/orchestration/PHASE_VI_EXECUTION_GUIDANCE.md).
 
+Task execution admits at most 16 effective replicas and 32 potential task/judge
+invocations per task, counting run-all retries and judge selection. `converge=none`
+still executes once regardless of its stored replica value. Over-budget tasks
+remain inspectable with `task list`, `task show`, and planning commands, but
+`task run` or a selected `task run-all` schedule rejects them before provider
+execution. Reduce replicas or retries before rerunning. No task JSON keys change.
+
 Human `task run-all` progress is written to stderr so stdout remains available
 for command results. Set `CX_TASK_RUN_ALL_PROGRESS=0` (or `false`) to disable
 these messages. The same setting applies to the `xshelf`, `xs`, and `cx`

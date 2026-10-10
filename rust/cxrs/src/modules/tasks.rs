@@ -14,6 +14,39 @@ mod tasks_fanout;
 pub use task_store::{TaskMutation, mutate_tasks};
 pub use tasks_fanout::cmd_task_fanout;
 
+pub const MAX_TASK_REPLICAS: u32 = 16;
+pub const MAX_TASK_EXECUTIONS: u64 = 32;
+
+// Bound both direct convergence and the retries that run-all can add around it.
+// The count is effective because converge=none intentionally runs one replica.
+pub fn task_budget(converge: &str, replicas: u32, max_retries: u32) -> Result<u32, String> {
+    let mode = converge.trim().to_ascii_lowercase();
+    let effective = if matches!(
+        mode.as_str(),
+        "first_valid" | "majority" | "judge" | "score"
+    ) {
+        replicas.max(1)
+    } else {
+        1
+    };
+    if effective > MAX_TASK_REPLICAS {
+        return Err(format!(
+            "effective replicas={effective} exceeds maximum {MAX_TASK_REPLICAS}"
+        ));
+    }
+    // Judge mode adds one model selection call after its objective replicas.
+    let per_attempt = u64::from(effective) + u64::from(mode == "judge");
+    let attempts = per_attempt
+        .checked_mul(u64::from(max_retries) + 1)
+        .ok_or_else(|| "potential executions overflow the task budget".to_string())?;
+    if attempts > MAX_TASK_EXECUTIONS {
+        return Err(format!(
+            "potential executions={attempts} exceeds maximum {MAX_TASK_EXECUTIONS}"
+        ));
+    }
+    Ok(effective)
+}
+
 pub fn task_role_valid(role: &str) -> bool {
     matches!(
         role,
@@ -342,6 +375,10 @@ fn parse_add_flags(args: &[String], mut i: usize) -> Result<AddFlagsParsed, i32>
     depends_on.dedup();
     resource_keys.sort();
     resource_keys.dedup();
+    if let Err(error) = task_budget(&converge, replicas, max_retries.unwrap_or(0)) {
+        crate::cx_eprintln!("{} task add: {error}", cli_app_name());
+        return Err(2);
+    }
     Ok((
         role,
         parent_id,

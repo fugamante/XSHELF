@@ -285,6 +285,8 @@ pub fn sandbox_command(
             "CX_TASK_REPLICA_INDEX",
             "CX_TASK_REPLICA_COUNT",
             "CX_TASK_CONVERGE_MODE",
+            // A managed run-all retry budget must survive the container handoff.
+            "CX_TASK_RETRY_MAX",
         ] {
             if let Some(value) = process_value(key)? {
                 cmd.env(key, value).args(["-e", key]);

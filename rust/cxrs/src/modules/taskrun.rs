@@ -9,12 +9,13 @@ use crate::capture::{BudgetConfig, clip_text_with_config};
 use crate::config::app_config;
 use crate::config::cli_app_name;
 use crate::local_models::resolve_model_for_backend;
-use crate::logs::{file_len, latest_value_since};
+use crate::logs::{file_len, latest_task_value_since, latest_value_since};
 use crate::paths::{repo_root, resolve_log_file};
 use crate::runlog::{RunLogInput, log_primary_run};
 use crate::runtime::llm_backend;
-use crate::task_sandbox::{SandboxAuthority, task_sandbox_admission};
+use crate::task_sandbox::task_sandbox_admission;
 pub use crate::task_sandbox::{task_sandbox_config, task_sandbox_readiness};
+use crate::tasks::task_budget;
 use crate::types::{ExecutionResult, LlmOutputKind, TaskInput, TaskRecord, TaskSpec};
 
 #[derive(Debug, Clone)]
@@ -54,16 +55,20 @@ fn task_in_sandbox(
     mode_override: Option<&str>,
     backend_override: Option<&str>,
     emit_output: bool,
+    invocation_limit: u32,
 ) -> Result<(i32, Option<String>), String> {
     let root =
         repo_root().ok_or_else(|| "task sandbox: not inside a git repository".to_string())?;
     let log_cursor = capture_log_cursor();
     let mut docker = crate::task_sandbox::sandbox_command(&root, authority, false)?;
+    docker.env("CX_TASK_ID", id).args(["-e", "CX_TASK_ID"]);
     let mut inner_args = vec![
         "task".to_string(),
         "run".to_string(),
         id.to_string(),
         "--managed-by-parent".to_string(),
+        "--sandbox-budget-v1".to_string(),
+        invocation_limit.to_string(),
     ];
     if let Some(mode) = mode_override {
         inner_args.extend(["--mode".to_string(), mode.to_string()]);
@@ -92,7 +97,7 @@ fn task_in_sandbox(
     };
     let recovered = log_cursor
         .as_ref()
-        .and_then(|(p, offset)| recover_execution_id_from_log(p, *offset));
+        .and_then(|(p, offset)| recover_sandbox_id(p, *offset, id));
     Ok((code, recovered))
 }
 
@@ -105,7 +110,6 @@ struct ReplicaOutcome {
 }
 
 struct ReplicaRunConfig<'a> {
-    sandbox: Option<&'a SandboxAuthority>,
     mode_override: Option<&'a str>,
     backend_override: Option<&'a str>,
     emit_output: bool,
@@ -394,6 +398,31 @@ fn recover_execution_id_from_log(log_file: &Path, offset: u64) -> Option<String>
         .map(ToString::to_string)
 }
 
+fn recover_sandbox_id(log_file: &Path, offset: u64, task_id: &str) -> Option<String> {
+    let row = latest_task_value_since(log_file, offset, task_id)
+        .ok()
+        .flatten()?;
+    if row.get("tool").and_then(Value::as_str) == Some("cxtask_converge") {
+        let votes = row.get("converge_votes")?;
+        let winner = votes.get("winner")?.as_u64()?;
+        return votes
+            .get("candidates")?
+            .as_array()?
+            .iter()
+            .find(|candidate| candidate.get("index").and_then(Value::as_u64) == Some(winner))?
+            .get("execution_id")?
+            .as_str()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(ToString::to_string);
+    }
+    row.get("execution_id")?
+        .as_str()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(ToString::to_string)
+}
+
 fn task_command_supported(command: &str) -> bool {
     matches!(
         command,
@@ -530,9 +559,16 @@ fn normalize_converge_mode(raw: &str) -> String {
     }
 }
 
-fn effective_replica_count(task: &TaskRecord, mode: &str) -> u32 {
-    let n = task.replicas.max(1);
-    if mode == "none" { 1 } else { n }
+fn retry_budget_max() -> Result<u32, TaskRunError> {
+    match env::var("CX_TASK_RETRY_MAX") {
+        Ok(raw) => raw
+            .parse::<u32>()
+            .map_err(|_| TaskRunError::Critical("task run: invalid CX_TASK_RETRY_MAX".to_string())),
+        Err(env::VarError::NotPresent) => Ok(0),
+        Err(env::VarError::NotUnicode(_)) => Err(TaskRunError::Critical(
+            "task run: invalid CX_TASK_RETRY_MAX".to_string(),
+        )),
+    }
 }
 
 fn select_winner(mode: &str, outcomes: &[ReplicaOutcome]) -> ReplicaOutcome {
@@ -710,23 +746,13 @@ fn run_replica(
         Some(config.converge_mode.to_string()),
     );
     set_optional_env("CX_TASK_CONVERGE_WINNER", None);
-    let run_result = if let Some(authority) = config.sandbox {
-        task_in_sandbox(
-            authority,
-            &task.id,
-            config.mode_override,
-            config.backend_override,
-            config.emit_output,
-        )
-    } else {
-        run_task_objective(
-            runner,
-            task,
-            config.mode_override,
-            config.backend_override,
-            config.emit_output,
-        )
-    };
+    let run_result = run_task_objective(
+        runner,
+        task,
+        config.mode_override,
+        config.backend_override,
+        config.emit_output,
+    );
     match run_result {
         Ok((code, execution_id)) => ReplicaOutcome {
             index: config.replica_index,
@@ -877,6 +903,7 @@ pub fn run_task_by_id(
     backend_override: Option<&str>,
     managed_by_parent: bool,
     emit_output: bool,
+    sandbox_budget: Option<u32>,
 ) -> Result<(i32, Option<String>), TaskRunError> {
     let tasks = (runner.read_tasks)().map_err(TaskRunError::Critical)?;
     let idx = tasks.iter().position(|t| t.id == id).ok_or_else(|| {
@@ -884,6 +911,18 @@ pub fn run_task_by_id(
     })?;
     if tasks[idx].status == "complete" {
         return Ok((0, None));
+    }
+    let converge_mode = normalize_converge_mode(&tasks[idx].converge);
+    let replica_count = task_budget(&converge_mode, tasks[idx].replicas, retry_budget_max()?)
+        .map_err(|error| {
+            TaskRunError::Critical(format!("{} task run: task {id}: {error}", cli_app_name()))
+        })?;
+    let invocations_per_attempt = replica_count + u32::from(converge_mode == "judge");
+    if sandbox_budget.is_some_and(|limit| invocations_per_attempt > limit) {
+        return Err(TaskRunError::Critical(format!(
+            "{} task run: task {id}: per-attempt invocations={invocations_per_attempt} exceeds admitted sandbox budget",
+            cli_app_name()
+        )));
     }
     if !managed_by_parent {
         (runner.set_task_status)(id, "in_progress").map_err(TaskRunError::Critical)?;
@@ -937,9 +976,7 @@ pub fn run_task_by_id(
     let effective_backend = backend_override
         .map(ToOwned::to_owned)
         .or_else(|| task_backend_override(&tasks[idx]));
-    let converge_mode = normalize_converge_mode(&tasks[idx].converge);
-    let replica_count = effective_replica_count(&tasks[idx], &converge_mode);
-    if tasks[idx].converge == "none" && tasks[idx].replicas > 1 {
+    if converge_mode == "none" && tasks[idx].replicas > 1 && !managed_by_parent {
         crate::cx_eprintln!(
             "{} task run: task {} replicas={} ignored because converge=none",
             cli_app_name(),
@@ -947,13 +984,41 @@ pub fn run_task_by_id(
             tasks[idx].replicas
         );
     }
+    // The admitted container owns the complete convergence run. Re-entering it
+    // for each outer replica would multiply repository-selected work by N².
+    if let Some(authority) = sandbox.as_ref() {
+        let result = task_in_sandbox(
+            authority,
+            id,
+            effective_mode.as_deref(),
+            effective_backend.as_deref(),
+            emit_output,
+            invocations_per_attempt,
+        );
+        if !managed_by_parent {
+            restore_runtime_task_state(runner, prev_task_id, prev_parent_id);
+        }
+        let (status_code, execution_id) = match result {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                crate::cx_eprintln!(
+                    "{} task run: objective failed for {id}: {error}",
+                    cli_app_name()
+                );
+                (1, None)
+            }
+        };
+        if !managed_by_parent {
+            finalize_task_status(runner, id, status_code)?;
+        }
+        return Ok((status_code, execution_id));
+    }
     let mut outcomes: Vec<ReplicaOutcome> = Vec::new();
     for replica_index in 1..=replica_count {
         let outcome = run_replica(
             runner,
             &tasks[idx],
             ReplicaRunConfig {
-                sandbox: sandbox.as_ref(),
                 mode_override: effective_mode.as_deref(),
                 backend_override: effective_backend.as_deref(),
                 emit_output,
