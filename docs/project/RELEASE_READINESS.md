@@ -24,7 +24,7 @@ authority has been established for a later source. The October 7 signoff remains
 historical evidence for its frozen source only.
 
 Synthetic runs reproduced mixed/parallel task dependency/resource-wave bypasses
-and the one-worker failed-prerequisite path. The source fix is subject to
+and the one-worker and completed-task rerun paths. The source fix is subject to
 merged-tree and hosted verification before closure. Actual HTTP
 adapter execution confirmed credential arguments and operator-supplied URL
 parameters. The HTTP argument findings and unbounded repository log readers

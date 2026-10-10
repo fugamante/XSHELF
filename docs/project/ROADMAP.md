@@ -28,7 +28,7 @@
   this triage, exact-head native ARM/Intel evidence, and separate release
   authority are complete. The published `v2026.10.07` assets remain unchanged.
   Synthetic execution reproduced mixed/parallel `task run-all` dependency and
-  resource-wave bypasses, including a one-worker failed-prerequisite path. The
+  resource-wave bypasses, including one-worker and completed-task rerun paths. The
   source fix and regressions require merged-source and hosted verification
   before those findings can close. Actual adapter execution
   also confirmed HTTP curl credential arguments and operator-supplied URL

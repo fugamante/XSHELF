@@ -1513,10 +1513,17 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     }
 
     let scheduled_count = schedule.len();
+    let scheduled_ids: HashSet<String> = schedule.iter().cloned().collect();
     let summary = if options.run_mode == "parallel"
         || (options.run_mode == "mixed" && options.max_workers > 1)
     {
-        match run_schedule_parallel(&schedule, &task_index, &options, &wave_meta_map) {
+        match run_schedule_parallel(
+            &schedule,
+            &scheduled_ids,
+            &task_index,
+            &options,
+            &wave_meta_map,
+        ) {
             Ok(v) => v,
             Err(e) => {
                 crate::cx_eprintln!("{} task run-all: {e}", cli_app_name());
@@ -1567,7 +1574,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                 event
             });
             if let Some(task) = task {
-                let unmet = unmet_run_deps(task, &task_index, &completed_ok);
+                let unmet = unmet_run_deps(task, &task_index, &scheduled_ids, &completed_ok);
                 if !unmet.is_empty() {
                     if let Err(error) = persist_run_status(id, "failed", set_task_status_quiet) {
                         crate::cx_eprintln!("{} task run-all: {error}", cli_app_name());
@@ -3068,6 +3075,7 @@ fn emit_summary_event(
 fn unmet_run_deps(
     task: &TaskRecord,
     tasks: &HashMap<String, TaskRecord>,
+    scheduled: &HashSet<String>,
     completed: &HashSet<String>,
 ) -> Vec<String> {
     let deps = if task.depends_on.is_empty() {
@@ -3077,16 +3085,19 @@ fn unmet_run_deps(
     };
     deps.into_iter()
         .filter(|id| {
+            // A scheduled prerequisite needs a successful current-run outcome.
             !completed.contains(id)
-                && tasks
-                    .get(id)
-                    .is_none_or(|record| record.status != "complete")
+                && (scheduled.contains(id)
+                    || tasks
+                        .get(id)
+                        .is_none_or(|record| record.status != "complete"))
         })
         .collect()
 }
 
 fn run_schedule_parallel(
     schedule: &[String],
+    scheduled_ids: &HashSet<String>,
     task_index: &HashMap<String, TaskRecord>,
     options: &RunAllOptions,
     wave_meta_map: &HashMap<String, TaskWaveMeta>,
@@ -3166,7 +3177,7 @@ fn run_schedule_parallel(
                     return Err(format!("task run-all: planned task missing: {}", launch.id));
                 }
             };
-            let unmet = unmet_run_deps(task, task_index, &completed_ok);
+            let unmet = unmet_run_deps(task, task_index, scheduled_ids, &completed_ok);
             if !unmet.is_empty() {
                 if let Err(error) = persist_run_status(&launch.id, "failed", set_task_status_quiet)
                 {

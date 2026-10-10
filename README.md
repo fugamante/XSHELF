@@ -230,7 +230,8 @@ When every backend in `--backend-pool` is unavailable, sequential and parallel
 execution fail before running tasks; choose or enable an approved backend.
 Mixed and parallel `task run-all` finish each dependency/resource wave before
 starting the next. A task whose prerequisite failed is recorded as blocked
-without invoking its provider, including in one-worker mixed runs.
+without invoking its provider, including in one-worker mixed runs and reruns
+selected with `--status complete`.
 Source entrypoints invoke Cargo outside the caller and checkout ancestor chain
 while retaining the caller's working directory for the command itself.
 

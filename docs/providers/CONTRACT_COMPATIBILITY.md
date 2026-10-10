@@ -92,7 +92,9 @@ successfully, its dependent is persisted as failed and reported with the
 `task-run-all.v1` keys and types remain. Blocked dependents count in the failed
 and blocked totals and produce a nonzero exit; the failure-class value is
 additive. Independent tasks in a compatible wave retain parallel execution,
-and explicit backend selection remains authoritative.
+and explicit backend selection remains authoritative. On a `--status complete`
+rerun, selected prerequisites must succeed again; a previously completed
+prerequisite outside the selected run remains satisfied.
 
 ## Local Model Authority
 

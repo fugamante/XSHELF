@@ -42,12 +42,12 @@ fn add(repo: &TempRepo, label: &str, mode: &str, extra: &[&str]) -> String {
     stdout_str(&out).trim().to_string()
 }
 
-fn run_workers(repo: &TempRepo, mode: &str, workers: &str) -> std::process::Output {
+fn run_status(repo: &TempRepo, mode: &str, workers: &str, status: &str) -> std::process::Output {
     repo.run(&[
         "task",
         "run-all",
         "--status",
-        "pending",
+        status,
         "--mode",
         mode,
         "--backend-pool",
@@ -59,6 +59,10 @@ fn run_workers(repo: &TempRepo, mode: &str, workers: &str) -> std::process::Outp
         "--events-jsonl",
         "--json",
     ])
+}
+
+fn run_workers(repo: &TempRepo, mode: &str, workers: &str) -> std::process::Output {
+    run_status(repo, mode, workers, "pending")
 }
 
 fn run(repo: &TempRepo, mode: &str) -> std::process::Output {
@@ -254,4 +258,70 @@ fn failed_parent_block() {
             .iter()
             .all(|task| task["status"] == "failed")
     );
+}
+
+#[test]
+fn rerun_parent_success() {
+    let repo = TempRepo::new("wave-auth");
+    repo.write_mock_primary(MOCK);
+    let root = add(&repo, "root", "parallel", &["--resource-keys", "repo:read"]);
+    let child = add(
+        &repo,
+        "child",
+        "parallel",
+        &["--depends-on", &root, "--resource-keys", "repo:read"],
+    );
+    assert!(run(&repo, "parallel").status.success());
+    fs::remove_file(repo.root.join(".cx/wave-order")).expect("clear first run");
+
+    let out = run_status(&repo, "parallel", "2", "complete");
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let lines = order(&repo);
+    assert!(pos(&lines, &format!("end {root}")) < pos(&lines, &format!("start {child}")));
+    let summary: Value = serde_json::from_str(&stdout_str(&out)).expect("summary JSON");
+    assert_eq!(summary.get("complete").and_then(Value::as_u64), Some(2));
+}
+
+#[test]
+fn rerun_parent_block() {
+    let repo = TempRepo::new("wave-auth");
+    repo.write_mock_primary(MOCK);
+    let root = add(&repo, "root", "parallel", &["--resource-keys", "repo:read"]);
+    let child = add(
+        &repo,
+        "child",
+        "parallel",
+        &["--depends-on", &root, "--resource-keys", "repo:read"],
+    );
+    assert!(run(&repo, "parallel").status.success());
+    fs::remove_file(repo.root.join(".cx/wave-order")).expect("clear first run");
+    fs::write(repo.root.join(".cx/fail-root"), b"synthetic failure").expect("fail marker");
+
+    let out = run_status(&repo, "parallel", "2", "complete");
+    assert_eq!(out.status.code(), Some(1), "stderr={}", stderr_str(&out));
+    let lines = order(&repo);
+    assert!(
+        !lines.contains(&format!("start {child}")),
+        "child executed: {lines:?}"
+    );
+    let summary: Value = serde_json::from_str(&stdout_str(&out)).expect("summary JSON");
+    assert_eq!(summary.get("blocked").and_then(Value::as_u64), Some(1));
+}
+
+#[test]
+fn prior_parent_success() {
+    let repo = TempRepo::new("wave-auth");
+    repo.write_mock_primary(MOCK);
+    let root = add(&repo, "root", "sequential", &[]);
+    assert!(run(&repo, "mixed").status.success());
+    fs::remove_file(repo.root.join(".cx/wave-order")).expect("clear first run");
+    let child = add(&repo, "child", "parallel", &["--depends-on", &root]);
+
+    let out = run(&repo, "mixed");
+    assert!(out.status.success(), "stderr={}", stderr_str(&out));
+    let lines = order(&repo);
+    assert!(lines.contains(&format!("start {child}")));
+    assert!(!lines.contains(&format!("start {root}")));
+    let summary: Value = serde_json::from_str(&stdout_str(&out)).expect("summary JSON");
+    assert_eq!(summary.get("complete").and_then(Value::as_u64), Some(1));
 }
