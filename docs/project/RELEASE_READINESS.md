@@ -2,6 +2,16 @@
 
 Snapshot date: 2026-10-10 (merged security boundary evidence reconciled)
 
+## Selected maintenance candidate (2026-10-10)
+
+`v2026.10.10` selects the merged post-October 7 security and reliability
+changes for release validation. It is not tagged or published. The candidate
+does not yet have exact-head native ARM and Intel package reproduction,
+signing, notarization, public-byte verification, or Homebrew qualification.
+Source signoff and publication remain on hold until those gates and the
+remaining current-head finding triage are complete. The October 7 release is
+still the latest published release.
+
 ## Release recovery completed (2026-10-07)
 
 `v2026.10.07` is published from frozen source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
@@ -164,9 +174,11 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
-Current maintenance source:
-- `VERSION` is `2026.10.07`, including the superseded September candidate,
-  merged maintenance/security fixes and release-health separation.
+Current maintenance candidate:
+- `VERSION` is `2026.10.10`, selecting the fixes merged after the October 7
+  release. Exact-head native release signoff is pending.
+
+Published October 7 source evidence:
 - `v2026.10.07` release source is validated, with full native guardrails,
   local compatibility, Docker CI parity, hosted Linux/macOS compatibility,
   CodeQL and both native package reproduction/lifecycle gates passing on `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
@@ -214,8 +226,9 @@ The following items remain future opt-in work and should not block the next
 patch or minor release unless they become explicit scope:
 - published Docker maintainer images
 - Docker Compose or service startup recipes for provider sidecars
-- New maintenance-release Homebrew bottles; August bottles remain historical,
-  while this release uses the signed/notarized archives
+- New maintenance-release Homebrew bottles; August bottles remain historical.
+  The published October 7 release used signed/notarized archives; a later
+  release needs its own package and signing evidence.
 - broader default capture prompt replacement beyond the current opt-in
   `shadow_narrow` profile
 - additional backend adapter families beyond the guarded `http-curl`

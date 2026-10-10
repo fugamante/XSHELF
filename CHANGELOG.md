@@ -4,6 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
+- `v2026.10.10` (candidate, not tagged or published): Post-October 7 security and reliability fixes on merged main; native release validation is pending.
 - `v2026.10.07` (2026-10-07): Consolidated maintenance/security fixes and independent release-health checks.
 
 - `v2026.09.19` (superseded unpublished candidate): Included in `v2026.10.07`.
@@ -19,9 +20,12 @@ All notable changes to this project are documented in this file.
 
 Notes:
 - `VERSION` stores the current machine-readable version only.
-- This file tracks rolling changes under `Unreleased` until the next tagged release.
+- This file tracks rolling changes under `Unreleased` until a candidate is
+  selected and its notes are cut; tagging and publication remain separate.
 
 ## [Unreleased]
+
+## [v2026.10.10] - 2026-10-10 (candidate, not published)
 
 ### Fixed
 
