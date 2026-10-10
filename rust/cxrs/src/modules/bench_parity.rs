@@ -179,14 +179,15 @@ fn run_rust_case(row: &mut ParityRow, ctx: &ParityEvalCtx<'_>, case: &ParityCase
 
 fn run_bash_case(row: &mut ParityRow, ctx: &ParityEvalCtx<'_>, case: &ParityCaseInput<'_>) {
     let before_bash = file_len(ctx.temp_log_file);
-    let bash_cmd = format!(
-        "source '{}' >/dev/null 2>&1; {} {}",
-        ctx.repo.join("lib").join("cx.sh").display(),
-        case.cmd,
-        case.args.join(" ")
-    );
+    // Repository paths and catalog arguments are data, never Bash source.
     let mut bash_proc = Command::new("bash");
-    bash_proc.arg("-lc").arg(bash_cmd);
+    bash_proc
+        .arg("-lc")
+        .arg("source -- \"$1\" >/dev/null 2>&1; \"$2\" \"${@:3}\"")
+        .arg("bash")
+        .arg(ctx.repo.join("lib").join("cx.sh"))
+        .arg(case.cmd)
+        .args(case.args);
     with_parity_env(&mut bash_proc, ctx.mock_dir, ctx.temp_repo);
     bash_proc.env("CX_EXECUTION_PATH", "bash:cxparity");
     if let Ok(out) = run_command_output_with_timeout(bash_proc, "cxparity bash case") {

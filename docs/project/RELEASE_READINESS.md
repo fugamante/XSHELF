@@ -59,10 +59,17 @@ writers can still interleave records, and a write racing rollback may be lost.
 Focused synthetic regressions cover short writes, partial-write errors,
 noncooperating appends, and inode aliases. This evidence does not establish
 later-release readiness.
-A separate 64-process cold-start probe intermittently failed to open the new
-`schema_failures.jsonl` path with `ENOENT`, losing one observational row while
-retaining all quarantine records. Its exact failing syscall and baseline
-origin are unproven; first-use directory creation needs separate diagnosis.
+The opt-in parity diagnostic passes its repository script path and catalog
+arguments to Bash as positional data. Synthetic quoted and command-bearing
+repository paths no longer execute an injected marker; the trusted `cx`
+function still receives its expected arguments. A separate macOS syscall
+probe observed `openat` return `ENOENT` for the first schema-failure log leaf
+through a valid held `.cx/cxlogs` descriptor. Three of ten 64-process cold
+batches lost one observational row while retaining all quarantine records.
+The leaf-open source is unchanged from before the JSONL lock; the OS-level
+cause and baseline failure rate remain unproven. A private bounded retry
+probe recovered all 1,280 rows in twenty batches but is not a source fix.
+First-use behavior needs separate attribution and validation.
 Explicit `CX_LOG_FILE` remains operator-selected. Remote write reachability is
 unproven, and adjacent task-event and other local readers require separate
 assessment.

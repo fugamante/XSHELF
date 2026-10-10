@@ -129,6 +129,48 @@ mod unix {
     }
 
     #[test]
+    fn parity_path_safe() {
+        for name in [
+            "plain-repo",
+            "repo'quote",
+            "repo'; printf injected > \"$PARITY_MARKER\"; #",
+            "repo'$(printf injected > \"$PARITY_MARKER\")'",
+        ] {
+            let root = tempfile::tempdir().expect("create owned scratch");
+            let repo = root.path().join(name);
+            fs::create_dir_all(repo.join("lib")).expect("create parity library directory");
+            fs::create_dir_all(repo.join(".cx/schemas")).expect("create schema registry");
+            fs::write(
+                repo.join("lib/cx.sh"),
+                "cx() { printf '%s:%s\\n' \"$1\" \"$2\" > \"$PARITY_CALLED\"; }\n",
+            )
+            .expect("write trusted parity function");
+            let marker = root.path().join("injected");
+            let called = root.path().join("called");
+            let out = Command::new(env!("CARGO_BIN_EXE_cxrs"))
+                .arg("parity")
+                .current_dir(&repo)
+                .env("CX_REPO_ROOT", &repo)
+                .env("PARITY_MARKER", &marker)
+                .env("PARITY_CALLED", &called)
+                .env("TMPDIR", root.path())
+                .env("CX_LOG_FILE", root.path().join("runs.jsonl"))
+                .env("CXLOG_ENABLED", "0")
+                .output()
+                .expect("run parity with synthetic repository");
+            assert!(
+                !marker.exists(),
+                "repository path executed shell syntax: {out:?}"
+            );
+            assert_eq!(
+                fs::read_to_string(&called).expect("bash parity function ran"),
+                "echo:hi\n",
+                "catalog arguments changed: {out:?}"
+            );
+        }
+    }
+
+    #[test]
     fn unsafe_temp_denied() {
         let (root, repo, _unused_temp) = dirs();
         let unsafe_parent = root.path().join("unsafe-temp");
