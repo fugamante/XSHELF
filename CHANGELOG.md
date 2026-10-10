@@ -36,6 +36,15 @@ Notes:
   retain concurrency. Rerunning completed tasks requires prerequisites to
   succeed in the current run. Blocked runs report `dependency_blocked` without
   changing the `task-run-all.v1` keys or types.
+- Ordinary mixed/parallel `task run-all` now includes selected planner-blocked
+  tasks in failed/blocked totals in final text, JSON, events, and run-log
+  summaries; JSON and events also identify each blocked task.
+  These runs exit nonzero. Selected pending tasks stay pending for repair and
+  retry; blocked `complete` or `in_progress` selections become `failed`, and
+  already failed selections remain failed. An all-blocked `--json` run emits
+  the complete result envelope. Final `scheduled` includes selected blocked
+  tasks; preflight `runnable` counts executable tasks
+  only. Existing contract keys and types remain unchanged.
 - Repository state and local-model registry entries no longer authorize LLM
   backend or model execution merely by being present. Explicit `llm` selection
   records checkout-bound authority in a private user-home receipt; changes to

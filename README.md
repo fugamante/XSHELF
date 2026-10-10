@@ -232,6 +232,15 @@ Mixed and parallel `task run-all` finish each dependency/resource wave before
 starting the next. A task whose prerequisite failed is recorded as blocked
 without invoking its provider, including in one-worker mixed runs and reruns
 selected with `--status complete`.
+In ordinary mixed/parallel runs, selected tasks blocked by the planner also
+count in failed/blocked totals in final text or JSON, task events, and the
+run-log summary. JSON and events identify each blocked task. The run exits
+nonzero. Selected pending tasks stay pending for repair and retry; blocked
+`complete` or `in_progress` selections become `failed`, and already failed
+selections remain failed. Even if every selected task is blocked, `--json`
+returns a complete `task-run-all.v1` result. Final `scheduled` includes selected
+blocked tasks; preflight `runnable`
+counts only tasks that can execute. Existing JSON keys and types are unchanged.
 Source entrypoints invoke Cargo outside the caller and checkout ancestor chain
 while retaining the caller's working directory for the command itself.
 

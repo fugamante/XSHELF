@@ -22,7 +22,7 @@ use crate::json_mode::resolve_json_mode;
 use crate::logs::load_values;
 use crate::paths::resolve_log_file;
 use crate::process::{run_command_output_with_timeout, run_command_status_with_timeout};
-use crate::state::{current_task_id, set_state_path};
+use crate::state::{current_task_id, read_state_checked, set_state_path};
 use crate::task_events::{TaskEvent, cmd_task_events, emit as emit_task_event};
 use crate::taskrun::{TaskRunError, TaskRunner, task_sandbox_config, task_sandbox_readiness};
 use crate::tasks::set_task_status;
@@ -673,6 +673,7 @@ struct RunAllConcurrencySummary {
 fn runall_invariants_value(
     scheduled: u64,
     summary: &RunAllSummary,
+    planned_blocked: u64,
     halted_remaining: usize,
     halt_on_critical: bool,
     concurrency: &RunAllConcurrencySummary,
@@ -689,8 +690,10 @@ fn runall_invariants_value(
     let failure_accounting_ok = failed == blocked + retryable_failures + non_retryable_failures;
     let critical_halt_ok =
         critical_errors <= non_retryable_failures && (halted_remaining == 0 || halt_on_critical);
+    // Planner blockers never launch; other blocked failures still require worker accounting.
+    let worker_work = complete + failed.saturating_sub(planned_blocked);
     let worker_summary_ok = concurrency.worker_count == concurrency.workers.len() as u64
-        && !(complete + failed > 0 && concurrency.worker_count == 0);
+        && !(worker_work > 0 && concurrency.worker_count == 0);
 
     let timing_window_ok = match (
         concurrency.first_queue_started_at.as_deref(),
@@ -777,12 +780,15 @@ fn runall_wave_pressure(summary: &RunAllSummary, mode: &str) -> RunAllWavePressu
     let mut max_queue_wave_index: Option<u64> = None;
     let mut max_queue_wave_ms = 0u64;
     for task in &summary.task_runs {
-        let wave_index = task.get("wave_index").and_then(Value::as_u64);
+        let wave_index = task
+            .get("wave_index")
+            .and_then(Value::as_u64)
+            .filter(|index| *index > 0);
         if wave_index.is_some() {
             latest_wave_index = wave_index;
         }
         let queue_ms = task.get("queue_ms").and_then(Value::as_u64).unwrap_or(0);
-        if queue_ms >= max_queue_wave_ms {
+        if wave_index.is_some() && queue_ms >= max_queue_wave_ms {
             max_queue_wave_ms = queue_ms;
             max_queue_wave_index = wave_index;
         }
@@ -1309,6 +1315,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
                         0,
                         &empty_summary,
                         0,
+                        0,
                         false,
                         &empty_concurrency
                     ),
@@ -1422,9 +1429,9 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
             .iter()
             .flat_map(|wave| wave.task_ids.iter().cloned())
             .collect();
-        if ids.is_empty() {
+        if ids.is_empty() && plan.blocked.is_empty() {
             println!("No runnable tasks for status '{}'.", options.status_filter);
-            return if plan.blocked.is_empty() { 0 } else { 1 };
+            return 0;
         }
         let pool = options.backend_pool.join(",");
         let cap_notes = render_backend_caps(&options.backend_caps);
@@ -1504,7 +1511,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
 
     // Pin an approved selection so later availability changes cannot become an implicit provider choice.
     let approved_pool = available_pool(&options.backend_pool);
-    if approved_pool.is_empty() {
+    if !schedule.is_empty() && approved_pool.is_empty() {
         crate::cx_eprintln!(
             "{} task run-all: no available backend from --backend-pool",
             cli_app_name()
@@ -1512,9 +1519,17 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         return 1;
     }
 
-    let scheduled_count = schedule.len();
+    // Selected plan blockers are run outcomes even though no provider is launched for them.
+    let planned_blocked_count = if matches!(options.run_mode.as_str(), "mixed" | "parallel") {
+        blocked_count
+    } else {
+        0
+    };
+    let scheduled_count = schedule.len() + planned_blocked_count;
     let scheduled_ids: HashSet<String> = schedule.iter().cloned().collect();
-    let summary = if options.run_mode == "parallel"
+    let mut summary = if schedule.is_empty() {
+        RunAllSummary::default()
+    } else if options.run_mode == "parallel"
         || (options.run_mode == "mixed" && options.max_workers > 1)
     {
         match run_schedule_parallel(
@@ -1845,6 +1860,13 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
         }
         summary
     };
+    if planned_blocked_count > 0
+        && let Err(error) =
+            record_plan_blocked(&options, maybe_plan.as_ref(), &task_index, &mut summary)
+    {
+        crate::cx_eprintln!("{} task run-all: {error}", cli_app_name());
+        return 1;
+    }
     let backend_fallbacks = runall_backend_fallbacks(&summary);
     let reason_counts = runall_reason_counts(&summary);
     let halted_remaining = runall_halted_remaining(&summary, scheduled_count);
@@ -1853,6 +1875,7 @@ fn handle_run_all(app_name: &str, args: &[String], deps: &TaskCmdDeps) -> i32 {
     let invariants = runall_invariants_value(
         scheduled_count as u64,
         &summary,
+        planned_blocked_count as u64,
         halted_remaining,
         options.halt_on_critical,
         &concurrency_summary,
@@ -2421,6 +2444,7 @@ fn dry_run_out(
         "invariants": runall_invariants_value(
             schedule.len() as u64,
             &dry_run_summary,
+            0,
             0,
             false,
             &dry_run_concurrency
@@ -3054,6 +3078,54 @@ fn emit_result_event(options: &RunAllOptions, event: &TaskRunEvent) {
     out.wave_mode = Some(&event.wave_mode);
     out.wave_size = Some(event.wave_size);
     emit_runall_event(options, out);
+}
+
+fn record_plan_blocked(
+    options: &RunAllOptions,
+    plan: Option<&crate::tasks_plan::TaskRunPlan>,
+    tasks: &HashMap<String, TaskRecord>,
+    summary: &mut RunAllSummary,
+) -> Result<(), String> {
+    let plan = plan.ok_or_else(|| "blocked task plan missing".to_string())?;
+    for blocked in &plan.blocked {
+        let task = tasks
+            .get(&blocked.id)
+            .ok_or_else(|| format!("planned task missing: {}", blocked.id))?;
+        // Pending tasks remain retryable; older successful or active states must not
+        // survive a blocked rerun as evidence that the task succeeded.
+        if matches!(task.status.as_str(), "complete" | "in_progress") {
+            persist_run_status(&blocked.id, "failed", set_task_status_quiet)?;
+            let stored_current = read_state_checked()?
+                .as_ref()
+                .and_then(|state| state.pointer("/runtime/current_task_id"))
+                .and_then(Value::as_str)
+                == Some(blocked.id.as_str());
+            if stored_current {
+                set_state_path("runtime.current_task_id", Value::Null).map_err(|error| {
+                    format!(
+                        "failed to clear current task after blocking {}: {error}",
+                        blocked.id
+                    )
+                })?;
+            }
+        }
+        let event = TaskRunEvent {
+            id: blocked.id.clone(),
+            backend: "unknown".to_string(),
+            requested_backend: None,
+            status: "failed".to_string(),
+            execution_id: None,
+            failure_class: Some("dependency_blocked".to_string()),
+            queue_ms: 0,
+            wave_index: 0,
+            wave_mode: task.run_mode.clone(),
+            wave_size: 0,
+        };
+        emit_result_event(options, &event);
+        summary.record_failure(FailureClass::Blocked);
+        summary.add_task_run(event);
+    }
+    Ok(())
 }
 
 fn emit_summary_event(
@@ -3853,6 +3925,19 @@ pub fn handler(ctx: &CmdCtx, args: &[String], deps: &TaskCmdDeps) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn planner_worker_gap() {
+        let mut summary = RunAllSummary::default();
+        summary.record_failure(FailureClass::Blocked);
+        let concurrency = RunAllConcurrencySummary::default();
+        let planned_only = runall_invariants_value(1, &summary, 1, 0, false, &concurrency);
+        assert_eq!(planned_only["worker_summary_ok"], true);
+
+        summary.record_failure(FailureClass::Blocked);
+        let runtime_blocked = runall_invariants_value(2, &summary, 1, 0, false, &concurrency);
+        assert_eq!(runtime_blocked["worker_summary_ok"], false);
+    }
 
     fn mk_task(backend: &str) -> TaskRecord {
         TaskRecord {

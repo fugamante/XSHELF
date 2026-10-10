@@ -234,7 +234,14 @@ These rules apply unless a later approved phase explicitly changes them.
   the setting or changing the existing task-event and JSON result contracts
 - mixed and parallel `task run-all` preserve planned wave order across aliases;
   failed prerequisites block dependent provider execution, while tasks in one
-  compatible parallel wave may still overlap
+  compatible parallel wave may still overlap. Ordinary runs count selected
+  planner-blocked tasks in failed/blocked totals in final text/JSON, events,
+  and run-log summaries, and exit nonzero. Pending selections stay pending for
+  repair and retry; blocked `complete` or `in_progress` selections become
+  `failed`, and already failed selections remain failed. An all-blocked `--json`
+  run keeps the full envelope; final `scheduled` includes selected blockers
+  while preflight `runnable` remains executable-only. Stable
+  keys and types are unchanged
 - all three source aliases build with Cargo outside the checkout ancestor chain and execute the
   compiled command from the caller directory; sequential `task run-all` rejects
   an unavailable requested backend pool before any task execution

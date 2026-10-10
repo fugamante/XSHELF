@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 ## Scope
 
@@ -95,6 +95,18 @@ additive. Independent tasks in a compatible wave retain parallel execution,
 and explicit backend selection remains authoritative. On a `--status complete`
 rerun, selected prerequisites must succeed again; a previously completed
 prerequisite outside the selected run remains satisfied.
+
+Ordinary mixed/parallel runs also account for selected tasks blocked during
+planning, including when no worker can start. Each contributes to the final
+`scheduled`, `failed`, and `blocked` counts in text/JSON and the run-log
+summary. Per-task JSON and events identify the blockers; the exit status is
+nonzero. Selected pending tasks keep their stored status for repair and retry;
+blocked `complete` or `in_progress` selections are persisted as `failed`, so
+stale success or active state cannot survive the rerun. Selected failed tasks
+remain failed.
+All-blocked `--json` runs emit the complete `task-run-all.v1` envelope.
+Preflight `runnable` still counts only executable tasks. This corrects
+accounting without removing keys, changing types, or bumping contract versions.
 
 ## Local Model Authority
 

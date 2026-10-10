@@ -56,6 +56,60 @@ fn no_sinks(repo: &TempRepo) {
 }
 
 #[test]
+fn blocked_formats() {
+    for format in ["text", "json"] {
+        let repo = fixture();
+        let blocked = add(
+            &repo,
+            "cxo echo blocked",
+            &[
+                "--depends-on",
+                "task_999",
+                "--mode",
+                "parallel",
+                "--backend",
+                "primary",
+            ],
+        );
+        let out = repo.run(&[
+            "task",
+            "run-all",
+            "--mode",
+            "parallel",
+            "--backend-pool",
+            "primary",
+            "--summary",
+            format,
+            "--text",
+        ]);
+        let stdout = stdout_str(&out);
+        assert_eq!(
+            out.status.code(),
+            Some(1),
+            "format={format} stdout={stdout}"
+        );
+        if format == "json" {
+            // Text mode keeps the existing preflight lines ahead of --summary json.
+            let json = stdout.find('{').expect("summary JSON envelope");
+            let summary: Value = serde_json::from_str(&stdout[json..]).expect("summary JSON");
+            assert_eq!(summary["contract_version"], "task-run-all-summary.v1");
+            assert_eq!(summary["scheduled"], 1);
+            assert_eq!(summary["failed"], 1);
+            assert_eq!(summary["blocked"], 1);
+            assert_eq!(summary["failed_task_ids"][0], blocked);
+        } else {
+            assert!(stdout.contains("run-all summary:"), "{stdout}");
+            assert!(stdout.contains("failed=1, blocked=1"), "{stdout}");
+            assert!(
+                stdout.contains(&format!("run-all failed_task_ids: {blocked}")),
+                "{stdout}"
+            );
+        }
+        no_sinks(&repo);
+    }
+}
+
+#[test]
 fn absent_authority_denies() {
     for mode in ["--text", "--json"] {
         let repo = fixture();
