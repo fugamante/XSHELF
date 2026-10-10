@@ -6,11 +6,123 @@ Snapshot date: 2026-10-10 (merged security boundary evidence reconciled)
 
 `v2026.10.10` selects the merged post-October 7 security and reliability
 changes for release validation. It is not tagged or published. The candidate
-does not yet have exact-head native ARM and Intel package reproduction,
-signing, notarization, public-byte verification, or Homebrew qualification.
-Source signoff and publication remain on hold until those gates and the
-remaining current-head finding triage are complete. The October 7 release is
-still the latest published release.
+has two-build native ARM and Intel package reproduction on prior merged source
+`526e92eeacb5f437e78d49be5ba757e3eb7fbdf9`, with Intel evidence in
+workflow `38092777853`. This evidence must be repeated on the final merged
+source head. Signing, notarization, public-byte verification, and Homebrew
+qualification are separate release gates. Scoped source signoff accepts the
+lower-severity current-source issues listed below; publication remains on hold.
+The October 7 release is still the latest published release.
+
+### Current-source finding decision
+
+Security Cloud listed 57 open XSHELF records on October 10 (16 medium, 19 low,
+22 informational), observed on historical revisions. This inventory is not a
+fresh scan of this source. Source inspection classifies 15 medium records as
+historical paths or not reproducible on current main; the remaining medium
+record `commit:55e2234450248191ad75a83c4b69fd80` is the static-site
+guidance addressed in this candidate. Among the
+41 low and informational records, 14 describe historical paths, 26 remain
+source-current and deferred, and one describes intentional schema evidence.
+The historical medium IDs are `commit:3222fc6cdadc8191a3d4a77fe163c198`,
+`commit:e074015876288191894a804cd7244036`,
+`commit:7e2e4e691be08191beb742cd67307620`,
+`commit:bbab31cf634c81918a66e9341acae96c`,
+`commit:28de076528e88191a31e22dcb76afb80`,
+`commit:0e33e87799c881919f3fdddee291ac23`,
+`commit:0c4ab36a13d88191859ba0da16687f15`,
+`commit:585e39965cb88191ab7181fa118ad6d7`,
+`commit:38ff71509e808191918fd596aa7afbaa`,
+`commit:4e11be6be61481919d6f60d171cbfde8`,
+`commit:709f9958bc148191bd7a15d4a5e116c5`,
+`commit:d11700acc7b88191b751f55f11a5f6bf`,
+`commit:cd3beb04dff48191a94a48d4a17e80d4`,
+`commit:583e2fd2d32c8191a7844d57a9a8d613`, and
+`commit:e8426c8102188191b03332c082e25d60`.
+The historical low/informational IDs are `commit:a4def8b5a6dc8191a4c1db38538d8d37`,
+`commit:033867d5ed0c8191b8d35fff36dd7128`,
+`commit:ed9c1b3cc4fc819192249f226c411ca3`,
+`commit:3bc752f3bcd08191b2549c51313d62b2`,
+`commit:591ef30e2878819198d57ff842a262f0`,
+`commit:c3e62090c960819199db990727681b09`,
+`commit:132b3f870edc8191a0b2ec15fabfac7d`,
+`commit:054c7729e04c8191ba01a8c38c4c21f9`,
+`commit:45f4ecf2682c8191b5b87799a901b9d5`,
+`commit:689c82374b108191b9f3ce3f1ba8b8a7`,
+`commit:e5f8077fc5f88191ad68fd4c90465cc2`,
+`commit:283f722c9bb88191877657165be66f2d`,
+`commit:7e1238ad8db081919d390726e5a71ffb`, and
+`commit:3d3629ab532c8191bd8bf453e217c04c`.
+
+Maintainers accept the following source-current lower-severity issues for this
+CLI maintenance-source decision. None is used as release evidence or a
+publication-authority input. They remain open for separate fixes and
+verification on merged source:
+
+- Local log output and previews (`commit:6d49775eb1bc8191a8aadb237261d6b2`,
+  `commit:9be50072c3a48191bebfe77981f1a3d0`,
+  `commit:cd985965c0748191a897c043a7217b9e`,
+  `commit:55f49837172481919167f65170264ee9`): untrusted repository log text
+  can affect terminal or hosted CI output. No attacker-selected outbound
+  destination or credential exfiltration path was demonstrated. Revisit
+  before using log-derived CI output as trusted evidence or during the next
+  log-output hardening.
+- Diagnostic availability and interactive introspection
+  (`commit:a393332e1748819191fb4c4b795c12c8`,
+  `commit:d814638440fc8191861513944abad282`,
+  `commit:193327bc34888191a66c8dacd7514bfe`): crafted counters can
+  panic or wrap diagnostics, and an unset interactive Ollama model may start
+  introspection. Neither establishes package or signing authority. Revisit
+  before untrusted logs feed automated release checks or read-only claims cover
+  interactive introspection.
+- Operator output correctness (`commit:b07001fc3d108191a24fe69bdfb3d989`,
+  `commit:731e8382ffa48191889b98dd436ea9bb`,
+  `commit:61b19e752e7c819197e75023e874dfb5`,
+  `commit:0edf883cd1408191bb2d8443132ccf0f`,
+  `commit:d037eca91c188191bd4c344d8754b510`,
+  `commit:03d4af73435c819192d8887b670d8868`): fanout, diagnostic action,
+  benchmark, and dry-run displays can misstate outcomes. Revisit before an
+  automation treats those displays as authoritative.
+- Audit and contract metadata (`commit:3106a08cf3188191bd3f829f6720c5e5`,
+  `commit:4709fcc9b3208191b6b9060760cece49`,
+  `commit:7ca57f17101481918a7cc2feae96b6ce`): provenance, bundle drift,
+  and retry metrics can mislead. Revisit before those fields become release or
+  automation gates.
+- Optional installer and telemetry contracts (`commit:c230ab4efb188191ab6f3bda9d229673`,
+  `commit:29292ca483b481919b53805171cd98f8`,
+  `commit:fd20b7ab6e4081918ec9efa6824545ae`,
+  `commit:c8162e49ee6081918ec9efa6824545ae`,
+  `commit:150f9a7aac148191b67f88ce874be1be`,
+  `commit:a20e8ccfeefc8191a83421ae64f14804`): source inspection found
+  shell-profile and optional output mismatches without a demonstrated new
+  authority bypass. Revisit before those paths are used as release evidence
+  or at the next compatibility release.
+- Test-only path and coverage gaps (`commit:a5a9f53221f48191a4a7e2986b86d430`,
+  `commit:927b0113ac6881919e37d0c0a8b777af`,
+  `commit:6ee8f05788dc81918e7c4d58a559dcc4`,
+  `commit:2fb02f0f994c8191b28e9d9a24ed9caa`): a controlled checkout path
+  can affect one shell-based test, while retry and concurrency tests can miss
+  regressions. These are not production CLI paths. Revisit before testing an
+  untrusted checkout path or changing those test contracts.
+
+`commit:642a4f1f5b9c819190f0a7abae4ea245` describes a documented separate
+schema-failure evidence channel, not a run-telemetry opt-out bypass:
+`CXLOG_ENABLED=0` suppresses run and capture rows but preserves private
+quarantine and schema-failure records. The locked synthetic opt-out regression
+passed on current main. Revisit this policy only if the operator contract
+changes; do not claim that the opt-out erases security evidence.
+
+The reported judge backend override (`commit:38ff71509e808191918fd596aa7afbaa`)
+did not reproduce on current main: an owned synthetic task with explicit
+`ollama` and a different process default invoked the mock Ollama backend for
+both replicas and judge, with no default-provider call. A convergence summary
+row still labels the restored default and belongs to the output-correctness
+work above. No finding is closed by this source decision.
+
+The repository-root guidance is repaired in `PUBLIC_SURFACES.md`. Static-site
+deployment remains blocked until an actual host serves only the isolated
+allowlist and rejects repository-private paths. This source decision does not
+authorize a website deployment.
 
 ## Release recovery completed (2026-10-07)
 
@@ -29,11 +141,11 @@ repository model, and parity schema paths later fixed on main. Later
 source merges do not change those public bytes. The tagged source also passes
 HTTP credentials and operator-selected URL values through curl arguments; the
 current source repair does not change those archives. The `v2026.10.10`
-candidate is selected, while release signoff remains on hold pending current-head
-finding triage by reachability and release impact. No exact-head native ARM or Intel package
-evidence, signing, notarization, public-byte verification, or publication
-authority has been established for a later source. The October 7 signoff remains
-historical evidence for its frozen source only.
+candidate is selected. Prior-head native ARM and Intel package evidence is
+recorded above; it does not validate a later documentation merge. Signing,
+notarization, public-byte verification, and publication authority have not
+been established for this candidate. The October 7 signoff remains historical
+evidence for its frozen source only.
 
 The later-source signing preflight now checks the builder's exact v1 member
 paths, types and modes before credential use. Owned synthetic ARM/Intel
@@ -138,11 +250,10 @@ fixed after merged-source verification. The HTTP adapter and URL remain
 operator-selected; nonlocal HTTP and redirects require explicit overrides.
 Repository-selected JSONL append and task-event follow paths have owned
 synthetic regressions for redirected writes, special files, oversized rows,
-split rows, and normal use. The security maintenance release stays on
-hold: no exact-head native ARM or Intel package reproduction, signing,
-notarization, public-byte verification, or publication authority has been
-established for this later source. The published `v2026.10.07` assets are
-unchanged.
+split rows, and normal use. Prior-head ARM and Intel reproduction is recorded
+above. The maintenance release stays on hold for final-head package evidence,
+signing, notarization, public-byte verification, Homebrew qualification, and
+publication authority. The published `v2026.10.07` assets are unchanged.
 
 ## Current State
 
@@ -176,7 +287,8 @@ Current merged readiness floor:
 
 Current maintenance candidate:
 - `VERSION` is `2026.10.10`, selecting the fixes merged after the October 7
-  release. Exact-head native release signoff is pending.
+  release. Prior-head native evidence passed; the final merged source requires
+  a fresh exact-head run before release action.
 
 Published October 7 source evidence:
 - `v2026.10.07` release source is validated, with full native guardrails,
@@ -253,3 +365,11 @@ GitHub publishes five verified signed/notarized assets, and Homebrew publishes
 an archive formula from those immutable URLs and hashes. The publication-age
 recovery gate is complete. Future source changes require their own validation;
 this signoff does not cover a later candidate.
+
+The `v2026.10.10` release source is validated, with the lower-severity
+current-source findings above accepted for this CLI maintenance candidate.
+The `v2026.10.10` release source is validated for publication. These are
+source-only markers required on the eventual tagged tree. They do not certify
+the final merged head's native packages or authorize a tag. Exact-head ARM and
+Intel reproduction, signing, notarization, public-byte verification, Homebrew
+qualification, and publication remain separate fail-closed gates.
