@@ -61,12 +61,19 @@
   The published October 7 source still contains the argument path. Current
   maintenance source bounds test-output warning retention and unfamiliar-output
   fallback before prompt clipping, removing the separately reproduced reducer
-  allocations while leaving raw child-output capture as a distinct limit. Next,
-  assess noncooperating JSONL writers, first-use log directory creation, and CI
-  artifact paths by current reachability before selecting another maintenance
-  boundary. A 64-process synthetic cold-start probe intermittently lost one
-  schema-failure log row after an `ENOENT` during open; all quarantine records
-  remained. Its exact failing syscall and baseline origin are unproven.
+  allocations while leaving raw child-output capture as a distinct limit.
+  The opt-in parity diagnostic now supplies the repository script path and
+  catalog arguments as Bash positional data. Owned synthetic paths with quotes
+  and command syntax no longer execute an injected marker, while the trusted
+  parity function still receives its arguments. Separately, a scoped macOS
+  syscall probe observed `openat` return `ENOENT` when creating the first
+  schema-failure log leaf through a valid held `.cx/cxlogs` descriptor; three
+  of ten 64-process cold batches lost one observational row, but all quarantine
+  records remained. This open path predates the JSONL record lock, and the
+  underlying cause and baseline failure rate are unproven. A private bounded
+  retry probe recovered 1,280 of 1,280 rows, but no source fix is selected yet.
+  Next, attribute the first-use failure and separately contain CI failure
+  artifacts; noncooperating JSONL writers remain an explicit limit.
   The `task run-all` accounting change includes selected planner blockers in
   final failed/blocked outcomes. Pending selections remain
   pending for retry; blocked `complete`/`in_progress` selections become `failed`,

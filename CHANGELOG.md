@@ -25,6 +25,10 @@ Notes:
 
 ### Fixed
 
+- The opt-in parity diagnostic now passes its repository script path and
+  catalog arguments to Bash as positional data. Repository directory names
+  containing shell syntax cannot add commands; trusted parity functions and
+  their argument boundaries remain available.
 - Test-output capture reduction now caps warning de-duplication at the retained
   head, clips retained lines before copying, and bounds unfamiliar output to a
   380-line head and 20-line tail above 1 MiB.
