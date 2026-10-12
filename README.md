@@ -1,6 +1,6 @@
 # XSHELF
 
-XSHELF is deterministic runtime tool for LLM-assisted repository work. It
+XSHELF is a deterministic runtime tool for LLM-assisted repository work. It
 wraps repo commands so assistants and automation see bounded, inspectable
 evidence instead of an unstructured terminal transcript.
 
