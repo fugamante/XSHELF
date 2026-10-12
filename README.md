@@ -10,8 +10,7 @@ captures command output, reduces context, enforces execution policy, validates
 structured responses, and keeps failures replayable.
 
 `CX` remains a supported compatibility command surface during the rename
-migration. `XSHELF/CX` is an independent open-source project and is not
-affiliated with or endorsed by OpenAI.
+migration.
 
 ## First Useful Output
 
