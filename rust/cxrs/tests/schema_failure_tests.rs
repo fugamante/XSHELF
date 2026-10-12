@@ -4,6 +4,43 @@ use common::*;
 use serde_json::Value;
 
 #[test]
+fn provider_timeout_logs() {
+    let repo = TempRepo::new("cxrs-it");
+    repo.write_mock_primary(
+        r#"#!/usr/bin/env bash
+cat >/dev/null
+sleep 2
+"#,
+    );
+    let out = repo.run_with_env(
+        &["next", "echo", "timeout"],
+        &[("CX_TIMEOUT_LLM_SECS", "1")],
+    );
+    assert!(
+        !out.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&out),
+        stderr_str(&out)
+    );
+    let runs = common::parse_jsonl(&repo.runs_log());
+    let row = runs
+        .iter()
+        .find(|v| v.get("tool").and_then(Value::as_str) == Some("cxrs_next"))
+        .expect("schema timeout run row");
+    assert_eq!(row["timed_out"], true);
+    assert_eq!(row["schema_ok"], false);
+    assert_eq!(row["provider_error"], true);
+    assert!(row["quarantine_id"].is_null());
+    let validate = repo.run(&["logs", "validate", "--strict"]);
+    assert!(
+        validate.status.success(),
+        "stdout={} stderr={}",
+        stdout_str(&validate),
+        stderr_str(&validate)
+    );
+}
+
+#[test]
 fn schema_failure_creates_quarantine_and_logs() {
     let repo = TempRepo::new("cxrs-it");
 

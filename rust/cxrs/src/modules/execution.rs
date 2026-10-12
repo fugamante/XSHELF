@@ -315,6 +315,7 @@ pub fn execute_task(spec: TaskSpec) -> Result<ExecutionResult, String> {
                             schema_reason: final_reason.as_deref(),
                             schema_name: Some(schema.name.as_str()),
                             quarantine_id: quarantine_id.as_deref(),
+                            provider_error: false,
                             policy_blocked: None,
                             policy_reason: None,
                         });
@@ -355,6 +356,7 @@ pub fn execute_task(spec: TaskSpec) -> Result<ExecutionResult, String> {
             schema_reason: None,
             schema_name: spec.schema.as_ref().map(|s| s.name.as_str()),
             quarantine_id: quarantine_id.as_deref(),
+            provider_error: false,
             policy_blocked: None,
             policy_reason: None,
         });

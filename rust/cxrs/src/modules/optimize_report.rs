@@ -222,7 +222,12 @@ impl Agg {
                     .or_insert(false);
                 if r.timed_out.unwrap_or(false) {
                     self.retry_task_timeout_seen.insert(task_id.clone(), true);
-                } else if attempt > 1 {
+                }
+                if attempt > 1
+                    && !r.timed_out.unwrap_or(false)
+                    && r.policy_blocked != Some(true)
+                    && r.schema_valid != Some(false)
+                {
                     self.retry_task_recovered.insert(task_id.clone(), true);
                 }
             }

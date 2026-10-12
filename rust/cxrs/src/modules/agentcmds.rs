@@ -197,6 +197,7 @@ pub fn cmd_capture(command: &[String], run_capture: CaptureRunner) -> i32 {
         schema_reason: None,
         schema_name: None,
         quarantine_id: None,
+        provider_error: false,
         policy_blocked: None,
         policy_reason: None,
     }) {

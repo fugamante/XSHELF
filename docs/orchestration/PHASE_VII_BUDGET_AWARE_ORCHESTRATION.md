@@ -288,6 +288,12 @@ Candidate metrics:
 - `resume_reuse_rate`
 - `structured_action_success_rate`
 
+The cost classifier treats a deep `doctor` recommendation as expensive.
+The expensive-action rate includes run-all summaries with backend fallback,
+where `doctor` is offered as a follow-up after the cheap scheduler check.
+This corrects the prior all-zero rate without changing the metric key or
+the cheap structured action gate for `task run-all`.
+
 Desired directional outcomes:
 
 - fewer diagnostic hops before action

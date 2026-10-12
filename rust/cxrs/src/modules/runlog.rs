@@ -36,6 +36,7 @@ pub struct RunLogInput<'a> {
     pub schema_reason: Option<&'a str>,
     pub schema_name: Option<&'a str>,
     pub quarantine_id: Option<&'a str>,
+    pub provider_error: bool,
     pub policy_blocked: Option<bool>,
     pub policy_reason: Option<&'a str>,
 }
@@ -293,6 +294,7 @@ pub fn log_primary_run(input: RunLogInput<'_>) -> Result<(), String> {
     row.schema_ok = input.schema_ok;
     row.schema_reason = input.schema_reason.map(|s| s.to_string());
     row.quarantine_id = input.quarantine_id.map(|s| s.to_string());
+    row.provider_error = input.provider_error.then_some(true);
     row.capture_provider = cap.capture_provider.clone();
     row.input_tokens = input_tokens;
     row.cached_input_tokens = cached;
