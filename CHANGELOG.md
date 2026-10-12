@@ -25,6 +25,16 @@ Notes:
 
 ## [Unreleased]
 
+### Fixed
+
+- Schema-backed provider transport failures now retain a `provider_error`
+  diagnostic without quarantining an absent model response; malformed model
+  output still follows the schema quarantine path. Retry accounting and its
+  concurrency regression checks now reflect the actual attempts and work.
+- Phase VII's expensive-action rate includes eligible backend fallback
+  summaries. Contract bundle validation detects metadata-only drift and adds
+  `drift.changed_metadata` to its JSON diagnostics; drift still exits nonzero.
+
 ## [v2026.10.10] - 2026-10-10 (candidate, not published)
 
 ### Fixed
