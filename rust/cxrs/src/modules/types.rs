@@ -345,6 +345,7 @@ pub struct ExecutionLog {
     pub schema_ok: bool,
     pub schema_reason: Option<String>,
     pub quarantine_id: Option<String>,
+    pub provider_error: Option<bool>,
     pub task_id: Option<String>,
     pub task_parent_id: Option<String>,
     pub input_tokens: Option<u64>,

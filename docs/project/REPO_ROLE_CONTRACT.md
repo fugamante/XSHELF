@@ -59,6 +59,10 @@ The `eval-lab` export profile is fixture-backed in XSHELF and must validate befo
 - fixture owner:
   - `rust/cxrs/tests/fixtures/eval_lab_bundle.json`
 
+Validation also compares top-level bundle metadata. JSON consumers should treat
+`drift.changed_metadata` as an additive diagnostic list; metadata-only drift now
+returns `ok: false` and exits nonzero.
+
 ## Immediate Operating Model
 
 Current model is selective upstream:

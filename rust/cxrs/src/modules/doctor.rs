@@ -313,7 +313,9 @@ fn next_action_kind(command: &str) -> &'static str {
 }
 
 pub(crate) fn next_cost_class(command: &str) -> &'static str {
-    if command_matches_cli(command, "task run-all")
+    if command_matches_cli(command, "doctor") {
+        "expensive"
+    } else if command_matches_cli(command, "task run-all")
         || command_matches_cli(command, "task check")
         || command_matches_cli(command, "scheduler")
     {
@@ -440,6 +442,29 @@ pub(crate) fn exec_context_value(
     })
 }
 
+fn has_expensive_recommendation(summary: &Value) -> bool {
+    let fallback = summary
+        .get("run_all_backend_fallback_rows")
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        > 0
+        && summary
+            .get("run_all_halted_remaining")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            == 0
+        && summary
+            .get("run_all_critical_errors")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            == 0;
+    fallback
+        || summary
+            .get("run_all_recommended_resume_point")
+            .and_then(Value::as_str)
+            .is_some_and(|cmd| next_cost_class(cmd) == "expensive")
+}
+
 pub(crate) fn phase7_metrics_value(limit: usize) -> Value {
     let mut recent = recent_run_all_sums(limit);
     let window_runs = recent.len() as u64;
@@ -456,12 +481,7 @@ pub(crate) fn phase7_metrics_value(limit: usize) -> Value {
     recent.reverse();
     let expensive_action_rows = recent
         .iter()
-        .filter(|summary| {
-            summary
-                .get("run_all_recommended_resume_point")
-                .and_then(Value::as_str)
-                .is_some_and(|cmd| next_cost_class(cmd) == "expensive")
-        })
+        .filter(|summary| has_expensive_recommendation(summary))
         .count() as u64;
     let mut repeat_diagnosis_rows = 0u64;
     let mut resume_reuse_rows = 0u64;
@@ -1687,6 +1707,21 @@ mod tests {
     use serde_json::Value;
 
     #[test]
+    fn doctor_cost_class() {
+        assert_eq!(super::next_cost_class("xshelf doctor"), "expensive");
+        assert_eq!(
+            super::next_cost_class("xshelf task run-all --status pending"),
+            "cheap"
+        );
+        assert_eq!(
+            super::next_cost_class("xshelf task run-all --dry-run --json"),
+            "cheap"
+        );
+        assert_eq!(super::next_cost_class("xshelf task check --json"), "cheap");
+        assert_eq!(super::next_cost_class("xshelf diag --json"), "moderate");
+    }
+
+    #[test]
     fn readiness_summary_cov() {
         let lines = readiness_summary_lines(&serde_json::json!({
             "recommended_mode": "mixed",
@@ -2151,6 +2186,7 @@ mod tests {
             "run_all_failure_pattern":"retryable_failure",
             "run_all_recommended_resume_point":"xshelf task check --json",
             "run_all_mode":"mixed",
+            "run_all_backend_fallback_rows":1,
             "run_all_failed":1
         });
         let prior = serde_json::json!({
@@ -2172,13 +2208,12 @@ mod tests {
         let window_runs = recent.len() as u64;
         let expensive_action_rows = recent
             .iter()
-            .filter(|summary| {
-                summary
-                    .get("run_all_recommended_resume_point")
-                    .and_then(Value::as_str)
-                    .is_some_and(|cmd| super::next_cost_class(cmd) == "expensive")
-            })
+            .filter(|summary| super::has_expensive_recommendation(summary))
             .count() as u64;
+        assert_eq!(expensive_action_rows, 1);
+        assert!(!super::has_expensive_recommendation(
+            &serde_json::json!({"run_all_backend_fallback_rows":1,"run_all_halted_remaining":1})
+        ));
         let mut repeat_diagnosis_rows = 0u64;
         let mut resume_reuse_rows = 0u64;
         let mut structured_action_total = 0u64;

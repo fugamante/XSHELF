@@ -294,6 +294,18 @@ fn string_array(value: Option<&Value>) -> Vec<String> {
 
 fn validate_manifest(profile: &str, specs: &[ContractSpec], fixture: &Value) -> Value {
     let manifest = manifest_value(profile, specs);
+    let current_meta = manifest.as_object().cloned().unwrap_or_default();
+    let fixture_meta = fixture.as_object().cloned().unwrap_or_default();
+    let metadata_keys: BTreeSet<String> = current_meta
+        .keys()
+        .chain(fixture_meta.keys())
+        .filter(|key| key.as_str() != "contracts")
+        .cloned()
+        .collect();
+    let changed_metadata: Vec<String> = metadata_keys
+        .into_iter()
+        .filter(|key| current_meta.get(key) != fixture_meta.get(key))
+        .collect();
     let current_contracts = manifest
         .get("contracts")
         .and_then(Value::as_object)
@@ -339,7 +351,8 @@ fn validate_manifest(profile: &str, specs: &[ContractSpec], fixture: &Value) -> 
     let ok = missing_actions.is_empty()
         && new_actions.is_empty()
         && changed_contract_versions.is_empty()
-        && changed_required_keys.is_empty();
+        && changed_required_keys.is_empty()
+        && changed_metadata.is_empty();
 
     json!({
         "ok": ok,
@@ -349,7 +362,8 @@ fn validate_manifest(profile: &str, specs: &[ContractSpec], fixture: &Value) -> 
             "missing_actions": missing_actions,
             "new_actions": new_actions,
             "changed_contract_versions": changed_contract_versions,
-            "changed_required_keys": changed_required_keys
+            "changed_required_keys": changed_required_keys,
+            "changed_metadata": changed_metadata
         }
     })
 }
@@ -424,6 +438,7 @@ pub fn cmd_contracts(app_name: &str, app_version: &str, args: &[String]) -> i32 
                 "new_actions",
                 "changed_contract_versions",
                 "changed_required_keys",
+                "changed_metadata",
             ] {
                 let items = string_array(drift.get(key));
                 println!("{key}: {}", items.len());
@@ -546,5 +561,27 @@ mod tests {
                 .map(Vec::len),
             Some(0)
         );
+    }
+
+    #[test]
+    fn metadata_drift_fails() {
+        let specs = super::profile_specs("eval-lab").unwrap();
+        for (key, value) in [
+            (
+                "bundle_version",
+                serde_json::json!("cx-contract-bundle.v999"),
+            ),
+            ("profile", serde_json::json!("full")),
+            ("unexpected", serde_json::json!(true)),
+        ] {
+            let mut fixture = load_fixture_manifest("eval-lab").unwrap();
+            fixture[key] = value;
+            let result = validate_manifest("eval-lab", &specs, &fixture);
+            assert_eq!(result["ok"], false, "{result}");
+            assert_eq!(
+                result["drift"]["changed_metadata"],
+                serde_json::json!([key])
+            );
+        }
     }
 }

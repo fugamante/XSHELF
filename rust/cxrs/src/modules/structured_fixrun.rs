@@ -105,6 +105,7 @@ fn log_schema_failure_and_exit(
         schema_reason: Some("schema_validation_failed"),
         schema_name: Some(schema_name),
         quarantine_id: result.quarantine_id.as_deref(),
+        provider_error: false,
         policy_blocked: None,
         policy_reason: None,
     });
@@ -139,6 +140,7 @@ fn log_fix_run(ctx: &FixRunCtx, policy_blocked: Option<bool>, policy_reason: Opt
         schema_reason: None,
         schema_name: Some(ctx.schema_name.as_str()),
         quarantine_id: None,
+        provider_error: false,
         policy_blocked,
         policy_reason,
     });

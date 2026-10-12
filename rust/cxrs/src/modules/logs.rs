@@ -58,11 +58,12 @@ pub fn validate_execution_log_row(row: &ExecutionLog) -> Result<(), String> {
         {
             return Err("schema failure missing schema_reason".to_string());
         }
-        if row
-            .quarantine_id
-            .as_ref()
-            .map(|s| s.trim().is_empty())
-            .unwrap_or(true)
+        if row.provider_error != Some(true)
+            && row
+                .quarantine_id
+                .as_ref()
+                .map(|s| s.trim().is_empty())
+                .unwrap_or(true)
         {
             return Err("schema failure missing quarantine_id".to_string());
         }
