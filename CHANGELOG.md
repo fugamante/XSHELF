@@ -27,6 +27,9 @@ Notes:
 
 ### Fixed
 
+- Updated the locked TLS dependencies to `rustls 0.23.46`,
+  `rustls-webpki 0.103.16`, and `webpki-root-certs 1.0.10` for the reported
+  RustSec advisories. Dependency requirements and application APIs are unchanged.
 - Schema-backed provider transport failures now retain a `provider_error`
   diagnostic without quarantining an absent model response; malformed model
   output still follows the schema quarantine path. Retry accounting and its
@@ -34,6 +37,14 @@ Notes:
 - Phase VII's expensive-action rate includes eligible backend fallback
   summaries. Contract bundle validation detects metadata-only drift and adds
   `drift.changed_metadata` to its JSON diagnostics; drift still exits nonzero.
+
+### Changed
+
+- Release validation no longer imposes a 14-day candidate or publication-age
+  deadline in CI, local/Docker compatibility, guardrails, or pre-tag checks.
+  Release notes, release-source validation, published-status documentation,
+  and publication evidence integrity remain required. Optional CLI age audits
+  remain available; the pre-tag age-limit environment override is retired.
 
 ## [v2026.10.10] - 2026-10-10 (candidate, not published)
 

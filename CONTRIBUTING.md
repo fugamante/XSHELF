@@ -75,10 +75,10 @@ cd ../..
 ./scripts/compat_docker.sh --quick
 ```
 
-`./scripts/guardrails.sh` includes the release-cadence gate and its Python unit
-tests so the default local path matches `cxrs-compat` CI. The gate runs
-`tools/release_check.py` with `--max-version-age-days 14` and
-`--require-published-status-docs`; the published-status check follows the newest
+`./scripts/guardrails.sh` includes release metadata integrity checks and their
+Python unit tests so the default local path matches `cxrs-compat` CI. The gate
+runs `tools/release_check.py` with `--require-published-status-docs` and no age
+deadline; the published-status check follows the newest
 final-release `vN.N.N` tag reachable from `HEAD`, not rolling `VERSION`.
 Run this strict check from a checkout with tags and sufficient history; a
 tagless or depth-limited checkout fails with an explicit fetch diagnostic.
@@ -133,7 +133,10 @@ state, and the entrypoint contract.
 - Do not introduce startup side effects.
 - Update `README.md`/`CHANGELOG.md` when behavior or contracts change.
 - When command entrypoints or command-facing Rust routing/help surfaces change, update `README.md`, `CHANGELOG.md`, and `docs/project/XSHELF_RENAME_MIGRATION.md` together.
-- Keep release cadence current: CI fails when `VERSION` is older than 14 days unless the PR is explicitly labeled `release-exception`.
+- Keep release metadata consistent: there is no candidate or publication-age
+  deadline. Prepare VERSION and notes for meaningful release scope; pre-tag
+  source validation and published-status checks remain required. See
+  `docs/project/RELEASE_CADENCE.md` for policy and optional operator age audits.
 - Keep Rust/file/integration guardrails green locally before push: `./scripts/guardrails.sh`, `./scripts/check_rs_max_lines.sh`, and `./scripts/check_integration_guardrails.sh`.
 - Keep third-party GitHub Actions pinned to full 40-character commit SHAs; validate with `./scripts/check_action_pins.sh .`.
 

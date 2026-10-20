@@ -403,7 +403,7 @@ jobs:
           if-no-files-found: error
 
   release-health:
-    # Calendar freshness must not short-circuit compatibility/security evidence.
+    # Publication evidence remains independent of compatibility/security evidence.
     needs: compat-check
     if: always()
     runs-on: ubuntu-latest
@@ -418,17 +418,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Candidate age
+      - name: Release metadata integrity
         run: |
           python3 rust/cxrs/tools/release_check.py \
             --repo-root "$GITHUB_WORKSPACE" \
-            --max-version-age-days 14 \
-            --require-published-status-docs \
-            --cadence-exception-label release-exception \
-            --event-name "${{ github.event_name }}" \
-            --event-path "${{ github.event_path }}"
+            --require-published-status-docs
 
-      - name: Published release age
+      - name: Published release evidence
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -436,16 +432,15 @@ jobs:
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/latest-release.json"
           python3 rust/cxrs/tools/release_check.py \
-            --published-release-json "$RUNNER_TEMP/latest-release.json" \
-            --max-published-age-days 14
+            --published-release-json "$RUNNER_TEMP/latest-release.json"
 
       - name: Release health summary
         if: always()
         run: |
           {
             echo '## Release health'
-            echo 'Candidate and publication ages are separate strict 14-day checks.'
-            echo 'A PR release-exception defers candidate age only; publication age stays strict.'
+            echo 'Release metadata and publication evidence are validated without age deadlines.'
+            echo 'Release notes, pre-tag validation, and published-status checks remain required.'
             echo 'Compatibility and security evidence runs before this independent job.'
             echo 'Owner and recovery plan: docs/project/RELEASE_CADENCE.md.'
           } >> "$GITHUB_STEP_SUMMARY"

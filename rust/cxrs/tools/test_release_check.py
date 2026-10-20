@@ -104,9 +104,59 @@ class ReleaseCheckTests(unittest.TestCase):
             result = subprocess.run(base, capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)
             self.assertIn("unable to read", result.stdout)
-            result = subprocess.run(base[:-2], capture_output=True, text=True)
+            result = subprocess.run(base[:-4] + ["--max-published-age-days", "14"],
+                                    capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)
-            self.assertIn("positive age limit", result.stdout)
+            self.assertIn("publication audit requires evidence", result.stdout)
+
+    def test_default_policy_accepts_old_metadata(self) -> None:
+        with temp_repo() as repo:
+            write_release_files(repo, published_tag="v2026.06.03", release_cut=True)
+            project = repo / "docs" / "project"
+            published = {name: (project / name).read_text()
+                         for name in ("ROADMAP.md", "RELEASE_READINESS.md")}
+            write_source_status_docs(repo, "v2026.06.03")
+            for name, text in published.items():
+                path = project / name
+                path.write_text(path.read_text() + "\n" + text)
+            commit_all(repo, "release source", days_ago=365)
+            create_tag(repo, "v2026.06.03")
+            evidence = repo / "publication.json"
+            evidence.write_text(json.dumps({"tag_name": "v2026.06.03", "draft": False,
+                "prerelease": False, "published_at": "2020-01-01T00:00:00Z"}))
+            command = ["python3", str(SCRIPT_PATH), "--repo-root", str(repo),
+                "--published-release-json", str(evidence), "--require-current-release-notes",
+                "--require-current-release-source", "--require-published-status-docs"]
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            for marker in ("release_notes_ok", "current_release_source_ok",
+                           "published_status_docs_ok", "publication_cadence_ok"):
+                self.assertIn(marker, result.stdout)
+            for path, needle, error in (
+                (repo / "CHANGELOG.md", "## [v2026.06.03]", "missing current release notes"),
+                (project / "ROADMAP.md", "`v2026.06.03` release source is validated;",
+                 "current release head is not ready to tag"),
+                (project / "ROADMAP.md", "`v2026.06.03` is published;",
+                 "published release marker is stale or missing"),
+            ):
+                with self.subTest(path=path, needle=needle):
+                    original = path.read_text()
+                    path.write_text(original.replace(needle, "removed marker"))
+                    result = subprocess.run(command, capture_output=True, text=True)
+                    path.write_text(original)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn(error, result.stdout)
+
+    def test_no_deadline_keeps_publication_integrity(self) -> None:
+        now = datetime(2026, 10, 20, tzinfo=timezone.utc)
+        valid = {"tag_name": "v2020.01.01", "draft": False, "prerelease": False,
+                 "published_at": "2020-01-01T00:00:00Z"}
+        self.assertIsNone(release_check.validate_publication(valid, now, 0))
+        for payload in ({}, {**valid, "draft": True}, {**valid, "prerelease": True},
+                        {**valid, "published_at": "2030-01-01T00:00:00Z"},
+                        {**valid, "published_at": "invalid"}):
+            with self.subTest(payload=payload):
+                self.assertIsNotNone(release_check.validate_publication(payload, now, 0))
 
     def test_fresh_version_passes_cadence_check(self) -> None:
         with temp_repo() as repo:

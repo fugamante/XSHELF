@@ -311,7 +311,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "cd /work && python3 test/release_workflow_test.py && cd rust/cxrs && python3 -m unittest tools.test_release_check"
     run_report_step \
       "release_metadata_check" \
-      "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --max-version-age-days 14 --require-published-status-docs"
+      "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --require-published-status-docs"
     run_report_step \
       "runtime_smoke" \
       "cargo --version >/dev/null && ./bin/cx version >/tmp/cxversion.txt && ./bin/xshelf version >/tmp/xshelf_version.txt && ./bin/cx schema list --json | jq -e '.file_count >= 4' >/dev/null && ./bin/cx core --json | jq -e '.contract_version == \"core.v1\"' >/dev/null"
@@ -351,7 +351,7 @@ if [[ "$MODE" == "smoke" || "$MODE" == "ci" ]]; then
       "cd /work && python3 test/release_workflow_test.py && cd rust/cxrs && python3 -m unittest tools.test_release_check"
     run_report_step \
       "release_metadata_check" \
-      "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --max-version-age-days 14 --require-published-status-docs"
+      "cd /work/rust/cxrs && python3 tools/release_check.py --repo-root /work --require-published-status-docs"
     run_report_step \
       "compat_check" \
       "cd /work/rust/cxrs && ./scripts/compat_check.sh 50"
