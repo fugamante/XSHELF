@@ -2,6 +2,12 @@
 
 ## Now (0-4 weeks)
 
+- October 20 dependency maintenance: the three locked TLS packages flagged
+  by the post-PR #138 Cargo audit are updated. Audit, deny-advisories, full
+  Rust tests, full host compatibility and Docker CI checks pass locally;
+  CLI/JSON contracts and advisory policy remain unchanged. Review and
+  authorized publication, followed by hosted CI acceptance, remain the
+  integration gates; existing release assets are not changed by this patch.
 - Release recovery completed October 7, 2026, ahead of the October 9 target:
   `v2026.10.07` publishes the frozen maintenance source with signed/notarized
   native archives, verified public bytes and Homebrew archive delivery. The

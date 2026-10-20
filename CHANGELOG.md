@@ -27,6 +27,10 @@ Notes:
 
 ### Fixed
 
+- Refresh locked TLS dependencies to rustls 0.23.46, rustls-webpki 0.103.16,
+  and webpki-root-certs 1.0.10 for RUSTSEC-2026-0346 through -0349,
+  RUSTSEC-2026-0382, and RUSTSEC-2026-0383. CLI, JSON, and contract versions
+  remain unchanged.
 - Schema-backed provider transport failures now retain a `provider_error`
   diagnostic without quarantining an absent model response; malformed model
   output still follows the schema quarantine path. Retry accounting and its
