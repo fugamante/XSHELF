@@ -227,7 +227,16 @@ fn parallel_lane_runs() {
     let repo = TempRepo::new("cxrs-it");
     repo.write_mock_primary(r#"#!/usr/bin/env bash
 cat >/dev/null
-sleep 2
+touch ".cx/parallel-ready-${CX_TASK_WORKER_ID}"
+for ((i=0; i<300; i++)); do
+  if [ -f .cx/parallel-ready-w1 ] && [ -f .cx/parallel-ready-w2 ]; then
+    break
+  fi
+  sleep 0.01
+done
+if [ ! -f .cx/parallel-ready-w1 ] || [ ! -f .cx/parallel-ready-w2 ]; then
+  exit 1
+fi
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
 printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input_tokens":2,"output_tokens":5}}'
 "#,
@@ -244,6 +253,8 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
             "primary",
             "--mode",
             "parallel",
+            "--resource-keys",
+            "repo:read",
         ]);
         assert!(add.status.success(), "stderr={}", stderr_str(&add));
     }

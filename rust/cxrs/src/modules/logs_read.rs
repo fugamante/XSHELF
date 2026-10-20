@@ -378,7 +378,7 @@ fn validate_schema_link(
         .get("schema_valid")
         .and_then(Value::as_bool)
         .unwrap_or(true);
-    if !enforced || valid {
+    if !enforced || valid || obj.get("provider_error").and_then(Value::as_bool) == Some(true) {
         return;
     }
     let qid = obj

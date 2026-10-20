@@ -844,6 +844,7 @@ fn log_convergence_summary(
         schema_reason: None,
         schema_name: None,
         quarantine_id: None,
+        provider_error: false,
         policy_blocked: None,
         policy_reason: None,
     });

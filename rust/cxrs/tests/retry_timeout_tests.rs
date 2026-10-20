@@ -57,17 +57,11 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":20,"cached_input
         .iter()
         .filter(|v| v.get("tool").and_then(Value::as_str) == Some("cxo"))
         .collect();
-    if rows.len() < 2 {
-        let any_timeout = rows
-            .iter()
-            .any(|v| v.get("timed_out").and_then(Value::as_bool) == Some(true));
-        assert!(
-            !any_timeout,
-            "expected retry rows after timeout for task {task_id}, got {} rows: {rows:?}",
-            rows.len(),
-        );
-        return;
-    }
+    assert_eq!(
+        rows.len(),
+        2,
+        "expected both attempts for task {task_id}: {rows:?}"
+    );
 
     let attempts: std::collections::BTreeSet<u64> = rows
         .iter()

@@ -444,7 +444,7 @@ fn compute_retry_stats(rows: &[Value]) -> RetryStats {
     let mut rows_with_retry_metadata = 0usize;
     let mut rows_after_retry = 0usize;
     let mut rows_after_retry_success = 0usize;
-    let mut task_timeout_seen: BTreeMap<String, bool> = BTreeMap::new();
+    let mut task_retry_seen: BTreeMap<String, bool> = BTreeMap::new();
     let mut task_recovered: BTreeMap<String, bool> = BTreeMap::new();
 
     for r in rows {
@@ -475,12 +475,17 @@ fn compute_retry_stats(rows: &[Value]) -> RetryStats {
         if let Some(tid) = task_id {
             let timed_out = obj.get("timed_out").and_then(Value::as_bool) == Some(true);
             if attempt.is_some() {
-                task_timeout_seen.entry(tid.clone()).or_insert(false);
+                task_retry_seen.entry(tid.clone()).or_insert(false);
                 task_recovered.entry(tid.clone()).or_insert(false);
             }
-            if timed_out {
-                task_timeout_seen.insert(tid, true);
-            } else if attempt.unwrap_or(0) > 1 {
+            if timed_out || attempt.unwrap_or(0) > 1 {
+                task_retry_seen.insert(tid.clone(), true);
+            }
+            if attempt.unwrap_or(0) > 1
+                && !timed_out
+                && obj.get("schema_valid").and_then(Value::as_bool) != Some(false)
+                && obj.get("policy_blocked").and_then(Value::as_bool) != Some(true)
+            {
                 task_recovered.insert(tid, true);
             }
         }
@@ -492,10 +497,10 @@ fn compute_retry_stats(rows: &[Value]) -> RetryStats {
         rows_after_retry_success as f64 / rows_after_retry as f64
     };
 
-    let tasks_with_retry = task_timeout_seen.iter().filter(|(_, saw)| **saw).count();
-    let tasks_retry_recovered = task_timeout_seen
+    let tasks_with_retry = task_retry_seen.iter().filter(|(_, saw)| **saw).count();
+    let tasks_retry_recovered = task_retry_seen
         .iter()
-        .filter(|(tid, saw_timeout)| **saw_timeout && task_recovered.get(*tid) == Some(&true))
+        .filter(|(tid, saw_retry)| **saw_retry && task_recovered.get(*tid) == Some(&true))
         .count();
     let tasks_retry_recovery_rate = if tasks_with_retry == 0 {
         0.0
@@ -512,6 +517,27 @@ fn compute_retry_stats(rows: &[Value]) -> RetryStats {
         tasks_retry_recovered,
         tasks_retry_recovery_rate,
         attempt_histogram,
+    }
+}
+
+#[cfg(test)]
+mod retry_stats_tests {
+    use super::compute_retry_stats;
+    use serde_json::json;
+
+    #[test]
+    fn retry_recovery_counts() {
+        let rows = vec![
+            json!({"task_id":"a","retry_attempt":2,"timed_out":false,"schema_valid":true}),
+            json!({"task_id":"b","retry_attempt":2,"timed_out":false,"schema_valid":false}),
+            json!({"task_id":"c","retry_attempt":2,"timed_out":false,"policy_blocked":true}),
+            json!({"task_id":"d","retry_attempt":1,"timed_out":true}),
+        ];
+        let stats = compute_retry_stats(&rows);
+        assert_eq!(stats.rows_after_retry, 3);
+        assert_eq!(stats.rows_after_retry_success, 1);
+        assert_eq!(stats.tasks_with_retry, 4);
+        assert_eq!(stats.tasks_retry_recovered, 1);
     }
 }
 

@@ -28,6 +28,12 @@ What that means:
 - runtime compatibility is intentionally still `cx`-shaped
 - the repo needs an explicit migration policy so future edits do not drift
 
+The current contract validation correction also checks bundle metadata and
+adds `drift.changed_metadata` to JSON diagnostics. It does not rename CLI
+aliases, `CX_*` configuration, or contract version markers. Provider failure
+logging adds a diagnostic marker while retaining the existing schema
+quarantine boundary.
+
 Log migration keeps `xshelf`, `xs`, and `cx` aliases, `CX_LOG_FILE`, `.cx/`,
 normalized fields, and summary labels. Filesystem compatibility changes require
 quiescent writers: symlink descendants are rejected, source/output aliases require

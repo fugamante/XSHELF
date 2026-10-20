@@ -42,7 +42,7 @@ pub(crate) fn log_execution_error(input: LogExecutionErrorInput<'_>) {
     let timed_out = err.timeout.is_some();
     let timeout_secs = err.timeout.as_ref().map(|v| v.timeout_secs);
     let command_label = err.timeout.as_ref().map(|v| v.label.as_str());
-    let _ = log_primary_run(RunLogInput {
+    if let Err(e) = log_primary_run(RunLogInput {
         tool: &spec.command_name,
         prompt,
         prompt_raw: Some(prompt_raw),
@@ -61,7 +61,10 @@ pub(crate) fn log_execution_error(input: LogExecutionErrorInput<'_>) {
         schema_reason: Some(err.message.as_str()),
         schema_name,
         quarantine_id: None,
+        provider_error: true,
         policy_blocked: None,
         policy_reason: None,
-    });
+    }) {
+        crate::cx_eprintln!("{}: failed to write run log: {e}", spec.command_name);
+    }
 }

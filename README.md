@@ -437,6 +437,10 @@ Export and validate the contract bundle used by the operations layer:
 ./bin/xshelf contracts validate --profile eval-lab --json
 ```
 
+Validation also compares bundle metadata. A metadata-only change is reported
+under the additive JSON diagnostic `drift.changed_metadata` and fails strict
+validation; existing command aliases and contract version markers remain.
+
 Local multi-repo compatibility checks auto-discover sibling `cx` and
 `cx-eval-lab` repositories when present:
 

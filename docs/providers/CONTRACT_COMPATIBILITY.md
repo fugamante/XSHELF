@@ -1,6 +1,6 @@
 # Contract Compatibility Policy
 
-Last updated: 2026-10-10
+Last updated: 2026-10-12
 
 ## Scope
 
@@ -72,6 +72,16 @@ The fix-run policy hardening changes command acceptance and execution. The
 `xshelf policy show --json` `rules` list adds launcher/interpreter and leading
 assignment restrictions. Its `policy-show.v1` marker, keys, and types remain
 unchanged; clients should treat rule entries as an extensible list.
+
+Schema-backed provider transport failures now emit an additive
+`provider_error` diagnostic without treating an absent model response as
+malformed output. Actual malformed output still enters schema quarantine.
+Retry accounting counts attempts and outcomes consistently; Phase VII's
+`expensive_action_rate` also counts eligible backend fallback summaries.
+Existing telemetry keys and types remain. Contract bundle validation now
+compares metadata as well as declared surfaces. Its JSON drift object adds
+`changed_metadata`; metadata-only drift makes `ok` false and returns the
+existing nonzero strict-validation exit status.
 
 ## Task Command Admission
 
