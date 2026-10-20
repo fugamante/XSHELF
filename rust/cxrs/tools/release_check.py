@@ -186,7 +186,7 @@ def main() -> int:
     ap.add_argument("--published-release-json", type=pathlib.Path,
                     help="fresh GitHub /releases/latest API response for publication audit")
     ap.add_argument("--max-published-age-days", type=int, default=0,
-                    help="fail when publication evidence is older than N days; no PR bypass")
+                    help="optional publication age limit in days (0 disables); no PR bypass")
     ap.add_argument(
         "--max-version-age-days",
         type=int,
@@ -234,8 +234,8 @@ def main() -> int:
     if args.max_published_age_days < 0:
         return fail("--max-published-age-days must be >= 0")
     if args.published_release_json is not None or args.max_published_age_days > 0:
-        if args.published_release_json is None or args.max_published_age_days <= 0:
-            return fail("publication audit requires evidence and a positive age limit")
+        if args.published_release_json is None:
+            return fail("publication audit requires evidence")
         try:
             payload = json.loads(args.published_release_json.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:

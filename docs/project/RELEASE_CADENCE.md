@@ -2,7 +2,8 @@
 
 ## Cadence
 
-- Target: weekly patch releases while in active development.
+- Plan releases around meaningful changes and readiness; there is no fixed
+  candidate or published-release age deadline.
 - Release trigger:
   - meaningful feature set merged, or
   - reliability/security fix requiring user visibility.
@@ -22,9 +23,9 @@ cd ../..
 ./scripts/check_action_pins.sh .
 ```
 
-`./scripts/guardrails.sh` covers the release-cadence age check and
+`./scripts/guardrails.sh` covers release metadata integrity and
 `tools.test_release_check`; local release validation stays strict. CI runs
-metadata integrity inside compatibility, then calendar-age checks in the
+metadata integrity inside compatibility, then publication evidence checks in the
 independent `release-health` job after compatibility completes. The pre-tag wrapper runs
 `release_check.py` with `--require-current-release-notes` and
 `--require-published-status-docs`; normal development can keep rolling notes
@@ -61,44 +62,50 @@ Validation preference for maintainers:
 
 ## Cadence Enforcement
 
-Candidate age and published-release age are separate controls. A VERSION update
-does not deliver a release to users. `compat-check (ubuntu-latest)` retains version
+As of October 20, 2026, candidate age and published-release age do not block
+development or release signoff. A VERSION update does not deliver a release to
+users. `compat-check (ubuntu-latest)` retains version
 consistency, notes/status integrity, and all code/security checks. `release-health`
-depends on compatibility with `if: always()`, so stale metadata cannot suppress
+depends on compatibility with `if: always()`, so metadata problems cannot suppress
 compatibility, shell regressions or dependency-security evidence. The health job
 does not turn a failed compatibility result green. Branch protection remains
 unchanged: compatibility is required; health remains a separate visible result.
-Release signoff and the pre-tag checklist still require fresh candidate metadata.
+Release signoff and the pre-tag checklist still require current release notes,
+validated release-source markers, and published-status documentation.
 
 At release planning and before closing a release pass, fetch fresh publication
-evidence and run the independent 14-day publication audit:
+evidence and run the independent publication integrity audit:
 
 ```bash
 release_audit_dir=$(mktemp -d "${TMPDIR:-/tmp}/xshelf-release-audit.XXXXXX")
 gh api repos/fugamante/XSHELF/releases/latest > "$release_audit_dir/latest.json" &&
 python3 rust/cxrs/tools/release_check.py \
-  --published-release-json "$release_audit_dir/latest.json" \
-  --max-published-age-days 14
+  --published-release-json "$release_audit_dir/latest.json"
 ```
 
-The weekly target remains the planning goal; 14 days is the escalation threshold.
 This audit is explicit and read-only locally, and runs in the separate CI health
 job using a fresh read-only GitHub API response. No network calls are added to
 local tests. Use a fresh API response each time; the validator checks its
 contents, not authenticity or retrieval time. Missing, malformed, draft,
-prerelease, future-dated, or overdue evidence fails. `release-exception` cannot
-bypass publication age. An overdue audit requires an owner, blocker, and dated
-recovery plan and stays red until publication. A tag alone cannot establish
-publication. Passing age does not establish asset integrity or release signoff.
+prerelease, or future-dated evidence fails regardless of age. A tag alone cannot
+establish publication. Passing this audit does not establish asset integrity or
+release signoff.
 
-- CI enforces release recency with `python3 rust/cxrs/tools/release_check.py --max-version-age-days 14`.
-- The check fails when `VERSION` has not changed for more than 14 days.
-- Temporary bypass is allowed only on pull requests carrying label `release-exception`.
-- Use `release-exception` only with explicit rationale and a follow-up release cut plan.
-- PR label addition/removal triggers fresh checks. It applies to candidate age
-  only, never publication age, compatibility/security checks, or pre-tag signoff.
-- Publication age runs even if candidate age fails. Failure summaries link to
-  this canonical recovery plan. No age failure uses `continue-on-error`.
+- CI, local/Docker compatibility, guardrails, and the pre-tag wrapper impose no
+  age limit. Do not advance VERSION solely because time passed.
+- `--max-version-age-days` and `--max-published-age-days` remain optional CLI
+  controls for explicit operator audits; both default to `0` (disabled).
+  The existing `release-exception` PR-label behavior is retained only for an
+  explicitly requested candidate-age audit; ordinary PRs need no age exception.
+- `XSHELF_RELEASE_MAX_VERSION_AGE_DAYS` is no longer read by the pre-tag wrapper.
+  Operators wanting an age audit must invoke the checker explicitly.
+- The release maintainer revisits release scope when meaningful fixes or features
+  land, release blockers change, or an incident requires user-visible delivery.
+  Record the selected scope and acceptance evidence in the roadmap/readiness
+  decision. Reassess this policy if release delays cause operational harm.
+
+The records below describe the superseded age policy and historical recovery;
+their deadlines do not apply to current work.
 
 ### Recovery outcome (2026-10-07)
 

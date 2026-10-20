@@ -5,9 +5,9 @@
 - Release recovery completed October 7, 2026, ahead of the October 9 target:
   `v2026.10.07` publishes the frozen maintenance source with signed/notarized
   native archives, verified public bytes and Homebrew archive delivery. The
-  explicit publication-age audit passes. Resume release preparation when
-  meaningful changes are selected or the cadence threshold needs review;
-  do not advance VERSION solely to reset either age clock.
+  publication integrity audit remains required. Resume release preparation when
+  meaningful changes are selected or release blockers change; there is no
+  calendar-age deadline. See `RELEASE_CADENCE.md` for the current policy.
 - Select `v2026.10.10` as a security maintenance candidate for the fixes merged
   after the October 7 release. The candidate is untagged and unpublished.
   On prior merged source `526e92eeacb5f437e78d49be5ba757e3eb7fbdf9`,

@@ -50,10 +50,9 @@ python3 "$REPO_ROOT/test/package_release_test.py"
 python3 "$REPO_ROOT/test/package_signing_test.py"
 python3 "$REPO_ROOT/test/reproduce_packages_test.py"
 
-echo "guardrails: python3 tools/release_check.py --repo-root \"$REPO_ROOT\" --max-version-age-days 14"
+echo "guardrails: release metadata integrity"
 python3 tools/release_check.py \
   --repo-root "$REPO_ROOT" \
-  --max-version-age-days 14 \
   --require-published-status-docs
 
 echo "guardrails: PASS"

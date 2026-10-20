@@ -35,6 +35,14 @@ Notes:
   summaries. Contract bundle validation detects metadata-only drift and adds
   `drift.changed_metadata` to its JSON diagnostics; drift still exits nonzero.
 
+### Changed
+
+- Release validation no longer imposes a 14-day candidate or publication-age
+  deadline in CI, local/Docker compatibility, guardrails, or pre-tag checks.
+  Release notes, release-source validation, published-status documentation,
+  and publication evidence integrity remain required. Optional CLI age audits
+  remain available; the pre-tag age-limit environment override is retired.
+
 ## [v2026.10.10] - 2026-10-10 (candidate, not published)
 
 ### Fixed

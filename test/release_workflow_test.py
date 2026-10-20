@@ -31,20 +31,34 @@ class ReleaseWorkflowTests(unittest.TestCase):
         health = job(WORKFLOW.read_text(), "release-health")
         self.assertIn("needs: compat-check", health)
         self.assertRegex(health, r"(?m)^    if: always\(\)$")
-        self.assertIn("--max-version-age-days 14", health)
-        self.assertIn("--max-published-age-days 14", health)
+        self.assertNotIn("--max-version-age-days", health)
+        self.assertNotIn("--max-published-age-days", health)
+        self.assertIn("--require-published-status-docs", health)
         self.assertNotIn("continue-on-error", health)
 
     def test_publication_runs_after_candidate_failure(self) -> None:
         health = job(WORKFLOW.read_text(), "release-health")
-        published = health.split("- name: Published release age", 1)[1]
+        published = health.split("- name: Published release evidence", 1)[1]
         published = published.split("- name: Release health summary", 1)[0]
         self.assertIn("if: always()", published)
         self.assertIn("set -euo pipefail", published)
         self.assertIn("gh api", published)
         self.assertNotIn("--cadence-exception-label", published)
 
-    def test_label_changes_refresh_exception_evidence(self) -> None:
+    def test_local_entrypoints_preserve_integrity(self) -> None:
+        for name in ("scripts/compat_local.sh", "scripts/compat_docker.sh",
+                     "rust/cxrs/scripts/guardrails.sh", "scripts/release_pretag_check.sh"):
+            with self.subTest(name=name):
+                text = (ROOT / name).read_text()
+                self.assertNotIn("--max-version-age-days", text)
+                self.assertNotIn("--max-published-age-days", text)
+                self.assertIn("--require-published-status-docs", text)
+        pretag = (ROOT / "scripts/release_pretag_check.sh").read_text()
+        self.assertIn("--require-current-release-notes", pretag)
+        self.assertIn("--require-current-release-source", pretag)
+        self.assertNotIn("XSHELF_RELEASE_MAX_VERSION_AGE_DAYS", pretag)
+
+    def test_workflow_keeps_read_only_permissions(self) -> None:
         text = WORKFLOW.read_text()
         self.assertIn("types: [opened, synchronize, reopened, labeled, unlabeled]", text)
         self.assertIn("contents: read", text)
