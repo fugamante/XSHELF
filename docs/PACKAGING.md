@@ -1,12 +1,32 @@
 # XSHELF Packaging
 
 This packaging track builds and validates the native XSHELF CLI distribution.
-The signed and notarized `v2026.10.07` macOS archives, checksum manifest,
-sanitized notarization evidence, and Homebrew archive formula are published.
-No new bottle is included in this release; August bottle provenance remains
-historical evidence in the tap.
+The signed and notarized `v2026.10.10` macOS archives, checksum manifest and
+sanitized notarization evidence are published. Production Homebrew delivery
+remains on `v2026.10.07` pending separate qualification and publication. No new
+bottle is included in this release; prior bottle provenance remains historical.
 
-## Published v2026.10.07 Assets
+## Published v2026.10.10 Assets
+
+Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.10.10
+
+Source: `2d44a8056982c62abce2889fb7902c98ffdaae0d`. Published October 25, 2026.
+
+| Asset | SHA-256 |
+|---|---|
+| `xshelf-2026.10.10-aarch64-apple-darwin.tar.gz` | `2a621c9dd3fc932ac380657f0153888c2c8a977a164726c1e0903bcede6e8e5b` |
+| `xshelf-2026.10.10-x86_64-apple-darwin.tar.gz` | `66999b0eac363095b029c76c712eba5737f2f79355133e56493dcff4896cf66c` |
+
+Both binaries have Developer ID Application signatures, hardened runtime and
+secure timestamps, with accepted Apple notarization. Native ARM and Intel
+signed-archive runtime, signature preservation, relocation and isolated Homebrew
+install/test, upgrade/test and uninstall passed. All five anonymous public
+assets match the sealed inventory. Tag-time embedded documentation is the
+immutable pre-publication snapshot. The production Homebrew formula and tap
+have not yet been updated to this version; local archive fixtures do not claim
+production public-URL qualification.
+
+## Historical v2026.10.07 Assets
 
 Release: https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07
 
