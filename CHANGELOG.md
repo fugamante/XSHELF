@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## Release Index
 
-- `v2026.10.10` (candidate, not tagged or published): Post-October 7 security and reliability fixes on merged main; native release validation is pending.
+- `v2026.10.10` (2026-10-25): Signed/notarized native maintenance release from `2d44a8056982c62abce2889fb7902c98ffdaae0d`; verified public assets, with production Homebrew delivery pending.
 - `v2026.10.07` (2026-10-07): Consolidated maintenance/security fixes and independent release-health checks.
 
 - `v2026.09.19` (superseded unpublished candidate): Included in `v2026.10.07`.
@@ -25,6 +25,10 @@ Notes:
 
 ## [Unreleased]
 
+No changes recorded.
+
+## [v2026.10.10] - 2026-10-25
+
 ### Fixed
 
 - Updated locked `tokio` from `1.52.3` to `1.53.3` for
@@ -40,18 +44,6 @@ Notes:
 - Phase VII's expensive-action rate includes eligible backend fallback
   summaries. Contract bundle validation detects metadata-only drift and adds
   `drift.changed_metadata` to its JSON diagnostics; drift still exits nonzero.
-
-### Changed
-
-- Release validation no longer imposes a 14-day candidate or publication-age
-  deadline in CI, local/Docker compatibility, guardrails, or pre-tag checks.
-  Release notes, release-source validation, published-status documentation,
-  and publication evidence integrity remain required. Optional CLI age audits
-  remain available; the pre-tag age-limit environment override is retired.
-
-## [v2026.10.10] - 2026-10-10 (candidate, not published)
-
-### Fixed
 
 - Default local, aggregate, and Docker smoke/CI compatibility reports now
   use private, descriptor-anchored `.cx/compat` writes that reject redirected
@@ -171,6 +163,14 @@ Notes:
   in the caller's working directory. Sequential `task run-all` now fails before
   task mutation or provider execution when its requested backend pool has no
   available member, matching parallel mode. Authorized backend fallback remains.
+
+### Changed
+
+- Release validation no longer imposes a 14-day candidate or publication-age
+  deadline in CI, local/Docker compatibility, guardrails, or pre-tag checks.
+  Release notes, release-source validation, published-status documentation,
+  and publication evidence integrity remain required. Optional CLI age audits
+  remain available; the pre-tag age-limit environment override is retired.
 
 ## [v2026.10.07] - 2026-10-07
 
