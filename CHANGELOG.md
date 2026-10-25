@@ -27,6 +27,9 @@ Notes:
 
 ### Fixed
 
+- Updated locked `tokio` from `1.52.3` to `1.53.3` for
+  `RUSTSEC-2026-0386` (Unix `AsyncFd` I/O safety). Dependency requirements,
+  dependency edges, application code, and advisory policy are unchanged.
 - Updated the locked TLS dependencies to `rustls 0.23.46`,
   `rustls-webpki 0.103.16`, and `webpki-root-certs 1.0.10` for the reported
   RustSec advisories. Dependency requirements and application APIs are unchanged.
