@@ -2,6 +2,12 @@
 
 ## Now (0-4 weeks)
 
+- The October 24 qualification freeze on
+  `df42b88536af7a96764771a6fdf3ce6644083157` encountered a fresh Cargo Audit
+  failure for `RUSTSEC-2026-0386` in locked `tokio 1.52.3`. The narrow
+  `tokio 1.53.3` repair requires its own review and validation before selecting
+  a replacement merged release head. Prior-head package evidence does not
+  transfer; signing, notarization, and publication remain on hold.
 - Release recovery completed October 7, 2026, ahead of the October 9 target:
   `v2026.10.07` publishes the frozen maintenance source with signed/notarized
   native archives, verified public bytes and Homebrew archive delivery. The

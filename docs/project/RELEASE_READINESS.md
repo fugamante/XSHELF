@@ -1,6 +1,6 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-10 (merged security boundary evidence reconciled)
+Snapshot date: 2026-10-24 (dependency repair pending release qualification)
 
 ## Selected maintenance candidate (2026-10-10)
 
@@ -13,6 +13,19 @@ source head. Signing, notarization, public-byte verification, and Homebrew
 qualification are separate release gates. Scoped source signoff accepts the
 lower-severity current-source issues listed below; publication remains on hold.
 The October 7 release is still the latest published release.
+
+### October 24 qualification hold
+
+The frozen source `df42b88536af7a96764771a6fdf3ce6644083157` failed the fresh
+Cargo Audit gate in workflow `40155975688`: locked `tokio 1.52.3` is affected
+by `RUSTSEC-2026-0386`. The narrow repair selects patched `tokio 1.53.3`
+without changing dependency requirements, dependency edges, or advisory policy.
+This repair does not establish exploitability in XSHELF or release readiness.
+Review and validate the repair, then select the replacement merged source and
+repeat its exact-head release qualification. Earlier source-signoff markers and
+native package evidence do not certify this later source. Tagging, Developer ID
+signing, notarization, public-byte verification, Homebrew qualification, and
+publication retain their separate evidence and authority gates.
 
 ### Current-source finding decision
 
