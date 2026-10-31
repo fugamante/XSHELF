@@ -20,6 +20,17 @@
   their own evidence and release decision. Tag-time documents remain a
   pre-publication snapshot; publication does not qualify a later main head.
 
+- Evidence efficiency lane (initial local implementation; maintainer-owned):
+  `evidence capture|import|show` provides explicit private retention,
+  deterministic Cargo/Xcode summaries, generic fallback, and bounded detail
+  retrieval. Canonical contract, privacy boundary, and reproducible synthetic
+  evidence: `docs/EVIDENCE.md`. Existing capture/run-log contracts and provider
+  defaults remain unchanged. The evidence supports selective opt-in for approved
+  noisy build/test output; concise commands and universal routing remain out of
+  scope. Revisit this lane only with naturally occurring native-failure output
+  or a materially different approved toolchain/output shape; do not rerun builds
+  solely for measurement.
+
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Signing preflight for a later maintenance source now requires the builder's
   exact v1 package member inventory before credential use. This closes the

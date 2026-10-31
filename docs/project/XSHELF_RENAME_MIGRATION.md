@@ -195,6 +195,10 @@ Current status:
 - `xshelf capture <cmd...>` is the canonical capture-only lane for noisy
   read-only evidence; `cxo` remains the compatibility/agentic interpretation
   lane when provider-backed natural-language output is explicitly desired
+- `xshelf evidence capture|import|show` is an opt-in, separately versioned
+  private-retention lane. It is available through `xshelf`, `xs`, and `cx`;
+  it does not change legacy `capture`, `CX_LOG_FILE`, or run-log behavior.
+  The canonical privacy and retrieval contract is `docs/EVIDENCE.md`.
 - Absolute-path `xshelf` invocations from another repository write telemetry to
   the caller repo by default; set `CX_LOG_FILE` when capture/budget/trace
   telemetry should live outside that repo. `CXLOG_ENABLED=0` suppresses run

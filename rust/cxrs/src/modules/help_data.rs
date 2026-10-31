@@ -2,6 +2,11 @@ use super::CommandHelp;
 
 pub const MAIN_COMMANDS: &[CommandHelp] = &[
     CommandHelp {
+        name: "evidence",
+        usage: "evidence <capture|import|show> --store DIR [...]",
+        description: "Opt-in private build/test summaries and bounded detail retrieval (JSON v1)",
+    },
+    CommandHelp {
         name: "version",
         usage: "version [--json]",
         description: "Print tool version",

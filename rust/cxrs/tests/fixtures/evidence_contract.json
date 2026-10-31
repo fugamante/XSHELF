@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "summary_keys": ["schema_version", "kind", "id", "exit_status", "summary", "retention"],
+  "summary_fields": ["profile", "text", "raw_chars", "summary_chars", "raw_lines", "selection_omitted_lines", "truncated"],
+  "detail_keys": ["schema_version", "kind", "id", "exit_status", "start", "total_lines", "returned_lines", "offset", "next_offset", "truncated", "next_start", "text"]
+}

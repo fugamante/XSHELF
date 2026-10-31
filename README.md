@@ -173,6 +173,9 @@ you can call this checkout explicitly:
 /path/to/xshelf/bin/xshelf capture <read-only-command>
 ```
 
+For opt-in build/test summaries with privately retained details, see
+[Optional capture evidence](docs/EVIDENCE.md). Existing `capture` behavior is unchanged.
+
 By default that records telemetry in the caller repository at
 `.cx/cxlogs/runs.jsonl`. To keep the caller repo untouched, set an explicit run
 log path and use the same value for follow-up budget/trace checks:
