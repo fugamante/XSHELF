@@ -2,31 +2,23 @@
 
 ## Now (0-4 weeks)
 
-- The October 24 qualification freeze on
-  `df42b88536af7a96764771a6fdf3ce6644083157` encountered a fresh Cargo Audit
-  failure for `RUSTSEC-2026-0386` in locked `tokio 1.52.3`. The narrow
-  `tokio 1.53.3` repair requires its own review and validation before selecting
-  a replacement merged release head. Prior-head package evidence does not
-  transfer; signing, notarization, and publication remain on hold.
+- `v2026.10.10` is published; the immutable tag preserves source
+  `2d44a8056982c62abce2889fb7902c98ffdaae0d`. Native ARM/Intel reproduction and
+  signed-archive lifecycle, Developer ID signing, Apple notarization and all five
+  anonymous public-byte comparisons passed. Release notes include the merged
+  telemetry, deadline-free release policy, TLS and Tokio repairs. Production
+  Homebrew delivery remains on `v2026.10.07` pending separate public-URL
+  qualification and tap authority. No new bottle is included.
 - Release recovery completed October 7, 2026, ahead of the October 9 target:
   `v2026.10.07` publishes the frozen maintenance source with signed/notarized
   native archives, verified public bytes and Homebrew archive delivery. The
   publication integrity audit remains required. Resume release preparation when
   meaningful changes are selected or release blockers change; there is no
   calendar-age deadline. See `RELEASE_CADENCE.md` for the current policy.
-- Select `v2026.10.10` as a security maintenance candidate for the fixes merged
-  after the October 7 release. The candidate is untagged and unpublished.
-  On prior merged source `526e92eeacb5f437e78d49be5ba757e3eb7fbdf9`,
-  independent review, host and Docker gates, and two-build native ARM and Intel
-  reproduction passed; Intel evidence is retained in workflow `38092777853`.
-  The next merged source head requires its own exact-head hosted, native, and
-  pre-tag checks. Developer ID signing, notarization, public-byte checks, and
-  Homebrew qualification remain separate release steps. Keep published status
-  anchored to `v2026.10.07`.
-- `v2026.10.10` release source is validated; this marker records a scoped
-  source decision for the reviewed candidate. It does not establish final-head
-  native packages, a tag, signature, notarization, public archive, or Homebrew
-  publication. Those gates require their own evidence after the signoff merge.
+- `v2026.10.10` release source is validated; qualification and public bytes
+  are bound to the frozen tagged source above. Later source changes require
+  their own evidence and release decision. Tag-time documents remain a
+  pre-publication snapshot; publication does not qualify a later main head.
 
 - Current readiness snapshot: `docs/project/RELEASE_READINESS.md`.
 - Signing preflight for a later maintenance source now requires the builder's
@@ -187,9 +179,10 @@
 
 ## Next (1-2 months)
 
-- Keep publication status anchored to `v2026.10.07`. Before tagging the
-  selected `v2026.10.10` candidate, run `./scripts/release_pretag_check.sh` and retain
-  source-specific native package evidence.
+- Keep publication status anchored to `v2026.10.10`. Next, qualify its immutable
+  public archive URLs for production Homebrew delivery and obtain distinct tap
+  publication authority. Preserve the Sequoia floor and existing installations;
+  local archive fixtures and a GitHub release do not establish tap availability.
 - Maintain the landed `XSHELF` rename as a compatibility migration, not a
   breaking command/env/state rename.
 - Keep dual-surface command docs/install defaults aligned so `xshelf` is

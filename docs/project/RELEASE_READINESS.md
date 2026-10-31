@@ -1,31 +1,40 @@
 # Release Readiness Snapshot
 
-Snapshot date: 2026-10-24 (dependency repair pending release qualification)
+Snapshot date: 2026-10-25 (publication and anonymous public bytes verified)
 
-## Selected maintenance candidate (2026-10-10)
+## Current publication
 
-`v2026.10.10` selects the merged post-October 7 security and reliability
-changes for release validation. It is not tagged or published. The candidate
+`v2026.10.10` is now published with verified signed/notarized ARM and Intel
+archives. Native signed-archive lifecycle and all five anonymous public-byte
+comparisons passed. Production Homebrew delivery remains on `v2026.10.07`
+pending its own qualification and publication. The exact frozen source and
+asset hashes are recorded under Current State below; the following dated
+sections retain the earlier source decisions as history.
+
+## Historical maintenance selection (2026-10-10)
+
+At selection, `v2026.10.10` selected the merged post-October 7 security and
+reliability changes for release validation. It was untagged and unpublished. The candidate
 has two-build native ARM and Intel package reproduction on prior merged source
 `526e92eeacb5f437e78d49be5ba757e3eb7fbdf9`, with Intel evidence in
 workflow `38092777853`. This evidence must be repeated on the final merged
 source head. Signing, notarization, public-byte verification, and Homebrew
 qualification are separate release gates. Scoped source signoff accepts the
 lower-severity current-source issues listed below; publication remains on hold.
-The October 7 release is still the latest published release.
+At selection, the October 7 release was the latest published release.
 
-### October 24 qualification hold
+### Historical October 24 qualification hold
 
 The frozen source `df42b88536af7a96764771a6fdf3ce6644083157` failed the fresh
 Cargo Audit gate in workflow `40155975688`: locked `tokio 1.52.3` is affected
 by `RUSTSEC-2026-0386`. The narrow repair selects patched `tokio 1.53.3`
 without changing dependency requirements, dependency edges, or advisory policy.
 This repair does not establish exploitability in XSHELF or release readiness.
-Review and validate the repair, then select the replacement merged source and
-repeat its exact-head release qualification. Earlier source-signoff markers and
-native package evidence do not certify this later source. Tagging, Developer ID
-signing, notarization, public-byte verification, Homebrew qualification, and
-publication retain their separate evidence and authority gates.
+PR #141 subsequently merged the repair as `2d44a8056982c62abce2889fb7902c98ffdaae0d`.
+That exact source passed host/Docker, hosted Linux/macOS security and CodeQL,
+native ARM/Intel reproduction, signing/notarization and signed-archive lifecycle.
+Anonymous public-byte comparisons passed after publication.
+Production Homebrew qualification and delivery remain separate pending gates.
 
 ### Current-source finding decision
 
@@ -275,6 +284,8 @@ The active work is contract stability, provenance, compatibility validation,
 release hygiene, and guarded opt-in expansion.
 
 Current merged readiness floor:
+- `v2026.10.10` is published, and its annotated tag resolves to immutable
+  source `2d44a8056982c62abce2889fb7902c98ffdaae0d`.
 - `v2026.10.07` is published, and its annotated tag resolves to immutable
   source `f3525c08f76d58dd441a19391277a6d2058e1dbc`.
 - `v2026.08.29` is published, and its annotated tag resolves to immutable
@@ -298,10 +309,10 @@ Current merged readiness floor:
 - README and public website first-output examples now use the same current
   `task-check.v1` contract shape.
 
-Current maintenance candidate:
-- `VERSION` is `2026.10.10`, selecting the fixes merged after the October 7
-  release. Prior-head native evidence passed; the final merged source requires
-  a fresh exact-head run before release action.
+Current release version:
+- `VERSION` is `2026.10.10`, published from the frozen source above. This is a
+  completed release, not a signoff for later source changes. The prior source
+  decisions below remain historical evidence for their named revisions.
 
 Published October 7 source evidence:
 - `v2026.10.07` release source is validated, with full native guardrails,
@@ -312,6 +323,19 @@ Published October 7 source evidence:
 - Tag-time documentation retains its pre-publication wording as history.
 
 Current published release:
+- The latest published version is `2026.10.10`, available at
+  https://github.com/fugamante/XSHELF/releases/tag/v2026.10.10.
+- GitHub published the immutable release at `2026-10-25T04:17:08Z`.
+  Its five assets are the two signed/notarized archives, `SHA256SUMS`, and one
+  sanitized Apple receipt per archive. Every anonymous public download matched
+  the sealed inventory. Both native signed-archive lifecycle gates passed.
+- `xshelf-2026.10.10-aarch64-apple-darwin.tar.gz`: `2a621c9dd3fc932ac380657f0153888c2c8a977a164726c1e0903bcede6e8e5b`
+- `xshelf-2026.10.10-x86_64-apple-darwin.tar.gz`: `66999b0eac363095b029c76c712eba5737f2f79355133e56493dcff4896cf66c`
+- Production Homebrew delivery remains on `v2026.10.07` pending public-URL
+  qualification and separately authorized tap publication. No new bottle is
+  included. Local/private archive fixtures do not establish production delivery.
+
+Historical October 7 published assets:
 - The latest published version is `2026.10.07`, available at
   https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07.
 - Published assets are exactly two native archives, `SHA256SUMS`, and a sanitized
@@ -379,10 +403,13 @@ an archive formula from those immutable URLs and hashes. The publication-age
 recovery gate is complete. Future source changes require their own validation;
 this signoff does not cover a later candidate.
 
-The `v2026.10.10` release source is validated, with the lower-severity
-current-source findings above accepted for this CLI maintenance candidate.
-The `v2026.10.10` release source is validated for publication. These are
-source-only markers required on the eventual tagged tree. They do not certify
-the final merged head's native packages or authorize a tag. Exact-head ARM and
-Intel reproduction, signing, notarization, public-byte verification, Homebrew
-qualification, and publication remain separate fail-closed gates.
+The `v2026.10.10` release source is validated, with the scoped lower-severity
+source decisions above retained for this CLI maintenance release.
+The `v2026.10.10` release source is validated for publication.
+The `v2026.10.10` release is cut. Its annotated tag preserves source
+`2d44a8056982c62abce2889fb7902c98ffdaae0d`; GitHub publishes five verified
+signed/notarized assets. Native ARM/Intel signed-archive qualification and
+anonymous public-byte comparisons passed. The frozen tagged documentation is
+its historical pre-publication snapshot. Production Homebrew qualification and
+tap publication remain pending and separately authorized; this release does
+not claim that the production formula has been updated.

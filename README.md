@@ -116,7 +116,7 @@ GNU suffix parsing.
 `fix-run` rejects. The policy is a command filter, not a sandbox for arbitrary tools.
 
 Developer ID signed and Apple-notarized macOS binary assets for
-[`v2026.10.07`](https://github.com/fugamante/XSHELF/releases/tag/v2026.10.07)
+[`v2026.10.10`](https://github.com/fugamante/XSHELF/releases/tag/v2026.10.10)
 are published for native Apple Silicon and Intel hosts. The archives provide a
 native `xshelf` executable,
 `xs` / `cx` aliases, packaged default schemas, and man pages without editing
@@ -127,7 +127,8 @@ shell profiles or installing `cxops`:
 python3 test/package_release_test.py
 ```
 
-Install the same signed release through the public source formula:
+The public source formula currently delivers `v2026.10.07`; Homebrew delivery of
+`v2026.10.10` remains pending. Install the currently published formula with:
 
 ```bash
 brew tap fugamante/tap
