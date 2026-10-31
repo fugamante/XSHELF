@@ -25,7 +25,19 @@ Notes:
 
 ## [Unreleased]
 
-No changes recorded.
+### Added
+
+- Opt-in `evidence capture|import|show` with private external storage,
+  deterministic Cargo/Xcode summaries, bounded Unicode detail paging, and a
+  separate JSON v1 contract. Synthetic replay measures complete response sizes
+  without rerunning builds or claiming token/cost savings. Existing `capture`
+  is unchanged.
+
+### Fixed
+
+- Evidence summaries no longer treat compiler warning/error policy flags as
+  diagnostic lines. Added reference-tokenizer replay covering necessary details,
+  failure evidence, concise-output overhead, and a sanitized external build log.
 
 ## [v2026.10.10] - 2026-10-25
 

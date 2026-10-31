@@ -73,6 +73,15 @@ The fix-run policy hardening changes command acceptance and execution. The
 assignment restrictions. Its `policy-show.v1` marker, keys, and types remain
 unchanged; clients should treat rule entries as an extensible list.
 
+## Opt-in Evidence Contract
+
+`xshelf evidence capture|import|show` emits a separate JSON v1 contract for
+explicitly retained private build/test output. It does not alter legacy
+`capture`, run-log rows, or any covered stable JSON surface above. Evidence
+consumers must check `schema_version: 1` and `kind` (`summary` or `detail`),
+and treat all stored output as potentially sensitive. Contract fixtures cover
+the new lane; breaking changes require a new schema version and migration notes.
+
 Schema-backed provider transport failures now emit an additive
 `provider_error` diagnostic without treating an absent model response as
 malformed output. Actual malformed output still enters schema quarantine.

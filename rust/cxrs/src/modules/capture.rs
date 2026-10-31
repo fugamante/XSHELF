@@ -11,3 +11,5 @@ pub use capture_budget::{
     clip_text_with_config,
 };
 pub use capture_system::run_system_command_capture;
+
+pub(crate) use capture_system::run_capture;

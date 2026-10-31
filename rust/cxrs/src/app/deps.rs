@@ -105,6 +105,7 @@ pub(super) fn native_deps() -> native_cmd::NativeDeps {
         cmd_cxo,
         cmd_cxol,
         cmd_cxcopy,
+        cmd_evidence: crate::evidence::handler,
         cmd_capture,
         cmd_fix,
         cmd_budget,

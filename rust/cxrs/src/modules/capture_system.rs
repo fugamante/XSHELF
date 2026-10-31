@@ -12,7 +12,7 @@ use super::capture_reduce::{
     ReductionMetadata, ReductionResult, native_reduce_output_with_metadata,
 };
 
-fn run_capture(command: &[String]) -> Result<(String, i32), String> {
+pub(crate) fn run_capture(command: &[String]) -> Result<(String, i32), String> {
     if command.is_empty() {
         return Err("missing command".to_string());
     }

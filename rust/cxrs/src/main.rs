@@ -35,6 +35,8 @@ mod diagnostics;
 mod doctor;
 #[path = "modules/error.rs"]
 mod error;
+#[path = "modules/evidence.rs"]
+mod evidence;
 #[path = "modules/execmeta.rs"]
 mod execmeta;
 #[path = "modules/execution.rs"]

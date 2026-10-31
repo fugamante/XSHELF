@@ -147,6 +147,7 @@ const NATIVE_NAMES: &[&str] = &[
     "cxol",
     "cxcopy",
     "capture",
+    "evidence",
     "fix",
     "budget",
     "log-tail",
