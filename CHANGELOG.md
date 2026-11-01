@@ -35,6 +35,10 @@ Notes:
 
 ### Fixed
 
+- Source installers now register the canonical `lib/cx.sh` shell loader instead
+  of the deprecated root `cx.sh` compatibility loader. Reinstall and uninstall
+  flows safely migrate or remove either registration without evaluating profile
+  content.
 - Evidence summaries no longer treat compiler warning/error policy flags as
   diagnostic lines. Added reference-tokenizer replay covering necessary details,
   failure evidence, concise-output overhead, and a sanitized external build log.
