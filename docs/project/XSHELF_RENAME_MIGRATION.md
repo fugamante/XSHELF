@@ -336,12 +336,14 @@ Public task JSON, environment variables, aliases, and telemetry are unchanged.
 ## Command and installer safety compatibility
 
 All three command aliases use the same parsed-argument execution policy and source
-installer registration. `CXFIX_RUN` still opts into executing suggestions;
+installer registration. New profile registrations source `lib/cx.sh`; the root
+`cx.sh` loader remains a deprecated compatibility entry point. Reinstall upgrades
+either exact registration without evaluating profile content, and uninstall removes
+both forms. `CXFIX_RUN` still opts into executing suggestions;
 `--unsafe`, `CXFIX_FORCE`, and `CX_UNSAFE` retain explicit override behavior.
 System-control and disk-management suggestions, including read-only variants,
 now require that override. Invalid quoting, empty commands, and leading environment
-assignments remain non-executable. Profile registration upgrades replace the exact
-legacy registration without evaluating it; uninstall removes both supported forms.
+assignments remain non-executable.
 
 ## Task provider trust compatibility
 

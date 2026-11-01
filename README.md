@@ -98,6 +98,9 @@ managed separately.
 Source installers quote checkout and installation paths as literal shell operands.
 Reinstalling replaces the matching legacy registration without loading it, and
 uninstalling removes the matching registration while preserving other profile text.
+New registrations source `lib/cx.sh`; the root `cx.sh` compatibility loader is
+deprecated. Reinstalling migrates either registration to the canonical loader,
+and uninstalling removes both forms.
 
 Leak scanning reads filenames as literal operands, scans tracked symlink text
 without following it, and fails when tracked content cannot be inspected.
