@@ -14,11 +14,13 @@ class InstallerSecurity(unittest.TestCase):
     def fixture(self, base, name):
         repo = base / name
         (repo / "bin").mkdir(parents=True)
+        (repo / "lib").mkdir()
         (repo / "scripts").mkdir()
         for script in ("bin/cx-install", "bin/cx-uninstall", "scripts/xshelf_suite_install.sh"):
             shutil.copy2(ROOT / script, repo / script)
         # No docs/man is copied: tests cannot enter the global manpage installer.
         (repo / "cx.sh").write_text('printf "%s\\n" "$BASH_SOURCE" > "$SOURCE_RESULT"\n')
+        (repo / "lib/cx.sh").write_text('printf "%s\\n" "$BASH_SOURCE" > "$SOURCE_RESULT"\n')
         home = base / "home"
         home.mkdir(exist_ok=True)
         env = {
@@ -40,7 +42,7 @@ class InstallerSecurity(unittest.TestCase):
     def check_source(self, profile, repo, base, env):
         self.run_shell(["-n", profile], base, env)
         self.run_shell(["-c", 'source "$1"', "fixture", profile], base, env)
-        self.assertEqual((base / "sourced").read_text(), str(repo / "cx.sh") + "\n")
+        self.assertEqual((base / "sourced").read_text(), str(repo / "lib/cx.sh") + "\n")
         self.assertFalse((base / "SENTINEL").exists())
         self.assertFalse((base / "SECOND").exists())
 
@@ -73,7 +75,7 @@ class InstallerSecurity(unittest.TestCase):
                 before = "export RETAINED=before\n"
                 after = "# unrelated final content"
                 legacy = 'source "' + str(repo).rstrip("\n") + '/cx.sh"'
-                literal = "'" + str(repo / "cx.sh").replace("'", "'\\''") + "'"
+                literal = "'" + str(repo / "lib/cx.sh").replace("'", "'\\''") + "'"
                 safe = "source " + literal
                 profile.write_text(before + legacy + "\n" + after)
                 self.run_shell([repo / "bin/cx-install"], base, env)

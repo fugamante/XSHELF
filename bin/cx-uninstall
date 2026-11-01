@@ -22,8 +22,10 @@ quote_literal() {
   printf "%s'" "$value"
 }
 
-LINE="source $(quote_literal "${REPO_ROOT}/cx.sh")"
-LEGACY_LINE="source \"${REPO_ROOT}/cx.sh\""
+LINE="source $(quote_literal "${REPO_ROOT}/lib/cx.sh")"
+LEGACY_LINE="source \"${REPO_ROOT}/lib/cx.sh\""
+LEGACY_ROOT_LINE="source $(quote_literal "${REPO_ROOT}/cx.sh")"
+LEGACY_ROOT_QUOTED="source \"${REPO_ROOT}/cx.sh\""
 # The previous pwd capture stripped trailing newlines from checkout paths.
 LEGACY_ROOT="$(printf '%s' "$REPO_ROOT")"
 LEGACY_TRIM="source \"${LEGACY_ROOT}/cx.sh\""
@@ -36,7 +38,7 @@ filter_registration() {
   registration_seen=0
   while [[ -n "$remaining" ]]; do
     matched=0
-    for registration in "$LINE" "$LEGACY_LINE" "$LEGACY_TRIM"; do
+    for registration in "$LINE" "$LEGACY_LINE" "$LEGACY_ROOT_LINE" "$LEGACY_ROOT_QUOTED" "$LEGACY_TRIM"; do
       if [[ "$remaining" == "$registration" ]]; then
         remaining=""
         ending=""
